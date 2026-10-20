@@ -1,0 +1,128 @@
+* { box-sizing: border-box; }
+
+@font-face {
+  font-family: "Albert Sans";
+  src: url("/fonts/AlbertSans-VariableFont_wght.ttf") format("truetype");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 100 900;
+}
+
+@font-face {
+  font-family: "Albert Sans";
+  src: url("/fonts/AlbertSans-Italic-VariableFont_wght.ttf") format("truetype");
+  font-display: swap;
+  font-style: italic;
+  font-weight: 100 900;
+}
+
+@font-face {
+  font-family: "JiduMono Pro";
+  src: url("/fonts/JiduMonoPro-Regular.otf") format("opentype");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  font-family: var(--sans);
+  color: var(--text);
+  background: var(--bg-app);
+  font-size: var(--font-size-14, 14px);
+  line-height: 125%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* App-wide native scrollbar baseline, including body-portaled dialogs. Keep
+   this low-specificity: components may use narrower or hidden rails. New
+   overflow containers automatically get a 6px rail; no per-page opt-in.
+   Document styles do not cross into user-content iframes. */
+@media (forced-colors: none) {
+  :where(*)::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  :where(*)::-webkit-scrollbar,
+  :where(*)::-webkit-scrollbar-track,
+  :where(*)::-webkit-scrollbar-track-piece,
+  :where(*)::-webkit-scrollbar-corner,
+  :where(*)::-webkit-scrollbar-button {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+
+  :where(*)::-webkit-scrollbar-thumb {
+    background-color: var(--text-faint);
+    border-radius: var(--radius-pill);
+  }
+
+  /* Firefox fallback. Applying scrollbar-color in Chromium would override
+     existing component WebKit thumb/size styles, so leave those intact. */
+  @supports not selector(::-webkit-scrollbar) {
+    :where(*) {
+      scrollbar-width: thin;
+    }
+    :where(html) {
+      scrollbar-color: var(--text-faint) transparent;
+    }
+  }
+}
+
+.numeric,
+code,
+kbd,
+pre,
+.monospace {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Global accessibility primitive; visual component styles do not belong here. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The boot shell uses the shared Loom vector loop; it inherits the app palette. */
+.bezier-loading-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  color: var(--text-muted);
+  /* Opaque base (not the see-through veil) so the pastel app-wash corner
+     blobs don't bleed through the loading screen. */
+  background: var(--bg-app);
+  font: 500 var(--font-size-13)/125% var(--sans);
+}
+
+.bezier-loading-mark {
+  width: 112px;
+  height: auto;
+  color: var(--text-strong);
+}
+.bezier-loading-label { color: var(--text-muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

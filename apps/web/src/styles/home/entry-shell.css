@@ -1,0 +1,687 @@
+/* ============================================================
+   Entry layout — header-less variant
+   - Single-row shell (`entry-shell--no-header`)
+   - Left icon-only nav rail (`entry-nav-rail`)
+   - Center scroll container (`entry-main--scroll`)
+   ============================================================ */
+
+/* Header-less shell variant. The rail's logo replaces the chrome
+   brand and a floating top-right control replaces the chrome
+   actions, so the entry view does not render `AppChromeHeader`. */
+.entry-shell--no-header {
+  grid-template-rows: 1fr;
+  --entry-rail-width: var(--home-ref-sidebar-width, 264px);
+  /* Collapsed width: a 56px strip fits the 34px glyph button plus the panel's
+     10px side margins and its 1px ring on both edges. macOS desktop widens
+     this so traffic lights (x≈12..64) stay inside the rail column. */
+  --entry-rail-strip: var(--home-ref-sidebar-rail-width, 64px);
+  --entry-rail-traffic-height: 0px;
+}
+
+/* On the entry route the global tabs still span the titlebar, but the sidebar
+   owns the left rail and its floating preview. Keep the tabs above the page
+   content while allowing the rail's pin control to receive the click. */
+.workspace-shell:has(.entry-shell--no-header) .workspace-tabs-chrome {
+  z-index: 20;
+}
+.workspace-shell:has(.entry-shell--no-header .entry:not(.entry--rail-open))
+  .workspace-tabs-chrome {
+  clip-path: inset(0 0 0 var(--home-ref-sidebar-rail-width, 64px));
+}
+.workspace-shell:has(.entry-shell--no-header .entry--rail-open)
+  .workspace-tabs-chrome,
+.workspace-shell:has(.entry-shell--no-header .entry-nav-rail.is-preview-open)
+  .workspace-tabs-chrome {
+  clip-path: inset(0 0 0 var(--home-ref-sidebar-width, 264px));
+}
+
+/* Entry view collapses the rail to a narrow icon strip (VS Code / Craft-style)
+   rather than removing it: the grid's first column animates between the strip
+   width and the full rail width, so the destinations never leave the screen.
+   Expanded = labels + team block + account card; collapsed = glyphs only. */
+.entry-shell--no-header .entry {
+  grid-template-columns: var(--entry-rail-strip, 56px) minmax(0, 1fr);
+  /* Both directions animate at the same speed now — there is no row cascade to
+     wait for, since collapsing only cross-fades the text layers in place. */
+  transition: grid-template-columns var(--home-ref-sidebar-preview-duration, 160ms)
+    var(--home-ref-sidebar-preview-ease, cubic-bezier(0.22, 1, 0.36, 1));
+  /* Translucent over the app-wash pastel ground (app-wash.css): the frosted
+     rail and content cards float on the wash instead of a flat tone. */
+  background: var(--home-ref-sidebar-surface, #f4f4f6);
+}
+.entry-shell--no-header .entry.entry--rail-open {
+  transition: grid-template-columns var(--home-ref-sidebar-preview-duration, 160ms)
+    var(--home-ref-sidebar-preview-ease, cubic-bezier(0.22, 1, 0.36, 1));
+  grid-template-columns: var(--entry-rail-width, 56px) minmax(0, 1fr);
+}
+
+/* Left rail — docked column. Lives in the grid's first track; collapsed the
+   track is 0-wide so the rail is clipped away, expanded it occupies the rail
+   width. */
+.entry-nav-rail {
+  /* Fill the grid track (strip width collapsed → rail width expanded) rather
+     than a fixed width, so the panel tracks the track instead of overflowing
+     it. The rail box itself is a transparent container; the visible surface is
+     the floating `.entry-nav-rail__panel` inside it. */
+  width: 100%;
+  min-width: 0;
+  border-right: 0;
+  background: var(--home-ref-sidebar-surface, #f1f1f3);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  position: relative;
+  /* The app chrome sits at z=120. The rail owns the first 64px even across the
+     titlebar, and its floating preview must cover the tabs it floats above. */
+  z-index: 130;
+  /* The rail is now always on screen (collapsed = 56px strip), so it is always
+     interactive — the old `pointer-events: none` default existed only because
+     a 0-width collapsed track still left the panel hit-testable. */
+  pointer-events: auto;
+  font-family: var(--home-ref-sidebar-font);
+  isolation: isolate;
+  /* Hit testing must reach the floating panel's top-right control in the same
+     frame that preview mode starts. Animating this width leaves a temporary
+     gap between the pointer and the still-growing rail, which fires
+     `mouseleave` before the control can be reached. The panel itself still
+     fades through `::before` and its content transitions below. */
+  transition: none;
+}
+
+/* Animate UI's provider participates in state/tooltip handling, while DA's
+   existing entry grid remains the one layout owner. `display: contents` keeps
+   the registry wrapper from inserting a second full-viewport flex layout. */
+.entry-animate-sidebar__provider {
+  --sidebar: var(--home-ref-sidebar-surface, #f1f1f3);
+  --sidebar-foreground: var(--home-ref-sidebar-primary-text, rgba(0, 0, 0, 0.7));
+  --sidebar-primary: var(--text-strong, #111);
+  --sidebar-primary-foreground: var(--bg, #fff);
+  --sidebar-accent: var(--home-ref-sidebar-nav-active, rgba(0, 0, 0, 0.06));
+  --sidebar-accent-foreground: var(--home-ref-foreground, #000);
+  --sidebar-border: transparent;
+  --sidebar-ring: var(--accent, #2563eb);
+  display: contents;
+}
+.entry-animate-sidebar__root,
+.entry-animate-sidebar__motion-layer {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  background: transparent;
+  color: inherit;
+}
+.entry-animate-sidebar__motion-layer > [data-slot='motion-highlight'] {
+  /* Animate UI renders the shared highlight beside the sidebar root. DA's
+     opaque material panel is positioned later in that same stacking context,
+     so the library's default z-index: 0 leaves a correctly animated highlight
+     hidden behind the panel. Lift only the highlight layer; each
+     HighlightItem remains at z-index: 1 and therefore keeps icons/text above
+     the moving fill. */
+  z-index: 1 !important;
+  border: 0;
+  border-radius: var(--radius-md, 8px);
+  background: var(--sidebar-accent);
+  box-shadow: none;
+  pointer-events: none;
+}
+.entry-animate-sidebar__motion-layer [data-slot='motion-highlight-item-container'],
+.entry-animate-sidebar__motion-layer [data-slot='motion-highlight-item'] {
+  /* The shared fill is z=1 so it clears DA's opaque panel. Keep every native
+     HighlightItem above it as one unit, including nested project thumbnails
+     and labels rendered through SidebarMenuSubButton/asChild. */
+  position: relative;
+  z-index: 2 !important;
+}
+.entry-animate-sidebar__motion-layer [data-slot='sidebar-menu-sub'] {
+  /* SidebarMenuSub ships with translate-x-px, which creates a new stacking
+     context around the whole project list. Raise that context as well;
+     otherwise no z-index on an individual thumbnail/title can escape it and
+     the shared hover fill paints across the row content. */
+  position: relative;
+  z-index: 2;
+}
+
+/* Keep Animate UI's native row geometry and shared moving highlight. These
+   declarations only bridge DA's semantic colours because the parallel global
+   token pass intentionally does not own component-specific sidebar tokens. */
+.entry-animate-sidebar__nav-button {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--sidebar-foreground);
+  font-family: var(--home-ref-sidebar-font);
+}
+.entry-animate-sidebar__nav-button[data-active='true'] {
+  background: var(--sidebar-accent);
+  color: var(--sidebar-accent-foreground);
+}
+.entry-animate-sidebar__nav-button:focus-visible {
+  outline: 2px solid var(--sidebar-ring);
+  outline-offset: 1px;
+}
+.entry-animate-sidebar__tooltip {
+  border: 0;
+  background: var(--text-strong, #111);
+  box-shadow: none;
+  color: var(--bg, #fff);
+}
+.entry-animate-sidebar__tooltip [data-slot='tooltip-arrow'] {
+  fill: var(--text-strong, #111);
+}
+.entry-nav-rail::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 4px auto 4px 4px;
+  width: var(--home-ref-sidebar-width, 264px);
+  box-sizing: border-box;
+  border: 0.5px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--home-ref-sidebar-surface, #efeff2) 98%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(120%);
+  backdrop-filter: blur(18px) saturate(120%);
+  box-shadow: 0 12px 32px rgba(17, 17, 19, 0.16), 0 2px 8px rgba(17, 17, 19, 0.08);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--home-ref-sidebar-preview-duration, 160ms)
+    var(--home-ref-sidebar-preview-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+.entry:not(.entry--rail-open) .entry-nav-rail.is-preview-open {
+  width: calc(
+    var(--home-ref-sidebar-width, 264px) +
+      var(--home-ref-sidebar-preview-edge-hit, 8px)
+  );
+  z-index: 150;
+  background: transparent;
+}
+.entry:not(.entry--rail-open) .entry-nav-rail.is-preview-open::before {
+  opacity: 1;
+}
+.entry:not(.entry--rail-open) .entry-nav-rail.is-preview-open .entry-nav-rail__traffic,
+.entry:not(.entry--rail-open) .entry-nav-rail.is-preview-open .entry-nav-rail__panel {
+  width: var(--home-ref-sidebar-width, 264px);
+  background: transparent;
+}
+
+/* macOS traffic-light reserve: empty drag strip at the window's top-left so
+   the close/minimize/zoom circles never sit on the DA mark or the collapse
+   control. Height is 0 in the browser; desktop darwin sets it to 40px. */
+.entry-nav-rail__traffic {
+  flex: 0 0 var(--entry-rail-traffic-height, 0px);
+  height: var(--entry-rail-traffic-height, 0px);
+  width: 100%;
+  -webkit-app-region: drag;
+  pointer-events: auto;
+  background: var(--home-ref-sidebar-surface, #f1f1f3);
+}
+/* In floating-preview mode the traffic-light strip is part of the route from
+   the collapsed rail to the top-right pin control. Electron treats `drag` as a
+   native non-client region and can emit mouseleave while the pointer is still
+   visibly inside the sidebar, so temporarily return this strip to the web hit
+   map. Docked and collapsed states keep normal window dragging. */
+.entry:not(.entry--rail-open)
+  .entry-nav-rail.is-preview-open
+  .entry-nav-rail__traffic {
+  -webkit-app-region: no-drag;
+}
+/* The whole sidebar reads as one floating layer: the content sits in a panel
+   inset from the grid-track edges (margin) with rounded corners + elevation,
+   instead of a flush docked column separated by divider lines. */
+.entry-nav-rail__panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  /* No explicit width: as a stretch flex child it fills the rail minus its
+     horizontal margins (so margin insets it without overflowing the track). */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 0;
+  /* Top margin 0 by default; the entry route overrides it with
+     `--entry-rail-top-inset` now that the rail starts at the window's top edge
+     instead of below the tab chrome. */
+  margin: 0;
+  /* Bottom padding trimmed 12 → 5 so the account row's gap to the panel's
+     bottom edge (trigger padding 4 + footer padding 6 + 5 + 1px stroke = 16px)
+     matches its 16px left/right inset. */
+  padding: 0;
+  position: relative;
+  /* Craft-style milky frost (material.css thin tier): soft white surface over
+     the wash/wallpaper with a saturated blur, instead of fully clear glass. */
+  /* White frost: pure-white base at 65% alpha, so the card reads white but
+     keeps the frosted-glass translucency (the panel's material-thin backdrop
+     blur below does the frosting). */
+  --rail-surface: var(--home-ref-sidebar-surface, #f1f1f3);
+  background: var(--rail-surface);
+  -webkit-app-region: no-drag;
+  -webkit-backdrop-filter: var(--material-thin-backdrop);
+  backdrop-filter: var(--material-thin-backdrop);
+  /* The stroke is the gradient ring painted by ::after below — the real
+     border stays transparent so the box metrics don't change. */
+  border: 0;
+  border-radius: 0;
+  /* Whisper elevation: the floating panel only needs a hairline lift — the
+     md shadow read as a wide gray halo on the light ground. */
+  box-shadow: none;
+}
+/* Gradient rim, Craft-style: a light edge that is brightest along the top
+   and fades down the sides (glass-refract ring tokens, so dark mode halves
+   it automatically). Painted as a masked overlay so only the 1px ring shows
+   and the frosted surface underneath stays untouched. */
+.entry-nav-rail__panel::after {
+  content: none;
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    var(--glass-refract-ring-top) 0%,
+    var(--glass-refract-ring-edge) 42%,
+    var(--glass-refract-ring-edge) 68%,
+    var(--glass-refract-ring-bottom) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+/* Material spec fallbacks: drop the translucency to a solid per-theme surface
+   when the user reduces transparency or the browser lacks backdrop-filter. */
+@media (prefers-reduced-transparency: reduce) {
+  .entry-nav-rail__panel {
+    --rail-surface: var(--bg);
+    background: var(--rail-surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-color: color-mix(in srgb, var(--border) 66%, transparent);
+  }
+  .entry-nav-rail__panel::after {
+    display: none;
+  }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .entry-nav-rail__panel {
+    --rail-surface: var(--bg);
+    background: var(--rail-surface);
+    border-color: color-mix(in srgb, var(--border) 66%, transparent);
+  }
+  .entry-nav-rail__panel::after {
+    display: none;
+  }
+}
+/* ── Brand header ─────────────────────────────────────────────────────────
+   The rail's own top row: product mark + wordmark on the left, the collapse
+   control on its right. Giving the sidebar its own brand identity is what lets
+   it start at the window top as a self-contained column, instead of reading as
+   a panel hanging below the tab chrome's logo. */
+.entry-nav-rail__brand {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  flex: 0 0 auto;
+  margin-top: 12px;
+  /* Left inset matches the nav buttons' text origin (group padding 10 + button
+     padding 10 = 20) minus the mark's own 20px box, so the wordmark and the
+     labels below it share one optical left edge. */
+  height: var(--home-ref-sidebar-brand-row-height, 40px);
+  min-height: var(--home-ref-sidebar-brand-row-height, 40px);
+  padding: 0 2px 0 var(--home-ref-sidebar-leading-inset, 21px);
+}
+.entry-nav-rail__brand-id {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  /* `min-width: 0` lets the wordmark shrink to nothing while collapsing without
+     pushing the toggle out of the 56px strip. */
+  min-width: 0;
+}
+.entry-nav-rail__brand-home {
+  width: auto;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  justify-content: flex-start;
+}
+.entry-nav-rail__brand-home:hover:not(:disabled),
+.entry-nav-rail__brand-home:active:not(:disabled) {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+.entry-nav-rail__brand-preview-hotspot {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 var(--home-ref-sidebar-brand-mark-size, 22px);
+  width: var(--home-ref-sidebar-brand-mark-size, 22px);
+  height: var(--home-ref-sidebar-brand-mark-size, 22px);
+}
+.entry-nav-rail__brand-preview-hotspot::before {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  border-radius: 10px;
+}
+.entry-nav-rail__brand-mark {
+  flex: 0 0 auto;
+  width: var(--home-ref-sidebar-brand-mark-size, 22px);
+  height: var(--home-ref-sidebar-brand-mark-size, 22px);
+  border-radius: 5px;
+  /* Same asset the topbar/hero brand glyph uses, so the two never drift. */
+  background: url('/brand-icon.svg') center / contain no-repeat;
+}
+.entry-nav-rail__brand-mark--custom { object-fit: contain; background: none; }
+.entry-nav-rail__brand-logo { position: relative; display: block; width: min(132px, calc(var(--home-ref-sidebar-width, 272px) - 92px)); height: 24px; }
+.entry-nav-rail__brand-logo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: left center; }
+.product-logo-dark { display: none; }
+[data-theme='dark'] .product-logo-light { display: none; }
+[data-theme='dark'] .product-logo-dark { display: block; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) .product-logo-light { display: none; }
+  html:not([data-theme]) .product-logo-dark { display: block; }
+}
+.entry-nav-rail__brand-name {
+  min-width: 0;
+  font-family: 'Outfit', var(--home-ref-sidebar-font);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 14px;
+  letter-spacing: -0.02em;
+  color: var(--text-strong, var(--text));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.entry-nav-rail .entry-nav-rail__brand-collapse {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* `.bezier-tooltip` sets `position: relative` globally. This control is the
+     sidebar pin affordance, so its panel-edge anchor must win that utility. */
+  position: absolute !important;
+  top: 4px;
+  right: 2px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--home-ref-sidebar-nav-radius, 9.6px);
+  background: transparent;
+  color: var(--text-soft);
+  cursor: pointer;
+  z-index: 4;
+  -webkit-app-region: no-drag;
+  transition:
+    background 140ms cubic-bezier(0.23, 1, 0.32, 1),
+    color 140ms cubic-bezier(0.23, 1, 0.32, 1),
+    opacity 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.entry-nav-rail__brand-collapse:hover {
+  background: var(--bg-hover, rgba(0, 0, 0, 0.05));
+  color: var(--text-strong, var(--text));
+}
+.entry-nav-rail__brand-collapse:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.entry-nav-rail__brand-collapse svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* Collapsed, the rail is a real 56px strip rather than a zero-width track, so
+   it must NOT be clipped — the glyph buttons still need their hover tooltips to
+   escape to the right. Clipping is now only used by the narrow-window rule
+   below, which genuinely does zero the track. */
+.entry-nav-rail {
+  overflow: visible;
+}
+
+/* ── Collapse → narrow icon strip ─────────────────────────────────────────
+   Collapsing no longer empties the sidebar: the rail keeps a ~56px icon-only
+   strip so the destinations stay reachable (and the brand mark stays visible)
+   instead of the whole column disappearing. Only the *text* layers cross-fade
+   out — labels, the brand wordmark, the team switcher's name and the account
+   card's identity block — while the glyphs slide to the strip's centre. */
+.entry-nav-rail__brand-name,
+.entry-nav-rail__btn-label,
+.entry-nav-rail__section-divider,
+.entry-nav-rail__footer {
+  transition:
+    opacity 120ms cubic-bezier(0.23, 1, 0.32, 1),
+    transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+/* Collapsed: drop the text columns. `width: 0` (not just opacity) is what lets
+   the row re-centre its glyph inside the narrow strip — a transparent-but-sized
+   label would keep the icon pinned left. */
+.entry:not(.entry--rail-open) .entry-nav-rail__brand-name,
+.entry:not(.entry--rail-open) .entry-nav-rail__btn-label {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+/* The divider and the team switcher's workspace row carry no glyph worth
+   showing at 56px, so they leave entirely rather than collapsing to a stub. */
+.entry:not(.entry--rail-open) .entry-nav-rail__section-divider {
+  opacity: 0;
+  pointer-events: none;
+}
+/* Collapsed geometry: every row centres its glyph inside the strip. The panel
+   loses its 10px side padding budget (group padding 10 → 6, button padding 0)
+   so a 34px glyph target still fits inside 56px − 2×10px margin − 2×1px ring. */
+.entry:not(.entry--rail-open) .entry-nav-rail__group {
+  padding: 8px 0 0;
+}
+.entry:not(.entry--rail-open) .entry-nav-rail__btn {
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 0 1px 0 20px;
+}
+.entry:not(.entry--rail-open)
+  .entry-nav-rail:not(.is-preview-open)
+  .entry-animate-sidebar__primary-group {
+  padding-right: 16px;
+  padding-left: 16px;
+}
+.entry:not(.entry--rail-open)
+  .entry-nav-rail:not(.is-preview-open)
+  .entry-animate-sidebar__nav-button {
+  width: 32px;
+  height: 32px;
+  justify-content: center;
+  gap: 0;
+  padding: 7px;
+}
+.entry:not(.entry--rail-open)
+  .entry-nav-rail:not(.is-preview-open)
+  .entry-nav-rail__btn-icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+.entry:not(.entry--rail-open)
+  .entry-nav-rail:not(.is-preview-open)
+  .entry-nav-rail__btn-icon .bezier-icon {
+  transform: none;
+}
+/* MiniMax keeps the 36px button hit target but clips its 32px visual pill to
+   the 32px icon rail. Without this, the collapsed hover fill exposes the
+   remaining 14px of the full-row pill as an extra block to the right. */
+.entry:not(.entry--rail-open)
+  .entry-nav-rail:not(.is-preview-open)
+  .entry-nav-rail__btn::before {
+  clip-path: inset(
+    0 calc(100% - 32px) 0 0 round var(--home-ref-sidebar-nav-radius, 9.6px)
+  );
+}
+.entry:not(.entry--rail-open) .entry-nav-rail__brand {
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 0 2px 0 var(--home-ref-sidebar-leading-inset, 21px);
+}
+/* The 8px mark↔wordmark gap still applies to the zero-width wordmark, which
+   shifted the mark 4px left of the strip's centre. Drop it while collapsed. */
+/* Collapsed strip: hide the brand mark (no room to show DA mark beside the
+   expand toggle — the two compete for the same 56px). Show the collapse button
+   instead (flipped to a ▶ expand glyph), centred in the strip. */
+.entry:not(.entry--rail-open) .entry-nav-rail__brand-id {
+  opacity: 1;
+  width: auto;
+  overflow: visible;
+  pointer-events: auto;
+}
+/* The collapse button re-expands the rail from the narrow strip (mirrored so it
+   reads as "expand right" rather than "collapse left"). */
+.entry:not(.entry--rail-open) .entry-nav-rail__brand-collapse {
+  display: none;
+}
+.entry:not(.entry--rail-open) .entry-nav-rail__brand-collapse svg {
+  transform: scaleX(-1);
+}
+.entry:not(.entry--rail-open) .entry-nav-rail.is-preview-open .entry-nav-rail__brand-collapse {
+  display: inline-flex;
+}
+.entry:not(.entry--rail-open) .entry-nav-rail.is-preview-open .entry-nav-rail__brand-collapse svg {
+  transform: none;
+}
+.entry:not(.entry--rail-open) .entry-nav-rail.is-preview-open .entry-nav-rail__brand-name,
+.entry:not(.entry--rail-open) .entry-nav-rail.is-preview-open .entry-nav-rail__btn-label,
+.entry:not(.entry--rail-open) .entry-nav-rail.is-preview-open .entry-nav-rail__footer {
+  width: auto;
+  opacity: 1;
+  overflow: visible;
+  pointer-events: auto;
+}
+.entry:not(.entry--rail-open) .entry-nav-rail:not(.is-preview-open) .entry-nav-rail__projects {
+  display: none;
+}
+.entry:not(.entry--rail-open) .entry-nav-rail__footer {
+  padding-left: 0;
+  padding-right: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .entry-nav-rail__brand-name,
+  .entry-nav-rail__btn-label,
+  .entry-nav-rail__section-divider,
+  .entry-nav-rail__footer {
+    transition: none;
+    transform: none;
+  }
+  .entry-shell--no-header .entry { transition-delay: 0ms; }
+}
+
+/* Narrow window: below the comfortable split width the rail leaves entirely
+   instead of squeezing into a broken sliver — BOTH states zero out (not just
+   the open one), because `shell.css` zeroes its matching `--workspace-rail-track`
+   for the whole breakpoint; leaving the collapsed strip at 56px here would push
+   the rail out over the main column. The open state is preserved, so widening
+   the window restores the rail as it was. */
+@media (max-width: 1080px) {
+  .entry-shell--no-header .entry,
+  .entry-shell--no-header .entry.entry--rail-open {
+    grid-template-columns: 0 minmax(0, 1fr);
+  }
+  .entry-nav-rail {
+    overflow: hidden;
+    pointer-events: none;
+  }
+}
+/* Topbar panel toggle — the single affordance left visible when the rail
+   is collapsed. Sits at the left edge of the sticky topbar and is hidden
+   once the rail is docked (the tabs bar's pinned Home toggle takes over). */
+.entry-rail-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin-right: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    opacity 160ms cubic-bezier(0.23, 1, 0.32, 1),
+    background 140ms cubic-bezier(0.23, 1, 0.32, 1),
+    color 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+/* The flex layout would otherwise shrink the icon's width to a sliver; pin
+   the SVG so the panel glyph renders at its intended square size. */
+.entry-rail-toggle svg {
+  flex-shrink: 0;
+}
+.entry-rail-toggle:hover {
+  background: var(--bg-hover, rgba(0, 0, 0, 0.05));
+  color: var(--text-strong, #111);
+}
+.entry-rail-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+/* Hide the topbar toggle the instant the rail docks — a fade here would
+   cross with the rail's logo sliding in and read as a flash. */
+.entry--rail-open .entry-rail-toggle {
+  display: none;
+}
+/* Right-edge hairline removed: the sidebar is a floating panel, not a docked
+   column, so it is separated from the main content by the panel's margin +
+   shadow instead of a seam. */
+.entry-nav-rail__group {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  width: 100%;
+  padding: 8px 0 0;
+}
+.entry-nav-rail__group::-webkit-scrollbar {
+  display: none;
+}
+.entry-nav-rail__footer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  /* `flex-shrink: 0` is load-bearing. The footer is a flex ITEM of the rail
+     panel, whose nav group above claims `flex: 1 1 auto`; with the default
+     shrink factor the panel resolved the leftover space by squeezing the footer
+     ~4px below the account card's own content height, which cropped the avatar
+     against the card's bottom edge. The card must always get its intrinsic
+     height and let the scrollable group absorb the pressure instead. */
+  flex: 0 0 auto;
+  padding: 8px 0;
+  /* MiniMax `.home-sidebar-footer`: 0.5px × 10% foreground. */
+  border-top: 0.5px solid color-mix(in srgb, var(--home-ref-foreground, #000) 10%, transparent);
+}

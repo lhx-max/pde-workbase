@@ -1,0 +1,6 @@
+Canvas Workspace contains source extracted and adapted from Bezier Design / Loom.
+Upstream baseline: 319e5eee556a3641d2ee68a6111a36ddc7a1eff7.
+Upstream code is distributed under the Apache License, Version 2.0 (see LICENSE).
+Original copyright notices and third-party licensing requirements remain applicable.
+
+Extraction purpose: independently runnable original canvas workspace and related APIs, project files, tabs, editors, viewers and artifact organization, without the upstream chat product or built-in global asset platform.

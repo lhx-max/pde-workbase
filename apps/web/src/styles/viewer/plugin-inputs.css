@@ -1,0 +1,170 @@
+/* Skills detail states retained for the legacy settings surface. */
+.settings-skills .skills-row-summary-btn:hover .skills-row-chevron {
+  color: var(--text-muted);
+}
+.settings-skills .skills-row-expanded .skills-row-chevron {
+  transform: rotate(180deg);
+  color: var(--text-muted);
+}
+
+.settings-skills .skills-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.settings-skills .skills-row-actions .icon-btn {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-faint);
+  cursor: pointer;
+  transition:
+    background-color 120ms var(--ease-out),
+    border-color 120ms var(--ease-out),
+    color 120ms var(--ease-out);
+}
+.settings-skills .skills-row-actions .icon-btn:hover {
+  background: var(--bg-panel);
+  border-color: var(--border);
+  color: var(--text);
+}
+.settings-skills .skills-row-enable {
+  margin-left: 4px;
+}
+.settings-skills .skills-delete-confirm {
+  display: inline-flex;
+  gap: 6px;
+}
+.settings-skills .skills-delete-confirm .btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: var(--radius-sm);
+}
+
+.settings-skills .skills-edit-builtin-warning {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 2px 14px 14px;
+  padding: 12px 14px;
+  border: 1px solid
+    color-mix(in srgb, var(--warning, #d97706) 30%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--warning, #d97706) 8%, var(--bg-panel));
+  color: var(--text);
+}
+.settings-skills .skills-edit-builtin-warning p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.settings-skills .skills-edit-builtin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.settings-skills .skills-edit-builtin-actions .btn {
+  min-height: 30px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+}
+
+.settings-skills .skills-row-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 14px 14px;
+  border-top: 1px dashed var(--border);
+  margin: 0 4px;
+}
+.settings-skills .skills-row-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.settings-skills .skills-row-section h5 {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  font-weight: 600;
+}
+.settings-skills .skills-row-section .library-preview-body {
+  margin: 0;
+  max-height: 320px;
+  overflow: auto;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.settings-skills .skills-file-tree {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  overflow-y: auto;
+  max-height: 240px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+}
+.settings-skills .skills-file-entry {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+}
+.settings-skills .skills-file-entry-directory {
+  color: var(--text);
+  font-weight: 500;
+}
+.settings-skills .skills-file-size {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+
+.settings-skills > .skills-draft {
+  margin: 0;
+}
+.settings-skills .skills-row > .skills-draft {
+  border: none;
+  border-top: 1px dashed var(--border);
+  border-radius: 0 0 10px 10px;
+  margin: 0;
+  background: transparent;
+}
+.settings-skills .skills-draft .skills-draft-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.settings-skills .skills-draft .skills-draft-head h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.settings-skills .skills-draft .skills-draft-sub {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-faint);
+  font-family: var(--mono);
+}

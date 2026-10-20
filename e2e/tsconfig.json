@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "target": "ES2023", "lib": ["ES2023", "DOM"],
+    "module": "ESNext", "moduleResolution": "Bundler",
+    "strict": true, "skipLibCheck": true, "esModuleInterop": true,
+    "noEmit": true, "types": ["node"],
+    "baseUrl": ".", "paths": { "@/*": ["lib/*"] }
+  },
+  "include": ["lib/**/*.ts", "ui/**/*.ts", "tests/**/*.ts", "*.config.ts"]
+}

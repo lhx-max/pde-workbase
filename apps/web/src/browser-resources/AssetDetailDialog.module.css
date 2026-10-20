@@ -1,0 +1,40 @@
+.backdrop { position: fixed; inset: 0; z-index: var(--layer-modal-stacked); background: var(--bg-overlay-scrim); }
+.dialog { position: fixed; inset: 0; margin: auto; z-index: calc(var(--layer-modal-stacked) + 1); height: fit-content; width: min(1080px, calc(100vw - 40px)); max-height: calc(100dvh - 32px); padding: 0; overflow: visible; border-radius: var(--radius-lg); background: var(--bg-panel); box-shadow: var(--shadow-lg); outline: none; }
+.shell { display: flex; min-height: 0; max-height: inherit; flex-direction: column; overflow: hidden; border-radius: inherit; background: inherit; }
+.portalHost { position: absolute; inset: 0; pointer-events: none; }
+.portalHost > * { pointer-events: auto; }
+.dialog .srTitle { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.dialog .close { position: absolute; z-index: 3; top: 12px; right: 12px; width: 28px; height: 28px; padding: 0; color: var(--text-muted); background: var(--bg-elevated); border-radius: 50%; }
+.header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 20px; flex-shrink: 0; }
+.heading { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.title { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 18px; }
+.meta { flex-shrink: 0; color: var(--text-muted); font-size: 12px; }
+.body { display: grid; grid-template-columns: minmax(0,1fr) 300px; height: min(74dvh,700px); min-height: 0; padding: 0; gap: 0; overflow: auto; }
+.body > :first-child { min-width: 0; min-height: 0; width: 100%; height: 100%; border: 0; border-radius: 0; background: var(--bg-subtle); }
+.body > div:first-child { display: grid; place-items: center; padding: 20px; overflow: hidden; }
+.body > div:first-child img { width: 100%; height: 100%; min-height: 0; object-fit: contain; }
+.body > aside { min-width: 0; padding: 48px 22px 24px; overflow-y: auto; border-left: 1px solid var(--border); }
+.body, .body > aside, .body textarea { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--text-muted) 30%, transparent) transparent; }
+.body::-webkit-scrollbar, .body > aside::-webkit-scrollbar, .body textarea::-webkit-scrollbar { width: 5px; height: 5px; background: transparent; }
+.body::-webkit-scrollbar-track, .body > aside::-webkit-scrollbar-track, .body textarea::-webkit-scrollbar-track { background: transparent; border: 0; }
+.body::-webkit-scrollbar-thumb, .body > aside::-webkit-scrollbar-thumb, .body textarea::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text-muted) 30%, transparent); border-radius: 8px; }
+.body > aside p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.7; }
+.body > .inspector { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.inspectorScroll { flex: 1; min-height: 0; overflow: auto; padding: 48px 22px 22px; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--text-muted) 40%, transparent) transparent; }
+.inspectorToolbar { display: flex; align-items: center; justify-content: space-between; flex: none; min-height: 58px; padding: 12px 52px 12px 22px; gap: 12px; border-bottom: 1px solid var(--border); }
+.inspectorScroll.withToolbar { padding-top: 20px; }
+.inspectorScroll::-webkit-scrollbar { width: 5px; background: transparent; }
+.inspectorScroll::-webkit-scrollbar-track { background: transparent; }
+.inspectorScroll::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text-muted) 40%, transparent); border-radius: 8px; }
+.section + .section { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+.section h3 { margin: 0 0 8px; font-size: 11px; line-height: 16px; font-weight: 500; color: var(--text-muted); }
+.section p { margin: 0; }
+.inspectorActions { flex: none; padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+.inspectorActions > button { flex: 1; }
+@media(max-width:640px) { .body { display: block; height: auto; } .body > :first-child { height: 42dvh; min-height: 200px; } .body > aside { border-left: 0; border-top: 1px solid var(--border); } }
+@media(max-width:640px) { .dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); } .header { padding: 12px 16px; } }
+
+/* Keep the original dialog height; the runtime centres the complete canvas. */
+.body > div:first-child:has(> iframe),
+.body > div:first-child:has(> [data-asset-preview="slides"]),
+.body > div:first-child:has(> [data-asset-preview="desktop-webpage"]) { padding: 0; }

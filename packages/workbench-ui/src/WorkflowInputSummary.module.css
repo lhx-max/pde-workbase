@@ -1,0 +1,32 @@
+.root { display: flex; align-items: center; gap: 10px; margin: 0 18px; padding: 8px 0; border-top: 1px solid var(--border-subtle); color: var(--text-secondary); font-size: 12px; }
+.label { flex: none; color: var(--text-tertiary); }
+.sources { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; }
+.source { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; height: 26px; min-width: 0; padding: 0 8px; border-radius: 6px; background: var(--surface-secondary); font-size: 12px; }
+.source > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.source > small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-tertiary); font-size: 11px; }
+.empty { font-size: 11px; color: var(--text-tertiary); }
+
+.sources { flex: 1; }
+.reference { display: inline-flex; align-items: center; border: 1px solid var(--border-subtle); border-radius: 6px; overflow: hidden; }
+.remove, .add { width: 26px; height: 26px; padding: 0; color: var(--text-secondary); }
+.picker { position: relative; flex: none; }
+.menu { position: absolute; right: 0; bottom: 34px; z-index: 30; min-width: 180px; max-height: 240px; overflow: auto; padding: 8px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface-primary, white); box-shadow: 0 8px 24px #00000014; }
+.heading { padding: 4px 8px 8px; color: var(--text-tertiary); font-size: 11px; }
+.option { display: flex; width: 100%; justify-content: flex-start; min-height: 30px; font-size: 12px; }
+
+.option { gap: 16px; justify-content: space-between; }
+.option > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.option > small { flex: none; font-size: 11px; color: var(--text-tertiary); }
+.reference { gap: 2px; padding: 0 5px 0 2px; height: 28px; border: 1px solid var(--border-subtle); border-radius: 7px; background: transparent; transition: background 140ms cubic-bezier(0.23, 1, 0.32, 1); }
+.reference:hover, .reference:focus-within { background: var(--surface-secondary); }
+.reference .source, .reference .source:hover, .reference .remove, .reference .remove:hover { background: transparent; box-shadow: none; }
+.reference .source { height: 26px; padding: 0 6px; gap: 6px; border-radius: 0; }
+.reference .remove { flex: none; width: 20px; height: 22px; color: var(--text-tertiary); }
+.reference .remove:hover { color: var(--text-primary); }
+.option { justify-content: flex-start; gap: 8px; }
+.reference .source:hover:not(:disabled), .reference .remove:hover:not(:disabled), .reference .source:active:not(:disabled), .reference .remove:active:not(:disabled) { background: transparent; border-color: transparent; box-shadow: none; transform: none; }
+.reference .source, .reference .remove { border: 0; }
+/* Hover belongs to the whole source link; the close control only changes its icon. */
+.reference:has(.source:hover), .reference:has(.source:focus-visible) { background: var(--surface-secondary); }
+.reference:has(.remove:hover), .reference:has(.remove:focus-visible) { background: transparent; }
+.reference .remove:hover:not(:disabled), .reference .remove:focus-visible { color: var(--text-primary); background: transparent; border-color: transparent; box-shadow: none; }

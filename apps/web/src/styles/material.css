@@ -1,0 +1,72 @@
+/* Material utilities — token values and theme overrides live exclusively in
+   tokens.css. This file only exposes reusable surface classes. */
+
+/* ── Utility classes (for NEW surfaces; existing surfaces consume the tokens
+   in their own stylesheets instead of taking on extra classes) ─────────── */
+.bezier-material,
+.bezier-material-regular {
+  background: var(--material-regular);
+  -webkit-backdrop-filter: var(--material-regular-backdrop);
+  backdrop-filter: var(--material-regular-backdrop);
+}
+.bezier-material-ultrathin {
+  background: var(--material-ultrathin);
+  -webkit-backdrop-filter: var(--material-ultrathin-backdrop);
+  backdrop-filter: var(--material-ultrathin-backdrop);
+}
+.bezier-material-thin {
+  background: var(--material-thin);
+  -webkit-backdrop-filter: var(--material-thin-backdrop);
+  backdrop-filter: var(--material-thin-backdrop);
+}
+.bezier-material-thick {
+  background: var(--material-thick);
+  -webkit-backdrop-filter: var(--material-thick-backdrop);
+  backdrop-filter: var(--material-thick-backdrop);
+}
+.bezier-glass {
+  background: var(--glass-regular);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  backdrop-filter: var(--glass-backdrop);
+}
+
+/* ── SDF refraction surface ──────────────────────────────────────────────
+   Base state doubles as the fallback: plain frosted glass. useLiquidGlass()
+   sets data-bezier-glass-sdf only after the runtime confirms Chromium support and builds the
+   displacement map (JS sets --flt to url(#lg-N)). */
+.bezier-glass-refract {
+  position: relative;
+  overflow: hidden;
+  background: var(--glass-regular);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  backdrop-filter: var(--glass-backdrop);
+}
+.bezier-glass-refract[data-bezier-glass-sdf] {
+  background: transparent;
+  -webkit-backdrop-filter: var(--flt) blur(0.4px) contrast(1.12) brightness(1.06) saturate(1.12);
+  backdrop-filter: var(--flt) blur(0.4px) contrast(1.12) brightness(1.06) saturate(1.12);
+  box-shadow:
+    inset 0 1px 0.5px var(--glass-refract-ring-top),
+    inset 0 0 0 1px var(--glass-refract-ring-edge),
+    inset 0 -10px 22px -10px var(--glass-refract-ring-bottom),
+    var(--shadow-glass-refract-outset);
+}
+/* Text-dense refraction surfaces (e.g. the account menu): keep the lens
+   bend at the edges but back the center with a solid enough frost that the
+   menu's own text wins over whatever bleeds through. */
+.bezier-glass-refract[data-bezier-glass-sdf].bezier-glass-refract--tinted {
+  background: var(--glass-regular);
+  -webkit-backdrop-filter: var(--flt) blur(16px) saturate(1.4);
+  backdrop-filter: var(--flt) blur(16px) saturate(1.4);
+}
+
+/* Reduced-transparency and unsupported-backdrop token fallbacks live in
+   tokens.css. Keep only the surface behavior here. */
+@media (prefers-reduced-transparency: reduce) {
+  .bezier-glass-refract,
+  .bezier-glass-refract[data-bezier-glass-sdf].bezier-glass-refract--tinted {
+    background: var(--bg-elevated);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}

@@ -1,0 +1,6 @@
+/* Standalone mount sizing only. Original workspace/viewer/canvas selectors own the UI. */
+html, body { height: 100%; margin: 0; }
+.standalone-workspace-root { height: 100dvh; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.standalone-workspace-root > .workspace { flex: 1; min-height: 0; width: 100%; }
+.standalone-file-panel { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; min-width: 0; overflow: hidden; }
+.standalone-file-panel[hidden] { display: none; }

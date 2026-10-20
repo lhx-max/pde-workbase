@@ -1,0 +1,762 @@
+/* ============================================================
+   Inline CLI / model switcher — sticky-top chip + popover.
+
+   Lives in `.entry-main__topbar` next to the settings cog and
+   exposes the active execution mode (Local CLI / BYOK), the
+   active agent or provider, and the active model. The chip is
+   intentionally low-chrome so it reads as status, not a primary
+   action; the popover is where the actual switching happens.
+   ============================================================ */
+.inline-switcher {
+  position: relative;
+  display: inline-flex;
+}
+.inline-switcher__chip {
+  appearance: none;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px 0 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--bg-panel);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: var(--shadow-xs);
+  transition: background-color 120ms var(--ease-out), border-color 120ms var(--ease-out),
+    color 120ms var(--ease-out);
+  max-width: 360px;
+  overflow: hidden;
+}
+.inline-switcher__chip:hover {
+  background: var(--bg-subtle);
+  border-color: var(--border-strong);
+}
+.inline-switcher__chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.inline-switcher__chip[aria-expanded='true'] {
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
+  background: var(--bg-panel);
+}
+.inline-switcher__chip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: var(--text-strong);
+}
+.inline-switcher__chip-icon .agent-icon,
+.inline-switcher__agent .agent-icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  object-fit: contain;
+}
+.inline-switcher__chip-icon .agent-icon-mono,
+.inline-switcher__agent .agent-icon-mono {
+  display: inline-block;
+}
+.inline-switcher__byok-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+  color: var(--accent-tint);
+}
+.inline-switcher__chip-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inline-switcher__chip-mode {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.inline-switcher__chip-sep {
+  color: var(--text-faint);
+}
+/* Hairline splitting the agent (logo + status dot) from the model name, so the
+   compact chip reads as two groups rather than one run. Same treatment as
+   `.home-hero__workdir-divider` in the composer row beside it; the chip's own
+   gap does the spacing. */
+.inline-switcher__chip-divider {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  opacity: 0.7;
+}
+.inline-switcher__chip-primary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+.inline-switcher__chip-model {
+  min-width: 0;
+  color: var(--text-muted);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inline-switcher__chip-chevron {
+  color: var(--text-faint);
+  flex: 0 0 auto;
+}
+.inline-switcher--compact .inline-switcher__chip-text {
+  display: none;
+}
+/* Popover */
+.inline-switcher__popover {
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  max-height: min(560px, var(--radix-popover-content-available-height, calc(100vh - 96px)));
+  overflow-y: auto;
+  padding: 12px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  /* Solid, not material: the translucent glass read as content bleeding
+     straight through the popover, so text-dense agent rows sit on an opaque
+     elevated surface instead. */
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-md, 0 10px 30px rgba(0, 0, 0, 0.08));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 20;
+}
+.inline-switcher__row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.inline-switcher__label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+/* Left-align the label with the option text beneath it. Each
+   `.inline-switcher__agent` insets its name by 1px border + 8px padding, so a
+   flush label hangs 9px to the left of the list. Scoped to rows that actually
+   hold a list — a label above the model-select trigger has a different inset. */
+.inline-switcher__row:has(.inline-switcher__agent-grid) .inline-switcher__label {
+  padding-left: 9px;
+}
+.inline-switcher__hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Mode segmented control */
+.inline-switcher__seg-root,
+.inline-switcher__chips-root {
+  display: block;
+  width: 100%;
+}
+.inline-switcher__seg-root > [data-slot='tabs-highlight'],
+.inline-switcher__chips-root > [data-slot='tabs-highlight'] {
+  position: relative !important;
+  inset: auto !important;
+  display: block;
+  width: 100%;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.inline-switcher__seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 3px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius);
+  border: 0;
+}
+.inline-switcher__seg [data-slot='motion-highlight'] {
+  inset: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-xs);
+}
+.inline-switcher__seg [data-slot='tabs-highlight-item'] {
+  min-width: 0;
+}
+.inline-switcher__seg-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color 120ms var(--ease-out), color 120ms var(--ease-out);
+}
+.inline-switcher__seg-btn:hover:not(:disabled) {
+  color: var(--text);
+}
+.inline-switcher__seg-btn.is-active {
+  background: transparent;
+  color: var(--text-strong);
+  box-shadow: none;
+}
+.inline-switcher__seg-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* Agent grid (CLI mode) */
+.inline-switcher__agent-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.inline-switcher__agent-row {
+  display: flex;
+  min-width: 0;
+}
+.inline-switcher__agent {
+  appearance: none;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 120ms var(--ease-out), border-color 120ms var(--ease-out);
+  width: 100%;
+  min-width: 0;
+}
+/* Hover reads from the background alone — same reasoning as `.is-active`
+   below. Without the `:not(:disabled)` here, the global `button:hover` repaint
+   in primitives.css (specificity 0,2,1) out-specifies this rule and darkens
+   the border to --border-strong, popping a visible outline on hover. */
+.inline-switcher__agent:hover:not(:disabled) {
+  background: var(--bg-subtle);
+  border-color: transparent;
+}
+.inline-switcher__agent.is-active {
+  /* Selected state reads from the tinted background alone — no dark accent
+     border, which showed as a heavy near-black outline on the active row. */
+  background: var(--accent-tint);
+  color: var(--text-strong);
+}
+/* Compact model list (home composer popover): a plain borderless list —
+   no card outlines around each row, tighter single-column rows, and a neutral
+   gray selection instead of the accent tint. */
+.inline-switcher--compact .inline-switcher__agent-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1px;
+  /* Cap the visible model list at six rows (6 × 36px row + 5 × 2px gap);
+     longer catalogs scroll inside so the settings footer stays on screen.
+     The same cap is used by the project composer switcher. */
+  max-height: 226px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+/* Home model picker: transparent tracks on both the list and the portaled
+   panel, which can itself scroll when viewport height is constrained. */
+.inline-switcher__popover.inline-switcher--compact,
+.inline-switcher--compact .inline-switcher__agent-grid {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.18) transparent;
+}
+.inline-switcher__popover.inline-switcher--compact::-webkit-scrollbar,
+.inline-switcher--compact .inline-switcher__agent-grid::-webkit-scrollbar {
+  width: 4px;
+  background: transparent;
+}
+.inline-switcher__popover.inline-switcher--compact::-webkit-scrollbar-track,
+.inline-switcher--compact .inline-switcher__agent-grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+.inline-switcher__popover.inline-switcher--compact::-webkit-scrollbar-thumb,
+.inline-switcher--compact .inline-switcher__agent-grid::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.16);
+  border-radius: 2px;
+}
+.inline-switcher__popover.inline-switcher--compact::-webkit-scrollbar-thumb:hover,
+.inline-switcher--compact .inline-switcher__agent-grid::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.28);
+}
+.inline-switcher--compact .inline-switcher__agent {
+  /* The shared Button primitive carries its own border utility. Compact model
+     rows are list items, so explicitly suppress that utility at the adapter
+     boundary instead of letting every model read as a nested card. */
+  border: 0 !important;
+  background: transparent;
+  padding: 6px 10px;
+  /* Quiet default: muted label until selected. */
+  color: var(--text-muted);
+  font-size: 13px;
+  /* Logo + name read as one left-aligned run instead of centering. */
+  justify-content: flex-start;
+}
+/* Provider brand mark leading each compact model row. */
+.inline-switcher__agent-logo {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+.inline-switcher__agent-logo img,
+.inline-switcher__agent-logo svg {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  display: block;
+}
+.inline-switcher--compact .inline-switcher__agent:hover:not(:disabled) {
+  border: 0 !important;
+  background: var(--bg-subtle);
+  color: var(--text);
+}
+.inline-switcher--compact .inline-switcher__agent.is-active {
+  /* Selected: slightly deeper background so it reads distinct from hover,
+     strong text weight, and a 2px left accent bar as the primary selection
+     signal — no heavy fill, no border ring. */
+  background: color-mix(in srgb, var(--bg-subtle) 90%, var(--accent) 10%);
+  color: var(--text-strong);
+  font-weight: 500;
+  box-shadow: inset 2px 0 0 var(--accent);
+  border-radius: var(--radius-sm);
+}
+/* Disabled catalogue models remain visible but must read as unavailable. */
+.inline-switcher--compact .inline-switcher__agent.is-locked {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+/* Each row now leads with the provider logo, so the old leading selection dot
+   is dropped — the active row reads from its tinted background alone. */
+/* Hovering an unselected model slides its label forward as a "reach". */
+.inline-switcher--compact .inline-switcher__agent-name {
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.inline-switcher--compact
+  .inline-switcher__agent:not(.is-active):not(.is-locked):hover
+  .inline-switcher__agent-name {
+  transform: translateX(6px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .inline-switcher--compact .inline-switcher__agent-name {
+    transition: none;
+  }
+}
+.inline-switcher__agent-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+/* Provider chips (BYOK mode) */
+.inline-switcher__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.inline-switcher__chips [data-slot='tabs-highlight-item'] {
+  flex: 0 0 auto !important;
+}
+.inline-switcher__chips [data-slot='motion-highlight'] {
+  inset: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--accent-tint);
+  box-shadow: none;
+}
+.inline-switcher__chip-tab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  border-radius: var(--radius-pill);
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color 120ms var(--ease-out), color 120ms var(--ease-out),
+    border-color 120ms var(--ease-out);
+}
+.inline-switcher__chip-tab:hover {
+  background: var(--bg-subtle);
+  color: var(--text);
+}
+.inline-switcher__chip-tab.is-active {
+  background: transparent;
+  color: var(--accent-strong);
+  border-color: transparent;
+}
+
+/* Shared select inside the popover */
+.model-select-searchable {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+.model-select-searchable.is-open {
+  z-index: 1400;
+}
+.model-select-searchable__popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  /* Above every modal layer: the popover portals to <body>, and the settings
+     dialog backdrop sits at 1700 (app-modal at 10000) — at the old 1401 the
+     dropdown OPENED but rendered underneath the dialog, reading as "click
+     does nothing". */
+  z-index: 10500;
+  /* Constant breathing room above/below the scrolling list — padding inside
+     the scroller scrolls away with the content and reads as flush rows. */
+  padding: 6px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: model-popover-in 140ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: top center;
+}
+.model-select-searchable__search-row {
+  padding: 4px 4px 6px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.model-select-searchable__search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 10px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  transition: border-color var(--duration-fast) var(--curve-easy-ease),
+              box-shadow var(--duration-fast) var(--curve-easy-ease),
+              background-color var(--duration-fast) var(--curve-easy-ease);
+}
+.model-select-searchable__search-box:focus-within {
+  background: var(--bg-panel);
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 1px var(--border-strong);
+}
+.model-select-searchable__search-icon {
+  flex: none;
+  color: var(--text-faint);
+  transition: color var(--duration-fast) var(--curve-easy-ease);
+}
+.model-select-searchable__search-box:focus-within .model-select-searchable__search-icon {
+  color: var(--text-muted);
+}
+.model-select-searchable__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0 !important;
+  outline: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  font-size: 13px !important;
+  color: var(--text);
+  box-shadow: none !important;
+}
+.model-select-searchable__input::placeholder {
+  color: var(--text-faint);
+}
+.model-select-searchable__search-clear {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 2px;
+  margin: 0;
+  color: var(--text-faint);
+  cursor: pointer;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--duration-fast) var(--curve-easy-ease),
+              background-color var(--duration-fast) var(--curve-easy-ease);
+}
+.model-select-searchable__search-clear:hover {
+  color: var(--text);
+  background-color: var(--bg-muted);
+}
+.model-select-searchable__list {
+  max-height: 280px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 2px;
+}
+.model-select-searchable__option {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  height: auto;
+  min-height: 36px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  color: var(--text);
+  cursor: pointer;
+  position: relative;
+  transition: background-color var(--duration-fast) var(--curve-easy-ease),
+              color var(--duration-fast) var(--curve-easy-ease);
+}
+.model-select-searchable__option:hover {
+  background: var(--bg-subtle);
+  color: var(--text-strong);
+}
+.model-select-searchable__option.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.model-select-searchable__option.is-disabled:hover {
+  background: transparent;
+}
+.model-select-searchable__option.is-active {
+  background: var(--bg-subtle);
+  color: var(--text-strong);
+  font-weight: 500;
+}
+.model-select-searchable__option.is-active:hover {
+  background: var(--bg-muted);
+}
+.model-select-searchable__option-check {
+  flex: none;
+  margin-left: auto;
+  color: var(--text-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.model-select-searchable__value,
+.model-select-searchable__option-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+}
+.model-select-searchable__option-content {
+  align-items: flex-start;
+  gap: 10px;
+}
+.model-select-searchable__option-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+/* Vendor brand mark leading the option row. 1px top nudge centers the 16px
+   mark against the 13px/1.35 first label line despite the row's
+   flex-start alignment (multi-line label + meta rows). */
+.model-select-searchable__option-logo {
+  flex: 0 0 auto;
+  display: inline-flex;
+  margin-top: 1px;
+}
+.model-select-searchable__option-logo img {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+}
+.model-select-searchable__value-label,
+.model-select-searchable__option-label {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  line-height: 1.35;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.model-select-searchable__option-label > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.model-select-searchable__value-badge,
+.model-select-searchable__option-badge {
+  --model-tag-color: var(--text-muted);
+  --model-tag-bg: color-mix(in srgb, var(--model-tag-color) 10%, var(--bg-panel));
+  --model-tag-border: color-mix(in srgb, var(--model-tag-color) 34%, transparent);
+
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 112px;
+  min-height: 17px;
+  padding: 2px 6px 2px 5px;
+  border: 1px solid var(--model-tag-border);
+  border-radius: 6px;
+  background: var(--model-tag-bg);
+  color: var(--model-tag-color);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--bg-panel) 72%, white 28%);
+  font-size: 10.5px;
+  font-weight: 680;
+  line-height: 1.05;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.model-select-searchable__value-badge::before,
+.model-select-searchable__option-badge::before {
+  content: '';
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.88;
+  flex: 0 0 auto;
+}
+.model-select-searchable__option-meta {
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--text-muted);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.model-select-searchable__option-badge {
+  margin-top: 1px;
+}
+.model-select-searchable__option.is-active .model-select-searchable__option-meta {
+  color: color-mix(in srgb, var(--accent-strong) 60%, var(--text-muted));
+}
+.model-select-searchable__option-affordances {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+.model-select-searchable__value-badge[data-tag='standard'],
+.model-select-searchable__option-badge[data-tag='standard'] {
+  --model-tag-color: #90887a;
+}
+.model-select-searchable__value-badge[data-tag='advanced'],
+.model-select-searchable__option-badge[data-tag='advanced'] {
+  --model-tag-color: #bf8a34;
+}
+.model-select-searchable__value-badge[data-tag='bestQuality'],
+.model-select-searchable__option-badge[data-tag='bestQuality'] {
+  --model-tag-color: #c77858;
+}
+.model-select-searchable__empty {
+  padding: 12px 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+
+.inline-switcher__select {
+  appearance: none;
+  width: 100%;
+  height: 32px;
+  padding: 0 28px 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+  font-size: 12px;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.inline-switcher__select .model-select-searchable__value {
+  justify-content: space-between;
+}
+.inline-switcher__select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+.inline-switcher__warn {
+  font-size: 12px;
+  color: var(--amber, #b26200);
+  background: var(--amber-bg, #fff3e0);
+  border: 1px solid color-mix(in srgb, var(--amber, #b26200) 22%, transparent);
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.inline-switcher__more {
+  appearance: none;
+  border: 0;
+  /* Pinned to the bottom of the popover's scroll port: the model list can be
+     long, and this entry used to scroll away with it — the
+     one link out to where agent switching now lives. Opaque so rows scrolling
+     underneath do not show through. */
+  position: sticky;
+  bottom: -12px;
+  z-index: 1;
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border-soft);
+  margin-top: 2px;
+  padding: 8px 4px;
+  display: inline-flex;
+  align-items: center;
+  /* Left-align the icon + label (the button primitive centers content). */
+  justify-content: flex-start;
+  text-align: left;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.inline-switcher__more:hover {
+  color: var(--text-strong);
+}
+
+@media (max-width: 700px) {
+  .inline-switcher__chip-mode,
+  .inline-switcher__chip-sep:first-of-type {
+    display: none;
+  }
+  .inline-switcher__chip-model {
+    max-width: 96px;
+  }
+}

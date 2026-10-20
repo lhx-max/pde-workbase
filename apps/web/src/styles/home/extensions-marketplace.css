@@ -1,0 +1,639 @@
+/* ============================================================
+   Extension marketplace
+
+   Owns the Skill, Workflow, and MCP catalogue surfaces.
+   Detail-dialog styles stay with their component owners.
+   ============================================================ */
+
+/* 扩展 page: match the design-systems safe area. Design-systems fills the entry
+   inner (`.entry-main__inner--wide`, max-width 1600px, padding 16px 24px 64px)
+   via `.entry-section` with no extra cap; mirror that here instead of the narrow
+   980px centred column so both pages share identical content insets. */
+/* The header (title + search + both filter rows) scrolls away with the grid
+   as normal flow content — no sticky pinning, no fill. */
+
+/* The 扩展 hero lost its description line, so it's just the title + the 新增
+   button — vertically center them against each other. */
+
+/* Selected scope tab / category chip: white fill matching the segmented
+   switch's active thumb — the pastel app wash behind the page gives the
+   white enough contrast to read as a fill, with a whisper shadow to lift it. */
+
+.plugin-marketplace__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background:
+    radial-gradient(
+      circle at 24% 18%,
+      color-mix(in srgb, var(--surface-static-white) 55%, transparent),
+      transparent 32%
+    ),
+    color-mix(in srgb, var(--plugin-accent, var(--accent)) 16%, var(--bg-panel));
+  color: color-mix(
+    in srgb,
+    var(--plugin-accent, var(--accent)) 88%,
+    var(--text-strong)
+  );
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  box-shadow: var(--shadow-xs);
+  transition:
+    transform 160ms var(--ease-out),
+    box-shadow 160ms var(--ease-out);
+}
+
+.plugin-marketplace__item.is-clickable {
+  cursor: pointer;
+}
+
+.plugin-marketplace__modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background: color-mix(in srgb, var(--text-strong) 28%, transparent);
+  -webkit-backdrop-filter: var(--scrim-backdrop);
+  backdrop-filter: var(--scrim-backdrop);
+}
+
+.plugin-marketplace__create-panel {
+  width: min(680px, 100%);
+  max-height: min(760px, calc(100vh - 56px));
+  overflow: auto;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  box-shadow: var(--shadow-md);
+}
+
+.plugin-marketplace__create-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px 22px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.plugin-marketplace__create-head h2 {
+  margin: 12px 0 0;
+  color: var(--text-strong);
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.plugin-marketplace__create-options {
+  display: grid;
+  gap: 12px;
+  padding: 16px 22px 22px;
+}
+
+.plugin-marketplace__create-options article {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--bg-panel) 64%, var(--bg));
+}
+
+.plugin-marketplace__create-options h3 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 14px;
+}
+
+.plugin-marketplace__create-options p {
+  margin: 5px 0 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.plugin-marketplace__create-options label {
+  display: grid;
+  gap: 6px;
+}
+
+.plugin-marketplace__create-options label span {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.plugin-marketplace__url-import-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--spacing-10);
+}
+
+.plugin-marketplace__folder-action-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-10);
+}
+
+.plugin-marketplace__empty {
+  display: flex;
+  min-height: 248px;
+  padding: 64px 24px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  border: 1px dashed var(--border);
+  border-radius: 0;
+  background: color-mix(in srgb, var(--bg-panel) 40%, transparent);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.plugin-marketplace__empty-icon {
+  display: flex;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 16px;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+}
+
+.plugin-marketplace__empty h3 {
+  margin: 0;
+  color: var(--text-strong);
+  font-family: var(--font-heading, inherit);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.plugin-marketplace__empty p {
+  max-width: 384px;
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.plugin-marketplace__empty-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+@media (max-width: 980px) {
+  .plugin-marketplace {
+    width: 100%;
+  }
+
+  .plugin-marketplace__rows {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .plugin-marketplace__row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .plugin-marketplace__row-action,
+  .plugin-marketplace__row > svg {
+    display: none;
+  }
+}
+
+/* ============================================================
+   Unified Skill / Workflow catalog
+
+   Geometry is locked to MiniMax Design 3.0.2's Skill renderer:
+   48px desktop gutters, 24px heading, 36px actions, text tabs with a
+   2px underline, 256px search, 24px card gaps, and 16:9 covers.
+   ============================================================ */
+.plugin-marketplace {
+  width: 100%;
+  margin: 0;
+  min-height: 100%;
+  padding: 24px 48px 72px;
+  background: var(--marketplace-ground);
+  color: var(--text);
+}
+
+@media (max-width: 767px) {
+  .plugin-marketplace {
+    padding-right: 32px;
+    padding-left: 32px;
+  }
+}
+
+/* The sidebar owns page navigation; keep the toolbar clear of the sheet edge. */
+
+.plugin-marketplace__catalog {
+  margin-top: 0;
+}
+
+.plugin-marketplace__automations {
+  margin-inline: -48px;
+}
+
+.plugin-marketplace__automations[hidden] {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .plugin-marketplace__automations {
+    margin-inline: -32px;
+  }
+}
+
+.plugin-marketplace__mcp {
+  padding: 0;
+}
+
+.plugin-marketplace__mcp .mcp-marketplace-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.plugin-marketplace__mcp .mcp-rows {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.plugin-marketplace__mcp .mcp-row {
+  --project-card-list-cover-width: 96px;
+  --project-card-list-cover-height: 96px;
+  --project-card-list-gap: 12px;
+  --project-card-list-padding: 10px;
+  position: relative;
+  display: block;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+}
+
+.plugin-marketplace__mcp .mcp-row:hover,
+.plugin-marketplace__mcp .mcp-row:focus-within {
+  border-color: transparent;
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-2px);
+}
+
+.plugin-marketplace__mcp .mcp-row-disabled {
+  opacity: 0.58;
+}
+
+.plugin-marketplace__mcp .mcp-row-head {
+  align-items: center;
+  gap: var(--project-card-list-gap);
+  padding: var(--project-card-list-padding);
+}
+
+.plugin-marketplace__mcp .mcp-row-cover {
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: calc(var(--radius-md) - 2px);
+  background: color-mix(in srgb, var(--text-strong) 6%, var(--bg-panel));
+  color: var(--text-muted);
+}
+
+.plugin-marketplace__mcp .mcp-row-main {
+  min-width: 0;
+}
+
+.plugin-marketplace__mcp .mcp-row-summary-title {
+  display: block;
+  width: 100%;
+  min-height: 22px;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+}
+
+.plugin-marketplace__mcp .mcp-row-summary-title:hover {
+  border-color: transparent;
+  background: transparent;
+}
+
+.plugin-marketplace__mcp .mcp-row-summary-name {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.plugin-marketplace__mcp .mcp-row-main .project-card__description {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  -webkit-line-clamp: unset;
+}
+
+.plugin-marketplace__mcp .mcp-row-counter {
+  display: none;
+}
+
+.plugin-marketplace__mcp .mcp-row-switch {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.plugin-marketplace__mcp .mcp-row-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+.mcp-row-actions > button, .mcp-row-actions [aria-haspopup='menu'] { width:28px; min-width:28px; height:28px; min-height:28px; border:0; padding:0; background:transparent; box-shadow:none; }
+
+.plugin-marketplace__mcp .mcp-row-actions .icon-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+}
+
+.plugin-marketplace__mcp .mcp-empty-state {
+  display: flex;
+  min-height: 260px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 40px 24px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: center;
+}
+
+.plugin-marketplace__mcp .mcp-empty-state__icon {
+  display: inline-flex;
+  width: 48px;
+  height: 48px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+  border-radius: 12px;
+  background: var(--bg-subtle);
+  color: var(--text-soft);
+}
+
+.plugin-marketplace__mcp .mcp-empty-state strong {
+  color: var(--text-strong);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.plugin-marketplace__mcp .mcp-empty-state p {
+  max-width: 420px;
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.plugin-marketplace__mcp .mcp-empty-state__action {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 0 14px;
+  border: var(--stroke-thin) solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-panel);
+  color: var(--text-strong);
+  font-size: 13px;
+}
+
+.plugin-marketplace__mcp .mcp-empty-state__action:hover {
+  background: var(--bg-subtle);
+}
+
+.plugin-marketplace__mcp .mcp-foot {
+  justify-content: flex-end;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: var(--stroke-thin) solid var(--border-soft);
+}
+
+.plugin-marketplace__mcp .mcp-foot code {
+  padding: 2px 5px;
+  border-radius: 5px;
+  background: var(--bg-subtle);
+}
+
+@media (max-width: 720px) {
+  .plugin-marketplace__mcp {
+    padding-top: 24px;
+  }
+
+  .plugin-marketplace__mcp .mcp-marketplace-section {
+    gap: 14px;
+  }
+
+  .plugin-marketplace__mcp .mcp-rows {
+    grid-template-columns: 1fr;
+  }
+}
+
+.plugin-marketplace__rows {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.plugin-marketplace__item,
+.plugin-marketplace__item--capability {
+  min-width: 0;
+}
+
+.plugin-marketplace__cover-media {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.plugin-marketplace__row-action {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 140ms var(--ease-out),
+    transform 140ms var(--ease-out);
+}
+
+.plugin-marketplace__item:hover .plugin-marketplace__row-action,
+.plugin-marketplace__item:focus-within .plugin-marketplace__row-action {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.plugin-marketplace__menu-wrap {
+  position: static;
+  flex: 0 0 auto;
+  z-index: 3;
+  display: inline-grid;
+  place-items: center;
+}
+.plugin-marketplace__menu-wrap .plugin-marketplace__more { width:28px; min-width:28px; height:28px; min-height:28px; padding:0; border:0; box-shadow:none; background:transparent; color:var(--text-muted); }
+.plugin-marketplace__menu-wrap .plugin-marketplace__more:hover { background:var(--bg-subtle); color:var(--text-strong); }
+
+/* Skill and Workflow are both executable capabilities. They share one list
+   card geometry; only their fallback artwork and domain actions may differ. */
+.plugin-marketplace__rows.plugin-marketplace__rows--capabilities {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.plugin-marketplace__item--capability {
+  --project-card-list-cover-width: 96px;
+  --project-card-list-cover-height: 96px;
+  --project-card-list-gap: 12px;
+  --project-card-list-padding: 10px;
+}
+
+.plugin-marketplace__capability-cover {
+  border: 0;
+  border-radius: calc(var(--radius-md) - 2px);
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-panel));
+}
+
+.plugin-marketplace__item--capability .plugin-marketplace__card-footer {
+  justify-content: flex-start;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+/* Skill descriptions stay scannable inside the two-column list. The shared
+   list-card default permits two lines for richer workflow summaries; Skills
+   deliberately reserve that vertical space for the primary action instead. */
+.project-card.project-card--list.plugin-marketplace__item--capability
+  .project-card__description {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  -webkit-line-clamp: unset;
+}
+
+.plugin-marketplace__meta-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--bg-fill-tertiary);
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 18px;
+}
+
+.plugin-marketplace__capability-actions {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 8px;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(6px);
+  transition:
+    opacity 150ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.plugin-marketplace__item--capability:hover
+  .plugin-marketplace__capability-actions,
+.plugin-marketplace__item--capability:focus-within
+  .plugin-marketplace__capability-actions {
+  pointer-events: auto;
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.plugin-marketplace__item--capability.plugin-marketplace__item--has-menu
+  .plugin-marketplace__capability-actions {
+  margin-right: 0;
+}
+
+@media (max-width: 760px) {
+  .plugin-marketplace {
+    padding: 20px 32px 56px;
+  }
+
+  .plugin-marketplace__item--capability {
+    --project-card-list-cover-width: 80px;
+    --project-card-list-cover-height: 80px;
+    --project-card-list-gap: 10px;
+  }
+
+  .plugin-marketplace__rows {
+    grid-template-columns: 1fr;
+  }
+
+  .plugin-marketplace__rows.plugin-marketplace__rows--capabilities {
+    grid-template-columns: 1fr;
+  }
+
+  .plugin-marketplace__item--capability .plugin-marketplace__row,
+  .plugin-marketplace__item--capability.is-clickable .plugin-marketplace__row {
+    flex-wrap: wrap;
+  }
+
+  .plugin-marketplace__capability-actions {
+    width: 100%;
+    margin-left: calc(
+      var(--project-card-list-cover-width) + var(--project-card-list-gap)
+    );
+    pointer-events: auto;
+    opacity: 1;
+    transform: none;
+  }
+
+  .plugin-marketplace__item--capability.plugin-marketplace__item--has-menu
+    .plugin-marketplace__capability-actions {
+    margin-right: 0;
+  }
+
+  .plugin-marketplace__row-action {
+    display: inline-flex;
+  }
+}
+
+@media (min-width: 640px) {
+  .plugin-marketplace__rows {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .plugin-marketplace__rows {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .plugin-marketplace__rows {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

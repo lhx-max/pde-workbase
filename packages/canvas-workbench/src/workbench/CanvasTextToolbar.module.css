@@ -1,0 +1,13 @@
+/* The host owns formatting controls; the canvas owns their edge-safe layout. */
+.toolbar :global(.markdown-word-floating-toolbar) {
+  flex-wrap: wrap;
+  overflow: visible;
+}
+.toolbar :global(.markdown-word-tool) {
+  flex: 1 0 24px;
+}
+
+.body {
+  box-sizing: border-box;
+  padding-top: var(--text-toolbar-inset, 0px);
+}

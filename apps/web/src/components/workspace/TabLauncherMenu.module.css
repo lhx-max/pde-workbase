@@ -1,0 +1,27 @@
+/* Compact quick-create menu anchored to the tab strip's "+" button. */
+
+.menu {
+  width: min(224px, calc(100vw - 24px));
+}
+
+.quickAction {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.quickActionIcon {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.quickActionLabel {
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+}

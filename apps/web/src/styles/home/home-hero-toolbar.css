@@ -1,0 +1,315 @@
+/* The shared ComposerPlusMenu owns the + trigger on every surface. */
+.home-hero__foot-left .home-hero__ds-row-trigger {
+  height: 32px;
+}
+.home-hero__foot-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.home-hero__execution-switcher {
+  display: inline-flex;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+.home-hero__execution-switcher .inline-switcher {
+  min-width: 0;
+  /* Sizes to the chip below, which now carries a status dot + the model name.
+     Left at the old 36px icon square, this wrapper capped the chip before its
+     own max-width applied and squeezed the model name to zero width. The
+     ≤900px block collapses both back to an icon. */
+  width: auto;
+  max-width: 220px;
+}
+.home-hero__execution-switcher .inline-switcher__chip {
+  /* Now shows a connection-status dot + the selected model name, so it sizes
+     to its content instead of a fixed icon square. */
+  width: auto;
+  max-width: 220px;
+  height: 32px;
+  justify-content: center;
+  padding: 0 12px;
+  gap: 4px;
+  border-color: transparent;
+  border-radius: var(--radius-pill);
+  box-shadow: none;
+}
+.home-hero__execution-switcher .inline-switcher__chip:hover,
+.home-hero__execution-switcher .inline-switcher__chip[aria-expanded='true'] {
+  border-color: transparent;
+  box-shadow: none;
+  background: var(--bg-subtle);
+}
+.home-hero__execution-switcher .inline-switcher__chip-icon {
+  width: 20px;
+  height: 20px;
+}
+/* Connection-status dot: green = agent reachable, gray = unreachable/failed.
+   A same-color halo pulses outward for the "breathing" live indicator. */
+.inline-switcher__chip-conn {
+  position: relative;
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--text-soft);
+}
+.inline-switcher__chip-conn[data-connected='true'] {
+  background: var(--green, #00aa54);
+}
+.inline-switcher__chip-conn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: inherit;
+  animation: inline-switcher-chip-breathe 2s var(--ease-out, ease-out) infinite;
+}
+@keyframes inline-switcher-chip-breathe {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  70%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .inline-switcher__chip-conn::after {
+    animation: none;
+  }
+}
+.inline-switcher__chip-model-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  letter-spacing: 0;
+  color: var(--text);
+}
+.home-hero__execution-switcher .inline-switcher__chip-chevron {
+  flex: 0 0 auto;
+}
+.home-hero__execution-switcher .inline-switcher__popover {
+  z-index: 1503;
+  /* Compact home-hero variant: narrower + tighter than the shared 320px popover
+     since it only lists agents (no mode segment / model row). */
+  width: 260px;
+  padding: 6px;
+  gap: 2px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-md);
+}
+.home-hero__execution-switcher .inline-switcher__agent-grid {
+  grid-template-columns: 1fr;
+  /* Tight rows for the borderless compact model list (no card gaps). */
+  gap: 2px;
+}
+.home-hero__execution-switcher .inline-switcher__agent {
+  min-height: 36px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 20px;
+}
+.home-hero__execution-switcher .inline-switcher__agent.is-active {
+  background: rgba(0, 0, 0, 0.06);
+  color: #000;
+  font-weight: 400;
+  box-shadow: none;
+}
+.home-hero__execution-switcher .inline-switcher__more {
+  position: static;
+  min-height: 32px;
+  margin: 4px 8px 0;
+  padding: 0 10px;
+  border: 0;
+  border-top: 1px solid transparent;
+  border-radius: 6px;
+  background: #fff;
+  color: #000;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 20px;
+}
+.home-hero__execution-switcher .inline-switcher__more:hover,
+.home-hero__execution-switcher .inline-switcher__more:focus-visible {
+  background: rgba(0, 0, 0, 0.06);
+  color: #000;
+  outline: 0;
+}
+/* Host wrapper that aligns the shared WorkingDirPicker to the input card's
+   left edge (card is max-width 720px, centered). The picker itself is
+   layout-neutral; this row gives it the Home placement. */
+.home-hero__workdir-row {
+  position: relative;
+  /* MiniMax keeps the tray behind the z:10 input surface: its -16px overlap
+     must disappear under the white card, not paint a gray band over it. */
+  /* Keep the gray tray below the white composer. The picker menu establishes
+     its own z-index and can still rise above the composer without lifting the
+     tray surface into the input card. */
+  z-index: auto;
+  width: 100%;
+  max-width: none;
+  min-height: var(--home-ref-project-tray-height);
+  margin: -16px 20px 0;
+  padding: 22px 12px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  background: var(--home-ref-tray-surface);
+  border-radius: 0 0 var(--home-ref-input-radius) var(--home-ref-input-radius);
+}
+.home-hero__composer-card:has([data-testid='project-folder-menu']) {
+  z-index: 40;
+}
+.home-hero__workdir-row [data-testid='project-folder-picker'] {
+  height: 32px;
+  min-width: 0;
+  max-width: 180px;
+  gap: 6px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  outline: 0;
+  background: transparent;
+  box-shadow: none;
+  color: color-mix(in srgb, var(--home-ref-foreground) 70%, transparent);
+  font-size: 13px;
+}
+.home-hero__workdir-row [data-testid='project-folder-picker']:hover,
+.home-hero__workdir-row [data-testid='project-folder-picker'][aria-expanded='true'] {
+  border: 0;
+  background: color-mix(in srgb, var(--home-ref-foreground) 5%, transparent);
+  box-shadow: none;
+  color: var(--home-ref-foreground);
+}
+/* Persistent design-system picker — borderless trigger mirroring the
+   working-directory picker so the two read as one row of leading accessories
+   below the composer. The shared popover (search + preview) is unchanged. */
+.home-hero__ds-row-picker {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.home-hero__ds-row-trigger {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted, var(--text));
+  font: inherit;
+  /* 12px matches the template pill's label so the two footer siblings read
+     at the same weight instead of the design-system name looking oversized. */
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    background-color 140ms var(--ease-out),
+    color 140ms var(--ease-out);
+}
+.home-hero__ds-row-trigger:hover,
+.home-hero__ds-row-trigger:focus-visible {
+  outline: none;
+  background: var(--bg-subtle);
+  color: var(--text-strong);
+}
+.home-hero__ds-row-trigger:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.home-hero__ds-row-trigger-icon {
+  flex: 0 0 auto;
+  opacity: 0.75;
+}
+.home-hero__ds-row-trigger-label {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-hero__ds-row-trigger-chevron {
+  flex: 0 0 auto;
+  opacity: 0.55;
+}
+/* High-frequency output modes live directly in the composer footer. They use
+   the exact typography, icon geometry, and neutral hover language of the
+   adjacent capability trigger so the toolbar reads as one control family. */
+.home-hero__quick-create-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.home-hero__quick-create-action {
+  appearance: none;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: color-mix(in srgb, var(--home-ref-foreground) 72%, transparent);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 120ms var(--ease-out),
+    color 120ms var(--ease-out);
+}
+.home-hero__quick-create-action:hover:not(:disabled),
+.home-hero__quick-create-action:focus-visible {
+  outline: none;
+  background: color-mix(in srgb, var(--home-ref-foreground) 7%, transparent);
+  color: var(--home-ref-foreground);
+}
+.home-hero__quick-create-action:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--home-ref-foreground) 22%, transparent);
+}
+.home-hero__quick-create-action.is-active {
+  background: color-mix(in srgb, var(--home-ref-foreground) 9%, transparent);
+  color: var(--home-ref-foreground);
+  font-weight: 500;
+}
+.home-hero__quick-create-action:disabled {
+  opacity: 0.46;
+  cursor: default;
+}
+.home-hero__quick-create-action svg {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 720px) {
+  .home-hero__quick-create-action {
+    width: 32px;
+    padding: 0;
+  }
+  .home-hero__quick-create-action span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+/* composer-footer rules moved to ./home-hero-composer-footer.css (imported at top of this file) */

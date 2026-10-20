@@ -1,0 +1,118 @@
+@import './select-picker.css';
+
+/* -------- Button compatibility -------------------------------------- */
+/*
+ * Button geometry and interaction state live in components/ui/button.tsx.
+ * These selectors only preserve legacy semantic className consumers while
+ * they migrate to the variant prop. `:where` scopes the compatibility rules
+ * without increasing their historical specificity or styling raw buttons.
+ */
+button:where([data-ui-button]).primary {
+  background: var(--text-strong);
+  border-color: var(--text-strong);
+  color: var(--bg);
+}
+button:where([data-ui-button]).primary:hover:not(:disabled) {
+  background: var(--bg-primary-hover);
+  border-color: var(--bg-primary-hover);
+}
+button:where([data-ui-button]).primary:active:not(:disabled) {
+  background: var(--text);
+  border-color: var(--text);
+}
+button:where([data-ui-button]).primary-ghost {
+  background: var(--bg-subtle);
+  border-color: transparent;
+  color: var(--text-strong);
+}
+button:where([data-ui-button]).primary-ghost:hover:not(:disabled) { background: var(--bg-muted); }
+button:where([data-ui-button]).primary-ghost:active:not(:disabled) { background: var(--border-strong); }
+
+button:where([data-ui-button]).ghost {
+  background: transparent;
+  color: var(--text);
+  border-color: transparent;
+}
+button:where([data-ui-button]).ghost:hover:not(:disabled) { background: var(--bg-subtle); border-color: transparent; }
+button:where([data-ui-button]).ghost:active:not(:disabled) { background: var(--bg-muted); }
+
+/* Transient success state for ghost actions. */
+button:where([data-ui-button]).ghost.is-success-flash {
+  border-color: var(--green-border);
+  background: var(--green-bg);
+  color: var(--green);
+}
+button:where([data-ui-button]).ghost.is-success-flash:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--green) 14%, transparent);
+}
+button:where([data-ui-button]).ghost.is-success-flash svg { color: currentColor; }
+
+button:where([data-ui-button]).subtle {
+  background: var(--bg-subtle);
+  border-color: transparent;
+  color: var(--text-strong);
+}
+button:where([data-ui-button]).subtle:hover:not(:disabled) { background: var(--bg-muted); }
+button:where([data-ui-button]).subtle:active:not(:disabled) { background: var(--border-strong); }
+
+button:where([data-ui-button]).icon-btn {
+  min-width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: var(--radius-medium);
+}
+
+/* Search fields use product-owned clear actions when a clear affordance is
+   needed. Suppress the browser/OS decoration globally so Chromium cannot
+   render a second, differently styled X beside it. */
+input[type='search']::-webkit-search-cancel-button,
+input[type='search']::-webkit-search-decoration {
+  display: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input[type='search']::-ms-clear,
+input[type='search']::-ms-reveal {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.bezier-tooltip {
+  position: relative;
+}
+.bezier-tooltip-layer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--layer-tooltip);
+  max-width: min(260px, calc(100vw - 16px));
+  padding: 5px 8px;
+  border: 1px solid var(--material-separator);
+  border-radius: var(--radius-sm);
+  /* Thick material: tooltips are small precise text, which per the material
+     spec takes the highest-contrast (most opaque) tier. */
+  background: var(--material-thick);
+  -webkit-backdrop-filter: var(--material-thick-backdrop);
+  backdrop-filter: var(--material-thick-backdrop);
+  box-shadow: var(--shadow-sm);
+  color: var(--vibrancy-label);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  contain: layout paint style;
+  pointer-events: none;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  will-change: transform;
+}
+
+/* Inline code only. Fenced code blocks and editors own their full surface. */
+code:not(pre code) {
+  background: var(--bg-subtle);
+  padding: 1px 5px;
+  border-radius: var(--radius-xs);
+  font-size: 0.92em;
+  color: var(--text);
+}

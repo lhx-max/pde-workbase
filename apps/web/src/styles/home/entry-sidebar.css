@@ -1,0 +1,810 @@
+/* Bottom-left action cluster (GitHub star / Discord / help).
+   Compact toolbar: Star keeps the GitHub icon plus live count; secondary
+   actions collapse to icons. */
+.entry-rail-actions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  width: 100%;
+  max-width: calc(100% - 18px);
+  padding: 0 0 4px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+.entry-nav-rail__footer .entry-rail-actions {
+  order: 1;
+  /* Action row rides higher, clear of the credits + account stack. */
+  margin-bottom: 12px;
+}
+/* With no update in flight, the actions box has no children because the
+   updater host renders nothing. Collapse it AND the footer's own padding so
+   the rail doesn't end in a blank strip under the account row. */
+.entry-nav-rail__footer .entry-rail-actions:empty {
+  display: none;
+}
+.entry-nav-rail__footer:has(> .entry-rail-actions:empty):not(:has(> :last-child:not(.entry-rail-actions))) {
+  padding-bottom: 0;
+}
+.entry-rail-actions > * {
+  align-self: center;
+}
+.entry-rail-actions .entry-star-badge,
+.entry-rail-actions .entry-discord-badge,
+.entry-rail-actions .entry-mail-badge {
+  justify-content: center;
+}
+/* ---------- Right-side hover tooltip (rail items only) ----------
+   Only the rail's icon-only controls (updater, avatar, icon-only
+   sign-out) advertise a `data-tooltip`; labeled nav items render
+   their text inline and must not emit the attribute, or the bubble
+   would duplicate visible text. The label slides in from the right
+   on hover/focus-visible and sits above siblings via z-index. We
+   deliberately block tooltips while the help popover is open so the
+   floating menu does not collide with the tooltip bubble. */
+.entry-nav-rail [data-tooltip] {
+  position: relative;
+}
+.entry-nav-rail [data-tooltip]:not(.bezier-tooltip)::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-4px);
+  padding: 5px 9px;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--bg-panel);
+  background: var(--text-strong, #111);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm, 0 4px 12px rgba(0, 0, 0, 0.12));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms var(--ease-out), transform 120ms var(--ease-out);
+  z-index: 60;
+}
+.entry-nav-rail [data-tooltip]:not(.bezier-tooltip):hover::after,
+.entry-nav-rail [data-tooltip]:not(.bezier-tooltip):focus-visible::after {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+.entry-nav-rail [data-tooltip]:not(.bezier-tooltip)[aria-expanded='true']::after {
+  display: none;
+}
+/* Nav-button tooltips: suppress when the label is visible (expanded state) —
+   they would duplicate the inline text. Show only in the collapsed strip. */
+.entry--rail-open .entry-nav-rail__btn[data-tooltip]:not(.bezier-tooltip)::after,
+.entry--rail-open .entry-nav-rail__btn[data-tooltip]:not(.bezier-tooltip):hover::after {
+  display: none;
+}
+/* The panel clips nothing (overflow:visible) so the tooltip ::after pseudo is
+   able to escape the 56px strip width — but the panel itself needs
+   `overflow: visible` confirmed (not hidden by any ancestor). */
+.entry-nav-rail__panel {
+  overflow: visible;
+}
+/* RTL: the rail still lives on the left so the tooltip remains on
+   the right of the button — but using `left: calc(100% + 10px)` in
+   RTL would flip incorrectly via the parent's `dir="rtl"`. Pin the
+   anchor explicitly so the bubble stays where the user expects. */
+[dir='rtl'] .entry-nav-rail [data-tooltip]:not(.bezier-tooltip)::after {
+  left: auto;
+  right: calc(100% + 10px);
+  transform: translateY(-50%) translateX(4px);
+}
+[dir='rtl'] .entry-nav-rail [data-tooltip]:not(.bezier-tooltip):hover::after,
+[dir='rtl'] .entry-nav-rail [data-tooltip]:not(.bezier-tooltip):focus-visible::after {
+  transform: translateY(-50%) translateX(0);
+}
+
+/* Positioning host for the update-ready indicator and its panel. The
+   indicator's own look lives in UpdaterPopup.module.css; `.updater-popup`
+   anchors against this box (see styles/workspace/mention-home.css). */
+.entry-updater-menu {
+  position: relative;
+  display: inline-flex;
+}
+.entry-nav-rail__logo {
+  appearance: none;
+  position: relative;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: pointer;
+  margin-bottom: 2px;
+  transition: background-color 120ms cubic-bezier(0.23, 1, 0.32, 1),
+    border-color 120ms cubic-bezier(0.23, 1, 0.32, 1),
+    transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.entry-nav-rail__logo:hover {
+  background: transparent;
+  border-color: transparent;
+}
+.entry-nav-rail__logo:active {
+  transform: scale(0.96);
+}
+.entry-nav-rail__logo:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* The logo doubles as the Home destination; when the home view is
+   active it gets the same accent treatment as a primary nav button
+   so users still see "you are here" without a dedicated Home icon. */
+.entry-nav-rail__logo.is-active {
+  background: transparent;
+  border-color: transparent;
+}
+.entry-nav-rail__btn {
+  appearance: none;
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  height: var(--home-ref-sidebar-nav-row-height, 36px);
+  margin: 0;
+  -webkit-app-region: no-drag;
+  padding: 0 1px 0 20px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  /* The workspace console entries (成员/数据大盘/Workspace 设置) render as
+     anchors; the UA underline breaks the uniform nav-item look (#5517 rail
+     items are plain). */
+  text-decoration: none;
+  /* Unselected: label matches the icon's muted tone (one uniform color); hover
+     steps up to --text-strong, selection goes near-black on light gray.
+     68% lands the blend on the --text-soft step (52% read too faint). */
+  color: var(--home-ref-sidebar-primary-text, rgba(0, 0, 0, 0.7));
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  font-family: var(--home-ref-sidebar-font);
+  font-size: 14px;
+  line-height: 14px;
+  text-align: left;
+  transition: background-color 120ms var(--ease-out), color 120ms var(--ease-out), border-color 120ms var(--ease-out);
+}
+.entry-nav-rail__btn::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: 2px;
+  bottom: 2px;
+  left: var(--home-ref-sidebar-nav-pill-left, 16px);
+  right: var(--home-ref-sidebar-nav-pill-right, 2px);
+  border-radius: var(--home-ref-sidebar-nav-radius, 9.6px);
+  background: transparent;
+  pointer-events: none;
+  clip-path: inset(0 0 0 0 round var(--home-ref-sidebar-nav-radius, 9.6px));
+  transition:
+    clip-path var(--home-ref-sidebar-preview-duration, 160ms)
+      var(--home-ref-sidebar-preview-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    background-color 100ms ease-out;
+}
+.entry-nav-rail__btn-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 24px;
+  /* Tracks the unselected label tone above. */
+  color: currentColor;
+}
+.entry-nav-rail__btn-icon > svg {
+  width: 18px;
+  height: 18px;
+}
+/* Asymmetric stroke icons can read slightly left of their box centre (most
+   obvious on share / kanban / settings). Keep this small optical adjustment
+   on the rail rather than changing the shared icon renderer. */
+.entry-nav-rail__btn-icon .bezier-icon {
+  transform: translateX(0.8px);
+}
+.entry-nav-rail__btn-label {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.entry-nav-rail__btn.is-active .entry-nav-rail__btn-icon {
+  color: var(--home-ref-foreground, #000);
+}
+.entry-nav-rail__btn.is-active .entry-nav-rail__btn-label {
+  font-weight: 400;
+}
+
+
+/* Team switcher row */
+/* Team block: separated from the personal nav above by a very soft divider. */
+.entry-nav-rail__team-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 42%, transparent);
+}
+.entry-nav-rail__team-section:empty {
+  display: none;
+}
+
+.entry-nav-rail__workspace-item {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+/* Space navigation shares the project subtree's row, highlight and guide line.
+   Only its two management actions need additional trailing room. */
+.entry-nav-rail__space-item:hover .entry-nav-rail__creation-trailing,
+.entry-nav-rail__space-item:focus-within .entry-nav-rail__creation-trailing {
+  flex-basis: 48px;
+  width: 48px;
+}
+.entry-nav-rail__space-actions {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+}
+.entry-nav-rail__space-item:hover .entry-nav-rail__space-actions,
+.entry-nav-rail__space-item:focus-within .entry-nav-rail__space-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+.entry-nav-rail__space-actions > button {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  color: var(--text-muted);
+}
+.entry-nav-rail__space-actions > button:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: transparent;
+  color: var(--home-ref-foreground, #000);
+}
+.entry-nav-rail__space-rename {
+  height: 32px;
+  min-height: 32px;
+  margin: 0 4px;
+  padding: 0 8px;
+  font-size: 14px;
+}
+.entry-nav-rail:not(.is-open):not(.is-preview-open) .entry-nav-rail__space-sub,
+.entry-nav-rail:not(.is-open):not(.is-preview-open) .entry-nav-rail__workspace-item [data-sidebar='menu-action'] {
+  display: none;
+}
+/* Collapsed icon rail: this item is a column when expanded (spaces hang
+   under the label). Stretching that column in the 64px strip makes the
+   shared hover fill wider than the 32px glyph and left-aligns it. */
+.entry:not(.entry--rail-open)
+  .entry-nav-rail:not(.is-preview-open)
+  .entry-nav-rail__workspace-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+}
+.entry:not(.entry--rail-open)
+  .entry-nav-rail:not(.is-preview-open)
+  .entry-nav-rail__workspace-item
+  [data-slot='motion-highlight-item'],
+.entry:not(.entry--rail-open)
+  .entry-nav-rail:not(.is-preview-open)
+  .entry-nav-rail__workspace-item
+  [data-slot='motion-highlight-item-container'] {
+  width: 32px;
+  flex: none;
+}
+.entry:not(.entry--rail-open)
+  .entry-nav-rail:not(.is-preview-open)
+  .entry-nav-rail__workspace-item
+  .entry-animate-sidebar__nav-button {
+  width: 32px;
+  height: 32px;
+  justify-content: center;
+  padding: 7px;
+}
+
+
+/* MiniMax home source: project section header uses pl-5/pr-2/pt-[18px],
+   14px half-opacity text; project rows use the same 32px icon axis as nav. */
+.entry-nav-rail__projects {
+  flex: 0 0 auto;
+  width: 100%;
+}
+.entry-nav-rail__projects-heading {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  width: 100%;
+  height: 40px;
+  padding: 18px 8px 2px 20px;
+  border: 0;
+  background: transparent;
+  color: var(--home-ref-sidebar-section-text, rgba(0, 0, 0, 0.5));
+  font-family: var(--home-ref-sidebar-font);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  text-align: left;
+  cursor: pointer;
+  transition: color 100ms ease-out;
+}
+.entry-nav-rail__projects[data-sidebar='group'] {
+  padding: 0 8px 8px;
+}
+.entry-nav-rail__projects-heading[data-sidebar='group-label'] {
+  height: 32px;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-md, 8px);
+  box-shadow: none;
+  font-size: 12px;
+}
+.entry-nav-rail__projects-heading:hover:not(:disabled) {
+  /* MiniMax's section toggle changes ink only. This explicit reset outranks
+     primitives.css's global button hover, which otherwise paints a full-width
+     white card behind the entire Projects heading. */
+  background: transparent;
+  border-color: transparent;
+  color: var(--home-ref-foreground, #000);
+}
+.entry-nav-rail__projects-heading svg {
+  flex: 0 0 auto;
+  color: currentColor;
+}
+.entry-nav-rail__project-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.entry-nav-rail__project-row {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  width: 100%;
+  height: 32px;
+  padding: 0 16px 0 20px;
+  color: var(--home-ref-sidebar-secondary-text, rgba(0, 0, 0, 0.65));
+  font-family: var(--home-ref-sidebar-font);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  transition: color 100ms ease-out;
+}
+.entry-nav-rail__project-row[data-sidebar='menu-button'] {
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-md, 8px);
+  background: transparent;
+  box-shadow: none;
+  color: var(--home-ref-sidebar-secondary-text, rgba(0, 0, 0, 0.65));
+}
+.entry-nav-rail__project-row[data-sidebar='menu-button']::before {
+  content: none;
+}
+.entry-nav-rail__project-row[data-sidebar='menu-button'] > .entry-nav-rail__project-name {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: auto;
+  padding: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.entry-nav-rail__project-group:hover > .entry-nav-rail__project-row,
+.entry-nav-rail__project-group:focus-within > .entry-nav-rail__project-row {
+  padding-right: 60px;
+}
+.entry-nav-rail__project-row::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0 8px 0 14px;
+  border-radius: 6px;
+  background: transparent;
+  pointer-events: none;
+  transition: background-color 100ms ease-out;
+}
+.entry-nav-rail__project-row:hover {
+  color: var(--home-ref-foreground, #000);
+}
+.entry-nav-rail__project-row:hover::before,
+.entry-nav-rail__project-row:focus-within::before {
+  /* MiniMax group headers use 4%; creation rows below use the stronger 8%. */
+  background: rgba(0, 0, 0, 0.04);
+}
+.entry-nav-rail__project-toggle,
+.entry-nav-rail__project-name,
+.entry-nav-rail__project-actions > button {
+  appearance: none;
+  gap: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 400;
+  line-height: 20px;
+}
+.entry-nav-rail__project-toggle {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.entry-nav-rail__project-toggle:hover:not(:disabled),
+.entry-nav-rail__project-toggle:focus-visible {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: transparent;
+  color: var(--home-ref-foreground, #000);
+  outline: none;
+}
+.entry-nav-rail__project-name {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+.entry-nav-rail__project-name > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.entry-nav-rail__project-name:hover:not(:disabled),
+.entry-nav-rail__project-name:focus-visible,
+.entry-nav-rail__project-actions > button:hover:not(:disabled),
+.entry-nav-rail__project-actions > button:focus-visible {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  outline: none;
+}
+.entry-nav-rail__project-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+.entry-nav-rail__project-group > .entry-nav-rail__project-actions {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 3;
+}
+.entry-nav-rail__project-row:hover .entry-nav-rail__project-actions,
+.entry-nav-rail__project-row:focus-within .entry-nav-rail__project-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+.entry-nav-rail__project-actions > button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.entry-nav-rail__project-actions > button:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: transparent;
+  color: var(--home-ref-foreground, #000);
+}
+.entry-nav-rail__project-toggle:active:not(:disabled),
+.entry-nav-rail__project-name:active:not(:disabled),
+.entry-nav-rail__project-actions > button:active:not(:disabled) {
+  transform: none;
+}
+.entry-nav-rail__project-group {
+  width: 100%;
+}
+.entry-nav-rail__creation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-left: 16px;
+}
+.entry-nav-rail__creation-list[data-sidebar='menu-sub'] {
+  width: auto;
+  margin: 1px 8px 3px 14px;
+  padding: 0 0 0 10px;
+  border-left: 1px solid var(--border-soft, rgba(0, 0, 0, 0.08));
+}
+.entry-nav-rail__creation-shell {
+  position: relative;
+  flex: 0 0 32px;
+  width: 100%;
+  height: 32px;
+  color: var(--home-ref-sidebar-secondary-text, rgba(0, 0, 0, 0.65));
+}
+.entry-nav-rail__creation-row {
+  appearance: none;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 32px;
+  padding: 0 8px 0 20px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--home-ref-sidebar-secondary-text, rgba(0, 0, 0, 0.65));
+  font-family: var(--home-ref-sidebar-font);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  text-align: left;
+  cursor: pointer;
+  transition: color 100ms ease-out;
+}
+.entry-nav-rail__creation-row[data-sidebar='menu-sub-button'] {
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-md, 8px);
+  background: transparent;
+  box-shadow: none;
+}
+.entry-nav-rail__creation-row[data-sidebar='menu-sub-button']::before {
+  content: none;
+}
+.entry-nav-rail__creation-row::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0 10px 0 16px;
+  border-radius: 6px;
+  background: transparent;
+  pointer-events: none;
+  transition: background-color 100ms ease-out;
+}
+.entry-nav-rail__creation-row:hover {
+  background: transparent;
+  border-color: transparent;
+  color: var(--home-ref-foreground, #000);
+}
+.entry-nav-rail__creation-row[data-sidebar='menu-sub-button'][data-active='true'] {
+  background: var(--home-ref-sidebar-nav-hover, rgba(0, 0, 0, 0.04));
+  color: var(--home-ref-foreground, #000);
+  font-weight: 500;
+}
+.entry-nav-rail__creation-row:hover::before,
+.entry-nav-rail__creation-row:focus-visible::before,
+.entry-nav-rail__creation-shell:focus-within .entry-nav-rail__creation-row::before,
+.entry-nav-rail__creation-shell[data-menu-open='true'] .entry-nav-rail__creation-row::before {
+  background: var(--home-ref-sidebar-nav-hover, rgba(0, 0, 0, 0.04));
+}
+.entry-nav-rail__creation-row:focus-visible {
+  outline: none;
+}
+.entry-nav-rail__creation-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.entry-nav-rail__creation-row > .entry-nav-rail__creation-trailing {
+  flex: 0 0 0;
+  width: 0;
+  height: 16px;
+  transition: flex-basis 150ms ease-out, width 150ms ease-out;
+}
+.entry-nav-rail__creation-shell:hover .entry-nav-rail__creation-trailing,
+.entry-nav-rail__creation-shell:focus-within .entry-nav-rail__creation-trailing {
+  flex-basis: 24px;
+  width: 24px;
+}
+.entry-nav-rail__creation-actions {
+  pointer-events: none;
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: 2px;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 8px 0 2px;
+  background: transparent;
+  opacity: 0;
+  transition: opacity 150ms ease-out;
+}
+.entry-nav-rail__creation-shell:hover .entry-nav-rail__creation-actions,
+.entry-nav-rail__creation-shell:focus-within .entry-nav-rail__creation-actions,
+.entry-nav-rail__creation-shell[data-menu-open='true'] .entry-nav-rail__creation-actions {
+  pointer-events: auto;
+  opacity: 1;
+}
+.entry-nav-rail__creation-actions > button {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 100ms ease-out, background-color 100ms ease-out;
+}
+.entry-nav-rail__creation-actions > button:hover,
+.entry-nav-rail__creation-actions > button:focus-visible,
+.entry-nav-rail__creation-shell[data-menu-open='true'] .entry-nav-rail__creation-more {
+  outline: none;
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--home-ref-foreground, #000);
+}
+.entry-nav-rail__creation-more .bezier-icon {
+  transform: rotate(90deg);
+}
+.entry-nav-rail__creation-menu {
+  min-width: 132px;
+  text-align: left;
+}
+.entry-nav-rail__creation-row.is-renaming::before {
+  background: var(--home-ref-sidebar-nav-hover, rgba(0, 0, 0, 0.04));
+}
+.entry-nav-rail__creation-rename {
+  min-width: 0;
+  flex: 1;
+  height: 24px;
+  padding: 1px 5px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  border-radius: 5px;
+  background: #fff;
+  color: var(--home-ref-foreground, #000);
+  font: inherit;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.04);
+}
+.entry-nav-rail__creation-thumb,
+.entry-nav-rail__creation-thumb-shell,
+.entry-nav-rail__creation-thumb-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.04);
+  object-fit: cover;
+}
+.entry-nav-rail__creation-thumb-shell {
+  position: relative;
+}
+.entry-nav-rail__creation-thumb-shell > .entry-nav-rail__creation-thumb {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+.entry-nav-rail__creation-thumb-fallback {
+  color: rgba(0, 0, 0, 0.16);
+}
+.entry-nav-rail__creation-thumb-fallback svg {
+  width: 12px;
+  height: 12px;
+}
+.entry-nav-rail__folder-empty {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  margin: -6px 0 0;
+  padding: 0 8px 0 40px;
+  color: rgba(0, 0, 0, 0.3);
+  font-family: var(--home-ref-sidebar-font);
+  font-size: 12px;
+  line-height: 16px;
+}
+.entry-nav-rail__projects-empty {
+  height: 32px;
+  margin: 0;
+  padding: 0 8px 0 40px;
+  color: rgba(0, 0, 0, 0.3);
+  font-family: var(--home-ref-sidebar-font);
+  font-size: 12px;
+  line-height: 32px;
+}
+
+/* Section label (e.g. 更多) */
+.entry-nav-rail__section {
+  margin: 15px 0 5px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: color-mix(in srgb, var(--text-muted) 84%, transparent);
+}
+.entry-nav-rail__section-divider {
+  width: calc(100% - 20px);
+  height: 1px;
+  margin: 15px 10px 5px;
+  background: var(--border-soft);
+}
+.entry-nav-rail__btn:not(.is-active):hover {
+  /* Only the fill changes on hover — the label keeps its resting color so
+     text doesn't shift tone under the pointer. */
+  background: transparent;
+  border-color: transparent;
+}
+.entry-nav-rail__btn:not(.is-active):hover::before {
+  background: var(--home-ref-sidebar-nav-active);
+}
+.entry-nav-rail__btn.is-active {
+  /* Selected = one step above the lightest surface gray (--bg-subtle #ededed)
+     under the spec's selection color (--selected #353535) for label + icon. */
+  background: transparent;
+  color: var(--home-ref-foreground);
+  border-color: transparent;
+}
+.entry-nav-rail__btn.is-active::before {
+  background: var(--home-ref-sidebar-nav-active);
+}
+.entry-nav-rail__btn.is-active:hover {
+  background: transparent;
+  border-color: transparent;
+}
+.entry-nav-rail__btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

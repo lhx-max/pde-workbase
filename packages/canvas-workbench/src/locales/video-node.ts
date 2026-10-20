@@ -1,0 +1,173 @@
+import type { CopyShape } from './copy-shape';
+import { getCanvasActiveLocale } from '../platform/canvas-locale';
+import { resolveCanvasLocale } from './node-catalog';
+
+export function videoNodeCopy(locale?: string | null) {
+  return resolveCanvasLocale(locale) === 'zh-CN' ? ZH : EN;
+}
+export function vn() {
+  return videoNodeCopy(getCanvasActiveLocale());
+}
+
+const EN = {
+  labels: {
+    video: 'Video',
+    videoModel: 'Video model',
+    generatedVideo: 'Generated video',
+    videoPreview: 'Video preview',
+    enlargePreview: 'Enlarge preview',
+    generateVideo: 'Generate video',
+    textToVideo: 'Text to video',
+    imageToVideo: 'Image to video',
+    firstLast: 'First–last frames',
+    firstFrame: 'First frame',
+    lastFrame: 'Last frame',
+    preview: 'Preview',
+    history: 'Generation history',
+    seconds: 'sec',
+    secondsDot: 'sec ·',
+  },
+  status: {
+    generating: 'Generating video…',
+    submitting: 'Submitting…',
+    retrieving: 'Retrieving existing job…',
+    submitFailed: 'Submit failed',
+    submitFailedRetry: 'Submit failed. Check the network and try again.',
+    genFailed: 'Generation failed',
+    done: 'Done',
+    generatingShort: 'Generating',
+    submittingShort: 'Submitting',
+    retrieveResult: 'Retrieve result',
+    generateAgain: 'Generate again',
+    retrieveExisting: 'Retrieve existing result',
+    reconnecting: 'Could not read progress. Reconnecting…',
+    progressReconnect: 'Temporarily cannot read progress. Reconnecting…',
+    noTaskRecord: 'No task record found. Check the server status.',
+    noRealVideo: 'The task did not return a real video file',
+    taskInterrupted: 'Video task interrupted. Check and retry.',
+  },
+  errors: {
+    noVideoModel:
+      'No video model is configured. Set up a provider in Settings → Media. Existing work is kept.',
+    modelUnconfigured: (name: string) => `${name} (not configured)`,
+    cannotAutoGen: 'Cannot generate yet. Check the prompt, model mode, and first/last frames.',
+    configureModel: 'Configure the current media model or pick another one.',
+    modeUnsupported: (model: string, mode: string) =>
+      `${model} does not support ${mode}. Switch to a model that does.`,
+    needTwoImages: 'Connect two images as first and last frames.',
+    needOneImage: 'Connect one reference image.',
+    providerNotConfigured: (provider: string) =>
+      `${provider} is not configured. Finish setup in Settings → Media generation.`,
+    downloadFailed: 'Download failed',
+    modeNeedsProvider: (mode: string, provider: string) => `${mode} requires ${provider} to be configured`,
+    catalogNoMode: (mode: string) => `The current model catalog does not support ${mode}`,
+    readUpstreamFailed: (name: string) => `Failed to read upstream text: ${name}`,
+  },
+  ui: {
+    downloadVideo: 'Download video',
+    playOrScrub: 'Play or scrub the video',
+    previewArea: 'Video preview area',
+    viewResult: (index: number) => `View video result ${index}`,
+    genMode: 'Video generation mode',
+    upstreamAssets: 'Connected upstream assets',
+    addReferenceAssets: 'Add reference assets',
+    addFirstLastImages: 'Add first and last frame images',
+    addReferenceImage: 'Add reference image',
+    description: 'Video description',
+    optionalExtra: 'Optional shot, motion, or style notes',
+    describePlaceholder: 'Describe the scene you want…',
+    unavailable: '(unavailable)',
+    aspect: 'Video aspect',
+    pickAspect: 'Choose video aspect',
+    aspectFromFirst: 'Aspect is set from the first-frame image',
+    resolution: 'Video resolution',
+    duration: 'Video duration',
+    lengthMismatch: (need: number, got: number) =>
+      `Shot needs ${need}s; current model generates ${got}s of footage`,
+    closePreview: 'Close preview',
+    largePreview: 'Large video preview',
+    withInstruction: (texts: string, instruction: string) =>
+      `${texts}\n\nAdditional requirements:\n${instruction}`,
+  },
+} as const;
+
+const ZH = {
+  labels: {
+    video: '视频',
+    videoModel: '视频模型',
+    generatedVideo: '生成的视频',
+    videoPreview: '视频预览',
+    enlargePreview: '放大预览',
+    generateVideo: '生成视频',
+    textToVideo: '文生视频',
+    imageToVideo: '图生视频',
+    firstLast: '首尾帧',
+    firstFrame: '首帧',
+    lastFrame: '尾帧',
+    preview: '预览',
+    history: '生成历史',
+    seconds: '秒',
+    secondsDot: '秒 ·',
+  },
+  status: {
+    generating: '视频生成中…',
+    submitting: '正在提交…',
+    retrieving: '正在取回已有任务…',
+    submitFailed: '提交失败',
+    submitFailedRetry: '提交失败，请检查网络后重试',
+    genFailed: '生成失败',
+    done: '已完成',
+    generatingShort: '生成中',
+    submittingShort: '提交中',
+    retrieveResult: '取回结果',
+    generateAgain: '再次生成',
+    retrieveExisting: '取回已有结果',
+    reconnecting: '读取进度失败，正在重连',
+    progressReconnect: '暂时无法读取任务进度，正在重连',
+    noTaskRecord: '未找到任务记录，请检查服务端状态',
+    noRealVideo: '任务没有返回真实视频文件',
+    taskInterrupted: '视频任务中断，请检查后重试',
+  },
+  errors: {
+    noVideoModel: '暂无已配置的视频模型，请在设置的媒体页面配置提供商。已有作品已保留。',
+    modelUnconfigured: (name: string) => `${name}（未配置）`,
+    cannotAutoGen: '无法自动生成：请检查提示词、模型模式和首尾帧',
+    configureModel: '请先配置当前媒体模型或重新选择。',
+    modeUnsupported: (model: string, mode: string) =>
+      `${model} 不支持${mode}，请切换支持该模式的模型。`,
+    needTwoImages: '请连接两张图片，依次作为首帧和尾帧。',
+    needOneImage: '请连接一张参考图片。',
+    providerNotConfigured: (provider: string) =>
+      `${provider} 尚未配置，请先在设置的媒体生成中完成接入。`,
+    downloadFailed: '下载失败',
+    modeNeedsProvider: (mode: string, provider: string) => `${mode}需要先配置${provider}`,
+    catalogNoMode: (mode: string) => `当前模型目录不支持${mode}`,
+    readUpstreamFailed: (name: string) => `读取上游文本失败：${name}`,
+  },
+  ui: {
+    downloadVideo: '下载视频',
+    playOrScrub: '播放或拖动视频',
+    previewArea: '视频预览区',
+    viewResult: (index: number) => `查看第 ${index} 个视频结果`,
+    genMode: '视频生成模式',
+    upstreamAssets: '已连接的上游素材',
+    addReferenceAssets: '添加参考素材',
+    addFirstLastImages: '添加首尾帧图片',
+    addReferenceImage: '添加参考图片',
+    description: '视频描述',
+    optionalExtra: '补充镜头、动作或风格要求（可选）',
+    describePlaceholder: '描述你想生成的画面内容…',
+    unavailable: '（不可用）',
+    aspect: '视频比例',
+    pickAspect: '选择视频比例',
+    aspectFromFirst: '比例由首帧图片自动设置',
+    resolution: '视频分辨率',
+    duration: '视频时长',
+    lengthMismatch: (need: number, got: number) =>
+      `镜头需求 ${need} 秒，当前模型生成 ${got} 秒素材`,
+    closePreview: '关闭预览',
+    largePreview: '视频大图预览',
+    withInstruction: (texts: string, instruction: string) =>
+      `${texts}\n\n补充要求：\n${instruction}`,
+  },
+} satisfies CopyShape<typeof EN>;

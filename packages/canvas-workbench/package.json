@@ -1,0 +1,49 @@
+{
+  "name": "@bezier/canvas-workbench",
+  "version": "1.4.4",
+  "private": true,
+  "type": "module",
+  "description": "Shared project canvas for Bezier Design and OEM products, including optional business adapters.",
+  "main": "./src/index.ts",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "//exports": "运行时出口刻意指向源码：画布样式通过各组件的 `import './*.css'` 生效，走 esbuild 产物会把 CSS 抽成旁路文件而无人引用，画布就成了裸样式。宿主 next.config 的 transpilePackages 已包含本包，直接编译源码即可。类型出口仍指向 dist/*.d.ts。",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./src/index.ts"
+    },
+    "./styles.css": "./src/canvas-workbench.css"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json --emitDeclarationOnly",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.tests.json --noEmit",
+    "test": "vitest run -c vitest.config.ts"
+  },
+  "peerDependencies": {
+    "@xyflow/react": "12.8.5",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "dependencies": {
+    "@bezier/components": "workspace:*",
+    "@bezier/contracts": "workspace:*",
+    "@bezier/workbench-core": "workspace:*",
+    "@bezier/workbench-ui": "workspace:*",
+    "lucide-react": "0.468.0",
+    "micromark": "4.0.2",
+    "micromark-extension-gfm": "3.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.28",
+    "@types/react-dom": "18.3.7",
+    "@xyflow/react": "12.8.5",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.6"
+  }
+}

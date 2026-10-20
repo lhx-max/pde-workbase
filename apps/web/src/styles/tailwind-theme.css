@@ -1,0 +1,116 @@
+@theme inline {
+  /* ── COLOR: surfaces ─────────────────────────────────────── */
+  --color-bg:               var(--bg);
+  --color-bg-app:           var(--bg-app);
+  --color-bg-panel:         var(--bg-panel);
+  --color-bg-subtle:        var(--bg-subtle);
+  --color-bg-muted:         var(--bg-muted);
+  --color-bg-elevated:      var(--bg-elevated);
+  --color-bg-fill:          var(--bg-fill);
+  --color-bg-fill-secondary: var(--bg-fill-secondary);
+  --color-bg-fill-tertiary: var(--bg-fill-tertiary);
+  --color-marketplace-ground: var(--marketplace-ground);
+  --color-entry-ground:     var(--entry-ground);
+
+  /* ── COLOR: borders ──────────────────────────────────────── */
+  --color-border:           var(--border);
+  --color-border-strong:    var(--border-strong);
+  --color-border-soft:      var(--border-soft);
+  --color-border-selected:  var(--border-selected);
+
+  /* ── COLOR: text ─────────────────────────────────────────── */
+  --color-text:             var(--text);
+  --color-text-strong:      var(--text-strong);
+  --color-text-muted:       var(--text-muted);
+  --color-text-soft:        var(--text-soft);
+  --color-text-faint:       var(--text-faint);
+
+  /* ── COLOR: accent / brand ───────────────────────────────── */
+  --color-accent:           var(--accent);
+  --color-accent-strong:    var(--accent-strong);
+  --color-accent-soft:      var(--accent-soft);
+  --color-accent-tint:      var(--accent-tint);
+  --color-accent-hover:     var(--accent-hover);
+  --color-accent-contrast:  var(--accent-contrast);
+  --color-brand:            var(--brand);
+  --color-brand-weak:       var(--brand-weak);
+  --color-brand-soft:       var(--brand-soft);
+  --color-brand-text:       var(--brand-text);
+
+  /* ── Animate UI / shadcn semantic bridge ───────────────────
+     Vendor source keeps its official semantic utility classes.  These
+     aliases resolve them through the DA token system instead of asking a
+     page stylesheet to repaint the component. */
+  --color-background:       var(--bg-panel);
+  --color-foreground:       var(--text-strong);
+  --color-primary:          var(--accent);
+  --color-primary-foreground: var(--accent-contrast);
+  /* `bg-input` is the unchecked track of Animate UI's Switch and the outline
+     of its RadioGroup. Keep it light so compact controls retain their official
+     geometry instead of reading as heavy dark capsules. */
+  --color-input:            var(--bg-fill);
+  --color-ring:             var(--accent);
+
+  /* ── COLOR: semantic hues ────────────────────────────────── */
+  --color-green:            var(--green);
+  --color-green-bg:         var(--green-bg);
+  --color-green-border:     var(--green-border);
+  --color-blue:             var(--blue);
+  --color-blue-bg:          var(--blue-bg);
+  --color-blue-border:      var(--blue-border);
+  --color-red:              var(--red);
+  --color-red-bg:           var(--red-bg);
+  --color-red-border:       var(--red-border);
+  --color-amber:            var(--amber);
+  --color-amber-bg:         var(--amber-bg);
+  --color-amber-border:     var(--amber-border);
+  --color-purple:           var(--purple);
+  --color-purple-bg:        var(--purple-bg);
+  --color-purple-border:    var(--purple-border);
+  --color-selected:         var(--selected);
+  --color-selected-soft:    var(--selected-soft);
+
+  /* ── COLOR: glass / shadow ───────────────────────────────── */
+  --color-glass-regular:    var(--glass-regular);
+
+  /* ── SHAPE: border-radius ────────────────────────────────── */
+  --radius-none:    var(--radius-none);
+  --radius-xs:      var(--radius-xs);
+  --radius-sm:      var(--radius-sm);
+  --radius-md:      var(--radius-md);
+  --radius-lg:      var(--radius-lg);
+  --radius-pill:    var(--radius-pill);
+  /* `rounded-full` must stay a capsule (999px), not an ellipse (50%). On
+     non-square boxes like the Switch track (40×24) 50% bends all four
+     corners at 50% curvature and renders as a pointed ellipse; 999px keeps
+     the long edges straight and only rounds the short ends. Square elements
+     (thumb, radio, avatar) are unaffected — 999px ≈ 50% there. */
+  --radius-full:    var(--radius-pill);
+
+  /* ── SHAPE: stroke widths ────────────────────────────────── */
+  --border-width-thin:     var(--stroke-thin);
+  --border-width-thick:    var(--stroke-thick);
+  --border-width-thicker:  var(--stroke-thicker);
+
+  /* ── MOTION: durations ───────────────────────────────────── */
+  --duration-ultra-fast:   var(--duration-ultra-fast);
+  --duration-faster:       var(--duration-faster);
+  --duration-fast:         var(--duration-fast);
+  --duration-normal:       var(--duration-normal);
+  --duration-gentle:       var(--duration-gentle);
+  --duration-slow:         var(--duration-slow);
+  --duration-slower:       var(--duration-slower);
+  --duration-ultra-slow:   var(--duration-ultra-slow);
+
+  /* ── MOTION: easing curves ───────────────────────────────── */
+  --ease-easy:       var(--curve-easy-ease);
+  --ease-accelerate: var(--curve-accelerate-mid);
+  --ease-decelerate: var(--curve-decelerate-mid);
+  --ease-linear:     var(--curve-linear);
+  --ease-out:        var(--ease-out);
+
+  /* ── TYPOGRAPHY: font stacks ─────────────────────────────── */
+  --font-sans:  var(--sans);
+  --font-mono:  var(--mono);
+  --font-serif: var(--serif);
+}

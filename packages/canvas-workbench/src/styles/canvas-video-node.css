@@ -1,0 +1,270 @@
+.video-node-media {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: var(--text-strong);
+}
+
+.video-node-interaction-layer {
+  position: absolute;
+  z-index: 1;
+  inset: 0 0 48px;
+  cursor: grab;
+}
+
+.react-flow__node.dragging .video-node-interaction-layer {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.canvas-workbench .video-node-composer.video-node-composer {
+  box-sizing: border-box;
+  height: 356px;
+  container-type: inline-size;
+  gap: 0;
+  overflow: hidden;
+}
+
+.canvas-workbench .video-node-composer.video-node-composer.is-expanded {
+  height: 540px;
+}
+
+.canvas-workbench .video-node-composer .minimax-image-composer-head {
+  min-height: 48px;
+  margin-bottom: 8px;
+}
+
+.canvas-workbench .video-node-composer .minimax-image-expand {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+/* Keep native selects deterministic at arbitrary canvas zoom levels. */
+.video-node-composer select[aria-label='视频模型'] { width: 100%; }
+.video-node-composer select[aria-label='视频分辨率'] { width: 54px; }
+.video-node-composer select[aria-label='视频时长'] { width: 48px; }
+
+.video-node-frame-attachment {
+  position: relative;
+}
+
+.video-node-frame-label {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 2px 3px;
+  border-radius: 0;
+  color: #fff;
+  background: rgba(0, 0, 0, .62);
+  font-size: 9px;
+  line-height: 13px;
+  text-align: center;
+}
+
+.video-node-message {
+  flex: none;
+  margin: 8px 2px 0;
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.video-node-message[role='alert'] { color: var(--danger); }
+.video-node-generate-button { color: var(--text-inverse); }
+
+.video-node-camera-trigger {
+  min-width: 74px;
+  max-width: 168px;
+  height: 28px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+  color: var(--text-secondary);
+  background: var(--bg-panel);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.video-node-prompt-wrap.video-node-prompt-wrap {
+  min-height: 88px;
+  padding-top: 0;
+}
+
+.video-node-toolbar.video-node-toolbar {
+  min-height: 40px;
+  margin-top: 10px;
+  padding-top: 0;
+}
+
+.video-node-toolbar-left.video-node-toolbar-left {
+  gap: 2px;
+  overflow: hidden;
+}
+
+.video-node-model-chip {
+  width: 132px;
+  flex: 0 1 132px;
+  overflow: hidden;
+}
+
+.video-node-model-chip select {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.video-node-camera-trigger small {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  text-overflow: ellipsis;
+}
+
+.video-node-camera-chevron {
+  flex: none;
+  transform: rotate(90deg);
+}
+
+.video-node-camera-popover.video-node-camera-popover {
+  width: min(380px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  padding: 0;
+  border: 0;
+  background: var(--bg-elevated, #fff);
+}
+
+.video-node-camera-panel {
+  --mm-canvas-controls-bg: #fff;
+  --mm-canvas-controls-border: rgba(0, 0, 0, 0.06);
+  --mm-canvas-controls-hover: rgba(0, 0, 0, 0.045);
+  --mm-canvas-controls-text: #262626;
+  --mm-canvas-controls-text-muted: #737373;
+  display: grid;
+  gap: 16px;
+  padding: 14px;
+  color: var(--mm-canvas-controls-text);
+  background: var(--mm-canvas-controls-bg);
+}
+
+.video-node-camera-heading {
+  display: grid;
+  gap: 3px;
+}
+
+.video-node-camera-heading strong { font-size: 14px; font-weight: 600; line-height: 20px; }
+.video-node-camera-heading span,
+.video-node-camera-field > span { color: var(--mm-canvas-controls-text-muted); font-size: 11px; font-weight: 500; }
+
+.video-node-camera-move-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  padding: 3px;
+  border-radius: 6px;
+  background: var(--mm-canvas-controls-hover);
+}
+
+.video-node-camera-move-button {
+  min-width: 0;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 6px;
+  padding: 5px 2px;
+  border: 0;
+  border-radius: 4px;
+  color: var(--mm-canvas-controls-text-muted);
+  background: transparent;
+  font-size: 10px;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.video-node-camera-move-button:hover { color: var(--mm-canvas-controls-text); }
+.video-node-camera-move-button.is-active {
+  color: var(--mm-canvas-controls-text);
+  background: var(--mm-canvas-controls-bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
+}
+.video-node-camera-move-button.is-active:hover { background: var(--mm-canvas-controls-bg); }
+.video-node-camera-move-icon { flex: none; }
+
+.video-node-camera-field {
+  display: grid;
+  gap: 8px;
+}
+
+
+.video-node-camera-footer {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.video-node-camera-footer span {
+  min-width: 0;
+  flex: 1;
+  color: var(--mm-canvas-controls-text-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.video-node-camera-footer button {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 8px;
+  color: #fff;
+  background: rgba(0, 0, 0, .85);
+}
+.video-node-camera-footer button:hover:not(:disabled) { background: rgba(0, 0, 0, .78); }
+
+@container (max-width: 560px) {
+  .video-node-camera-trigger {
+    width: 34px;
+    min-width: 34px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .video-node-camera-trigger small,
+  .video-node-camera-chevron { display: none; }
+
+  .video-node-model-chip {
+    width: 112px;
+    flex-basis: 112px;
+  }
+}
+
+.video-node-preview-dialog {
+  width: min(980px, calc(100vw - 64px));
+  max-width: none;
+  padding: 0;
+  overflow: hidden;
+  background: var(--text-strong);
+}
+
+.video-node-preview-dialog-header {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 14px 10px 18px;
+  color: var(--text-inverse);
+  background: var(--text-strong);
+}
+
+.video-node-preview-dialog-header > div { min-width: 0; display: grid; gap: 2px; }
+.video-node-preview-dialog-header strong { font-size: 14px; }
+.video-node-preview-dialog-header span { color: var(--text-tertiary); font-size: 10px; }
+.video-node-preview-dialog-header button { color: var(--text-inverse); }
+.video-node-preview-dialog video { width: 100%; max-height: calc(100vh - 150px); display: block; background: var(--text-strong); }

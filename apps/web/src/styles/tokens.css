@@ -1,0 +1,549 @@
+/* ============================================================
+   Bezier Design — minimal monochrome (pure white ground, ink accent)
+   ------------------------------------------------------------
+   Single source of truth for design tokens. Read like four
+   dictionaries stacked in one file, in this fixed order:
+
+     1. COLOR       — surfaces, borders, text, accent/brand,
+                      semantic hues, shadows, glass/entry legacy.
+     2. SHAPE       — corner radii, stroke widths, selection ring.
+     3. MOTION      — duration + easing scale (durations grouped
+                      first, curves after, aliases last).
+     4. TYPOGRAPHY  — font stacks, prose scale, code scale.
+
+   Each theme block (`:root`, `[data-theme="dark"]`, the OS
+   dark media query) mirrors the same four-section order so a
+   token can be diffed by scrolling. Add new tokens under the
+   matching section, never in a fifth "misc" bucket.
+   ------------------------------------------------------------
+   Tests read this file via apps/web/tests/helpers/read-expanded-css.ts
+   which regex-matches the FIRST :root [ ... ] block. Do not split
+   :root into multiple blocks in this file — keep every light-mode
+   token inside the single :root block below. Also do not use curly
+   braces in comments here; the helper regex is not CSS-comment-aware
+   and will short-circuit on the first stray brace pair.
+   ============================================================ */
+:root {
+  /* ---------- 1. COLOR ---------- */
+  /* Monochrome palette. Interface stays on pure white; ink black carries
+     brand emphasis, selection state, and primary CTAs alike. No secondary
+     brand hue — accent, brand, and selected share the same ink. */
+  --bg: #fff;
+  --bg-app: #fff;
+  --bg-panel: #ffffff;
+  /* MiniMax Skill/Workflow surface: a near-white page ground lets pure-white
+     cards read clearly without a permanent border or shadow. */
+  --marketplace-ground: #fafafa;
+  /* Neutral interaction surfaces from the same achromatic family as Animate
+     UI's default Liquid Button surface, without its motion treatment. */
+  --bg-subtle: #f5f5f5;
+  --bg-muted: #ededed;
+  --bg-fill-tertiary: rgba(0, 0, 0, 0.03);
+  --bg-fill-secondary: rgba(0, 0, 0, 0.05);
+  --bg-fill: rgba(0, 0, 0, 0.10);
+  --bg-elevated: #ffffff;
+  /* Theme-invariant white used by artwork that must stay white in every mode. */
+  --surface-static-white: #ffffff;
+  /* Artwork captions need a dark scrim independent of the interface theme. */
+  --surface-static-black: #000000;
+  /* Shared application ground and transparent surface veils. They live here so
+     shell/viewer CSS consumes one global surface contract rather than minting
+     a second dictionary in app-wash.css. */
+  --bg-app-wash: var(--bg-app);
+  --surface-veil-shell: transparent;
+  --surface-veil-page: transparent;
+  --surface-veil-canvas: transparent;
+  /* Functional color-picker materials are theme-invariant by design: they
+     represent the color model itself, not application chrome. */
+  --surface-color-spectrum: conic-gradient(#ef4444, #eab308, #22c55e, #06b6d4, #3b82f6, #a855f7, #ec4899, #ef4444);
+  --surface-color-plane: linear-gradient(to top, #000000, transparent), linear-gradient(to right, #ffffff, transparent);
+  --surface-hue-spectrum: linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000);
+  /* Legacy "Liquid Glass" tokens collapsed to opaque paper. The floating
+     material was replaced by white surfaces + hairline borders in the
+     minimal monochrome pass; consumers that still read --glass-regular
+     (nav rail, sticky headers, popovers) now render as solid white and
+     the blur cost drops to zero. Kept as tokens so downstream selectors
+     don't need to be renamed. */
+  --glass-regular: rgba(255, 255, 255, 0.96);
+  --glass-regular-blur: 0px;
+  --glass-edge-highlight: transparent;
+  /* Entry ground shares the app surface — the nav rail is a solid panel now,
+     so the page behind it no longer needs a tinted ground to float on. */
+  --entry-ground: var(--bg);
+  /* Hairline greys — the minimal system leans on 1px borders and negative
+     space instead of shadows or tinted fills. */
+  --border: rgba(26, 26, 25, 0.12);
+  --border-strong: rgba(26, 26, 25, 0.22);
+  --border-selected: #0a0a0a;
+  --border-soft: rgba(26, 26, 25, 0.06);
+  --border-color-picker-subtle: rgba(0, 0, 0, 0.09);
+
+  --text: #2f3640;
+  --text-strong: #100f09;
+  --text-muted: #525251;
+  --text-soft: #7c7c79;
+  --text-faint: #a3a3a0;
+
+  /* Accent + brand collapse to a single deep-ink family. --accent runs on
+     the shared user-configurable ink (config.ts default #353535, exposed
+     as DEFAULT_ACCENT_COLOR) so a theme switcher and the launcher's inline
+     init script both stay pinned to the same neutral. --brand is the fixed
+     pure-black brand mark and is never user-configurable. */
+  --accent: #2f3540;
+  --accent-contrast: #ffffff;
+  --accent-strong: #1a1e26;
+  --accent-soft: #f3f4f6;
+  --accent-tint: #f6f7f9;
+  --accent-hover: #1a1e26;
+  --bg-primary-hover: #353535;
+  --brand: #0a0a0a;
+  --brand-weak: #e5e5e5;
+  --brand-soft: #f4f4f4;
+  --brand-text: #0a0a0a;
+
+  /* Semantic status hues stay muted — used only where information demands a
+     hue (destructive confirmations, running/error states). Neutral surfaces
+     dominate; these never leak into brand/accent surfaces. */
+  --green: #16a34a;
+  --green-bg: #f4f4f4;
+  --green-border: #e5e5e5;
+  --blue: #2563eb;
+  --blue-bg: #f4f4f4;
+  --blue-border: #e5e5e5;
+  --purple: #0a0a0a;
+  --purple-bg: #f4f4f4;
+  --purple-border: #e5e5e5;
+  --red: #dc2626;
+  --red-bg: #f4f4f4;
+  --red-border: #e5e5e5;
+  --amber: #d97706;
+  --amber-bg: #f4f4f4;
+  --amber-border: #e5e5e5;
+
+  /* Functional-layer materials (menus, popovers, tooltips and floating chrome).
+     These remain tokens even in the monochrome system so every overlay degrades
+     through one shared accessibility contract. */
+  --material-ultrathin-blur: 8px;
+  --material-thin-blur: 16px;
+  --material-regular-blur: 24px;
+  --material-thick-blur: 40px;
+  --material-ultrathin-backdrop: none;
+  --material-thin-backdrop: none;
+  --material-regular-backdrop: none;
+  --material-thick-backdrop: none;
+  --glass-backdrop: none;
+  --scrim-backdrop: blur(2px);
+  --material-ultrathin: rgba(255, 255, 255, 0.94);
+  --material-thin: rgba(255, 255, 255, 0.96);
+  --material-regular: rgba(255, 255, 255, 0.98);
+  --material-thick: #ffffff;
+  --glass-clear: rgba(255, 255, 255, 0.72);
+  --glass-clear-dim: rgba(10, 10, 10, 0.28);
+  --vibrancy-label: rgba(32, 32, 32, 0.92);
+  --vibrancy-label-secondary: rgba(73, 73, 73, 0.62);
+  --vibrancy-label-tertiary: rgba(73, 73, 73, 0.4);
+  --vibrancy-label-quaternary: rgba(73, 73, 73, 0.24);
+  --vibrancy-fill: rgba(73, 73, 73, 0.2);
+  --vibrancy-fill-secondary: rgba(73, 73, 73, 0.14);
+  --vibrancy-fill-tertiary: rgba(73, 73, 73, 0.08);
+  --material-separator: rgba(73, 73, 73, 0.18);
+  --glass-refract-ring-top: rgba(255, 255, 255, 0.6);
+  --glass-refract-ring-edge: rgba(255, 255, 255, 0.18);
+  --glass-refract-ring-bottom: rgba(255, 255, 255, 0.25);
+
+  /* Shadow scale: a hairline ring plus a soft, low-opacity two-layer drop so
+     surfaces gain quiet depth on the pure-white ground without reading as
+     heavy Material cards. xs stays a bare hairline for inline micro-surfaces;
+     sm/md/lg layer a close contact shadow with a wider ambient one. */
+  --shadow-xs: 0 0 0 1px rgba(10, 10, 10, 0.04);
+  --shadow-sm:
+    0 0 0 1px rgba(10, 10, 10, 0.05),
+    0 1px 2px rgba(10, 10, 10, 0.04),
+    0 2px 6px rgba(10, 10, 10, 0.05);
+  --shadow-md:
+    0 0 0 1px rgba(10, 10, 10, 0.06),
+    0 2px 4px rgba(10, 10, 10, 0.05),
+    0 6px 16px rgba(10, 10, 10, 0.07);
+  --shadow-lg:
+    0 0 0 1px rgba(10, 10, 10, 0.06),
+    0 4px 10px rgba(10, 10, 10, 0.06),
+    0 16px 40px rgba(10, 10, 10, 0.10);
+  --shadow-invite-avatar: 0 10px 24px rgba(76, 29, 149, 0.16);
+  --shadow-glass-refract-outset: 0 6px 18px rgba(0, 0, 0, 0.2);
+  --shadow-color-picker-swatch: inset 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --shadow-color-picker-cursor: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 1px 4px rgba(0, 0, 0, 0.2);
+
+  /* Semantic overlay layer used by portaled global primitives. Page-local
+     stacking contexts keep their own relative z-index values. */
+  --bg-overlay-scrim: color-mix(in srgb, var(--text-strong) 42%, transparent);
+
+  /* Overlay layer scale — the only z-index values portaled chrome may use.
+     Ordering: dropdown < popover < modal < toast < tooltip.
+     The two stacked steps exist for modals opened from inside another modal
+     (nested pickers, QR and credential dialogs). They deliberately keep the
+     historical 10030 / 10040 offsets: collapsing them onto the 3000 band
+     would reorder them against legacy 1000–2700 surfaces that have not been
+     audited yet. Retire both steps once that audit lands. */
+  --layer-dropdown: 1000;
+  --layer-popover: 2000;
+  --layer-modal: 3000;
+  --layer-toast: 3500;
+  --layer-tooltip: 4000;
+  --layer-modal-stacked: 10030;
+  --layer-modal-nested: 10040;
+
+  /* ---------- 2. SHAPE ---------- */
+  /* Corner-radius scale — the only radii UI should reach for (Shape
+     Consistency Lock). xs for inline code / micro-chips, sm for controls,
+     base for cards/menus, md for medium containers, lg for large surfaces,
+     2xl for cards and collection tiles, pill for fully-rounded interactive.
+     Off-scale values (5px, 7px, 9px, 11px, 14px, 18px, 20px, 24px literals)
+     are drift; collapse them to the nearest token. */
+  --radius-none: 0px;
+  --radius-small: 3px;
+  --radius-medium: 6px;
+  --radius-large: 8px;
+  --radius-button: 10px;
+  --radius-xlarge: 12px;
+  --radius-2xl: 16px;
+  --radius-circular: 50%;
+  --stroke-thin: 1px;
+  --stroke-thick: 2px;
+  --stroke-thicker: 3px;
+  --stroke-thickest: 4px;
+  --radius-xs: var(--radius-small);
+  --radius-sm: var(--radius-medium);
+  --radius: var(--radius-large);
+  --radius-md: var(--radius-large);
+  --radius-lg: var(--radius-xlarge);
+  --radius-card: var(--radius-2xl);
+  --radius-pill: 999px;
+
+  /* Selection state matches accent — one ink handles everything in the
+     minimal monochrome pass, no separate CTA vs. selected split needed. */
+  --selected: #2f3540;
+  --selected-soft: rgba(47, 53, 64, 0.10);
+
+  /* ---------- 3. MOTION ---------- */
+  /* Duration scale — start-to-end times measured in ms. Every animated
+     property should pick one of these; ad-hoc 175ms / 220ms values drift
+     across the app and should be collapsed to the nearest token. */
+  --duration-ultra-fast: 50ms;
+  --duration-faster: 100ms;
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-gentle: 250ms;
+  --duration-slow: 300ms;
+  --duration-slower: 400ms;
+  --duration-ultra-slow: 500ms;
+  /* Easing curves — decelerate-mid is the default for enter transitions,
+     easy-ease for reversible interactions, accelerate-mid for exits. */
+  --curve-linear: cubic-bezier(0, 0, 1, 1);
+  --curve-accelerate-mid: cubic-bezier(1, 0, 1, 1);
+  --curve-decelerate-mid: cubic-bezier(0, 0, 0, 1);
+  --curve-easy-ease: cubic-bezier(0.33, 0, 0.67, 1);
+  /* Semantic aliases used by motion.ts and component-level transitions. */
+  --ease-out: var(--curve-decelerate-mid);
+  --dur-quick: var(--duration-faster);
+  --dur-enter: var(--duration-normal);
+  --dur-exit: var(--duration-fast);
+
+  /* ---------- 4. TYPOGRAPHY ---------- */
+  /* Type stack: brand-owned Albert Sans in front (must be adjacent to
+     PingFang SC / Microsoft YaHei — asserted by tests/styles/
+     default-background.test.ts), then platform UI fonts as the graceful
+     fallback for machines that don't ship Albert Sans. No display serif —
+     the minimal monochrome pass keeps a single sans family across the
+     whole product. */
+  --serif:
+    "Albert Sans", "PingFang SC", "Microsoft YaHei", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --sans:
+    "Albert Sans", "PingFang SC", "Microsoft YaHei", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono:
+    ui-monospace, "SFMono-Regular", "JiduMono Pro", "JetBrains Mono", monospace;
+
+  /* Type scale. Spacing and type are global primitives, not component-local
+     variables; declaring them here prevents base/page CSS from creating a
+     second token dictionary. */
+  --font-size-12: 12px;
+  --font-size-13: 13px;
+  --font-size-14: 14px;
+  --font-size-16: 16px;
+  --font-size-18: 18px;
+  --font-size-20: 20px;
+  --font-size-24: 24px;
+  --font-size-28: 28px;
+  --font-size-32: 32px;
+  --font-size-36: 36px;
+  --font-size-48: 48px;
+  --font-size-52: 52px;
+  --font-size-64: 64px;
+
+  --spacing-2: 2px;
+  --spacing-4: 4px;
+  --spacing-6: 6px;
+  --spacing-8: 8px;
+  --spacing-10: 10px;
+  --spacing-12: 12px;
+  --spacing-16: 16px;
+  --spacing-18: 18px;
+  --spacing-20: 20px;
+  --spacing-22: 22px;
+  --spacing-24: 24px;
+  --spacing-28: 28px;
+  --spacing-32: 32px;
+  --spacing-36: 36px;
+  --spacing-38: 38px;
+  --spacing-42: 42px;
+  --spacing-48: 48px;
+  --spacing-52: 52px;
+  --spacing-58: 58px;
+  --spacing-62: 62px;
+  --spacing-68: 68px;
+
+  /* Chat prose scale: body 13, headings 14, top-level emphasis 16 — the
+     whole message module stays inside the 12–16px band. */
+  --prose-font-size: 13px;
+  --prose-line-height: 1.7;
+  --code-header-bg: #f4f4f4;
+  --code-body-bg: #fafafa;
+  --code-font-size: 13px;
+  --code-line-height: 1.54;
+}
+
+/* Dark theme variables — shared between explicit [data-theme="dark"] and the
+   OS-level prefers-color-scheme media query (system mode = no data-theme attr).
+   Section order (COLOR → SHAPE → MOTION → TYPOGRAPHY) mirrors :root above,
+   but SHAPE / MOTION / TYPOGRAPHY don't diverge in dark mode so they inherit
+   from :root and only COLOR is overridden here. */
+[data-theme="dark"] {
+  color-scheme: dark;
+  /* ---------- 1. COLOR ---------- */
+  --bg: #202020;
+  --bg-app: #202020;
+  --bg-panel: #2a2a2a;
+  --marketplace-ground: #181818;
+  --bg-subtle: #333333;
+  --bg-muted: #3d3d3d;
+  --bg-fill-tertiary: rgba(255, 255, 255, 0.06);
+  --bg-fill-secondary: rgba(255, 255, 255, 0.10);
+  --bg-fill: rgba(255, 255, 255, 0.16);
+  --bg-elevated: #2a2a2a;
+  --glass-regular: rgba(42, 42, 42, 0.96);
+  --glass-edge-highlight: transparent;
+  --border: #3d3d3d;
+  --border-strong: #525252;
+  --border-selected: #fafafa;
+  --border-soft: #333333;
+
+  --text: #d4d4d4;
+  --text-strong: #fafafa;
+  --text-muted: #a3a3a3;
+  --text-soft: #737373;
+  --text-faint: #525252;
+
+  --accent: #fafafa;
+  --accent-contrast: #0a0a0a;
+  --accent-strong: #ffffff;
+  --accent-soft: #333333;
+  --accent-tint: #2a2a2a;
+  --accent-hover: #ffffff;
+  --bg-primary-hover: #e5e5e5;
+  --brand: #fafafa;
+  --brand-weak: #3d3d3d;
+  --brand-soft: #333333;
+  --brand-text: #fafafa;
+
+  --green: #22c55e;
+  --green-bg: #2a2a2a;
+  --green-border: #3d3d3d;
+  --blue: #3b82f6;
+  --blue-bg: #2a2a2a;
+  --blue-border: #3d3d3d;
+  --purple: #fafafa;
+  --purple-bg: #2a2a2a;
+  --purple-border: #3d3d3d;
+  --red: #ef4444;
+  --red-bg: #2a2a2a;
+  --red-border: #3d3d3d;
+  --amber: #f59e0b;
+  --amber-bg: #2a2a2a;
+  --amber-border: #3d3d3d;
+
+  --material-ultrathin: rgba(42, 42, 42, 0.94);
+  --material-thin: rgba(42, 42, 42, 0.96);
+  --material-regular: rgba(42, 42, 42, 0.98);
+  --material-thick: #2a2a2a;
+  --glass-clear: rgba(42, 42, 42, 0.72);
+  --glass-clear-dim: rgba(0, 0, 0, 0.4);
+  --vibrancy-label: rgba(250, 250, 250, 0.92);
+  --vibrancy-label-secondary: rgba(237, 237, 237, 0.62);
+  --vibrancy-label-tertiary: rgba(237, 237, 237, 0.4);
+  --vibrancy-label-quaternary: rgba(237, 237, 237, 0.24);
+  --vibrancy-fill: rgba(255, 255, 255, 0.2);
+  --vibrancy-fill-secondary: rgba(255, 255, 255, 0.13);
+  --vibrancy-fill-tertiary: rgba(255, 255, 255, 0.07);
+  --material-separator: rgba(255, 255, 255, 0.16);
+  --glass-refract-ring-top: rgba(255, 255, 255, 0.3);
+  --glass-refract-ring-edge: rgba(255, 255, 255, 0.09);
+  --glass-refract-ring-bottom: rgba(255, 255, 255, 0.12);
+
+  --shadow-xs: 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-md: 0 0 0 1px rgba(255, 255, 255, 0.10);
+  --shadow-lg: 0 0 0 1px rgba(255, 255, 255, 0.10), 0 12px 32px rgba(0, 0, 0, 0.5);
+
+  /* ---------- 4. TYPOGRAPHY ---------- */
+  /* Only code surfaces flip; body prose stays via :root. */
+  --code-header-bg: #262626;
+  --code-body-bg: #1c1c1e;
+}
+
+/* System mode: follow OS preference when no explicit data-theme is set.
+   Body mirrors [data-theme="dark"] one-to-one — keep the two blocks in sync
+   or extract a preprocessor. */
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) {
+    color-scheme: dark;
+    /* ---------- 1. COLOR ---------- */
+    --bg: #202020;
+    --bg-app: #202020;
+    --bg-panel: #2a2a2a;
+    --marketplace-ground: #181818;
+    --bg-subtle: #333333;
+    --bg-muted: #3d3d3d;
+    --bg-fill-tertiary: rgba(255, 255, 255, 0.06);
+    --bg-fill-secondary: rgba(255, 255, 255, 0.10);
+    --bg-fill: rgba(255, 255, 255, 0.16);
+    --bg-elevated: #2a2a2a;
+    --glass-regular: rgba(42, 42, 42, 0.96);
+    --glass-edge-highlight: transparent;
+    --border: #3d3d3d;
+    --border-strong: #525252;
+    --border-selected: #fafafa;
+    --border-soft: #333333;
+
+    --text: #d4d4d4;
+    --text-strong: #fafafa;
+    --text-muted: #a3a3a3;
+    --text-soft: #737373;
+    --text-faint: #525252;
+
+    --accent: #fafafa;
+    --accent-contrast: #0a0a0a;
+    --accent-strong: #ffffff;
+    --accent-soft: #333333;
+    --accent-tint: #2a2a2a;
+    --accent-hover: #ffffff;
+    --bg-primary-hover: #e5e5e5;
+    --brand: #fafafa;
+    --brand-weak: #3d3d3d;
+    --brand-soft: #333333;
+    --brand-text: #fafafa;
+
+    --green: #22c55e;
+    --green-bg: #2a2a2a;
+    --green-border: #3d3d3d;
+    --blue: #3b82f6;
+    --blue-bg: #2a2a2a;
+    --blue-border: #3d3d3d;
+    --purple: #fafafa;
+    --purple-bg: #2a2a2a;
+    --purple-border: #3d3d3d;
+    --red: #ef4444;
+    --red-bg: #2a2a2a;
+    --red-border: #3d3d3d;
+    --amber: #f59e0b;
+    --amber-bg: #2a2a2a;
+    --amber-border: #3d3d3d;
+
+    --material-ultrathin: rgba(42, 42, 42, 0.94);
+    --material-thin: rgba(42, 42, 42, 0.96);
+    --material-regular: rgba(42, 42, 42, 0.98);
+    --material-thick: #2a2a2a;
+    --glass-clear: rgba(42, 42, 42, 0.72);
+    --glass-clear-dim: rgba(0, 0, 0, 0.4);
+    --vibrancy-label: rgba(250, 250, 250, 0.92);
+    --vibrancy-label-secondary: rgba(237, 237, 237, 0.62);
+    --vibrancy-label-tertiary: rgba(237, 237, 237, 0.4);
+    --vibrancy-label-quaternary: rgba(237, 237, 237, 0.24);
+    --vibrancy-fill: rgba(255, 255, 255, 0.2);
+    --vibrancy-fill-secondary: rgba(255, 255, 255, 0.13);
+    --vibrancy-fill-tertiary: rgba(255, 255, 255, 0.07);
+    --material-separator: rgba(255, 255, 255, 0.16);
+    --glass-refract-ring-top: rgba(255, 255, 255, 0.3);
+    --glass-refract-ring-edge: rgba(255, 255, 255, 0.09);
+    --glass-refract-ring-bottom: rgba(255, 255, 255, 0.12);
+
+    --shadow-xs: 0 0 0 1px rgba(255, 255, 255, 0.06);
+    --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.08);
+    --shadow-md: 0 0 0 1px rgba(255, 255, 255, 0.10);
+    --shadow-lg: 0 0 0 1px rgba(255, 255, 255, 0.10), 0 12px 32px rgba(0, 0, 0, 0.5);
+
+    /* ---------- 4. TYPOGRAPHY ---------- */
+    --code-header-bg: #262626;
+    --code-body-bg: #1c1c1e;
+  }
+}
+
+/* Accessibility and platform fallbacks stay beside their token definitions so
+   every material consumer degrades through the same source of truth. */
+@media (prefers-reduced-transparency: reduce) {
+  html:root {
+    --material-ultrathin: var(--bg-elevated);
+    --material-thin: var(--bg-elevated);
+    --material-regular: var(--bg-elevated);
+    --material-thick: var(--bg-elevated);
+    --material-ultrathin-blur: 0px;
+    --material-thin-blur: 0px;
+    --material-regular-blur: 0px;
+    --material-thick-blur: 0px;
+    --glass-regular: var(--bg-elevated);
+    --glass-clear: var(--bg-elevated);
+    --material-ultrathin-backdrop: none;
+    --material-thin-backdrop: none;
+    --material-regular-backdrop: none;
+    --material-thick-backdrop: none;
+    --glass-backdrop: none;
+    --scrim-backdrop: none;
+    --vibrancy-label: var(--text-strong);
+    --vibrancy-label-secondary: var(--text-muted);
+    --vibrancy-label-tertiary: var(--text-soft);
+    --vibrancy-label-quaternary: var(--text-faint);
+    --vibrancy-fill: var(--bg-fill);
+    --vibrancy-fill-secondary: var(--bg-fill-secondary);
+    --vibrancy-fill-tertiary: var(--bg-fill-tertiary);
+    --material-separator: var(--border);
+    --surface-veil-shell: var(--bg-app);
+    --surface-veil-page: var(--bg);
+    --surface-veil-canvas: var(--bg);
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  html:root {
+    --material-ultrathin: var(--bg-elevated);
+    --material-thin: var(--bg-elevated);
+    --material-regular: var(--bg-elevated);
+    --material-thick: var(--bg-elevated);
+    --material-ultrathin-blur: 0px;
+    --material-thin-blur: 0px;
+    --material-regular-blur: 0px;
+    --material-thick-blur: 0px;
+    --glass-regular: var(--bg-elevated);
+    --glass-clear: var(--bg-elevated);
+    --vibrancy-label: var(--text-strong);
+    --vibrancy-label-secondary: var(--text-muted);
+    --vibrancy-label-tertiary: var(--text-soft);
+    --vibrancy-label-quaternary: var(--text-faint);
+    --vibrancy-fill: var(--bg-fill);
+    --vibrancy-fill-secondary: var(--bg-fill-secondary);
+    --vibrancy-fill-tertiary: var(--bg-fill-tertiary);
+    --material-separator: var(--border);
+    --surface-veil-shell: var(--bg-app);
+    --surface-veil-page: var(--bg);
+    --surface-veil-canvas: var(--bg);
+  }
+}

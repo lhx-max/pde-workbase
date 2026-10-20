@@ -1,0 +1,4 @@
+{
+  "plan": "【视觉方案】\n作业：cases/a\nrequest_id：req-1\n提交地址：http://127.0.0.1:17456/api/projects/p/visual-plan/commit\n请读取视觉作业规则和视觉方案中列出的知识文件，完成分析后向提交地址 POST JSON：\n{\"requestId\":\"上述 request_id\",\"prompt\":\"正向提示词\",\"negative\":\"负向提示词\",\"summary\":\"方案摘要\",\"directions\":[{\"id\":\"方向ID\",\"title\":\"方向标题\",\"description\":\"画面描述\",\"rationale\":\"选择依据\"}],\"analysisEvidence\":[{\"claim\":\"判断\",\"evidence\":\"证据\",\"source\":\"来源\"}]}\ndirections 和 analysisEvidence 均至少一项。不要调用已移除的 visual.commit_plan Action。",
+  "intake": "【文章 Intake】\nIntake 清单：cases/a/intake.md\n请读取 Intake 并按对应能力执行。"
+}

@@ -1,0 +1,30 @@
+{
+  "name": "@bezier/workbench-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Product-neutral workflow and workbench domain primitives.",
+  "main": "./src/index.ts",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json --emitDeclarationOnly",
+    "test": "pnpm --workspace-root exec vitest run packages/workbench-core/tests",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@bezier/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}

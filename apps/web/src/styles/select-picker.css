@@ -1,0 +1,81 @@
+/* Shared native-select popup contract for DA's web, package and legacy raw
+   controls. Keep the real select DOM: refs, labels, focus, change events,
+   required/form/reset, hidden saved options and keyboard behavior stay native.
+   The surface tokens mirror components/ui/overlay-surface.ts (Popover/Menu).
+   Unsupported engines, multiple/size listboxes and data-native-picker controls
+   keep their existing native behavior. This stylesheet does not cross iframes. */
+@supports (appearance: base-select) and selector(::picker(select)) {
+  select:not([multiple]):not([data-native-picker]):is(:not([size]), [size='0'], [size='1']) {
+    appearance: base-select;
+    /* Compact controls can have zero vertical padding; center their caret too. */
+    align-items: center;
+    /* Replace legacy SVG backgrounds with one theme-aware caret, including
+       raw package controls that never had a custom background icon. */
+    background-image: none;
+    padding-inline-end: 10px;
+  }
+
+  select:not([multiple]):not([data-native-picker]):is(:not([size]), [size='0'], [size='1'])::picker-icon {
+    content: '';
+    flex-shrink: 0;
+    inline-size: 6px;
+    block-size: 6px;
+    margin-inline: auto 2px;
+    border-inline-end: 1.5px solid currentColor;
+    border-block-end: 1.5px solid currentColor;
+    color: var(--text-muted);
+    transform: translateY(-2px) rotate(45deg);
+  }
+
+  select:not([multiple]):not([data-native-picker]):is(:not([size]), [size='0'], [size='1'])::picker(select) {
+    appearance: base-select;
+    box-sizing: border-box;
+    z-index: var(--layer-tooltip);
+    border: 0;
+    border-radius: var(--radius-lg);
+    background: var(--bg-elevated);
+    color: var(--text);
+    box-shadow: var(--shadow-md);
+    outline: none;
+    padding: 5px;
+    margin-block: 4px;
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 1.4;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+    /* Preserve the browser's anchor positioning, flip and available-space
+       limits rather than forcing a height that can escape small viewports. */
+  }
+
+  select:not([multiple]):not([data-native-picker]):is(:not([size]), [size='0'], [size='1']) option:not([hidden]) {
+    position: relative;
+    min-block-size: 32px;
+    padding: 7px 10px 7px 30px;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: inherit;
+    font-weight: 400;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    cursor: default;
+  }
+
+  select:not([multiple]):not([data-native-picker]):is(:not([size]), [size='0'], [size='1']) option:checked,
+  select:not([multiple]):not([data-native-picker]):is(:not([size]), [size='0'], [size='1']) option:focus-visible,
+  select:not([multiple]):not([data-native-picker]):is(:not([size]), [size='0'], [size='1']) option:not(:disabled):hover {
+    background: var(--bg-subtle);
+    color: var(--text);
+  }
+
+  select:not([multiple]):not([data-native-picker]):is(:not([size]), [size='0'], [size='1']) option::checkmark {
+    position: absolute;
+    inset-inline-start: 9px;
+    color: var(--text-muted);
+  }
+
+  select:not([multiple]):not([data-native-picker]):is(:not([size]), [size='0'], [size='1']) option:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}

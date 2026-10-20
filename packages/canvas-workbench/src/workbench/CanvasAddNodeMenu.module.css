@@ -1,0 +1,46 @@
+/* A zero-size screen anchor outside the zoomed canvas; never intercepts input. */
+.pointerAnchor {
+  position: fixed;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+/* The host owns theme, elevation, focus and the shared moving highlight. */
+.menu.menu {
+  width: 208px;
+  max-width: calc(100vw - 24px);
+  padding: 8px;
+  border-radius: var(--radius-lg);
+}
+
+.item.item {
+  height: 40px;
+  min-height: 40px;
+  gap: 12px;
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.icon {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  place-items: center;
+}
+
+.item .icon svg {
+  width: 18px;
+  height: 18px;
+  color: inherit;
+}
+
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

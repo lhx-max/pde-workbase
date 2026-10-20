@@ -1,0 +1,237 @@
+@scope (.clip-detailed-scope) {
+:scope.editor.editor.editor {
+  /* Detailed editing lives inside DA's app shell, so explicitly bridge the
+     legacy canvas aliases back to the host design tokens. */
+  --bg-surface: var(--bg);
+  --bg-panel: var(--bg);
+  --bg-muted: var(--bg-subtle);
+  --bg-hover: var(--bg-subtle);
+  --text-primary: var(--text);
+  --text-secondary: var(--text-muted);
+  --text-tertiary: var(--text-soft);
+  --border-default: var(--border);
+  --border-subtle: var(--border-soft);
+  --clip-accent: var(--accent);
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  inset: 0;
+  min-width: 0;
+  min-height: 520px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  overflow: hidden;
+  container-type: inline-size;
+  font-size: 14px;
+}
+:scope.editor.editor .clip-node-header { display: flex; align-items: center; height: 48px; flex-shrink: 0; gap: 8px; border-bottom: 1px solid var(--border-subtle); border-radius: 0; padding: 0 16px; background: var(--bg); }
+:scope.editor.editor .clip-node-title { font-size: 14px; }
+:scope.editor.editor .clip-node-title { flex-shrink: 0; gap: 8px; }
+:scope.editor.editor .clip-node-header > button { flex-shrink: 0; width: auto; }
+:scope.editor.editor .clip-node-header { overflow-x: auto; }
+:scope.editor.editor .clip-node-actions button:not(.icon-btn) { width: auto; min-width: max-content; padding: 0 10px; }
+:scope.editor.editor .clip-node-actions { gap: 2px; margin-left: auto; }
+:scope.editor.editor:fullscreen { position: relative; width: 100vw; height: 100vh; }
+:scope.editor [data-ui-button] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-button, 10px);
+  color: var(--text);
+  background: transparent;
+  font-size: 14px;
+  font-weight: 500;
+}
+:scope.editor [data-ui-button].ghost { border-color: transparent; background: transparent; }
+:scope.editor [data-ui-button].ghost:hover:not(:disabled) { background: var(--bg-subtle); }
+:scope.editor [data-ui-button].subtle { border-color: transparent; background: var(--bg-subtle); color: var(--text-strong); }
+:scope.editor [data-ui-button].primary { border-color: var(--accent); background: var(--accent); color: var(--accent-contrast); }
+:scope.editor [data-ui-button].icon-btn { width: 36px; min-width: 36px; padding: 0; border-radius: var(--radius-medium, 6px); }
+:scope.editor .clip-node-actions .exportButton { width: auto; min-width: 80px; height: 30px; min-height: 30px; display: flex; gap: 6px; padding: 0 12px; border-radius: 8px; font-size: 12px; color: var(--accent-contrast); background: var(--accent); }
+:scope.editor button.backButton { height: 30px; min-height: 30px; padding-inline: 10px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text-muted); font-size: 12px; }
+:scope.editor button.backButton:hover { background: var(--bg-subtle); color: var(--text); }
+.quickControls { padding: 4px 0 20px; }
+.selectedMedia { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); overflow-wrap: anywhere; }
+.selectedMedia > span { margin-left: auto; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.mobileTools { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; padding: 12px 0; }
+:scope.editor .mobileTools button { min-height: 38px; flex-direction: row; justify-content: flex-start; gap: 8px; padding: 8px 12px; font-size: 12px; border: 1px solid var(--border); }
+:scope.editor .mobileTools button svg { width: 16px; height: 16px; }
+.toolHeading { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--bg); z-index: 2; min-height: 44px; }
+.toolHeading strong { font-size: 14px; }
+.toolBody { max-width: 560px; margin: auto; padding: 4px 8px 16px; }
+.toolBody > h3:first-child { display: none; }
+.toolBody .hint { margin: 8px 0; }
+.toolBody .speedResult { padding: 0; background: none; margin: 8px 0; }
+.quickPresets { display: flex; flex-wrap: wrap; gap: 6px; }
+:scope.editor .quickPresets button { flex: 1; min-width: 38px; padding: 0 6px; font-size: 12px; border-color: var(--border); white-space: nowrap; }
+:scope.editor .quickPresets button[aria-pressed="true"], :scope.editor .visualChoices button[aria-pressed="true"] { border-color: var(--accent); background: var(--bg-subtle); }
+.visualChoices { display: flex; gap: 8px; }
+:scope.editor .visualChoices button { flex: 1; min-width: 0; flex-direction: column; padding: 12px 8px; border: 1px solid var(--border); font-size: 12px; }
+.visualChoices svg { width: 64px; height: 40px; }
+.adjustmentSlider { display: block; margin: 20px 0 6px; color: var(--text-muted); font-size: 12px; }
+.adjustmentSlider > span { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.adjustmentSlider output { color: var(--text); font-variant-numeric: tabular-nums; }
+:scope.editor .adjustmentSlider input { display: block; width: 100%; height: 24px; margin: 0; padding: 0; accent-color: var(--accent); cursor: pointer; touch-action: none; }
+.sliderEnds { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-soft); }
+.speedResult { background: var(--bg-subtle); border-radius: var(--radius-button, 10px); padding: 12px; margin: 20px 0 0; font-size: 13px; text-align: center; font-variant-numeric: tabular-nums; }
+.preciseSettings { padding-bottom: 16px; }
+.stage { position: relative; display: grid; grid-template-columns: 212px minmax(200px, 1fr) 256px; gap: 12px; padding: 12px; flex: 1; min-height: 200px; overflow: hidden; background: var(--bg-subtle); }
+.contextPanel { position: relative; z-index: 1; min-width: 0; overflow-y: auto; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--bg); scrollbar-width: thin; }
+.contextPanel > .inspector { padding: 0 16px 16px; border: 0; overflow: visible; }
+.assets, .inspector { padding: 0 14px 16px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; min-width: 0; background: var(--bg); }
+.assets { border: 1px solid var(--border-soft); border-radius: 12px; }
+.inspector { border-left: 1px solid var(--border-soft); }
+.assets h3, .inspector h3 { margin: 18px 0 10px; font-size: 12px; font-weight: 500; color: var(--text-muted); }
+.inspector h3:not(:first-child), .assets h3:not(:first-child) { margin-top: 20px; }
+.libraryHeading { display: flex; align-items: center; min-height: 46px; border-bottom: 1px solid var(--border-soft); }
+.libraryHeading strong { font-size: 12px; font-weight: 600; color: var(--text); }
+:scope.editor .search.search { width: 100%; height: 32px; box-sizing: border-box; margin-top: 12px; padding: 0 10px; border: 1px solid var(--border-soft); border-radius: 8px; font-size: 12px; color: var(--text); background: var(--bg-subtle); outline: none; }
+:scope.editor .search.search:focus { border-color: var(--border); background: var(--bg); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 12%, transparent); }
+:scope.editor .asset.asset { display: flex; justify-content: flex-start; gap: 10px; width: 100%; padding: 6px 8px; min-height: 44px; font-size: 13px; text-align: left; border-radius: var(--radius-button, 10px); }
+.asset span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:scope.editor .asset .assetPreview { position: relative; width: 64px; height: 48px; overflow: hidden; }
+:scope.editor .assetPreview .clip-media-strip { inset: 0; opacity: 1; }
+:scope.editor .assetPreview .clip-media-strip-source { background-size: cover; background-position: center; }
+.assetCaption { display: flex; flex: 1; flex-direction: column; gap: 5px; min-width: 0; }
+.assetCaption > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.assetCaption small { color: var(--text-soft); font-size: 11px; font-weight: 400; }
+:scope.editor .asset > span:first-child { display: grid; place-items: center; width: 36px; height: 32px; flex-shrink: 0; border-radius: var(--radius-medium, 6px); background: var(--bg-subtle); color: var(--text-muted); }
+.monitor { isolation: isolate; z-index: 0; container-type: size; position: relative; display: flex; align-items: center; justify-content: center; padding: 24px 20px 68px; min-width: 0; min-height: 0; }
+.emptyPreview { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; width: min(100cqw, calc((100cqh - 16px) * var(--clip-preview-ratio, 1.7778)), 640px); max-height: 100%; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--bg); color: var(--text-soft); box-shadow: 0 2px 8px color-mix(in srgb, var(--text) 3%, transparent); }
+.emptyPreviewIcon { display: grid; place-items: center; width: 40px; height: 40px; margin-bottom: 4px; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--bg-subtle); color: var(--text-muted); }
+.emptyPreview h2 { margin: 0; font-size: 14px; font-weight: 500; color: var(--text); }
+.emptyPreview p { max-width: 320px; margin: 0; font-size: 12px; text-align: center; padding: 0 20px; line-height: 1.7; }
+.emptyTrack { display: flex; align-items: center; min-height: 58px; color: var(--text-soft); font-size: 12px; padding: 0 16px; border-top: 1px dashed color-mix(in srgb, var(--border-default) 72%, transparent); border-bottom: 1px dashed color-mix(in srgb, var(--border-default) 72%, transparent); }
+.emptyTrack > span { opacity: .82; }
+:scope.editor.editor .preview { position: relative; inset: auto; width: min(100cqw, calc((100cqh - 24px) * var(--clip-preview-ratio, 1.7778))); height: auto; max-height: calc(100cqh - 24px); border: 0; border-radius: 2px; box-shadow: none; flex-shrink: 0; }
+:scope.editor.editor .preview .clip-node-preview-label { display: none; }
+.monitorTransport { position: absolute; bottom: 14px; display: flex; align-items: center; gap: 12px; min-height: 38px; padding: 3px 14px 3px 4px; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--bg); box-shadow: 0 2px 6px color-mix(in srgb, var(--text) 3%, transparent); font-size: 11px; font-variant-numeric: tabular-nums; color: var(--text-muted); white-space: nowrap; }
+:scope.editor .monitorTransport button { width: 30px; min-width: 30px; min-height: 30px; height: 30px; border: 0; border-radius: 8px; background: var(--bg-subtle); }
+.monitorTransport > span > span { padding-inline: 5px; color: var(--text-soft); }
+.field { display: flex; flex-direction: column; min-width: 0; gap: 7px; margin: 0 0 16px; font-size: 12px; color: var(--text-muted); }
+.fieldGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
+.field > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.panelHeading { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 46px; border-bottom: 1px solid var(--border-soft); margin-bottom: 4px; }
+.panelHeading strong { color: var(--text); font-size: 12px; font-weight: 600; }
+.panelHeading span { color: var(--text-soft); font-size: 10px; }
+.propertyGroup { position: relative; border-bottom: 1px solid var(--border-default); padding-bottom: 8px; }
+.propertyGroup > summary { padding: 16px 0; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text); user-select: none; }
+.propertyGroup > summary::marker { color: var(--text-tertiary); font-size: 10px; }
+.propertyGroup > button { margin-bottom: 12px; }
+.propertyGroup > .groupReset { position: absolute; top: 8px; right: 0; margin: 0; }
+.mediaLibrary { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); grid-auto-rows: max-content; gap: 8px; align-content: start; align-items: start; }
+.mediaLibrary > :not(.asset) { grid-column: 1/-1; }
+.libraryActions { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
+:scope.editor .libraryActions .search { flex: 1 1 auto; min-width: 0; margin: 0; }
+:scope.editor .libraryActions button { flex: 0 0 32px; width: 32px; min-width: 32px; height: 32px; min-height: 32px; padding: 0; border: 1px solid var(--border-soft); border-radius: 8px; background: var(--bg); }
+:scope.editor .libraryActions button:hover:not(:disabled) { background: var(--bg-subtle); }
+.mediaLibrary > .hint { margin: 4px 0; }
+:scope.editor .mediaLibrary .asset { flex-direction: column; align-items: stretch; align-self: start; width: 100%; height: auto; min-width: 0; box-sizing: border-box; overflow: hidden; padding: 6px; gap: 6px; border: 1px solid var(--border-soft); }
+:scope.editor .mediaLibrary .asset[draggable="true"] { cursor: grab; }
+:scope.editor .mediaLibrary .asset[draggable="true"]:active { cursor: grabbing; }
+:scope.editor .mediaLibrary .asset .assetPreview { flex: 0 0 66px; width: 100%; height: 66px; border-radius: 5px; }
+.mediaLibrary .assetCaption { gap: 3px; }
+.mediaLibrary .assetCaption small { font-size: 10px; }
+:scope.editor button:focus-visible, :scope.editor summary:focus-visible { outline: 2px solid var(--clip-accent); outline-offset: 2px; }
+:scope.editor [data-preview-clip]:focus-visible { outline: 2px solid var(--clip-accent); outline-offset: 2px; }
+.exportBackdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 24px; background: color-mix(in srgb, var(--bg-page) 34%, transparent); backdrop-filter: blur(6px); }
+.exportPanel { width: min(440px, 100%); border: 1px solid var(--border); border-radius: var(--radius-card, 16px); background: var(--bg); color: var(--text); box-shadow: var(--shadow-overlay); overflow: hidden; }
+.exportPanel > header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--border-default); }
+.exportPanel > header > div { display: flex; flex-direction: column; gap: 3px; }
+.exportPanel > header strong { font-size: 16px; }
+.exportPanel > header span { color: var(--text-soft); font-size: 12px; }
+.exportFields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 20px 20px 4px; }
+.exportFields label { display: flex; min-width: 0; flex-direction: column; gap: 7px; color: var(--text-muted); font-size: 12px; }
+.exportFields select { min-width: 0; height: 36px; border: 1px solid var(--border-default); border-radius: var(--radius-button, 10px); padding: 0 9px; background: var(--bg-panel); color: var(--text-primary); }
+.exportPanel > .hint { padding: 0 20px; }
+.exportProgress { display: grid; gap: 8px; padding: 16px 20px 0; }
+.exportProgress > div { display: flex; justify-content: space-between; color: var(--text-muted); font-size: 12px; }
+.exportProgress progress { width: 100%; height: 6px; accent-color: var(--clip-accent); }
+.exportProgress p, .exportError { margin: 0; color: var(--danger-text, #b42318); font-size: 12px; }
+.exportError { padding: 14px 20px 0; }
+.exportPanel > footer { display: flex; align-items: center; gap: 16px; justify-content: flex-end; padding: 20px; }
+:scope.editor .field input, :scope.editor .field select { width: 100%; min-width: 0; box-sizing: border-box; height: 32px; min-height: 32px; border: 1px solid var(--border-soft); border-radius: 8px; padding: 0 10px; color: var(--text); background: var(--bg-subtle); font-size: 12px; font-variant-numeric: tabular-nums; }
+:scope.editor .field input:focus-visible, :scope.editor .field select:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 25%, transparent); outline-offset: 1px; background: var(--bg); }
+.hint { color: var(--text-soft); font-size: 11px; line-height: 1.7; margin: 10px 0; }
+.ratioChoices { display: flex; gap: 4px; padding: 4px; margin-bottom: 18px; border-radius: 10px; background: var(--bg-subtle); }
+:scope.editor .ratioChoices button { flex: 1; flex-direction: column; gap: 8px; min-width: 0; height: 66px; padding: 8px 4px; border: 1px solid transparent; border-radius: 7px; font-size: 11px; color: var(--text-muted); }
+:scope.editor .ratioChoices button[aria-pressed="true"] { border-color: var(--border-soft); background: var(--bg); color: var(--text); box-shadow: 0 1px 3px color-mix(in srgb, var(--text) 5%, transparent); }
+.ratioChoices button > span { display: block; height: 20px; max-width: 34px; border: 1.5px solid currentColor; border-radius: 3px; }
+.outputSettings { padding: 14px 0 0; }
+.outputSettings > strong { display: block; margin-bottom: 10px; font-size: 11px; font-weight: 500; color: var(--text-muted); }
+:scope.editor [hidden] { display: none !important; }
+:scope.editor [data-ui-button] > svg { flex-shrink: 0; }
+:scope.editor [data-ui-button]:disabled { opacity: .4; cursor: not-allowed; }
+.timelineResizeHandle { position: relative; z-index: 2; display: grid; flex: 0 0 8px; place-items: center; border-top: 1px solid var(--border-soft); background: var(--bg); cursor: ns-resize; touch-action: none; }
+.timelineResizeHandle > span { width: 28px; height: 3px; border-radius: 999px; background: var(--border); transition: background-color 140ms cubic-bezier(0.23, 1, 0.32, 1); }
+.timelineResizeHandle:hover > span, .timelineResizeHandle:focus-visible > span { background: var(--clip-accent); }
+.timelineResizeHandle:focus-visible { outline: 2px solid var(--clip-accent); outline-offset: -2px; }
+.timelineTools { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 4px 16px; font-size: 11px; flex-shrink: 0; overflow-x: auto; white-space: nowrap; }
+.timelineTools > * { flex-shrink: 0; }
+.timelineTools strong { font-weight: 600; font-size: 12px; }
+.timelineTools > span:first-of-type { color: var(--text-tertiary); margin-right: auto; }
+:scope.editor .timelineTools button { width: 28px; min-width: 28px; height: 28px; min-height: 28px; padding: 0; font-size: 12px; border-radius: 6px; }
+.timelineActions { display: flex; align-items: center; gap: 2px; margin-left: auto; padding: 2px; border: 1px solid var(--border-soft); border-radius: 9px; background: var(--bg); }
+.timelineActions > span { min-width: 30px; text-align: center; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--text-muted); }
+.timelineActions > i { width: 1px; height: 14px; margin-inline: 4px; background: var(--border-soft); }
+.timelineScroll { overflow: auto; flex: 0 0 var(--clip-timeline-height, 208px); border-top: 1px solid var(--border-soft); background: var(--bg); overscroll-behavior: contain; scrollbar-width: thin; }
+:scope.editor.editor .clip-timeline { margin: 0; border: 0; border-radius: 0; }
+:scope.editor.editor .clip-track-row { min-height: 58px; }
+:scope.editor.editor .clip-ruler-row { height: 38px; }
+:scope.editor.editor .clip-ruler-row, :scope.editor.editor .clip-track-row { grid-template-columns: 116px minmax(0, 1fr); }
+:scope.editor.editor .clip-track-label { flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px; padding: 4px 12px; white-space: nowrap; }
+:scope.editor.editor .clip-track-actions { display: flex; align-items: center; gap: 2px; }
+:scope.editor.editor .clip-track-actions button { display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 5px; color: var(--text-soft); background: transparent; font-size: 10px; cursor: pointer; }
+:scope.editor.editor .clip-track-actions button:hover, :scope.editor.editor .clip-track-actions button[aria-pressed="true"] { color: var(--text-primary); background: var(--bg-subtle); }
+:scope.editor.editor .clip-track-row[data-track-muted="true"] .clip-track { opacity: .55; }
+:scope.editor.editor .clip-track-row[data-track-solo="true"] .clip-track-label { color: var(--clip-accent); }
+:scope.editor.editor .clip-track[data-track-locked="true"] .clip-timeline-item { cursor: not-allowed; }
+:scope.editor.editor .clip-track[data-library-drop-active="true"] { background-color: color-mix(in srgb, var(--clip-accent) 9%, var(--bg-panel)); outline: 1px solid color-mix(in srgb, var(--clip-accent) 46%, transparent); outline-offset: -1px; }
+:scope.editor.editor .clip-timeline-item { top: 7px; bottom: 7px; border-radius: var(--radius-medium, 6px); }
+:scope.editor.editor .clip-item-name { font-size: 12px; }
+:scope.editor.editor .clip-node-footer { min-height: 36px; font-size: 11px; padding: 0 12px; position: sticky; bottom: 0; z-index: 6; background: var(--bg-panel); }
+:scope.editor.editor .clip-selection-timing { margin-left: 12px; font-size: 11px; }
+:scope.editor.editor .clip-track-label { background: var(--bg-panel); position: sticky; left: 0; z-index: 5; }
+:scope.editor.editor .clip-ruler-row { background: var(--bg-subtle); border-color: var(--border-soft); }
+:scope.editor.editor .clip-ruler { font-size: 10px; }
+:scope.editor.editor .clip-track-row { border-color: var(--border-soft); }
+:scope.editor.editor .clip-track-label { font-size: 11px; color: var(--text-muted); }
+:scope.editor.editor .clip-add-button { border-color: var(--border-soft); border-radius: 7px; color: var(--text-muted); background: var(--bg); }
+@container (max-width: 980px) {
+  .stage { grid-template-columns: 176px minmax(180px, 1fr) 224px; gap: 8px; padding: 8px; }
+  .assets, .inspector { padding-inline: 12px; }
+  .contextPanel > .inspector { padding-inline: 12px; }
+  .monitor { padding: 16px 8px 60px; }
+  .monitorTransport { bottom: 8px; }
+  .timelineHelp { display: none; }
+}
+@container (max-width: 700px) {
+  .stage { grid-template-columns: 152px minmax(180px, 1fr); grid-template-rows: minmax(200px, 1fr) auto; overflow: auto; }
+  .contextPanel { grid-column: 1 / -1; max-height: 180px; }
+  .mediaLibrary { grid-template-columns: minmax(0,1fr); }
+  .emptyPreview h2 { font-size: 12px; }
+  .emptyPreview p { font-size: 11px; padding-inline: 8px; }
+}
+@container (max-width: 500px) {
+  .stage { grid-template-columns: 124px minmax(160px, 1fr); }
+  .assets { padding-inline: 8px; }
+  .libraryActions { flex-wrap: wrap; }
+  .libraryActions .search { flex-basis: 100%; }
+  :scope.editor.editor .clip-node-header { padding-inline: 8px; }
+  .timelineTools { padding-inline: 8px; }
+}
+@container (min-width: 1200px) {
+  .stage { grid-template-columns: 232px minmax(320px,1fr) 272px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .timelineResizeHandle > span { transition: none; }
+}
+}

@@ -1,0 +1,672 @@
+/* 下一步流程卡：作为业务卡节点吸附在来源卡右侧，随画布缩放和平移。
+   容器与头部完全复用 .canvas-node 基类（中性近黑、node-kind 胶囊、21px 标题），
+   这里只声明流程卡特有的尺寸与内容区，不再自建头部、不再整卡泛紫。 */
+.canvas-workbench .process-flow-node {
+  /* 与创意评审卡同源：强调色收敛为中性近黑，全卡不泛紫 */
+  --kind: #262626;
+  width: 540px;
+}
+.canvas-workbench .process-flow-node .node-inner {
+  display: flex;
+  flex-direction: column;
+  max-height: 760px;
+  min-height: 0;
+}
+.canvas-workbench .process-flow-node .node-remove {
+  /* 关闭是流程卡的主要退出方式，常显而非 hover 才出 */
+  opacity: 1;
+}
+.canvas-workbench .process-flow-summary {
+  margin: -6px 0 14px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.canvas-workbench .process-flow-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* 头部 padding 已由 node-inner 提供，这里只补内容区自身的呼吸与滚动 */
+  margin: 0 -18px -15px;
+  padding: 2px 18px 15px;
+}
+.canvas-workbench .process-flow-intro {
+  margin: 0 0 14px 42px;
+  color: var(--text-tertiary);
+  font-size: 9px;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.canvas-workbench .process-flow-timeline { margin: 0 0 0 4px; }
+.canvas-workbench .process-flow-timeline > article {
+  position: relative;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 12px;
+  padding-bottom: 20px;
+}
+.canvas-workbench .process-flow-timeline > article:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  top: 28px;
+  bottom: 0;
+  left: 14px;
+  width: 1px;
+  background: var(--border-default);
+}
+.canvas-workbench .process-flow-step-marker {
+  position: relative;
+  z-index: 1;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-default);
+  border-radius: 50%;
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  font-size: 10px;
+  font-weight: 780;
+}
+.canvas-workbench .process-flow-step-copy {
+  padding: 3px 0 0;
+}
+.canvas-workbench .process-flow-step-copy header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.canvas-workbench .process-flow-step-copy header strong { color: var(--text-strong); font-size: 12.5px; }
+.canvas-workbench .process-flow-step-copy header span {
+  padding: 2px 7px;
+  border-radius: var(--r-pill);
+  color: var(--text-tertiary);
+  background: var(--bg-muted);
+  font-size: 9px;
+  font-weight: 780;
+  letter-spacing: 0.06em;
+}
+/* 本次执行 / 本次跳过。
+   靠右贴边，和执行者徽标之间留出空隙——两个都是小胶囊，紧挨着会被看成一组。 */
+.canvas-workbench .process-flow-step-skip {
+  margin-left: auto;
+  padding: 2px 8px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--r-pill);
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  font-size: 9px;
+  font-weight: 780;
+  letter-spacing: 0.04em;
+}
+.canvas-workbench .process-flow-step-skip[aria-checked='false'] {
+  border-color: var(--border-default);
+  color: var(--text-tertiary);
+  background: var(--bg-muted);
+}
+.canvas-workbench .process-flow-step-skip:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+/* 不可跳的步骤给静态标记而不是 disabled 开关：点不动的开关会让人反复去点。 */
+.canvas-workbench .process-flow-step-locked {
+  margin-left: auto;
+  color: var(--text-tertiary);
+  font-size: 9px;
+  font-style: normal;
+  letter-spacing: 0.04em;
+}
+/* 跳过的步骤整块淡掉，但标题和开关保持可读——
+   淡到看不清就没法确认自己跳的是哪一步，也点不回来。 */
+.canvas-workbench .process-flow-timeline article.is-step-skipped .process-flow-step-copy > p,
+.canvas-workbench .process-flow-timeline article.is-step-skipped .process-flow-fold {
+  opacity: 0.42;
+}
+.canvas-workbench .process-flow-timeline article.is-step-skipped .process-flow-step-marker {
+  color: var(--text-tertiary);
+  border-style: dashed;
+}
+.canvas-workbench .process-flow-step-copy > p {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+/* 步骤第三块的统一折叠壳：读取的文件 / 自检维度共用，收起时只占一行 */
+.canvas-workbench .process-flow-fold { margin-top: 9px; }
+.canvas-workbench .process-flow-fold-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: auto;
+  padding: 3px 0;
+  border: 0;
+  background: transparent;
+  justify-content: flex-start;
+  color: var(--text-tertiary);
+  transition: color 120ms ease;
+}
+.canvas-workbench .process-flow-fold-head:hover {
+  color: var(--text-secondary);
+  background: transparent;
+}
+.canvas-workbench .process-flow-fold-head:active:not(:disabled) { transform: none; }
+.canvas-workbench .process-flow-fold-head:hover b { color: var(--text-strong); }
+.canvas-workbench .process-flow-fold-head svg {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  /* 收起指右、展开指下，只转箭头不动文字 */
+  transition: transform 160ms ease;
+}
+.canvas-workbench .process-flow-fold.is-open .process-flow-fold-head svg { transform: rotate(90deg); }
+.canvas-workbench .process-flow-fold-head b {
+  color: var(--text-secondary);
+  font-size: 9.5px;
+  font-weight: 760;
+  letter-spacing: 0.06em;
+  transition: color 120ms ease;
+}
+.canvas-workbench .process-flow-fold-head em {
+  min-width: 15px;
+  padding: 1px 5px;
+  border-radius: var(--r-pill);
+  color: var(--text-tertiary);
+  background: var(--bg-muted);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+  text-align: center;
+}
+.canvas-workbench .process-flow-fold-body { animation: foldIn 160ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes foldIn {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: none; }
+}
+/* 折叠体里的内容间距由折叠壳统一给，各自不再顶开一大截 */
+.canvas-workbench .process-flow-fold-body > .process-flow-knowledge,
+.canvas-workbench .process-flow-fold-body > .process-flow-data-table,
+.canvas-workbench .process-flow-fold-body > .process-flow-data-list { margin-top: 6px; }
+
+.canvas-workbench .process-flow-knowledge {
+  margin-top: 10px;
+  padding: 11px 13px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--bg-muted);
+}
+/* 勾选说明：解释这排框会不会生效。放在列表上方而不是每行后面，
+   免得同一句话重复三遍占满卡片。 */
+.canvas-workbench .process-flow-knowledge-note {
+  margin-bottom: 8px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  line-height: 1.5;
+}
+.canvas-workbench .process-flow-knowledge-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 7px;
+  align-items: start;
+  border-top: 1px solid var(--border-subtle);
+  opacity: 0.56;
+}
+/* 评测步骤没有勾选框，只有一个子元素。不改列定义的话它会落进 18px 那一列被压成竖条。 */
+.canvas-workbench .process-flow-knowledge-row:not(:has(.process-flow-knowledge-toggle)) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.canvas-workbench .process-flow-knowledge-row:first-child {
+  border-top: 0;
+}
+.canvas-workbench .process-flow-knowledge-row.is-enabled {
+  opacity: 1;
+}
+.canvas-workbench .process-flow-knowledge-toggle {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  margin-top: 7px;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  color: transparent;
+  background: var(--bg-surface);
+  font-size: 9px;
+  font-weight: 800;
+}
+.canvas-workbench .process-flow-knowledge-row.is-enabled .process-flow-knowledge-toggle {
+  border-color: var(--plan-accent);
+  color: #fff;
+  background: var(--plan-accent);
+}
+/* 建档后清单锁定：淡掉并去掉手型，配合上方说明让「点不动」有理由 */
+.canvas-workbench .process-flow-knowledge-toggle:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.canvas-workbench .process-flow-knowledge-row > button:last-child {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 34px 122px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+  padding: 7px 0;
+  text-align: left;
+  transition: color 120ms ease;
+}
+/* 折叠头已说明这是什么，首行不再需要分隔线 */
+.canvas-workbench .process-flow-knowledge-row:first-child > button:last-child { padding-top: 0; }
+.canvas-workbench .process-flow-knowledge-row > button:last-child:hover strong,
+.canvas-workbench .process-flow-knowledge-row > button:last-child:hover i {
+  color: var(--text-strong);
+}
+/* 正在右侧展开的那一份：标出来，否则开着三张卡时不知道看的是哪一条 */
+.canvas-workbench .process-flow-knowledge-row > button:last-child.is-active strong,
+.canvas-workbench .process-flow-knowledge-row > button:last-child.is-active i {
+  color: var(--text-strong);
+  font-weight: 700;
+}
+.canvas-workbench .process-flow-knowledge span {
+  color: var(--text-tertiary);
+  font-size: 9px;
+  font-weight: 760;
+}
+.canvas-workbench .process-flow-knowledge strong { color: var(--text-strong); font-size: 11px; }
+.canvas-workbench .process-flow-knowledge small { color: var(--text-tertiary); font-size: 10px; line-height: 1.5; }
+.canvas-workbench .process-flow-knowledge i {
+  color: var(--text-tertiary);
+  font-size: 9.5px;
+  font-style: normal;
+  white-space: nowrap;
+}
+/* CASE 文件清单：档位 / 路径 / 用途三列，和上面的知识清单同一套字号和列宽感，
+   两块并列时看起来是同一种东西的两个来源，而不是两种控件。
+   这里没有勾选框——读哪些上游文件是流程的结构，不是本次可选项。 */
+.canvas-workbench .process-flow-casefiles {
+  display: grid;
+  gap: 1px;
+}
+.canvas-workbench .process-flow-casefile-row {
+  display: grid;
+  grid-template-columns: 34px 156px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 7px 0;
+  border-top: 1px solid var(--border-subtle);
+}
+.canvas-workbench .process-flow-casefile-row:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.canvas-workbench .process-flow-casefile-row span {
+  color: var(--text-tertiary);
+  font-size: 9px;
+  font-weight: 760;
+}
+.canvas-workbench .process-flow-casefile-row strong {
+  color: var(--text-strong);
+  font-size: 10.5px;
+  word-break: break-all;
+}
+.canvas-workbench .process-flow-casefile-row small {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  line-height: 1.5;
+}
+.canvas-workbench .process-flow-data-table {
+  display: grid;
+  gap: 1px;
+  margin-top: 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--border-subtle);
+}
+.canvas-workbench .process-flow-data-table > div {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 10px;
+  padding: 9px 11px;
+  background: var(--bg-surface);
+}
+.canvas-workbench .process-flow-data-table strong { color: var(--text-strong); font-size: 11px; }
+.canvas-workbench .process-flow-data-table span { color: var(--text-tertiary); font-size: 10.5px; line-height: 1.5; }
+.canvas-workbench .process-flow-data-list {
+  display: grid;
+  gap: 7px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.canvas-workbench .process-flow-data-list li {
+  display: grid;
+  gap: 2px;
+  padding-left: 10px;
+  border-left: 2px solid var(--border-subtle);
+}
+.canvas-workbench .process-flow-data-list strong { color: var(--text-strong); font-size: 11px; }
+.canvas-workbench .process-flow-data-list span { color: var(--text-tertiary); font-size: 10.5px; line-height: 1.5; }
+.canvas-workbench .process-flow-result {
+  margin-top: 9px;
+  padding: 9px 11px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  background: var(--bg-muted);
+  font-size: 10.5px;
+  font-weight: 650;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+/* 未启用的评测步骤：整块压暗、去底色、边框改虚线，让「这一步现在不会跑」
+   在扫读时就成立，而不是要用户逐字读完文案才发现。 */
+.canvas-workbench .process-flow-result.is-muted {
+  border-style: dashed;
+  background: none;
+  color: var(--text-tertiary);
+}
+/* 落盘 action 名：等宽字体弱化成技术标注，不与左侧产出描述抢读序 */
+.canvas-workbench .process-flow-result code {
+  flex: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9.5px;
+  font-weight: 600;
+  opacity: 0.66;
+}
+/* 知识卡：从流程卡某一步再向右展开，与流程卡同一套壳。
+   比流程卡略窄一点，但要比原先的要求卡宽得多——里面是 Markdown 正文，
+   窄卡会把每行压到只剩几个字，长表格根本没法读。 */
+.canvas-workbench .process-knowledge-node {
+  --kind: #262626;
+  width: 520px;
+}
+.canvas-workbench .process-knowledge-node .node-inner {
+  display: flex;
+  flex-direction: column;
+  max-height: 760px;
+  min-height: 0;
+}
+.canvas-workbench .process-knowledge-node .node-remove { opacity: 1; }
+/* 要求条目：现在就地展开在流程卡的折叠块里，不再单独成卡 */
+.canvas-workbench .process-requirement-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.canvas-workbench .process-requirement-list li {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--bg-muted);
+}
+.canvas-workbench .process-requirement-list li > span {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: #262626;
+  font-size: 9.5px;
+  font-weight: 760;
+}
+.canvas-workbench .process-requirement-list li > p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  line-height: 1.65;
+}
+/* 要求卡是文件的投影，把真实文件名写在脚注，改哪里一目了然 */
+.canvas-workbench .process-requirement-source {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-quaternary);
+  font-size: 9.5px;
+  line-height: 1.5;
+  word-break: break-all;
+}
+.canvas-workbench .process-flow-knowledge-reader {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* 与 .process-flow-body 同一套抵消逻辑：外层 node-inner 已给过 18px 横向内边距 */
+  margin: 0 -18px -15px;
+  padding: 2px 18px 15px;
+}
+.canvas-workbench .process-flow-file-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.canvas-workbench .process-flow-file-meta span {
+  padding: 3px 7px;
+  border-radius: var(--r-pill);
+  color: var(--text-tertiary);
+  background: var(--bg-muted);
+  font-size: 9px;
+  font-weight: 760;
+  letter-spacing: 0.06em;
+}
+.canvas-workbench .process-flow-file-meta strong {
+  color: var(--text-strong);
+  font-size: 11px;
+}
+.canvas-workbench .process-flow-editor {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 0 -18px -15px;
+  padding: 2px 18px 15px;
+}
+.canvas-workbench .process-flow-editor-note {
+  margin-bottom: 10px;
+  color: var(--text-tertiary);
+  font-size: 10.5px;
+  line-height: 1.55;
+}
+.canvas-workbench .process-flow-editor textarea {
+  flex: 1;
+  min-height: 0;
+  resize: none;
+  padding: 16px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  outline: none;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  line-height: 1.55;
+  tab-size: 2;
+}
+.canvas-workbench .process-flow-editor textarea:focus {
+  border-color: var(--plan-accent);
+  box-shadow: 0 0 0 3px var(--plan-accent-soft);
+}
+.canvas-workbench .process-flow-editor footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 12px;
+}
+.canvas-workbench .process-flow-editor footer button {
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 680;
+}
+.canvas-workbench .process-flow-editor footer button:hover { background: var(--bg-hover); color: var(--text-strong); }
+.canvas-workbench .process-flow-editor footer .is-primary { color: white; background: var(--plan-accent-ink); }
+.canvas-workbench .process-flow-editor footer .is-primary:disabled { opacity: 0.5; }
+.canvas-workbench .process-flow-error {
+  margin: 12px 24px 0;
+  padding: 9px 12px;
+  color: #9d5146;
+  background: #fff1ee;
+  font-size: 10px;
+  line-height: 1.45;
+}
+.canvas-workbench .process-flow-loading { padding: 48px 26px; color: var(--text-tertiary); font-size: 11px; }
+@media (max-width: 720px) {
+  .canvas-workbench .process-flow-body { padding: 18px 16px 28px; }
+  .canvas-workbench .process-flow-knowledge > button { grid-template-columns: 32px minmax(0, 1fr) auto; }
+  .canvas-workbench .process-flow-knowledge small { grid-column: 2; }
+}
+.canvas-workbench .task-composer {
+  margin: 14px 0 13px;
+  padding: 10px 11px 9px;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--bg-surface);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+.canvas-workbench .task-composer textarea {
+  width: 100%;
+  min-height: 72px;
+  display: block;
+  resize: vertical;
+  padding: 2px 3px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+.canvas-workbench .task-composer textarea::placeholder { color: var(--text-tertiary); }
+.canvas-workbench .task-composer:focus-within {
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 3px var(--bg-active);
+}
+.canvas-workbench .task-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 4px 2px 8px;
+}
+.canvas-workbench .task-attachment {
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 5px 4px 7px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border-default);
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+}
+.canvas-workbench .task-attachment > svg, .canvas-workbench .task-attach > svg, .canvas-workbench .task-send > svg { width: 14px; height: 14px; flex: none; }
+.canvas-workbench .task-attachment > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.canvas-workbench .task-attachment button {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border-radius: 3px;
+  color: currentColor;
+  font-size: 13px;
+  line-height: 1;
+}
+.canvas-workbench .task-attachment button:hover { background: rgba(0, 0, 0, 0.08); }
+.canvas-workbench .task-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 2px 0;
+  border-top: 1px solid var(--border-subtle);
+}
+.canvas-workbench .task-attach {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.canvas-workbench .task-attach:hover { color: var(--text-strong); }
+.canvas-workbench .task-attach input { display: none; }
+.canvas-workbench .task-send {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: white;
+  font-size: 11px;
+  font-weight: 650;
+  transition: background 140ms, transform 140ms;
+}
+.canvas-workbench .task-send:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }
+.canvas-workbench .task-send:disabled { cursor: wait; opacity: 0.6; }
+.canvas-workbench .task-feedback {
+  display: block;
+  padding: 6px 2px 0;
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+.canvas-workbench .visual-gen-card .task-feedback {
+  margin-top: -2px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  background: var(--bg-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.canvas-workbench .visual-gen-card .task-feedback.is-error {
+  color: #b42318;
+  background: #fff0ee;
+}
+
+/* 建档后：输入区替换为行动栏 */
+.canvas-workbench .task-actionbar {
+  margin: 14px 0 13px;
+  padding: 11px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--bg-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.canvas-workbench .task-actionbar .task-send { align-self: flex-start; }
+.canvas-workbench .task-locked {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+}
+.canvas-workbench .task-locked svg { flex: none; }
+

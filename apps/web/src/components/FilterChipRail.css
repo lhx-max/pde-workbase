@@ -1,0 +1,114 @@
+.filter-chip-rail {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.filter-chip-rail__scroller {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+}
+
+.filter-chip-rail__scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-chip-rail[data-scroll-controls] {
+  gap: 2px;
+}
+
+[data-ui-button].filter-chip-rail__arrow {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  background: transparent;
+}
+
+[data-ui-button].filter-chip-rail__arrow:hover:not(:disabled) {
+  color: var(--text-strong);
+  background: var(--bg-subtle);
+}
+
+[data-ui-button].filter-chip-rail__arrow:disabled { opacity: 0.25; }
+
+.filter-chip-rail__scroller[data-hidden-start] { mask-image: linear-gradient(to right, transparent, var(--brand) 12px); }
+.filter-chip-rail__scroller[data-hidden-end] { mask-image: linear-gradient(to left, transparent, var(--brand) 12px); }
+.filter-chip-rail__scroller[data-hidden-start][data-hidden-end] { mask-image: linear-gradient(to right, transparent, var(--brand) 12px, var(--brand) calc(100% - 12px), transparent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .filter-chip-rail__scroller { scroll-behavior: auto; }
+}
+
+[data-ui-button].filter-chip-rail__item {
+  display: inline-flex;
+  height: 28px;
+  min-height: 28px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+[data-ui-button].filter-chip-rail__item:hover:not(:disabled) {
+  border: 0;
+  background: var(--bg-fill-tertiary);
+  color: var(--text-strong);
+}
+
+[data-ui-button].filter-chip-rail__item[data-active='true'],
+[data-ui-button].filter-chip-rail__item[data-active='true']:hover:not(:disabled) {
+  border: 0;
+  background: var(--vibrancy-fill-tertiary);
+  color: var(--text-strong);
+  font-weight: 500;
+}
+
+[data-ui-button].filter-chip-rail__item[data-empty='true']:not([data-active='true']) {
+  opacity: 0.45;
+}
+
+[data-ui-button].filter-chip-rail__item:focus-visible {
+  outline: 1px solid var(--border-strong);
+  outline-offset: -1px;
+}
+
+/* Workspace asset types and knowledge tabs share the same capsule geometry. */
+.filter-chip-rail[data-variant='workspace'] [data-ui-button].filter-chip-rail__item {
+  height: 34px;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: var(--radius-button, 8px);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.filter-chip-rail[data-variant='workspace'] [data-ui-button].filter-chip-rail__item:hover:not(:disabled),
+.filter-chip-rail[data-variant='workspace'] [data-ui-button].filter-chip-rail__item[data-active='true'] {
+  background: var(--bg-subtle);
+  color: var(--text-strong);
+}
+.filter-chip-rail[data-variant='workspace'] [data-ui-button].filter-chip-rail__item[data-active='true'] {
+  font-weight: 600;
+}

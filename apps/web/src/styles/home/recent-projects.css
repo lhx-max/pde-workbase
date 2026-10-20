@@ -1,0 +1,618 @@
+/* ============================================================
+   Recent projects strip — horizontal grid of recent project cards
+   on the Home view, with a "View all" anchor that switches to the
+   Projects view.
+   ============================================================ */
+/* Scoped under .modal to out-specify `.modal label { flex-direction: column }`,
+   which would otherwise stack the checkbox above the "不再提示" text. */
+.modal .recent-projects__move-remind {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 8px;
+  font-size: 13px;
+  white-space: nowrap;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.modal-confirm .recent-projects__move-remind {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+}
+/* Move-to-team / move-out confirmations: dim the page but keep it sharp — no
+   frosted blur behind the dialog (the shared Dialog backdrop blurs by
+   default; the doubled class outweighs its module rule). */
+.modal-backdrop--no-blur.modal-backdrop {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.recent-projects__move-remind [data-slot='checkbox'] {
+  flex: 0 0 auto;
+  margin: 0;
+  cursor: pointer;
+}
+
+.recent-projects {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  max-width: 1400px;
+  margin-inline: auto;
+  /* Named size container so the grid below can drop columns based on the
+     strip's own width (sidebar state included), not the viewport. */
+  container: recent-projects / inline-size;
+}
+.recent-projects__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.recent-projects__title-block {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--spacing-8);
+  min-width: 0;
+}
+.recent-projects__description {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.2;
+}
+.recent-projects__title {
+  margin: 0;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-strong);
+  letter-spacing: -0.02em;
+}
+.recent-projects__view-all {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+}
+.recent-projects__view-all:hover {
+  color: var(--text);
+  background: var(--bg-subtle);
+}
+.recent-projects__empty {
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 20px 16px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  text-align: center;
+}
+.recent-projects__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--spacing-12);
+}
+.recent-projects__row--grid {
+  /* Equal-width grid, 5-across at full width: each card is an exact fraction
+     of the module width so the row's right edge aligns with the header/
+     filters. Extra items wrap downward. Column count steps down with the
+     strip's container width (breakpoints ≈ 180px min card width + gaps) so
+     cards never get crushed when the window narrows. */
+  grid-auto-flow: row;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: auto;
+  align-items: stretch;
+  /* Cards have no base-card surface or padding, so the grid gap alone is the
+     visible spacing between cards: fixed at 16px (compact rhythm). */
+  gap: var(--home-ref-showcase-gap);
+}
+@container recent-projects (max-width: 947px) {
+  .recent-projects__row--grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@container recent-projects (max-width: 755px) {
+  .recent-projects__row--grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@container recent-projects (max-width: 563px) {
+  .recent-projects__row--grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container recent-projects (max-width: 371px) {
+  .recent-projects__row--grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.recent-projects__row--grid .recent-projects__card {
+  min-height: 0;
+}
+.recent-projects__row--grid .recent-projects__card-thumb {
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 108px;
+  margin-top: 0;
+}
+.recent-projects__row--grid .recent-projects__card-meta {
+  flex: 0 0 auto;
+}
+.recent-projects__card {
+  text-align: left;
+}
+.recent-projects__card-main {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  overflow: hidden;
+}
+.recent-projects__row--grid .recent-projects__card-main {
+  align-items: stretch;
+  justify-content: flex-start;
+  height: auto;
+  min-height: 0;
+  /* Borderless card: the thumbnail block carries the only surface, the
+     caption sits bare beneath it (Lovart-style). No inner padding. */
+  padding: 0;
+}
+.recent-projects__card-main:hover:not(:disabled),
+.recent-projects__card-main:active:not(:disabled) {
+  background: transparent;
+  border-color: transparent;
+  transform: none;
+}
+.recent-projects__card:hover .recent-projects__card-thumb {
+  border-color: var(--border-strong);
+}
+/* Read-only shared projects stay surfaceless like every other card — the
+   "共享" badge already signals the state, so no extra border or desaturation
+   (that edge was a merge artifact against the borderless home design). The
+   class is retained for the viewer-only interaction gating in the JSX. */
+.recent-projects__card.is-readonly-shared {
+  border-color: transparent;
+}
+/* Design-system projects no longer draw a red outer border / ring — the card
+   reads like any other; the "Design System" tag alone marks the kind. */
+.recent-projects__card.is-design-system-project {
+  border-color: transparent;
+  box-shadow: none;
+}
+.recent-projects__card-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 140ms var(--ease-out);
+  /* Container for the HTML preview iframe's responsive scale (below): the
+   * iframe renders at a fixed desktop design width and is scaled by the
+   * card's own width so the page reads as a faithful thumbnail instead of
+   * collapsing at the narrow card width. */
+  container-type: inline-size;
+}
+/* Hairline ring over the cover media so light covers don't melt into the
+   page. Drawn as an overlay (not a border) so layout and the media crop
+   stay untouched. */
+.recent-projects__card-thumb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: none;
+  pointer-events: none;
+}
+.recent-projects__card-thumb-html,
+.recent-projects__card-thumb-image,
+.recent-projects__card-thumb-video,
+.recent-projects__card-thumb-logo {
+  background: var(--bg-subtle);
+}
+/* NO cover zoom on hover. This block used to scale the thumb media to 1.04,
+   and the whole "cover zoom" family (community cards, plugins gallery, design
+   files, project drawer, prompt templates, hero presets) referenced it as the
+   origin. Scaling raster/video/iframe thumbs resamples them and the covers go
+   visibly soft — removed on dogfood feedback (2026-07-27). Do not re-add here
+   or in any of the sibling card galleries. */
+.recent-projects__card-thumb-logo .project-card__preview-media {
+  inset: 22%;
+  width: 56%;
+  height: 56%;
+  object-fit: contain;
+}
+.recent-projects__card-meta {
+  margin-top: 0;
+}
+.recent-projects__card-name-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
+}
+.recent-projects__card-name { min-width: 0; }
+/* Bottom row: owner·time on the left, kind tag (原型/幻灯片…) pushed to the
+   bottom-right corner. */
+.recent-projects__card-footer {
+  gap: var(--spacing-8);
+}
+.recent-projects__card-footer .design-card-tag-row {
+  flex: 0 0 auto;
+  margin: 0;
+}
+.recent-projects__card-time {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.recent-projects__card-sep {
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+/* Home showcase ---------------------------------------------------------
+   Hims-inspired full-bleed media cards: one generous rounded color block,
+   with the preview and caption joined into a single surface. Project previews
+   stay unobstructed and never zoom; the whole card supplies the motion. This
+   modifier is Home-only so dense project collections can remain compact. */
+.recent-projects--showcase {
+  --recent-showcase-card-min: 192.25px;
+  --recent-showcase-card-max: 384px;
+  --recent-showcase-card-radius: calc(var(--radius-lg) + var(--spacing-4));
+  gap: 24px;
+}
+.recent-projects--showcase .recent-projects__row--grid {
+  grid-template-columns: repeat(4, minmax(var(--recent-showcase-card-min), var(--recent-showcase-card-max)));
+  column-gap: 12px;
+  row-gap: 16px;
+  justify-content: center;
+  align-content: start;
+}
+.recent-projects--showcase .recent-projects__card {
+  min-width: 0;
+}
+.recent-projects--showcase .recent-projects__card-main,
+.recent-projects--showcase .recent-projects__row--grid .recent-projects__card-main {
+  position: relative;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  background: inherit;
+}
+.recent-projects--showcase .recent-projects__card-thumb,
+.recent-projects--showcase .recent-projects__row--grid .recent-projects__card-thumb {
+  min-height: 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+.recent-projects--showcase .recent-projects__card:hover .recent-projects__card-thumb {
+  border-color: var(--border-strong);
+}
+.recent-projects--showcase .recent-projects__card-thumb::after {
+  display: none;
+}
+.recent-projects--showcase .recent-projects__card-meta {
+  position: static;
+  margin: 0;
+  pointer-events: none;
+}
+.recent-projects--showcase .recent-projects__card-name {
+  text-overflow: clip;
+  text-shadow: none;
+}
+.recent-projects--showcase .recent-projects__card-footer {
+  margin-top: auto;
+  color: var(--text-muted);
+}
+.recent-projects--showcase .recent-projects__card-time {
+  color: inherit;
+  font-size: 12px;
+  line-height: 16px;
+}
+.recent-projects--showcase .recent-projects__card-owner {
+  display: none;
+}
+.recent-projects--showcase .recent-projects__card-footer .design-card-tag-row {
+  display: none;
+}
+
+@container recent-projects (max-width: 1152px) {
+  .recent-projects--showcase .recent-projects__row--grid {
+    grid-template-columns: repeat(3, minmax(var(--recent-showcase-card-min), var(--recent-showcase-card-max)));
+  }
+}
+@container recent-projects (max-width: 640px) {
+  .recent-projects--showcase .recent-projects__row--grid {
+    grid-template-columns: repeat(2, minmax(var(--recent-showcase-card-min), var(--recent-showcase-card-max)));
+  }
+}
+/* "转入团队空间" confirm button: green label on the dark filled button to read
+   as the positive, forward action. The selector mirrors mention-home.css's
+   `.modal-confirm .row button.primary` ink-pill restyle (color: #fafafa,
+   including :hover/:active) with one extra class so the green label wins in
+   every interaction state. */
+.modal-confirm .row button.recent-projects__move-confirm.primary,
+.modal-confirm .row button.recent-projects__move-confirm.primary:hover,
+.modal-confirm .row button.recent-projects__move-confirm.primary:active {
+  color: var(--brand);
+}
+.recent-projects__card-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+}
+.recent-projects__card-status-running {
+  color: var(--accent);
+}
+.recent-projects__card-status-awaiting_input,
+.recent-projects__card-status-incomplete {
+  color: var(--amber);
+}
+.recent-projects__card-status-queued,
+.recent-projects__card-status-not_started,
+.recent-projects__card-status-canceled {
+  color: var(--text-muted);
+}
+.recent-projects__card-status-succeeded {
+  color: var(--green);
+}
+.recent-projects__card-status-failed {
+  color: var(--red);
+}
+.recent-projects__card-status-published {
+  color: var(--green);
+}
+.recent-projects__card-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+.recent-projects__card-status-running .recent-projects__card-status-dot {
+  animation: recent-projects-pulse 1.4s ease-in-out infinite;
+}
+@media (hover: none) {
+  /* The floating "共享" badge is otherwise gated entirely behind :hover /
+     :focus-within (see .recent-projects__card-badge below) — on a touch
+     device that never satisfies either, it would stay permanently invisible
+     instead of just fading in on hover. Same fallback shape as the "more"
+     button above. */
+  .recent-projects__card-badge {
+    opacity: 1;
+    pointer-events: none;
+  }
+}
+@keyframes recent-projects-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+@keyframes recent-projects-shimmer {
+  to {
+    background-position: -200% 0, 0 0;
+  }
+}
+
+/* ============================================================
+   Home browser: Projects / Design systems / Templates tabs,
+   search, and collection controls (added for the unified
+   Home browse surface).
+   ============================================================ */
+.recent-projects__head {
+  align-items: center;
+}
+.recent-projects__tabs {
+  display: flex;
+  gap: 2px;
+}
+.recent-projects__tab {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 120ms var(--ease-out), color 120ms var(--ease-out);
+}
+.recent-projects__tab:hover {
+  color: var(--text);
+  background: var(--bg-subtle);
+}
+.recent-projects__tab.is-active {
+  color: var(--text-strong);
+  background: var(--bg-fill-secondary);
+}
+.recent-projects__tab-count {
+  color: var(--text-faint);
+  font-size: 12px;
+  font-weight: 600;
+}
+.recent-projects__tab.is-active .recent-projects__tab-count {
+  color: var(--text-muted);
+}
+.recent-projects__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-6);
+}
+.recent-projects__search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  color: var(--text-soft);
+  width: 200px;
+}
+.recent-projects__search input {
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  width: 100%;
+}
+.recent-projects__search input::placeholder {
+  color: var(--text-faint);
+}
+/* Project-collection heading + sort control. */
+.recent-projects__heading {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-strong);
+}
+.recent-projects__sort-menu {
+  border: 0;
+  min-width: 164px;
+}
+
+.recent-projects__sort-trigger {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  border-radius: var(--radius-10, 10px);
+  color: var(--text-muted);
+}
+
+.recent-projects__sort-trigger:hover,
+.recent-projects__sort-trigger[data-state='open'] {
+  background: var(--bg-subtle);
+  color: var(--text-strong);
+}
+
+/* "邀请同事" entry on the team "全部项目" header (UC-2 entry point 2). */
+.recent-projects__invite {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  /* Match the 多选 / filter pills beside it (28px). */
+  height: 28px;
+  padding: 0 14px;
+  margin-right: 4px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--accent-contrast, #fff);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.recent-projects__invite:hover:not(:disabled) {
+  /* Re-assert the accent fill (see primitives.css global button:hover). */
+  background: var(--accent);
+  border-color: transparent;
+  filter: brightness(1.05);
+}
+
+/* Shared badge on the thumbnail + creator avatar in the meta row. Private projects stay unbadged. */
+.recent-projects__card-badge {
+  /* 4px inside the thumb's top-left corner (the thumb is the positioned
+     ancestor), pill-shaped. Hidden at rest — it fades in on card hover so
+     covers stay clean. */
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms var(--ease-out);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  border: var(--stroke-thin) solid color-mix(in srgb, var(--green) 24%, transparent);
+  background: color-mix(in srgb, var(--green) 10%, var(--bg-panel));
+  color: color-mix(in srgb, var(--green) 72%, var(--text-strong));
+  font-size: 12px;
+  font-weight: 600;
+}
+.recent-projects__card:hover .recent-projects__card-badge,
+.recent-projects__card:focus-within .recent-projects__card-badge {
+  opacity: 1;
+}
+/* Title row. */
+.recent-projects__card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.recent-projects__card-name-row .recent-projects__card-name {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.recent-projects__card-owner {
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-pill);
+  background: #1a1917;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex: 0 0 16px;
+}
+
+.recent-projects__card-owner img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+
+/* First open of a team-shared card runs a full content pull before the
+   project can open; the overlay makes that wait visible (previously the
+   click looked dead for the whole pull). */
+.recent-projects__card.is-opening .recent-projects__card-main {
+  cursor: progress;
+}
+.recent-projects__card-opening {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  color: var(--text-strong);
+}

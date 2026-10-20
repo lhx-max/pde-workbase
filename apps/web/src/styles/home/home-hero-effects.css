@@ -1,0 +1,289 @@
+/* Attention sheen — a soft light sweep crossing the element twice. Shared
+   by the guidance trail: the first-run prototype chip, the first
+   example-prompt card after a chip pick, and the send button after a
+   plugin Use / example pick. No ring, no scale: a glint reads as an
+   invitation, not an alarm. The 0.25s delay lets scroll-back/seed motion
+   settle so the sweep lands on a resting element. */
+@keyframes home-hero-attention-sheen {
+  0% {
+    transform: translateX(-130%) skewX(-18deg);
+    opacity: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  82% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(230%) skewX(-18deg);
+    opacity: 0;
+  }
+}
+.home-hero__attention-sheen {
+  position: relative;
+  overflow: hidden;
+}
+.home-hero__attention-sheen::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 45%;
+  pointer-events: none;
+  z-index: 1;
+  background: linear-gradient(
+    105deg,
+    transparent,
+    rgba(255, 255, 255, 0.5),
+    transparent
+  );
+  animation: home-hero-attention-sheen 0.9s cubic-bezier(0.23, 1, 0.32, 1) 0.25s 2 both;
+}
+/* Light preset cards need a tinted glint to be visible. */
+.home-hero__plugin-preset.home-hero__attention-sheen::after {
+  background: linear-gradient(
+    105deg,
+    transparent,
+    color-mix(in srgb, var(--accent) 28%, white),
+    transparent
+  );
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-hero__attention-sheen::after {
+    animation: none;
+    content: none;
+  }
+}
+/* Plan-mode lightbulb toggle — Lovart "Thinking" style ghost button */
+.home-hero__plan-toggle {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  box-shadow: none;
+  transition:
+    background-color 120ms var(--ease-out),
+    color 120ms var(--ease-out);
+}
+.home-hero__plan-toggle:hover {
+  background: var(--bg-subtle);
+  color: var(--text);
+}
+.home-hero__plan-toggle.is-active {
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg-subtle));
+  color: var(--accent);
+}
+.home-hero__plan-toggle.is-active:hover {
+  background: color-mix(in srgb, var(--accent) 20%, var(--bg-subtle));
+}
+
+.home-hero__submit {
+  --home-hero-submit-bg: #1f1f1f;
+  --home-hero-submit-fg: #fff;
+
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  /* Icon-only round send (label removed): equal sides make a circle.
+     30px matches the row's other controls (plus / template pill / model
+     chip) so the footer reads as one aligned band instead of one button
+     sticking up taller than its siblings. */
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: var(--radius-pill);
+  border: var(--stroke-thin) solid transparent;
+  background: var(--home-hero-submit-bg);
+  color: var(--home-hero-submit-fg);
+  box-shadow: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--font-size-14);
+  font-weight: 500;
+  line-height: 1;
+  filter: none;
+  backdrop-filter: none;
+  transition: background-color 120ms var(--ease-out), color 120ms var(--ease-out);
+}
+[data-theme="dark"] .home-hero__submit {
+  --home-hero-submit-bg: #f5f5f5;
+  --home-hero-submit-fg: #171717;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) .home-hero__submit {
+    --home-hero-submit-bg: #f5f5f5;
+    --home-hero-submit-fg: #171717;
+  }
+}
+
+.home-hero__submit:hover:not(:disabled),
+.home-hero__submit:active:not(:disabled) {
+  border-color: transparent;
+  filter: brightness(0.86);
+  box-shadow: none;
+  transform: none;
+}
+
+.home-hero__submit.home-hero__attention-sheen::after {
+  animation: none;
+  content: none;
+}
+
+.home-hero__submit:disabled {
+  opacity: 1;
+  cursor: default;
+  background: rgba(0, 0, 0, 0.12);
+  color: rgba(0, 0, 0, 0.42);
+  box-shadow: none;
+}
+[data-theme="dark"] .home-hero__submit:disabled {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.42);
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) .home-hero__submit:disabled {
+    background: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.42);
+  }
+}
+.home-hero__error {
+  color: var(--red);
+  font-size: 13px;
+  background: var(--red-bg);
+  border: 1px solid var(--red-border);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  max-width: 720px;
+  width: 100%;
+}
+
+.home-hero-confirm__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(16, 12, 10, 0.34);
+  -webkit-backdrop-filter: var(--scrim-backdrop);
+  backdrop-filter: var(--scrim-backdrop);
+}
+.home-hero-confirm {
+  width: min(420px, 100%);
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-lg, 0 18px 50px rgba(0, 0, 0, 0.18));
+}
+.home-hero-confirm h2 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 16px;
+  letter-spacing: 0;
+}
+.home-hero-confirm p {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.home-hero-confirm__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+.home-hero-confirm__secondary,
+.home-hero-confirm__primary {
+  appearance: none;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.home-hero-confirm__secondary {
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--text);
+}
+.home-hero-confirm__primary {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: white;
+}
+.home-hero-confirm__secondary:hover {
+  border-color: var(--border-strong);
+}
+.home-hero-confirm__primary:hover {
+  background: var(--accent-strong);
+  color: white;
+}
+
+.home-hero__prompt-examples {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+.home-hero__prompt-examples-title {
+  padding: 0 2px;
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.home-hero__prompt-example {
+  appearance: none;
+  min-width: 0;
+  min-height: 112px;
+  display: flex;
+  align-items: flex-start;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--shadow-xs);
+  transition:
+    border-color 140ms var(--ease-out),
+    background-color 140ms var(--ease-out),
+    color 140ms var(--ease-out),
+    transform 140ms var(--ease-out),
+    box-shadow 140ms var(--ease-out);
+}
+.home-hero__prompt-example span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.home-hero__prompt-example:hover,
+.home-hero__prompt-example:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
+  background: color-mix(in srgb, var(--accent-tint) 34%, var(--bg-panel));
+  color: var(--text-strong);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* web-clone rules moved to ./home-hero-web-clone.css (imported at top of this file) */

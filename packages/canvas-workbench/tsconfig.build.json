@@ -1,0 +1,15 @@
+{
+  "//": "声明文件产出配置。与 tsconfig.json 同严格度（noUncheckedIndexedAccess: false，见那里的说明），只是改为 emit .d.ts 到 dist，供宿主消费——宿主因此不会重新编译本包源码，也就不会把自己的严格度施加到平移代码上。",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": [
+    "src/**/*"
+  ]
+}

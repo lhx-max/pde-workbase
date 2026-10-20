@@ -1,0 +1,7 @@
+/*
+ * Deprecated compatibility entrypoint.
+ *
+ * Kept intentionally so existing `@bezier/components/styles.css` imports keep
+ * resolving. Components own their visual rules through CSS Modules; this file
+ * must remain side-effect free and must not add document-wide selectors.
+ */

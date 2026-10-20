@@ -1,0 +1,19 @@
+{
+  "name": "@canvas/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:ui": "playwright test -c playwright.config.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.60.0",
+    "@types/node": "24.12.2",
+    "vitest": "4.1.6",
+    "typescript": "5.9.3",
+    "tsx": "4.22.3"
+  },
+  "engines": { "node": "~24" }
+}
