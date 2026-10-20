@@ -158,21 +158,7 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
     }, [ports.onStageReference,renderScope,t]);
     const saveToLibrary=useCallback(async(file:ProjectFile)=>{if(ports.saveToLibrary)await ports.saveToLibrary(file);else await saveProjectFileAsAsset(projectId,file.name,ports.workspaceContext);},[ports.saveToLibrary,projectId,ports.workspaceContext]);
     const extractPage=useCallback(async(request:import('./browser-page-extraction').BrowserPageExtractionRequest)=>{const turn=browserPageExtractionTurn(request,t('designBrowser.extractPage'),t);await submitAgentTask(turn.prompt,{kind:'instruction-card',title:t('designBrowser.extractPage'),visiblePrompt:turn.meta.visiblePrompt,executionContext:turn.meta,inputPaths:turn.inputPaths});},[submitAgentTask,t]);
-    useEffect(() => { if (ports.onSubmitAgentTask||!taskBridge)
-        return; let active = true; const controller = new AbortController(); const transport = ports.transport; const endpoint = `${transport?.baseUrl?.replace(/\/$/, '') || ''}/api/projects/${encodeURIComponent(projectId)}/agent/tasks`; void (transport?.fetch || fetch)(endpoint, { signal: controller.signal, headers: { ...(ports.workspaceContext ? workspaceProjectHeaders(ports.workspaceContext) : {}), ...transport?.headers?.() } }).then(async (response) => { if (!response.ok)
-        throw new Error(tRef.current('workspace.taskRecoveryFailed', { status: response.status })); const body = await response.json() as CanvasTaskListResponse; if (!Array.isArray(body.tasks))
-        throw new Error(tRef.current('workspace.taskRecoveryInvalid')); for (const task of body.tasks) {
-        if (!active)
-            break;
-        if (task.projectId !== projectId)
-            throw new Error(tRef.current('workspace.taskRecoveryWrongProject'));
-        if (!task.request.canvasTextGeneration && !task.request.canvasArtifactGeneration) {
-            if(task.status==='queued'||task.status==='running')await taskBridge.recover(task.id);
-            continue;
-        }
-        await taskBridge.recover(task.id, { kind: 'instruction-card', title: tRef.current('workspace.recoveredTask'), canvasTextGeneration: task.request.canvasTextGeneration, canvasArtifactGeneration: task.request.canvasArtifactGeneration });
-    } }).catch(cause => { if (active)
-        reportError(cause); }); return () => { active = false; controller.abort(); }; }, [projectId, ports.onSubmitAgentTask, ports.workspaceContext, ports.transport, taskBridge, reportError]);
+    // Agent task recovery was removed with the server-side /agent/tasks API.
     useEffect(() => { if (typeof EventSource === 'undefined')
         return; const source = new EventSource(workspaceResourceUrl(`/api/projects/${encodeURIComponent(projectId)}/events`, ports.workspaceContext)); let timer: ReturnType<typeof setTimeout> | undefined; const changed = () => { if (timer)
         clearTimeout(timer); timer = setTimeout(() => void refreshFiles().catch(reportError), 120); }; source.addEventListener('file-changed', changed); source.addEventListener('ready', changed); return () => { if (timer)

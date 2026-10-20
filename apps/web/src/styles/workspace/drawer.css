@@ -2633,6 +2633,14 @@
   border-color: #000;
 }
 
+.ws-workspace-layout {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
 .ws-body {
   flex: 1;
   min-height: 0;
