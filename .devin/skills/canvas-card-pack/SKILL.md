@@ -57,6 +57,53 @@ pnpm tools-dev run web --data-dir /tmp/<数据目录> --daemon-port 17460 --web-
 
 6. **交付检查**（契约 §10 清单）：前缀、data 大小、memo 安全、幂等、README 三件套（建卡动作/data 字段表/动作清单）
 
+## API / CLI 速查
+
+### COI 门脸（验证卡片动作的标准入口）
+
+不用 UI 也能测卡——直接打 HTTP：
+
+```bash
+# 1. 看能力清单（你的 card.* 动作注册后会出现在 actions 里）
+curl http://127.0.0.1:17460/api/apps/canvas
+
+# 2. 建画布实例（App 级动作，固定 actionId=canvas.create）
+curl -X POST http://127.0.0.1:17460/api/apps/canvas/actions/canvas.create \
+  -H 'content-type: application/json' \
+  -d '{"input":{"instanceId":"my-test","name":"测试画布"}}'
+
+# 3. 发动作建你的卡（node.create 通用动作即可）
+curl -X POST http://127.0.0.1:17460/api/apps/canvas/instances/my-test/actions/node.create \
+  -H 'content-type: application/json' -H 'idempotency-key: op-demo-1' \
+  -d '{"input":{"node":{"id":"c1","kind":"card.acme.product","x":100,"y":100,
+        "title":"商品卡","data":{"sku":"A1"}}}}'
+
+# 4. 你的专属动作（注册后自动可调）
+curl -X POST http://127.0.0.1:17460/api/apps/canvas/instances/my-test/actions/card.acme.product.refresh \
+  -H 'content-type: application/json' -d '{"input":{"nodeId":"c1","params":{}}}'
+
+# 5. 查状态 / 查凭条
+curl http://127.0.0.1:17460/api/apps/canvas/instances/my-test/state
+curl http://127.0.0.1:17460/api/apps/canvas/instances/my-test/action-receipts/op-demo-1
+```
+
+**规则**：响应统一 `{requestId, data}` 信封；错误 `{code: "CANVAS_*"}`；409 = 版本冲突（带 `expectedRevision` 重试）；`idempotency-key` 相同重复提交返回旧凭条。
+
+### CLI / 服务起法
+
+```bash
+# 后端服务（数据走 Appwrite 就带上这 5 个环境变量）
+APPWRITE_ENDPOINT=... APPWRITE_PROJECT=grworkspace APPWRITE_DATABASE=canvas_app_dev \
+APPWRITE_BUCKET=canvas_assets_v2 APPWRITE_SESSION_COOKIE=<...> \
+node apps/server/dist/cli.js --data-dir /tmp/<数据目录> --port 17460
+
+# 全栈本地环境（推荐）：pnpm tools-dev run web --data-dir ... --daemon-port 17460 --web-port 17580
+```
+
+- `--data-dir` 必须显式绝对路径（仓规：禁止 cwd 推断）
+- `CANVAS_AUTH_TOKEN` 可选，给服务加令牌鉴权
+- 内部画布 API（`/api/projects/:id/canvas/*`）是实现细节，卡片开发统一走上面 COI 门
+
 ## 常见坑
 
 - **「我的卡渲染不出来」**：先查 kind 前缀对不对、`packs.ts` 挂没挂、数据里 `kind` 字段和注册名一不一致
