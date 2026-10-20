@@ -46,44 +46,6 @@ export function CanvasComposerShell({
 }: CanvasComposerShellProps) {
   const activeOwnerId = React.useContext(CanvasComposerFocusContext);
   const formRef = React.useRef<HTMLFormElement>(null);
-  React.useLayoutEffect(() => {
-    const form = formRef.current;
-    const canvas = form?.closest('.xy-flow-host');
-    const node = form?.closest('.react-flow__node');
-    if (!form || !canvas || !node) return;
-    const chrome = canvas.closest('[data-pane-order]') || canvas.closest('.flow-home') || canvas;
-    const observed = new Set<Element>();
-    const update = () => {
-      const bounds = canvas.getBoundingClientRect();
-      let bottom = bounds.bottom;
-      for (const obstacle of chrome.querySelectorAll('[data-canvas-composer-obstacle]')) {
-        if (!observed.has(obstacle)) { resize.observe(obstacle); observed.add(obstacle); }
-        const rect = obstacle.getBoundingClientRect();
-        if (rect.width && rect.height && rect.right > bounds.left && rect.left < bounds.right
-          && rect.bottom > bounds.top && rect.top > bounds.top && rect.top < bounds.bottom) bottom = Math.min(bottom, rect.top);
-      }
-      const zoom = node.getBoundingClientRect().width / (node as HTMLElement).offsetWidth || 1;
-      form.style.transform = 'translateX(-50%)';
-      form.style.maxWidth = `${Math.max(0, bounds.width - 16) / zoom}px`;
-      form.style.maxHeight = `${Math.max(0, bottom - bounds.top - 16) / zoom}px`;
-      form.style.overflowY = 'auto';
-      const rect = form.getBoundingClientRect();
-      const dx = Math.max(bounds.left + 8 - rect.left, Math.min(0, bounds.right - 8 - rect.right));
-      const dy = Math.max(bounds.top + 8 - rect.top, Math.min(0, bottom - 8 - rect.bottom));
-      form.style.transform = `translateX(-50%) translate(${dx / zoom}px, ${dy / zoom}px)`;
-    };
-    const resize = new ResizeObserver(update);
-    update();
-    [canvas, node, form].forEach(element => resize.observe(element));
-    const movement = new MutationObserver(update);
-    for (const element of [node, form.closest('.react-flow__viewport')]) {
-      if (element) movement.observe(element, { attributes: true, attributeFilter: ['style'] });
-    }
-    const chromeChanges = new MutationObserver(update);
-    chromeChanges.observe(chrome, { childList: true, subtree: true });
-    window.addEventListener('resize', update);
-    return () => { resize.disconnect(); movement.disconnect(); chromeChanges.disconnect(); window.removeEventListener('resize', update); };
-  }, [activeOwnerId, ownerId, expanded]);
   if (activeOwnerId !== undefined && activeOwnerId !== ownerId) return null;
 
   return (
