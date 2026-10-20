@@ -45,7 +45,9 @@ const CARD_PACKS = [yourPack /*, ...*/];  // 包的 cards[].ops 自动注册为 
 
 - **卡片类型 ID**：`card.<团队>.<名称>`，小写连字符，如 `card.acme.product`。
   前缀即归属——你的团队只发自己前缀的 kind，冲突即拒收。
+- **覆盖通用卡**：包也可以给**核心 kind**（`text`/`image`/`sketch`/`storyboard`/`video`/`page`/`clip`/`artifact`）注册渲染器——注册即覆盖内置卡身，这是「改通用卡」的增量通道，不用改平台代码。
 - **动作 ID**：`card.<团队>.<名称>.<动词>`，如 `card.acme.product.refresh`。
+- **动作打核心卡**：`ops` 里用 `{handler, targets: 'text'}` 声明可让动作落到别的 kind 上（默认要求目标卡 kind = 动作前缀）。
 - **保留前缀**：`card.core.*`、`node.*`、`edge.*`、`group.*`、`layout.*`、`image.*`、
   `document.*`、`sketch.*`、`storyboard.*`、`video.*`、`page.*`、`workflow.*`、`canvas.*` 归平台。
 

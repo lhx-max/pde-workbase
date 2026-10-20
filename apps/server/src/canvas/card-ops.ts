@@ -19,14 +19,16 @@ export type CardOpHandler = (
 ) => Promise<{ data?: Record<string, unknown>; [field: string]: unknown } | void>
   | { data?: Record<string, unknown>; [field: string]: unknown } | void;
 
-const handlers = new Map<string, CardOpHandler>();
+const handlers = new Map<string, { handler: CardOpHandler; targetKind?: string | undefined }>();
 
-/** Register a card-pack op under its full id: `card.<team>.<name>.<verb>`. */
-export function registerCardOp(actionId: string, handler: CardOpHandler): void {
+/** Register a card-pack op under its full id: `card.<team>.<name>.<verb>`.
+ * `targetKind` overrides the default "op prefix must equal card kind" check —
+ * use it when an action intentionally targets a different kind (e.g. a core card). */
+export function registerCardOp(actionId: string, handler: CardOpHandler, targetKind?: string): void {
   if (!/^card\.[a-z0-9-]+\.[a-z0-9-]+\.[a-z0-9-]+$/.test(actionId)) {
     throw new Error(`Invalid card op id: ${actionId}`);
   }
-  handlers.set(actionId, handler);
+  handlers.set(actionId, { handler, targetKind });
 }
 
 export function listCardOps(): string[] {
@@ -36,14 +38,14 @@ export function listCardOps(): string[] {
 /** Effects entry for applyCanvasOperations: resolves + invokes the registered handler. */
 export function createCardEffect(ctx: Omit<CardOpContext, 'files'> & { files: CardOpContext['files'] }) {
   return async (op: CanvasCardOperation, node: Item): Promise<Item> => {
-    const handler = handlers.get(op.type);
-    if (!handler) throw new CanvasStateError(404, 'CANVAS_ACTION_NOT_FOUND', `No card pack registered action: ${op.type}`);
-    // The op's card segment must match the target card's kind.
-    const expectedKind = op.type.slice(0, op.type.lastIndexOf('.'));
+    const entry = handlers.get(op.type);
+    if (!entry) throw new CanvasStateError(404, 'CANVAS_ACTION_NOT_FOUND', `No card pack registered action: ${op.type}`);
+    // Default: the op's card segment must match the target card's kind.
+    const expectedKind = entry.targetKind ?? op.type.slice(0, op.type.lastIndexOf('.'));
     if (node.kind !== expectedKind) {
       throw new CanvasStateError(400, 'CANVAS_OPERATION_UNSUPPORTED', `Action ${op.type} requires card kind ${expectedKind}`);
     }
-    const patch = await handler(node, op.params ?? {}, ctx);
+    const patch = await entry.handler(node, op.params ?? {}, ctx);
     return patch ? { ...node, ...patch, data: { ...(node.data as Record<string, unknown> | undefined), ...(patch.data ?? {}) } } : node;
   };
 }

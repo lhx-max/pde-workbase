@@ -2,7 +2,7 @@ import { registerCardOp, type CardOpHandler } from './canvas/card-ops.js';
 
 /** Structural pack shape — packs compile against `CardPack` in the workbench
  * types; the server only needs kind + ops to wire the action pipeline. */
-type CardPackLike = { cards: { kind: string; ops?: Record<string, CardOpHandler> }[] };
+type CardPackLike = { cards: { kind: string; ops?: Record<string, CardOpHandler | { handler: CardOpHandler; targets?: string }> }[] };
 
 /** Server-side card-pack mount: each pack's card ops register under
  * `card.<team>.<name>.<verb>`. One import line per pack (build-time, v1). */
@@ -13,8 +13,10 @@ const CARD_PACKS: CardPackLike[] = [
 
 for (const pack of CARD_PACKS) {
   for (const card of pack.cards) {
-    for (const [verb, handler] of Object.entries(card.ops ?? {})) {
-      registerCardOp(`${card.kind}.${verb}`, handler);
+    for (const [verb, entry] of Object.entries(card.ops ?? {})) {
+      const handler = typeof entry === 'function' ? entry : entry.handler;
+      const targetKind = typeof entry === 'function' ? undefined : entry.targets;
+      registerCardOp(`${card.kind}.${verb}`, handler, targetKind);
     }
   }
 }

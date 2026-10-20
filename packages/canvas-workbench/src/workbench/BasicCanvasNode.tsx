@@ -1124,40 +1124,17 @@ function SketchCanvasNode({ data, selected }: { data: BasicCanvasNodeData; selec
   </CanvasOutputNode>;
 }
 
-function BasicCanvasNodeComponent({ data, selected }: NodeProps<Node<BasicCanvasNodeData>>) {
-  // Read compatibility for persisted placeholder cards; retain node identity and edges.
-  if (data.node.kind === 'artifact' && data.node.artifact) {
-    const projection = canvasArtifactProjection(data.node.artifact);
-    const projected = {...data,node:{...data.node,...projection}};
-    if (projection.kind === 'page') return <PageCanvasNode data={projected} selected={selected} />;
-    if (projection.kind === 'video') return <VideoCanvasNode data={projected} selected={selected} />;
-    if (projection.kind === 'text') return <TextArtifactNode data={projected} selected={selected} />;
-  }
-  if (data.node.kind === 'sketch') return <SketchCanvasNode data={data} selected={selected} />;
-  if (data.node.kind === 'video') return <VideoCanvasNode data={data} selected={selected} />;
-  if (data.node.kind === 'clip') return <ClipCanvasNode data={data} selected={selected} />;
+/** Generic card shell shared by core image cards, unknown kinds and registered
+ * card packs: resizer + title bar + handles are platform-owned, `children` is
+ * the card body. */
+function GenericCardShell({ data, selected, children }: { data: BasicCanvasNodeData; selected: boolean; children?: React.ReactNode }) {
   const item = data.node;
-  const versions = selected ? <CanvasResultHistory
-    history={item.resultHistory}
-    current={item.kind === 'page' ? { projectFilePath: item.projectFilePath } : item.kind === 'storyboard' ? { storyboard: item.storyboard } : { text: item.text }}
-    disabled={item.generation?.status === 'running'}
-    onSelect={snapshot => data.onPatch(item.id, {
-      ...(item.kind === 'page' ? { projectFilePath: snapshot.projectFilePath as string } : item.kind === 'storyboard' ? { storyboard: snapshot.storyboard as StoryboardPlan } : { text: snapshot.text as string }),
-      generation: undefined,
-    })}
-  /> : null;
-  if (item.kind === 'text') return <><TextArtifactNode data={data} selected={selected} />{versions}</>;
-  if (item.kind === 'artifact') return <CanvasArtifactNode data={data} selected={selected} />;
-  if (item.kind === 'page') return <PageCanvasNode data={data} selected={selected} versions={versions} />;
-  if (item.kind === 'storyboard') return <><StoryboardArtifactNode data={data} selected={selected} />{versions}</>;
-
   const [renaming, setRenaming] = React.useState(false);
-  const visibleItemTitle = item.title;
-  const [title, setTitle] = React.useState(visibleItemTitle);
-  React.useEffect(() => setTitle(visibleItemTitle), [visibleItemTitle]);
+  const [title, setTitle] = React.useState(item.title);
+  React.useEffect(() => setTitle(item.title), [item.title]);
 
   function commitTitle() {
-    const next = title.trim() || bn().labels.image;
+    const next = title.trim() || item.title;
     setTitle(next);
     data.onPatch(item.id, { title: next });
     setRenaming(false);
@@ -1202,8 +1179,7 @@ function BasicCanvasNodeComponent({ data, selected }: NodeProps<Node<BasicCanvas
         )}
       />
 
-      {item.kind === 'image' && <ImageBody onPick={file => data.onPickImage(item.id, file)} />}
-      <RegisteredCardBody node={item} selected={Boolean(selected)} onPatch={patch => data.onPatch(item.id, patch)} />
+      {children}
       <Handle type="target" position={Position.Left} className="basic-node-handle basic-node-handle-target" />
       <CanvasNodeSourceHandle onAddNode={kind => data.onAddConnectedNode(item.id, kind, {
         x: item.x,
@@ -1215,12 +1191,48 @@ function BasicCanvasNodeComponent({ data, selected }: NodeProps<Node<BasicCanvas
   );
 }
 
-/** Renders a registered card-pack body inside the generic card shell. Core
- * kinds render nothing here — their dedicated bodies are handled above. */
-function RegisteredCardBody({ node, selected, onPatch }: { node: CanvasBasicNode; selected: boolean; onPatch: (patch: Partial<CanvasBasicNode>) => void }) {
-  const Renderer = cardRendererFor(node.kind);
-  if (!Renderer) return null;
-  return <Renderer node={node} selected={selected} onPatch={onPatch} />;
+function BasicCanvasNodeComponent({ data, selected }: NodeProps<Node<BasicCanvasNodeData>>) {
+  // Registered card packs take precedence — a pack may declare a core kind to
+  // override its built-in body, or a `card.<team>.<name>` kind for new cards.
+  const PackRenderer = cardRendererFor(data.node.kind);
+  if (PackRenderer) {
+    return (
+      <GenericCardShell data={data} selected={Boolean(selected)}>
+        <PackRenderer node={data.node} selected={Boolean(selected)} onPatch={patch => data.onPatch(data.node.id, patch)} />
+      </GenericCardShell>
+    );
+  }
+  // Read compatibility for persisted placeholder cards; retain node identity and edges.
+  if (data.node.kind === 'artifact' && data.node.artifact) {
+    const projection = canvasArtifactProjection(data.node.artifact);
+    const projected = {...data,node:{...data.node,...projection}};
+    if (projection.kind === 'page') return <PageCanvasNode data={projected} selected={selected} />;
+    if (projection.kind === 'video') return <VideoCanvasNode data={projected} selected={selected} />;
+    if (projection.kind === 'text') return <TextArtifactNode data={projected} selected={selected} />;
+  }
+  if (data.node.kind === 'sketch') return <SketchCanvasNode data={data} selected={selected} />;
+  if (data.node.kind === 'video') return <VideoCanvasNode data={data} selected={selected} />;
+  if (data.node.kind === 'clip') return <ClipCanvasNode data={data} selected={selected} />;
+  const item = data.node;
+  const versions = selected ? <CanvasResultHistory
+    history={item.resultHistory}
+    current={item.kind === 'page' ? { projectFilePath: item.projectFilePath } : item.kind === 'storyboard' ? { storyboard: item.storyboard } : { text: item.text }}
+    disabled={item.generation?.status === 'running'}
+    onSelect={snapshot => data.onPatch(item.id, {
+      ...(item.kind === 'page' ? { projectFilePath: snapshot.projectFilePath as string } : item.kind === 'storyboard' ? { storyboard: snapshot.storyboard as StoryboardPlan } : { text: snapshot.text as string }),
+      generation: undefined,
+    })}
+  /> : null;
+  if (item.kind === 'text') return <><TextArtifactNode data={data} selected={selected} />{versions}</>;
+  if (item.kind === 'artifact') return <CanvasArtifactNode data={data} selected={selected} />;
+  if (item.kind === 'page') return <PageCanvasNode data={data} selected={selected} versions={versions} />;
+  if (item.kind === 'storyboard') return <><StoryboardArtifactNode data={data} selected={selected} />{versions}</>;
+
+  return (
+    <GenericCardShell data={data} selected={Boolean(selected)}>
+      {item.kind === 'image' && <ImageBody onPick={file => data.onPickImage(item.id, file)} />}
+    </GenericCardShell>
+  );
 }
 
 /**

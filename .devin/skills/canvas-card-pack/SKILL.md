@@ -21,6 +21,7 @@ version: 1.0.0
 - **信封归平台，内容归你**：`data` 黑盒随便写（JSON、≤256KB）；平台信封字段只读
 - **改卡只走 `onPatch`**：不直接改画布 state、不 localStorage 偷渡、不 fetch 画布内部 `/api/*`
 - **命名带前缀**：kind 和动作全部 `card.<你的团队>.<名>`，保留前缀列表见契约 §2
+- **两种开发模式**：新建业务卡走 `card.<团队>.<名>`；改通用卡（text/image 等）直接注册核心 kind 的渲染器覆盖 + `ops` 里 `{handler, targets:'text'}` 声明动作目标——都是增量，不改平台代码
 - **文件统一口**：`ctx.files`/`projectFilePath`，禁止自创存储
 - **动作要幂等**：同输入同输出，去重平台管
 
