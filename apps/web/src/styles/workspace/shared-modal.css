@@ -1,0 +1,86 @@
+/* Retained viewer modal primitives from upstream 319e5eee
+   workspace/mention-home.css:334-374,829-869, copied verbatim. These global
+   classes are shared by HTML/version export dialogs, not the removed Settings UI. */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(28, 27, 26, 0.42);
+  -webkit-backdrop-filter: var(--scrim-backdrop);
+  backdrop-filter: var(--scrim-backdrop);
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1700;
+}
+.modal-backdrop--app-modal {
+  z-index: 10000;
+}
+.modal {
+  background: var(--bg-elevated);
+  -webkit-app-region: no-drag;
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  width: 520px;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--shadow-lg);
+}
+.modal h2 { margin: 0; font-size: 18px; letter-spacing: -0.01em; font-weight: 600; }
+.modal label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.modal .hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.55;
+  margin: 0;
+}
+.modal .row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+
+.modal-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: var(--modal-padding);
+}
+.modal-head .kicker {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.modal-head h2 {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--text);
+}
+.modal-head .subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.55;
+  /* 72ch lets typical one-sentence English subtitles fit on a single
+   * line inside the 920px settings modal while still wrapping cleanly
+   * on narrow viewports (the modal width clamps to 100vw - 48px) and
+   * for the longest locales (German, French). 50ch was forcing even
+   * the English subtitle onto two lines. See nexu-io/bezier#743. */
+  max-width: 72ch;
+}
+.modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px var(--modal-padding, 22px) 12px;
+  border-top: 1px solid var(--border);
+  margin-top: 0;
+  flex-shrink: 0;
+}

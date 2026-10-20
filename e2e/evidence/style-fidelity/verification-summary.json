@@ -1,0 +1,78 @@
+{
+  "upstream": "319e5eee556a3641d2ee68a6111a36ddc7a1eff7",
+  "beforeBuild": "2a38c5e",
+  "ui": {
+    "passed": 26,
+    "failed": 0,
+    "skipped": 2,
+    "rounds": 2,
+    "webPassed": 18,
+    "desktopPassed": 8,
+    "extension": "Manual native recheck deferred by user; not counted as passed"
+  },
+  "webTests": {
+    "files": 42,
+    "passed": 327,
+    "failed": 0
+  },
+  "originalCssClosure": "Selected modal and QuestionForm/disclosure rules compared byte-for-byte with frozen upstream",
+  "note": "Unmodified screenshots of independent before/after builds; not screenshots of the full original platform. All eight files have verified PNG signatures; filenames match their actual format.",
+  "images": [
+    {
+      "file": "before-sketch-light-1440.png",
+      "source": ".tmp/e2e-results/style-red-2/workspace-native-style--P0-eac62-t-under-light-OS-preference-desktop/style-light-1440.png",
+      "format": "png",
+      "bytes": 47247,
+      "sha256": "aaae75ef9f1a2d8de28fe35fa2c341c424d2990c1e1021821d42ead67eb7cefe"
+    },
+    {
+      "file": "before-sketch-dark-1440.png",
+      "source": ".tmp/e2e-results/style-red-2/workspace-native-style--P0-52f83-ut-under-dark-OS-preference-desktop/style-dark-1440.png",
+      "format": "png",
+      "bytes": 43028,
+      "sha256": "1650119e0ca0273f5bb54c7d8ba06c5b64c324b0c1503354319c44b1a123030d"
+    },
+    {
+      "file": "before-image-export.png",
+      "source": ".tmp/e2e-results/style-modal-red/workspace-style--P0-origin-ed0e9-en-scrim-and-centered-frame-web/style-image-export-dialog.png",
+      "format": "png",
+      "bytes": 82353,
+      "sha256": "58d3b857bf944497a2f50a8472dc0d0589354ed3e63669e9223a85ef1ad8db68"
+    },
+    {
+      "file": "after-sketch-light-1440.png",
+      "source": ".tmp/e2e-results/style-final-2/workspace-native-style--P0-eac62-t-under-light-OS-preference-desktop/style-light-1440.png",
+      "format": "png",
+      "bytes": 46336,
+      "sha256": "98dc6e6c779df5777a6a3cb4eac63fd1031d06225bbee89765e8d100dd81356f"
+    },
+    {
+      "file": "after-sketch-light-840.png",
+      "source": ".tmp/e2e-results/style-final-2/workspace-native-style--P0-eac62-t-under-light-OS-preference-desktop/style-light-840.png",
+      "format": "png",
+      "bytes": 43168,
+      "sha256": "0563479308fa9e39b1d1c5d3751431d85327e2aab81e7314d170a132b20e4150"
+    },
+    {
+      "file": "after-sketch-dark-1440.png",
+      "source": ".tmp/e2e-results/style-final-2/workspace-native-style--P0-52f83-ut-under-dark-OS-preference-desktop/style-dark-1440.png",
+      "format": "png",
+      "bytes": 46338,
+      "sha256": "d2f97e3dc0f6ec3802c59313b041ed0315de1eb0034135caaca94d3e06e8ee68"
+    },
+    {
+      "file": "after-sketch-dark-840.png",
+      "source": ".tmp/e2e-results/style-final-2/workspace-native-style--P0-52f83-ut-under-dark-OS-preference-desktop/style-dark-840.png",
+      "format": "png",
+      "bytes": 43183,
+      "sha256": "aff96107f89da4740c16833663b47b85dacceaa15bb564f60df36f42841d772b"
+    },
+    {
+      "file": "after-image-export.png",
+      "source": ".tmp/e2e-results/style-final-2/workspace-style--P0-origin-ed0e9-en-scrim-and-centered-frame-web/style-image-export-dialog.png",
+      "format": "png",
+      "bytes": 82018,
+      "sha256": "5d2c3c8784fbdcecc2dea40828a9531bf26600118e4178cdae327afab542ae2d"
+    }
+  ]
+}
