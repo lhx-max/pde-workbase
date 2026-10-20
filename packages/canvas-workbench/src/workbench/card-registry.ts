@@ -14,10 +14,22 @@ export interface CardRenderProps {
 
 export type CardRenderer = React.ComponentType<CardRenderProps>;
 
+/** Structural signature for a pack's server-side op handler. The pack compiles
+ * against this type; the server registers each entry under the full action id
+ * `card.<team>.<name>.<verb>`. */
+export type CardPackOpHandler = (
+  node: Record<string, unknown> & { id: string },
+  params: Record<string, unknown>,
+  ctx: { projectId: string; files: { read(projectId: string, relative: string): Promise<string | null>; write(projectId: string, relative: string, content: string): Promise<void> } },
+) => Promise<{ data?: Record<string, unknown>; [field: string]: unknown } | void>
+  | { data?: Record<string, unknown>; [field: string]: unknown } | void;
+
 export interface CardPackCard {
   /** `card.<team>.<name>` — the team prefix is the ownership boundary. */
   kind: string;
   render: CardRenderer;
+  /** Optional server-side op handlers keyed by verb (`refresh` → `card.<team>.<name>.refresh`). */
+  ops?: Record<string, CardPackOpHandler>;
 }
 
 export interface CardPack {

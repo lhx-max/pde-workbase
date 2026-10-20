@@ -26,12 +26,17 @@ d# 画布卡片包开发规范 v1（FDE 同步开发基线）
 └── README.md               # 你的卡怎么建、data 里有什么字段
 ```
 
-主仓挂载（一期，构建期）：
+主仓挂载（一期，构建期，两处各一行）：
 
 ```ts
-// packages/canvas-workbench/src/packs.ts（由你的 PR 只改这一行）
+// packages/canvas-workbench/src/packs.ts —— 渲染器挂载
 import yourPack from '@your-team/canvas-pack-yourbiz';
 export const CARD_PACKS = [yourPack /*, ...*/];
+```
+
+```ts
+// apps/server/src/card-packs.ts —— 专属动作挂载（你的包有 ops 才需要）
+const CARD_PACKS = [yourPack /*, ...*/];  // 包的 cards[].ops 自动注册为 card.<团队>.<名>.<动词>
 ```
 
 二期再做运行时动态挂包，一期不追。

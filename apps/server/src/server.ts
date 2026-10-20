@@ -27,6 +27,7 @@ export type {AssetAdapter} from './routes/assets.js';
 import {AppwriteClient} from './storage/appwrite-client.js';
 import {AppwriteCanvasFileContent, AppwriteCanvasPersistence} from './storage/canvas-appwrite-persistence.js';
 import {appwriteCanvasEffects,readLocalProjectFile} from './storage/canvas-appwrite-effects.js';
+import './card-packs.js';
 export interface CanvasServerOptions {
  dataRoot:string; host?:string; authToken?:string; allowedOrigins?:string[]; assets?:AssetAdapter;
  media?:MediaAdapter; capabilities?:CapabilityAdapter; assetLibrary?:AssetLibraryOptions;
