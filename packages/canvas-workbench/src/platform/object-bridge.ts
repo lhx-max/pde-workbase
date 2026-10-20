@@ -1,5 +1,6 @@
 import type { CanvasBasicNode } from '../workbench/BasicCanvasNode';
 import { cr } from '../locales/canvas-remainder';
+import { getCanvasHostContext } from './api-base';
 
 export type CanvasObjectReference = {
   projectId: string;
@@ -41,6 +42,7 @@ export function revealCanvasObject(projectId: string, nodeId: string) {
 }
 const canvases = new Map<string, {
   preview?: (nodeId: string) => CanvasObjectPreview | null;
+  selectedNodeIds?: () => readonly string[];
   read: (nodeId: string) => CanvasObjectReference | null;
   focus: (nodeId: string) => boolean;
   prepare: (reference: CanvasObjectReference, requestId: string) => Promise<void>;
@@ -65,6 +67,18 @@ export function focusCanvasObject(projectId: string, nodeId: string): boolean {
 }
 export function readCanvasObject(projectId: string, nodeId: string) {
   return canvases.get(projectId)?.read(nodeId) ?? null;
+}
+/** Current supported text/page selections only; image attachments use the existing staging path.
+ * Read-only references do not grant write permission or carry a canonical document revision.
+ */
+export function readCanvasSelection(projectId: string): CanvasObjectReference[] {
+  try { if (getCanvasHostContext().projectId !== projectId) return []; } catch { return []; }
+  const canvas = canvases.get(projectId);
+  if (!canvas) return [];
+  return [...new Set(canvas.selectedNodeIds?.() ?? [])].flatMap(nodeId => {
+    const reference = canvas.read(nodeId);
+    return reference?.projectId === projectId ? [{ ...reference, intent: 'reference' as const }] : [];
+  });
 }
 export function continueCanvasObject(projectId: string, nodeId: string) {
   const reference = readCanvasObject(projectId, nodeId);

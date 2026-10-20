@@ -1,0 +1,19 @@
+{
+  "name": "@canvas/canvas-coi",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Canvas COI door as an Appwrite Function — all backend state lives in Appwrite; this is only the action entry.",
+  "scripts": {
+    "build": "node ./esbuild.config.mjs",
+    "deploy": "bash ./deploy.sh"
+  },
+  "dependencies": {
+    "@bezier/canvas-core": "workspace:*",
+    "@bezier/contracts": "workspace:*",
+    "jimp": "^1.6.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.0"
+  }
+}

@@ -1,5 +1,7 @@
 import express, {type RequestHandler, type Response} from 'express';
 import { timingSafeEqual } from 'node:crypto';
+import type {IncomingMessage} from 'node:http';
+import type {Duplex} from 'node:stream';
 import path from 'node:path';
 import { mkdirSync } from 'node:fs';
 import { BrowserResourceError, type BrowserResourceCommand, type BrowserResourceResult } from '@bezier/contracts';
@@ -8,16 +10,13 @@ import { CanvasStateService } from './canvas/state.js';
 import { ProjectLedger } from './project-ledger/service.js';
 import { withProjectLedgerRecorder } from './project-ledger/active-recorder.js';
 import { registerCanvasStateRoutes } from './routes/canvas.js';
+import { registerAppCanvasRoutes } from './routes/app-canvas.js';
 import { registerProjectFileRoutes } from './routes/files.js';
 import { registerClipEditorRoutes } from './routes/clip-editor.js';
 import { registerBrowserResourceRoutes } from './routes/browser-resources.js';
-import { registerTaskRoutes } from './routes/tasks.js';
-import { AgentTasks, type AgentAdapter } from './services-tasks.js';
 import {Database} from './storage/database.js';
 import {MediaAdapterService,type MediaAdapter} from './media/adapter-service.js';
 import {registerMediaRoutes,type CapabilityAdapter} from './routes/media.js';
-import {registerWorkflowRoutes,type RegisterWorkflowRoutesDeps} from './routes/workflows.js';
-import {fileURLToPath} from 'node:url';
 import {registerAssetRoutes,type AssetAdapter} from './routes/assets.js';
 import { BrowserPreferencesService } from './services/browser-preferences.js';
 import { registerBrowserPreferenceRoutes } from './routes/browser-preferences.js';
@@ -25,29 +24,35 @@ import {createLocalAssetLibrary,type AssetLibraryAdapter,type AssetLibraryOption
 import {registerAssetLibraryRoutes} from './routes/asset-library.js';
 export type {AssetLibraryAdapter,AssetLibraryOptions,AssetLibraryAnalysisHook,AssetLibraryCatalogueHook} from './asset-library/service.js';
 export type {AssetAdapter} from './routes/assets.js';
+import {AppwriteClient} from './storage/appwrite-client.js';
+import {AppwriteCanvasFileContent, AppwriteCanvasPersistence} from './storage/canvas-appwrite-persistence.js';
+import {appwriteCanvasEffects,readLocalProjectFile} from './storage/canvas-appwrite-effects.js';
 export interface CanvasServerOptions {
- dataRoot:string; host?:string; authToken?:string; allowedOrigins?:string[]; agent?:AgentAdapter; assets?:AssetAdapter;
+ dataRoot:string; host?:string; authToken?:string; allowedOrigins?:string[]; assets?:AssetAdapter;
  media?:MediaAdapter; capabilities?:CapabilityAdapter; assetLibrary?:AssetLibraryOptions;
- workflow?:Omit<RegisterWorkflowRoutesDeps,'db'|'registry'|'canvas'|'tasks'|'agent'|'authorize'>;
+ /** Canvas self-closed-loop backend: state/journal/canvas files on Appwrite
+ * instead of the project filesystem. Task artifact features stay
+ * file-based this phase. */
+ appwrite?:{endpoint:string;projectId:string;databaseId:string;bucketId:string;sessionCookie?:string;sessionSecret?:string};
  authorize?:RequestHandler;
  authorizeProject?:(req:express.Request,res:Response,projectId:string,access:{mode:'read'|'write';capability?:string})=>boolean|Promise<boolean>;
  browserResources?:(command:BrowserResourceCommand)=>Promise<BrowserResourceResult>;
 }
 export interface CanvasServer {
- app:express.Express;registry:ReturnType<typeof createProjectRegistry>;canvas:CanvasStateService;ledger:ProjectLedger;tasks:AgentTasks;media:MediaAdapterService;
- workflows:ReturnType<typeof registerWorkflowRoutes>;assetLibrary:AssetLibraryAdapter;db:Database;ready:Promise<void>;close():Promise<void>;
+ app:express.Express;registry:ReturnType<typeof createProjectRegistry>;canvas:CanvasStateService;ledger:ProjectLedger;media:MediaAdapterService;
+ assetLibrary:AssetLibraryAdapter;db:Database;ready:Promise<void>;handleUpgrade(req:IncomingMessage,socket:Duplex,head:Buffer):void;close():Promise<void>;
 }
 export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
  if(!options.dataRoot||!path.isAbsolute(options.dataRoot))throw new Error('An explicit absolute dataRoot is required');
  const dataRoot=path.resolve(options.dataRoot);mkdirSync(dataRoot,{recursive:true});
  const registry=createProjectRegistry(dataRoot), ledger=new ProjectLedger(dataRoot);
- const canvas=new CanvasStateService(id=>registry.resolveProjectRoot(id));
- const tasks=new AgentTasks(registry,canvas,options.agent,fileURLToPath(new URL('../../../resources/skills/',import.meta.url)));
+ const assetLibrary=options.assetLibrary?.adapter??createLocalAssetLibrary(dataRoot);
+ const appwriteStorage=options.appwrite?(()=>{const client=new AppwriteClient(options.appwrite!);const resolveRoot=(id:string)=>registry.resolveProjectRoot(id);return {persistence:new AppwriteCanvasPersistence(client,options.appwrite!.databaseId),content:new AppwriteCanvasFileContent(client,options.appwrite!.databaseId,options.appwrite!.bucketId,'canvas_files',(pid,rel)=>readLocalProjectFile(resolveRoot,pid,rel)),effects:appwriteCanvasEffects(client,options.appwrite!.databaseId,options.appwrite!.bucketId,resolveRoot)};})():undefined;
+ const canvas=new CanvasStateService(id=>registry.resolveProjectRoot(id),undefined,assetLibrary,appwriteStorage);
  const db=new Database(path.join(dataRoot,'workspace.sqlite'));
  db.exec('CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY)');
  for(const project of registry.list())db.prepare('INSERT OR IGNORE INTO projects(id) VALUES (?)').run(project.id);
  const media=new MediaAdapterService(db,registry,canvas,options.media);
- const assetLibrary=options.assetLibrary?.adapter??createLocalAssetLibrary(dataRoot);
  const app=express();app.disable('x-powered-by');
  const sendApiError=(res:Response,status:number,code:string,message:string)=>{res.status(status).json({error:{code,message}});};
  const authorize:RequestHandler=(req,res,next)=>{
@@ -69,7 +74,7 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
   next();
  };
  const authorizeProjectRequest=async(req:express.Request,res:Response,projectId:string,access:{mode:'read'|'write';capability?:string}={mode:'read'})=>{
-  const creating=req.method==='POST'&&req.path==='/api/projects';
+  const creating=req.method==='POST'&&(req.path==='/api/projects'||req.path==='/api/apps/canvas/actions/canvas.create');
   if(!creating&&!registry.get(projectId)){sendApiError(res,404,'PROJECT_NOT_FOUND','Project not found');return false;}
   return options.authorizeProject?await options.authorizeProject(req,res,projectId,access):true;
  };
@@ -86,20 +91,21 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
  app.use(express.json({limit:'64mb'}));
  app.use((_req,_res,next)=>withProjectLedgerRecorder(input=>{ledger.record(input);},next));
  app.get('/api/health',(_req,res)=>res.json({ok:true,service:'canvas-workspace'}));
- const workflowMedia={video:[],videoLengthsSec:[],aspects:[]} as NonNullable<RegisterWorkflowRoutesDeps['media']>;
- const workflows=withProjectLedgerRecorder(input=>{ledger.record(input);},()=>registerWorkflowRoutes(app,{builtInSkillsDir:fileURLToPath(new URL('../../../resources/skills/',import.meta.url)),media:workflowMedia,...options.workflow,db,registry,canvas,tasks,...(options.agent?{agent:options.agent}:{}),authorize:authorizeProjectRequest}));
- registerCanvasStateRoutes(app,{canvasState:canvas,ledger,workflowResults:workflows.results,resolveProjectRoot:id=>registry.resolveProjectRoot(id),authorizeProjectRequest});
+ registerCanvasStateRoutes(app,{canvasState:canvas,ledger,resolveProjectRoot:id=>registry.resolveProjectRoot(id),authorizeProjectRequest});
+ registerAppCanvasRoutes(app,{canvasState:canvas,registry,authorizeProjectRequest});
  registerProjectFileRoutes(app,{registry,canvasFiles:canvas,authorize:authorizeProjectRequest});
  registerClipEditorRoutes(app,{registry,paths:{RUNTIME_DATA_DIR:dataRoot,PROJECTS_DIR:registry.projectsRoot},http:{sendApiError},authorizeProjectRequest});
  registerBrowserResourceRoutes(app,{registry,http:{requireLocalDaemonRequest:authorize},authorizeProjectRequest,...(options.browserResources?{desktopBrowserResources:options.browserResources}:{})});
- registerTaskRoutes(app,{tasks,registry,ledger,canvas,authorize});
  registerMediaRoutes(app,{media,registry,...(options.capabilities?{capabilities:options.capabilities}:{})});
  registerAssetRoutes(app,{registry,library:assetLibrary,...(options.assets?{adapter:options.assets}:{})});
  registerAssetLibraryRoutes(app,{...options.assetLibrary,service:assetLibrary,registry,authorizeProject:authorizeProjectRequest});
  registerBrowserPreferenceRoutes(app,new BrowserPreferencesService(db));
  app.use((error:unknown,_req:express.Request,res:Response,_next:express.NextFunction)=>{const value=error as {status?:number;code?:string;message?:string};sendApiError(res,value.status??500,value.code??'SERVER_ERROR',value.message??'Internal server error');});
- const ready=withProjectLedgerRecorder(input=>{ledger.record(input);},async()=>{await tasks.recoverDeliveries();await media.ready();if(options.media&&!options.workflow?.media){try{Object.assign(workflowMedia,await options.media.catalog());}catch(error){console.error('Media workflow catalog unavailable',error);}}});
- return {app,registry,canvas,ledger,tasks,media,workflows,assetLibrary,db,ready,close:async()=>{await workflows.stop();await media.close();await assetLibrary.close?.();db.close();}};
+ const ready=withProjectLedgerRecorder(input=>{ledger.record(input);},async()=>{await media.ready();});
+ const handleUpgrade=(_req:IncomingMessage,socket:Duplex,_head:Buffer):void=>{
+  socket.end('HTTP/1.1 403 Forbidden\r\n\r\n');
+ };
+ return {app,registry,canvas,ledger,media,assetLibrary,db,ready,handleUpgrade,close:async()=>{await media.close();await assetLibrary.close?.();db.close();}};
 }
 /** Native grants remain in the desktop host; HTTP only forwards validated commands. */
 export function createBrowserHostAdapter(url:string,token:string):(command:BrowserResourceCommand)=>Promise<BrowserResourceResult>{
@@ -111,4 +117,3 @@ export function createBrowserHostAdapter(url:string,token:string):(command:Brows
   return value.result;
  };
 }
-export type {AgentAdapter} from './services-tasks.js';

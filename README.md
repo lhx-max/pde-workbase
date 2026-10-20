@@ -1,6 +1,6 @@
 # 画布工作区
 
-从 Bezier/Loom 原仓库独立抽取的画布创作工作区。保留原画布、组件、样式和交互，包含原 **画布／资产／采集** 三个入口及独立本地资产库；不包含对话产品或原账号／团队平台。
+从 Bezier/Loom 原仓库独立抽取的画布创作工作区。保留原画布、组件、样式和交互，包含原 **画布／资产／采集** 三个入口及独立本地资产库，并通过隔离文档接入 **MF 开放对话 UI**；不恢复原聊天产品或原账号／团队平台。
 
 原始版本：`319e5eee556a3641d2ee68a6111a36ddc7a1eff7`。来源与授权见 [NOTICE](NOTICE) 和 [LICENSE](LICENSE)。
 
@@ -39,6 +39,8 @@ pnpm install
 
 pnpm --filter @bezier/release --filter @bezier/contracts --filter @bezier/host --filter @bezier/components -r run build
 pnpm --filter @bezier/workbench-core --filter @bezier/workbench-ui --filter @bezier/canvas-workbench -r run build
+pnpm --filter @canvas/mf-bridge build
+pnpm --filter @canvas/mf-ui build
 pnpm --filter @canvas/server build
 pnpm --filter @canvas/desktop build
 pnpm --filter @canvas-workspace/web build
@@ -74,6 +76,19 @@ pnpm tools-dev run desktop --data-dir "$CANVAS_DATA_DIR" --production
 浏览器菜单内的 **Browser extension／浏览器扩展** 打开原扩展设置。书签、参考站点与采集开关通过后端持久化，不再仅存于浏览器 localStorage。原生浏览器和采集需要桌面模式；Web 会明确说明能力不可用，不以普通 iframe 冒充完整浏览器。
 
 AI 元数据分析和外部模板目录是可选适配器，默认不可用；手动编辑元数据不受影响。浏览器“加入引用”只暂存引用，**不会立即启动 Agent**；用户下一次明确提交任务后才发送。
+
+## MF 开放对话 UI
+
+顶部 **MF 对话** 打开独立侧栏，不替换画布／资产／采集。实际使用锁定版本 `@ks-kp/agent-ui@0.1.5-beta.18`；安装需要有权访问公司 npm 源，仓库不保存 npm 或 MF 登录凭据。
+
+- 画布组件包保留 React 18.3.1 的依赖／类型约束；Next 16 App Router 浏览器实际采用其自带的 React DOM `19.3.0-canary-3f0b9e61-20260317`，不能把安装声明当实际渲染器版本。MF 独立使用 React／ReactDOM 19.2.3，在同一监听端口的保留域名 `mf.localhost` 中运行；实测两个文档各一份 DOM 渲染器。该域名避开 SDK 的 localhost 开发令牌提取分支，不代理 `/sso-health`，不向浏览器暴露 SSO 令牌。版本化消息桥校验来源、窗口、项目、实例、请求及响应；MF 域名不能直接访问普通画布 API。
+- 未配置时明确显示不可用，不加载完整 MF SDK、不发起 MF 模型请求，也不伪造会话。后端配置方式及同源／鉴权限制见 [MF 服务端说明](<apps/server/README.md>)，UI 能力和限制见 [MF 集成说明](<apps/mf-ui/README.md>)。
+- 显式勾选 MF 作为画布执行方后，只有 MF 发起生成；本地 Agent 适配器不再重复执行。同一画布任务登记、消息发送、模型结束和实际交付是不同阶段。
+- **画布定向生成要求新建 MF 对话**。当前 SDK 对已有会话复用客户端 run ID，无法可靠关联每次新提交；不会自动切换会话或清除草稿。普通历史对话和引用暂存不因此禁用。
+- 只有受控交付工具通过任务、输入、修订及取消检查后，才写入画布。取消操作保证阻止本地晚到交付，不等于确认远程 MF 已停止或不再计费；远程停止使用 MF 原生停止入口。
+- MF 云资源与本地资产库保持不同来源，必须显式导入真实字节。云端文件管理未开放；原生树可能仍显示相关 SDK 菜单，界面已有明确说明。可选 Office/PDF 云预览未部署其运行资产，明确不可用；原本地 Office 文本预览不受影响。
+
+此凭据模式**仅支持单用户环回部署**，不支持共享公网或改写来源的反向代理。真实 MF 登录、云端 Origin 放行、模型与 WebMCP 端到端验收仍需后续提供授权配置；本地 HTTPS/SSE/WebSocket 测试服务不是云端登录成功的证据。完整边界、证据与后续清单见 [MF 接入与验收](<docs/mf-integration.md>)。
 
 ## 接入 Agent
 

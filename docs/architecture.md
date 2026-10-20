@@ -27,6 +27,14 @@ Web 不导入服务器私有实现；服务器不依赖 Next、原 daemon 或原
 
 [tools-dev](<../tools/dev/src/cli.ts>) 是生命周期入口，统一传递地址、独立数据根和原生宿主密钥，并只管理自己启动的子进程。
 
+### MF 开放 UI：独立文档、单一执行者
+
+新增 MF 对话侧栏，不恢复旧聊天平台。MF SDK 位于独立文档 `http://mf.localhost:<webPort>/mf-ui/`，与 `127.0.0.1` 画布共用应用监听器、不同 origin。保留域名避免 SDK 的 localhost 开发 SSO 令牌提取分支；不提供 `/sso-health` 代理。MF 文档不能直接访问普通画布 API，服务端凭据不进入浏览器；此凭据模式仅支持本机单用户。
+
+[MF 契约](<../packages/contracts/src/api/mf-integration.ts>)、[RPC 桥](<../packages/mf-bridge/src/index.ts>)与[MF 后端](<../apps/server/src/routes/mf.ts>)定义受控上下文、原生 HTTP/SSE/WS、任务登记、文件导入和交付。MF 登记不调用会立即执行的本地任务入口；生成绑定先规范保存，再由 MF 单独执行，只有明确交付才成功。取消禁止本地晚到写入，不承诺远端已停止计费。独立导入需宿主确认、排空保存，实际文件与画布节点持久化后才返回含摘要的完成回执。
+
+画布包的 React 18 依赖约束没有升级，但 Next 16 的浏览器渲染器由框架自带，实测为 React DOM `19.3.0-canary-3f0b9e61-20260317`；MF 独立使用 `19.2.3`。两个文档各一份渲染器，不能把安装声明当成浏览器运行版本。配置、来源规则、新对话限制、可选查看器及云端待验清单见 [MF 接入与验收](<mf-integration.md>)。
+
 ## 2. 数据模型与文件组织
 
 数据根约束以 [AGENTS.md 的 Safety and data](<../AGENTS.md#safety-and-data>) 为准。项目内容路径由原 [PROJECT_LAYOUT](<../packages/contracts/src/project-layout.ts>) 定义；不要重新发明另一套目录布局。

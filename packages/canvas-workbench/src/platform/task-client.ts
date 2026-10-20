@@ -39,13 +39,16 @@ export function createCanvasTaskSubmitter(options: CanvasTaskClientOptions) {
     const status = task.status === 'succeeded' && !failedDelivery ? 'succeeded'
       : task.status === 'cancelled' ? 'canceled' : terminal(task) ? 'failed' : 'running';
     const artifactBinding = display?.canvasArtifactGeneration;
+    const artifactApplied = status === 'succeeded' && task.deliveryState === 'applied' && Boolean(task.result?.file);
+    const artifactError = task.error || (status === 'succeeded' && !artifactApplied ? 'Artifact delivery has not been confirmed' : undefined);
     if (artifactBinding) options.onArtifactResult?.({
       binding: artifactBinding,
       // Compatibility field in the original canvas renderer; identity is a task, never a message.
       assistantMessageId: task.id,
-      status,
-      ...(task.result?.file ? { outputPath: task.result.file } : {}),
-      ...(task.error ? { error: task.error } : {}),
+      status: status === 'succeeded' && !artifactApplied ? 'failed' : status,
+      // A candidate path (or a cancelled task's partial file) is not an applied artifact.
+      ...(artifactApplied ? { outputPath: task.result!.file } : {}),
+      ...(artifactError ? { error: artifactError } : {}),
     });
     const textBinding = display?.canvasTextGeneration;
     if (textBinding && status !== 'running') options.onTextResult?.({

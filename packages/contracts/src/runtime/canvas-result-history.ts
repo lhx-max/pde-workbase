@@ -1,6 +1,9 @@
 /** Immutable content snapshots only; never capture task state or canvas geometry. */
 export type CanvasResultSnapshot = Record<string, unknown>;
 
+/** Share the same snapshot shape across image edits and media delivery. */
+export const CANVAS_IMAGE_CONTENT_KEYS = ['path', 'src', 'name', 'naturalWidth', 'naturalHeight', 'sourceAsset'] as const;
+
 export function withCanvasResultHistory<T extends object, P extends object>(
   node: T,
   patch: P,

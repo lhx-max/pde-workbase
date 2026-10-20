@@ -1176,7 +1176,7 @@ function CanvasSurface({
   const activeComposerOwnerId = React.useMemo(() => {
     return selectedNodes.length === 1 && !edges.some(edge => edge.selected) ? selectedNodes[0]!.id : null;
   }, [selectedNodes, edges]);
-  const { setViewport, getViewport, screenToFlowPosition, zoomIn, zoomOut, fitView } = useReactFlow();
+  const { setViewport, getViewport, getNodes, screenToFlowPosition, zoomIn, zoomOut, fitView } = useReactFlow();
   const flowWidth = useStore(state => state.width);
   const flowHeight = useStore(state => state.height);
   const draggingRef = React.useRef(false);
@@ -1598,6 +1598,7 @@ function CanvasSurface({
   React.useEffect(() => {
     if (!apiRef) return;
     apiRef.current = {
+      getSelectedNodeIds: () => getNodes().filter(node => node.selected).map(node => node.id),
       zoomIn: () => { void zoomIn({ duration: 120 }); },
       zoomOut: () => { void zoomOut({ duration: 120 }); },
       zoomTo: (scale) => {
@@ -1637,7 +1638,7 @@ function CanvasSurface({
     return () => {
       apiRef.current = null;
     };
-  }, [activateNodeById, apiRef, applyLayout, edges, fitView, focusNodesById, getViewport, history, nodes, onNodePositionsCommit, onPriorLayoutPersist, priorLayout, screenToFlowPosition, setViewport, sortByTaskType, zoomIn, zoomOut, setNodes]);
+  }, [activateNodeById, apiRef, applyLayout, edges, fitView, focusNodesById, getViewport, getNodes, history, nodes, onNodePositionsCommit, onPriorLayoutPersist, priorLayout, screenToFlowPosition, setViewport, sortByTaskType, zoomIn, zoomOut, setNodes]);
 
   // Opening drawers or resizing panels changes the available area, not the
   // user's camera. Keep pan/zoom unchanged; explicit navigation commands and

@@ -1,3 +1,4 @@
+
 /** Runtime-only backend proxy. Next rewrites bake environment values at build time. */
 const hopByHop = ['connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade'];
 

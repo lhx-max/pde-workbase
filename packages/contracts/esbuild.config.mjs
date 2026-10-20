@@ -6,6 +6,7 @@ await build({
   entryPoints: [
     "./src/index.ts",
     "./src/api/connectionTest.ts",
+    "./src/api/mf-integration.ts",
     "./src/api/orbit.ts",
     "./src/api/finalize.ts",
     "./src/api/handoff.ts",

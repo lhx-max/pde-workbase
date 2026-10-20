@@ -2,6 +2,8 @@
 
 import type { CanvasArtifactGenerationBinding, CanvasTextGenerationBinding, CanvasTaskExecutionContext } from '@bezier/contracts';
 import { cr } from '../locales/canvas-remainder';
+import { getCanvasHostContext } from './api-base';
+import { awaitCanvasGenerationBinding } from './canvas-persistence';
 
 /**
  * 画布 → 宿主对话的任务提交桥。
@@ -150,7 +152,7 @@ export function readHostConversation(): HostConversationMessage[] {
   }
 }
 
-export function submitAgentTask(
+export async function submitAgentTask(
   text: string,
   display?: AgentTaskDisplay,
   attachments: File[] = [],
@@ -162,5 +164,10 @@ export function submitAgentTask(
   if (!submitter) {
     return Promise.reject(new Error(cr().boardNoRuntime));
   }
-  return submitter(prompt, display, attachments);
+  const submit = submitter;
+  const binding = display?.canvasTextGeneration ?? display?.canvasArtifactGeneration;
+  if (binding) {
+    await awaitCanvasGenerationBinding(getCanvasHostContext().projectId, binding.nodeId, binding.requestId);
+  }
+  return submit(prompt, display, attachments);
 }

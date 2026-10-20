@@ -93,6 +93,73 @@ In contrast, request-level `executionContext` is validated portable source evide
 
 Task publication prevalidates the complete output batch and uses no-overwrite writes. This is not an atomic multi-file transaction. Failed receipts retain exact published `result.files`; an independently saved artifact candidate is exposed through `result.candidatePath`, not mistaken for an adopted canvas result. Conflicts never authorize overwriting a changed target. Text binding semantics remain upstream-compatible: omitted `outputKind` adopts into the text card, explicit `text` saves a candidate for the adoption API, and `storyboard` applies a validated storyboard.
 
+## MF integration (single local user)
+
+MF is a separate external execution owner, not an `AgentAdapter`. [MF routes](<src/routes/mf.ts>) use the shared [MF contracts](<../../packages/contracts/src/api/mf-integration.ts>); [upstream transport](<src/mf/upstream.ts>) runs after the existing host/origin/token guards and before the JSON parser. `GET /api/integrations/mf` returns `MfPublicConfiguration` directly, including `uiPath: '/mf-ui/'`. Unconfigured or invalid configuration advertises no capabilities. It never exposes the upstream address, cookie filename, token or cookie value.
+
+Configure `CanvasServerOptions.mf` or these CLI environment variables:
+
+| Variable | Meaning |
+| --- | --- |
+| `CANVAS_MF_UPSTREAM_URL` | Explicit HTTPS origin only: no path, query, credentials or fragment. |
+| `CANVAS_MF_AIE_USERNAME` | Required AIE identity used by the isolated MF UI and artifact downloads. |
+| `CANVAS_MF_UI_URL` | Explicit `http://mf.localhost:WEB_PORT/mf-ui/` for the isolated document on the same owned web listener. Only the exact reserved `mf.localhost` host is accepted, not `localhost`, `127.0.0.1` or arbitrary subdomains. It is exposed as `uiPath` even when MF is unconfigured; no port is inferred. |
+| `CANVAS_MF_COOKIE_FILE` | Preferred credential: explicit absolute path to an owner-only regular file containing a single Cookie header value. Final symlinks, group/world permissions, oversized and multiline values are rejected. |
+| `CANVAS_MF_AUTH_TOKEN` | Alternative server-owned KSAP authentication token. Configure exactly one credential source. |
+| `CANVAS_MF_WORKBENCH_ID`, `CANVAS_MF_TEAM_ID` | Optional public UI identifiers, not authorization overrides. |
+
+Never put actual credentials in source control, CLI arguments, task bodies or logs. The file is read at startup; restart after rotation. Configuration failures are sanitized and fail closed. Credentials are restricted to loopback single-user operation even if the general canvas server has a bearer token. Remote/shared/multi-tenant use, public reverse proxies and forwarded identities are **unsupported**. The backend rejects non-loopback socket/Host/Origin and forwarding headers; a local web proxy must enforce the same boundary before removing its own forwarding metadata. Do not expose this mode through a tunnel or a proxy that rewrites remote identity. The programmatic `allowLoopbackHttpForTests` flag permits only a loopback HTTP fake upstream and is not an environment/deployment option.
+
+For the isolated document, `CanvasServerOptions.mfUiUrl` / `CANVAS_MF_UI_URL` declares the exact permitted MF origin. That origin may call **only** verified gateway paths and cannot call project, task, asset or other canvas control APIs; its HTTP operations are bridged through the trusted parent document. Do not add the MF origin to general `allowedOrigins`. Existing token/host guards still apply. The default relative UI path is retained for direct backend/no-UI compatibility, not proof of frontend isolation. The web bootstrap/lifecycle owns pairing canvas `127.0.0.1` with `mf.localhost` on exactly the same web port; the backend's API port is separate and cannot infer that pairing.
+
+The hostname is also a credential boundary: the pinned real SDK's `fetchAuthToken` calls a development-only `/sso-health` token extractor on exact `localhost` or `127.0.0.1`. That endpoint is a Vite alias for a separate SSO service, not MF health, and its expected JSON contains a browser-readable KSAP token. Using `mf.localhost` naturally skips this SDK development branch without patching the SDK or supplying browser credentials. **No `/sso-health` proxy, fake success response or token-return endpoint exists.** Real upstream HTTP 401 remains 401 with a sanitized authentication-required response; the host's SDK `onAuthRequired` handler owns the UI state and prevents SSO navigation. Validated HTTP Origin is forwarded unchanged when present, and WebSocket Origin remains the actual configured `mf.localhost` origin—neither is rewritten to a cloud hostname. Origin-less direct backend/CLI requests remain origin-less; malformed/noncanonical origins are rejected before contacting MF.
+
+The proxy forwards only an explicit method/path allowlist under `/api/kpandora/` plus the configured AIE's read-only `/api/v1/myknowledge/aie/:aieUsername/relations`, verified against `@ks-kp/agent-ui` **0.1.5-beta.18** source maps: chat and its native queue, session/drafts, current-user/model/AIE bootstrap, selected uploads/workspace reads, read-only asset metadata and WebMCP. AIE detail/model routes are restricted to the configured AIE and positively project only Chat-consumed public fields; Kim OpenAPI/provider secrets are not forwarded. Client authorization/cookies/KSAP headers are never forwarded; server-owned authentication is injected. Redirects are not followed. Outputs use a small safe-header allowlist, no-store/no-sniff/sandbox headers, and strip cookies, authentication and hop-by-hop extensions. Upload and response streams have backpressure, disconnect cancellation, 25 MiB default byte limits and a 120-second overall deadline. Programmatic limits may tighten these bounds. SDK admin/credential APIs, SSO, workflow/knowledge/skills management, CDN URL imports, other prefixes and directory/package imports are not silently proxied. Unsupported SDK UI subfeatures must remain hidden or report unavailable.
+
+Native queue traffic is limited to `POST /api/kpandora/v1/chat/queue/{list,claim-next,finish,submit,delete,interrupt}`. These are the SDK's pending-message/completion protocol—not a server-emulated queue, and `finish` is not canvas-delivery proof. Their JSON bodies are positively validated before contacting MF: 1 MiB total, 131072-character messages, at most 64 bounded attachment references, exact known fields, no query overrides, and optional AIE/team context matching configuration. The verified `POST /api/kpandora/v1/activity/session/list` only reads bounded session identity/title metadata. `POST /api/kpandora/v1/asset/{cdn,doc}/page` only reads paginated catalogue metadata (16 KiB request cap; native page size 9999 is accepted). These metadata reads do **not** authorize activity execution, asset update/delete, arbitrary CDN downloads or CDN-to-canvas imports. Such unsupported actions must remain hidden or show an unavailable warning even when catalogue entries are visible.
+
+The verified session event WebSocket uses `POST /api/kpandora/v1/session/ws/ticket` then exactly `/api/kpandora/v1/session/ws?ticket=…`. The server exposes `handleUpgrade` and its CLI attaches it to the existing listener. It rechecks the Canvas bearer, explicit MF Origin and loopback boundary before using the [shared upgrade transport](<../../packages/mf-bridge/src/node-upgrade.ts>); only the server's MF credentials are injected and handshake output uses a safe-header allowlist. The ticket is a protocol-scoped MF ticket, not passthrough of browser authentication headers. Connections retain backpressure, a byte cap, a 10-second handshake deadline, 60-second idle deadline and shutdown cancellation (no forced age limit on a healthy connection); no frame replay is attempted. Custom HTTP `authorize` callbacks are not upgrade-aware: when one is configured, upgrades explicitly fail closed rather than bypassing it.
+
+### MF project HTTP surface
+
+Paths in this table are relative to `/api/projects/:id/mf`. All project authorization and local request guards remain active.
+
+| Method/path | Request → response |
+| --- | --- |
+| `GET /sessions` | Direct `{sessions, activeSessionKey?}`. |
+| `POST /sessions` | `{sessionKey,title?,activate?}` upserts; activation defaults to true. |
+| `PUT /sessions` | `{activeSessionKey:string|null}` selects an associated session or clears selection. |
+| `DELETE /sessions` | `{sessionKey}` removes only the local association, not the upstream conversation. |
+| `POST /tasks` | Existing `CanvasTaskRequest` → `202 CanvasTaskResponse`; persists `executionOwner:'mf'`, prepares isolated inputs and validates the already-persisted generation request. Does not invoke or require an adapter. |
+| `GET /tasks`, `GET /tasks/:taskId` | MF receipts only; detail returns a normal task response. |
+| `PATCH /tasks/:taskId` | `{sessionKey?,run?:MfRunState}`; session and run identities cannot be rebound. A remote `completed` reason alone never succeeds the canvas. |
+| `DELETE /tasks/:taskId` | Cancels local publication. It makes **no claim** that MF stopped computing/billing; the user may still need to stop the upstream run. |
+| `POST /tasks/:taskId/delivery` | `{content}` for text or `{artifact:MfArtifactReference}` for an artifact-generation task. Artifact bytes are fetched by the server into the task's prepared output path; caller files/URLs/output paths are not accepted here. |
+| `POST /artifacts/import` | `{requestId,artifact:MfArtifactReference,outputPath?}` → `{path,digest,requestId,nodeId}` after real no-overwrite file publication and the existing idempotent canvas materialization primitive. |
+| `POST /canvas/text` | `{requestId,nodeId,expectedRevision,text}` → `{nodeId,revision}`; revision is the finite numeric value from `GET /api/projects/:id/canvas/state`, not a guessed integer counter. |
+
+Sessions and import/text receipts are atomically persisted through the [MF store](<src/mf/state.ts>) under the registry's resolved data root; see the root [data-root contract](<../../AGENTS.md#safety-and-data>). No cwd-derived or upstream-checkout paths are used. Identical operation keys replay; changed payloads conflict. Imports retain source reference and SHA-256 provenance, preserve original bytes, reject symlinks/traversal and never overwrite. Interrupted imports retain durable intent; retry can repair the file/canvas binding only for the same recorded bytes, never roll back a user's file. A file-publication failure may leave a durable receipt/candidate for inspection, not a fabricated successful node.
+
+Artifact retrieval is specifically verified from SDK `FilePreviewContent`, `ArtifactPreview`, `workspaceFileRawUrl` and `kimWorkspaceFileRawUrl`. `source:'session'` (also the compatibility default when omitted) uses `GET /api/kpandora/kim/workspace/file/raw` with `path`, `sessionKey` and the configured `aieUsername`; adding `spaceId` to this source is explicitly unsupported (`422`). `source:'workspace'` matches ordinary workspace preview using `GET /api/kpandora/v1/sandbox/instance/workspace/file/raw` with `path`, configured `aieUsername` and optional `team_space_id`—never a guessed session selector. A workspace `spaceId` must equal the configured `teamId`; undefined means personal workspace. The session must first be associated with the project as local provenance, not as an invented MF workspace ACL; upstream authorization still decides access to actual bytes. Task delivery must also match its immutable task session. Caller-supplied HTTP/CDN URLs and directory references are not substituted into a download target. Only single selected files are imported; multi-file HTML dependencies must be embedded or remain explicitly unsupported, not fetched implicitly.
+
+MF delivery shares task receipts and original canvas target/publication/adoption invariants. Cancelled, failed, interrupted and old-generation receipts cannot be written. On startup unfinished MF tasks become interrupted and are **not** replayed. An explicit text candidate still requires normal adoption when the request uses `outputKind:'text'`. Generic agent tasks keep their original adapter and recovery behavior; their generic delivery endpoint cannot publish MF-owned tasks.
+
+The existing HTTP CLI covers the same surface with machine-readable JSON and long prompts (uppercase placeholders are caller-selected values):
+
+```text
+canvas-server request GET /api/integrations/mf --json
+canvas-server request GET /api/projects/PROJECT_ID/mf/sessions --json
+canvas-server request POST /api/projects/PROJECT_ID/mf/sessions --body-file SESSION_JSON --json
+canvas-server request POST /api/projects/PROJECT_ID/mf/tasks --body-file TASK_JSON --prompt-file PROMPT_FILE --json
+canvas-server request PATCH /api/projects/PROJECT_ID/mf/tasks/TASK_ID --body-file RUN_JSON --json
+canvas-server request POST /api/projects/PROJECT_ID/mf/tasks/TASK_ID/delivery --body-file DELIVERY_JSON --json
+canvas-server request POST /api/projects/PROJECT_ID/mf/artifacts/import --body-file IMPORT_JSON --json
+canvas-server request POST /api/projects/PROJECT_ID/mf/canvas/text --body-file TEXT_UPDATE_JSON --json
+canvas-server request DELETE /api/projects/PROJECT_ID/mf/tasks/TASK_ID --json
+```
+
+[MF integration tests](<tests/mf-integration.test.ts>) use loopback-only fake responses with actual fixture bytes, not MF execution. Live credential validity, deployed SDK/upstream compatibility, corporate login, remote model execution, billing cancellation and optional SDK subfeatures remain **unverified** until explicitly authorized credentials and a live verification plan are supplied.
+
 ## HTTP media adapter
 
 `CANVAS_MEDIA_ADAPTER_URL` is the adapter origin. Optional bearer authentication uses `CANVAS_MEDIA_ADAPTER_TOKEN`.

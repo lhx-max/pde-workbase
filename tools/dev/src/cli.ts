@@ -61,7 +61,8 @@ if (new Set(usedPorts).size !== usedPorts.length) throw new Error('Listener port
 for (const value of usedPorts) await available(value);
 const webUrl = `http://127.0.0.1:${webPort}`;
 const serverUrl = `http://127.0.0.1:${serverPort}`;
-const env: NodeJS.ProcessEnv = { ...process.env, CANVAS_DATA_DIR: dataRoot, CANVAS_PORT: String(serverPort), CANVAS_WEB_URL: webUrl, CANVAS_SERVER_URL: serverUrl, CANVAS_SERVER_ORIGIN: serverUrl, NEXT_TELEMETRY_DISABLED: '1' };
+const env: NodeJS.ProcessEnv = { ...process.env, CANVAS_DATA_DIR: dataRoot, CANVAS_PORT: String(serverPort), CANVAS_WEB_URL: webUrl, CANVAS_SERVER_URL: serverUrl, CANVAS_SERVER_ORIGIN: serverUrl, NEXT_TELEMETRY_DISABLED: '1',
+};
 if (target === 'desktop') {
   env.CANVAS_DESKTOP_AUTH_TOKEN = randomBytes(32).toString('base64url');
   env.CANVAS_BROWSER_HOST_PORT = String(browserPort);
@@ -118,7 +119,7 @@ try {
   launch('server', process.execPath, [required('apps/server/dist/cli.js'), '--host', '127.0.0.1', '--port', String(serverPort), '--data-dir', dataRoot], root);
   await waitFor(`${serverUrl}/api/health`, true);
   if (target !== 'server') {
-    launch('web', process.execPath, [required('apps/web/node_modules/next/dist/bin/next'), args.includes('--production') ? 'start' : 'dev', '--hostname', '127.0.0.1', '--port', String(webPort)], path.join(root, 'apps/web'));
+    launch('web', process.execPath, [required('apps/web/src/server/start.ts'), ...(args.includes('--production') ? ['--production'] : []), '--hostname', '127.0.0.1', '--port', String(webPort)], path.join(root, 'apps/web'));
     await waitFor(webUrl, false);
   }
   if (target === 'desktop') {

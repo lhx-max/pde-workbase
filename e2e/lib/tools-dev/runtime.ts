@@ -4,6 +4,14 @@ import { createServer, type Server } from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { T } from '../timeouts.js';
+import { MF_FIXTURE_UI_HOST, startMfProtocolFixture, type MfProtocolFixture } from './mf-fixture.js';
+
+/** Explicit caller-owned build, never a suite prebuild or the running preview's .next. */
+export function resolveWebBuildDirectory(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  if (!/^\.tmp\/[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(value)) throw new Error('CANVAS_E2E_WEB_BUILD_DIR must be .tmp/<name>');
+  return value;
+}
 
 export const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const scratchRoot = path.join(repositoryRoot, '.tmp', 'e2e-runs');
@@ -16,6 +24,7 @@ export interface ToolsDevRuntime {
   webUrl: string;
   inspectUrl: string;
   browserPort: number;
+  mfFixture?: MfProtocolFixture;
   logs(): Promise<string>;
   dispose(options?: { preserve?: boolean }): Promise<void>;
 }
@@ -36,8 +45,9 @@ function ownedSignal(child: ChildProcess, signal: NodeJS.Signals) {
   } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error; }
 }
 /** Framework-neutral lifecycle: every call owns one complete tools-dev instance. */
-export async function startToolsDev(options: { target?: RuntimeTarget; label?: string } = {}): Promise<ToolsDevRuntime> {
+export async function startToolsDev(options: { target?: RuntimeTarget; label?: string; webBuildDirectory?: string; mfFixture?: boolean } = {}): Promise<ToolsDevRuntime> {
   const target = options.target ?? 'web';
+  const webBuildDirectory = resolveWebBuildDirectory(options.webBuildDirectory ?? process.env.CANVAS_E2E_WEB_BUILD_DIR);
   await mkdir(scratchRoot, { recursive: true });
   const root = await mkdtemp(path.join(scratchRoot, `${(options.label ?? target).replace(/[^a-z0-9-]/gi, '-')}-`));
   const realRoot = await realpath(root);
@@ -57,6 +67,12 @@ export async function startToolsDev(options: { target?: RuntimeTarget; label?: s
   // Never borrow an ambient data root, native grant secret or external adapter/account.
   for (const key of Object.keys(env)) if (key.startsWith('CANVAS_')) delete env[key];
   delete env.ELECTRON_RUN_AS_NODE;
+  // Only this invocation's fixture trust/configuration survives isolation. Never disable TLS.
+  delete env.NODE_EXTRA_CA_CERTS;
+  delete env.NODE_TLS_REJECT_UNAUTHORIZED;
+  if (webBuildDirectory) env.CANVAS_WEB_BUILD_DIR = webBuildDirectory;
+  const mfFixture = options.mfFixture ? await startMfProtocolFixture(root) : undefined;
+  if (mfFixture) Object.assign(env, mfFixture.environment, { CANVAS_MF_UI_URL: `http://${MF_FIXTURE_UI_HOST}:${webPort}/mf-ui/` });
   const child = spawn(executable, argv, { cwd: repositoryRoot, env, stdio: ['ignore', 'pipe', 'pipe'], detached: process.platform !== 'win32' });
   let output = '', pending = '', closed = false, stopping = false;
   let resolveReady!: () => void, rejectReady!: (error: Error) => void;
@@ -82,7 +98,7 @@ export async function startToolsDev(options: { target?: RuntimeTarget; label?: s
   child.once('error', error => rejectReady(error));
   let disposed = false;
   const runtime: ToolsDevRuntime = {
-    target, root, dataRoot, serverUrl, webUrl, inspectUrl, browserPort,
+    target, root, dataRoot, serverUrl, webUrl, inspectUrl, browserPort, mfFixture,
     logs: async () => { await writeFile(logPath, output); return readFile(logPath, 'utf8'); },
     dispose: async ({ preserve = false } = {}) => {
       if (disposed) return; disposed = true; stopping = true;
@@ -91,6 +107,7 @@ export async function startToolsDev(options: { target?: RuntimeTarget; label?: s
         const killTimer = setTimeout(() => ownedSignal(child, 'SIGKILL'), T.medium);
         try { await exit; } finally { clearTimeout(killTimer); }
       }
+      await mfFixture?.dispose();
       await writeFile(logPath, output);
       if (!preserve) {
         // Resolve and compare the exact directory we created before recursive deletion.

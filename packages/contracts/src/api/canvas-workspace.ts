@@ -49,6 +49,10 @@ export interface CanvasTaskRequest {
 }
 
 export interface CanvasTaskReceipt {
+  /** Absent retains the original independent adapter owner. */
+  executionOwner?: 'mf';
+  /** MF SDK lifecycle identity, not a guaranteed Gateway execution identifier. */
+  mfRun?: import('./mf-integration.js').MfRunState;
   id: string;
   projectId: string;
   requestId: string;

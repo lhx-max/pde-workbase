@@ -1,6 +1,6 @@
 # 原画布、资产与采集功能对照
 
-抽取基线：Bezier/Loom `319e5eee556a3641d2ee68a6111a36ddc7a1eff7`。复用原组件、CSS、状态模型与交互，不用新设计替换原工作区。当前范围包括原“画布／资产／采集”侧栏、展开资产库和用户选择的**内建本地资产库**；初次提取时排除全部个人资产库的描述已不适用。原聊天、账号／团队平台与原 Agent 运行时仍不在范围内。
+抽取基线：Bezier/Loom `319e5eee556a3641d2ee68a6111a36ddc7a1eff7`。复用原组件、CSS、状态模型与交互，不用新设计替换原工作区。当前范围包括原“画布／资产／采集”侧栏、展开资产库和用户选择的**内建本地资产库**；初次提取时排除全部个人资产库的描述已不适用。原聊天、账号／团队平台与原 Agent 运行时仍不在范围内；新接入的 MF 开放 UI 是隔离的外部能力，并非恢复原聊天产品。
 
 “保留实现”“组件／接口回归”“真实界面验证”是不同证据层级。源代码存在、依赖闭包或编译通过均不等于完整用户流程验收。**最新运行批次、通过数、失败与截图以 [运行验证记录](<runtime-verification.md>) 为准**；本表说明能力及证据边界，不复制会随重跑变化的总数。
 
@@ -25,6 +25,7 @@
 | HTML/PPT | 原 URL/srcDoc 预览、源码、手动编辑、版本、PPT 缩略图与翻页 | [真实 UI 测试](<../e2e/ui/workspace.test.ts>)已有交互、保存／重载、版本、翻页与源码成功运行；没有测试全部发布／外部编辑器组合 |
 | Office/PDF 预览 | 原结构化文本预览与打开／下载；DOCX 段落、PPTX 幻灯片文本、XLSX 工作表文本；PDF 文本提取或明确不可用提示 | [实际 Office UI 测试](<../e2e/ui/office-previews.test.ts>)中的 DOCX/PPTX/XLSX 场景各重复两次通过，包含真实 HTTP 精确字节。原侧栏选择后从 Quick Switcher 打开；不是 Office 排版还原、编辑或公式计算。PDF 依赖可用的文本提取工具，本轮未单列真实 PDF 场景 |
 | 文件与产物 | 原输入／源文件／产物布局、目录、版本、清单、候选、重命名和旁路文件 | [文件与版本测试](<../apps/server/tests/files-versions.test.ts>)、[产物工作副本测试](<../apps/server/tests/canvas-artifact-workspace.test.ts>)、真实 HTTP 版本恢复 |
+| MF 开放 UI | 真实 Chat／附件、项目会话、授权上下文、受控工具、云文件预览／导入、画布任务绑定 | MF React19 独立文档与画布隔离；画布包保留 React18 约束，实际 Next 浏览器渲染器单独实测，不将依赖声明等同运行版本；[MF 接入与验收](<mf-integration.md>)说明真实本地 SDK 测试及限制。需要新对话进行画布定向生成；聊天结束不等于交付，取消不保证远端停止。真实云端账号、Origin／模型权限尚待授权配置 |
 | 独立 Agent | 请求、持久回执、隔离输入、输出、取消、恢复、交付与采用 | [任务／历史测试](<../apps/server/tests/standalone-history-tasks.test.ts>)、[HTTP 适配器测试](<../apps/server/tests/http-adapters.test.ts>)；不依赖聊天消息数据库，不内置原 Agent 运行时平台 |
 | 工作流与媒体 | 原图编辑、版本、运行／步骤、澄清、结果交互、媒体调度／重试／取消与画布交付 | [工作流路由测试](<../apps/server/tests/workflow-routes.test.ts>)、[媒体适配器测试](<../apps/server/tests/media/adapter-service.test.ts>)、[画布媒体交付测试](<../apps/server/tests/media/canvas-delivery.test.ts>)；执行及供应商目录由适配器提供 |
 | 浏览器与偏好 | 原浏览器面板／首页、书签、参考网站、采集开关、导航与设置菜单；偏好服务端持久化 | [原生浏览器真实 UI 测试](<../e2e/ui/native-browser.test.ts>)已有成功运行；偏好 Web 场景已有真实持久化验证。普通 Web 不因此获得原生跨域资源权限 |

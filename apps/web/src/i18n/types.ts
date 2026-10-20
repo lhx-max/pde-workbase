@@ -34,6 +34,35 @@ export const LOCALE_LABEL: Record<Locale, string> = {
 // flat (not deeply nested) so missing-key TS errors point straight at the
 // offending string instead of a generic object mismatch.
 export interface Dict {
+  'mf.title': string;
+  'mf.entry': string;
+  'mf.subtitle': string;
+  'mf.resize': string;
+  'mf.collapse': string;
+  'mf.executionOwner': string;
+  'mf.mfOwnerHint': string;
+  'mf.textDeliveryInstruction': string;
+  'mf.localOwnerHint': string;
+  'mf.sessions': string;
+  'mf.newSession': string;
+  'mf.newSessionRequired': string;
+  'mf.untitledSession': string;
+  'mf.unavailable': string;
+  'mf.unavailableHint': string;
+  'mf.loading': string;
+  'mf.connecting': string;
+  'mf.running': string;
+  'mf.ready': string;
+  'mf.stop': string;
+  'mf.remoteStopHint': string;
+  'mf.frameTitle': string;
+  'mf.cloudHint': string;
+  'mf.notReady': string;
+  'mf.authRequired': string;
+  'mf.confirmWrite': string;
+  'mf.confirmImport': string;
+  'mf.awaitingDelivery': string;
+  'mf.busy': string;
   'sketch.document.unavailable': string;
   'sketch.document.unsupported': string;
   'sketch.document.unsupportedVersion': string;

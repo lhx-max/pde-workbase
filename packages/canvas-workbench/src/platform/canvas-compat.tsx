@@ -1,12 +1,17 @@
 'use client';
 
 import React from 'react';
+import type { CanvasOperationReceipt } from '@bezier/contracts';
+import { Button } from '@bezier/components';
 import { CanvasHistory } from './canvas-history';
+import { canvasOperationBatch, rebaseCanvasDraft } from './canvas-operation-batch';
+import { registerCanvasPersistence } from './canvas-persistence';
 import { CanvasIdleWorkContext, createCanvasIdleWork } from './canvas-idle-work';
 import { cr } from '../locales/canvas-remainder';
 import {
   apiErrorMessage,
   canvasFetchForContext,
+  projectFetchWithContext,
   type CanvasHostContext,
 } from './api-base';
 
@@ -30,16 +35,19 @@ type PendingCanvasChange = {
   version: number;
 };
 
+const CANVAS_DRAFT_CHECKPOINT_MS = 250;
 const CANVAS_REVISION_POLL_MS = 1_500;
 const CANVAS_REVISION_MAX_RETRY_MS = 30_000;
 
 const CanvasContext = React.createContext<CanvasContextValue | null>(null);
 
 async function request<T>(context: CanvasHostContext, url: string, init?: RequestInit): Promise<T> {
-  const response = await canvasFetchForContext(context, url, init);
+  const response = url === '/api/canvas/operations'
+    ? await projectFetchWithContext(context, '/canvas/operations', init)
+    : await canvasFetchForContext(context, url, init);
   const payload = await response.json();
   if (!response.ok || payload.ok === false) {
-    throw new Error(apiErrorMessage(payload.error, cr().requestFailedStatus(response.status)));
+    throw Object.assign(new Error(apiErrorMessage(payload.error, cr().requestFailedStatus(response.status))), { status: response.status });
   }
   return payload;
 }
@@ -87,6 +95,7 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
   const historyScope = stableStringify(requestContext);
   React.useEffect(() => { historyRef.current.clear(); }, [historyScope]);
   const [hydrated, setHydrated] = React.useState(false);
+  const [persistenceReady, setPersistenceReady] = React.useState(false);
   const stateRef = React.useRef(state);
   const hydrateBusinessStateRef = React.useRef(hydrateBusinessState);
   const revisionRef = React.useRef(0);
@@ -94,6 +103,27 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
   const dirtyVersionsRef = React.useRef(new Map<string, number>());
   const savedVersionsRef = React.useRef(new Map<string, number>());
   const saveErrorRef = React.useRef<unknown>(undefined);
+  const [saveConflict, setSaveConflict] = React.useState<string | null>(null);
+  const blockedRef = React.useRef(false);
+  const recoveredDraftRef = React.useRef<CanvasState | null>(null);
+  const retryRequestRef = React.useRef<{ batch: Map<string, PendingCanvasChange>; body: string; route: string } | null>(null);
+  const draftCheckpointTimerRef = React.useRef<number | undefined>(undefined);
+  const draftKey = `canvas-unsaved:${requestContext.projectId}`;
+  // A transport switch should not rehydrate or clear a different project's
+  // pending queue; the provider owns one project for its entire lifetime.
+  const ownerProjectRef = React.useRef(requestContext.projectId);
+  if (ownerProjectRef.current !== requestContext.projectId) throw new Error('Canvas provider must remount when the project changes');
+  React.useEffect(() => {
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (raw) {
+        const draft = JSON.parse(raw) as { state?: CanvasState };
+        if (draft.state && typeof draft.state === 'object' && !Array.isArray(draft.state)) recoveredDraftRef.current = draft.state;
+        blockedRef.current = true;
+        setSaveConflict('Recovered an unsaved canvas draft. Export it before discarding or reloading.');
+      }
+    } catch { /* Storage unavailable: retain in-memory edits. */ }
+  }, [draftKey]);
   const pendingChangesRef = React.useRef(new Map<string, PendingCanvasChange>());
   const saveQueueRef = React.useRef<Promise<void>>(Promise.resolve());
   const saveInFlightRef = React.useRef(false);
@@ -105,6 +135,20 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
   const cancelRefreshRef = React.useRef<(() => void) | undefined>(undefined);
   stateRef.current = state;
   hydrateBusinessStateRef.current = hydrateBusinessState;
+
+  const checkpointDraft = React.useCallback(() => {
+    if (draftCheckpointTimerRef.current !== undefined) window.clearTimeout(draftCheckpointTimerRef.current);
+    draftCheckpointTimerRef.current = undefined;
+    if (!dirtyVersionsRef.current.size && !retryRequestRef.current && !blockedRef.current) return;
+    try {
+      const request = retryRequestRef.current ? JSON.parse(retryRequestRef.current.body) as unknown : undefined;
+      localStorage.setItem(draftKey, JSON.stringify({ state: stateRef.current, ...(request === undefined ? {} : { request }) }));
+    } catch { /* Keep in memory. */ }
+  }, [draftKey]);
+  const scheduleDraftCheckpoint = React.useCallback(() => {
+    if (draftCheckpointTimerRef.current !== undefined) return;
+    draftCheckpointTimerRef.current = window.setTimeout(checkpointDraft, CANVAS_DRAFT_CHECKPOINT_MS);
+  }, [checkpointDraft]);
 
   const setInteractionActive = React.useCallback((active: boolean) => {
     const wasActive = interactionActiveRef.current;
@@ -132,6 +176,7 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
           if (payload.revision < revisionRef.current) return;
           const remoteState = payload.state || {};
           const nextState = { ...remoteState };
+          if (recoveredDraftRef.current) Object.assign(nextState, recoveredDraftRef.current);
           const overlayDirtyState = () => {
             for (const key of dirtyVersionsRef.current.keys()) {
               if (Object.prototype.hasOwnProperty.call(stateRef.current, key)) {
@@ -145,11 +190,13 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
             const projected = await hydrateBusinessStateRef.current(nextState);
             if (!alive) return;
             Object.assign(nextState, projected);
+            if (recoveredDraftRef.current) Object.assign(nextState, recoveredDraftRef.current);
             // Hydration is asynchronous. Text may have changed while it was
             // running, so local dirty values must win a second time here.
             overlayDirtyState();
           }
 
+          setPersistenceReady(true);
           revisionRef.current = Math.max(revisionRef.current, payload.revision);
           const sharedState = shareUnchangedFields(stateRef.current, nextState);
           if (sharedState !== stateRef.current) {
@@ -224,19 +271,25 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
     flushScheduledRef.current = false;
     if (retryTimerRef.current !== undefined) return saveQueueRef.current;
     if (saveInFlightRef.current) return saveQueueRef.current;
-    if (!pendingChangesRef.current.size) return saveQueueRef.current;
+    if (blockedRef.current) return saveQueueRef.current;
+    if (!pendingChangesRef.current.size && !retryRequestRef.current) return saveQueueRef.current;
     saveInFlightRef.current = true;
-    const batch = new Map(pendingChangesRef.current);
-    pendingChangesRef.current.clear();
+    const batch = retryRequestRef.current?.batch ?? new Map(pendingChangesRef.current);
+    if (!retryRequestRef.current) pendingChangesRef.current.clear();
     const changes = Object.fromEntries(Array.from(batch, ([key, entry]) => [key, entry.value]));
     const base = Object.fromEntries(Array.from(batch, ([key, entry]) => [key, entry.baseValue]));
     const expectedRevision = revisionRef.current;
-    const requestBody = JSON.stringify({ changes, base, expectedRevision });
+    const operations = canvasOperationBatch(base, changes, stateRef.current);
+    const route = retryRequestRef.current?.route ?? (operations ? '/api/canvas/operations' : '/api/canvas/state');
+    const requestBody = retryRequestRef.current?.body ?? JSON.stringify(operations
+      ? { operationId: crypto.randomUUID(), baseRevision: expectedRevision, operations, expectedState: base }
+      : { changes, base, expectedRevision });
+    retryRequestRef.current = { batch, body: requestBody, route };
     saveQueueRef.current = Promise.resolve()
       .then(async () => {
         try {
-          const payload = await request<{ ok: true; state?: CanvasState; revision: number }>(requestContext, '/api/canvas/state', {
-            method: 'PATCH',
+          const payload = await request<{ ok: true; state?: CanvasState; revision: number; receipt?: CanvasOperationReceipt; replayed?: boolean }>(requestContext, route, {
+            method: route.endsWith('/operations') ? 'POST' : 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: requestBody,
             // Small pending mutations should survive a direct refresh. Large
@@ -244,9 +297,31 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
             // the normal retry path instead of failing synchronously.
             ...(requestBody.length <= 60_000 ? { keepalive: true } : {}),
           });
+          if (route.endsWith('/operations') &&
+            (payload.receipt?.operationId !== (JSON.parse(requestBody) as { operationId: string }).operationId ||
+              payload.receipt.revision !== payload.revision)) {
+            throw new Error('Canvas operation receipt does not match the pending request');
+          }
+          // Validate all rebases before acknowledging any key: a conflict must
+          // never leave a partially advanced queue or a regenerated operation id.
+          const rebased = new Map<string, { pending: PendingCanvasChange; value: unknown }>();
+          for (const [key, entry] of batch) {
+            const pending = pendingChangesRef.current.get(key);
+            if (pending && payload.state) rebased.set(key, {
+              pending, value: rebaseCanvasDraft(entry.value, pending.value, payload.state[key]),
+            });
+          }
+          retryRequestRef.current = null;
+          saveErrorRef.current = undefined;
+          setSaveConflict(null);
           revisionRef.current = Math.max(revisionRef.current, payload.revision);
           for (const [key, entry] of batch) {
             savedVersionsRef.current.set(key, entry.version);
+            const nextPending = rebased.get(key);
+            if (nextPending && payload.state) {
+              pendingChangesRef.current.set(key, { ...nextPending.pending, value: nextPending.value, baseValue: payload.state[key] });
+              stateRef.current = { ...stateRef.current, [key]: nextPending.value };
+            }
             if (dirtyVersionsRef.current.get(key) === entry.version) {
               dirtyVersionsRef.current.delete(key);
             }
@@ -264,22 +339,19 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
               setState(sharedState);
             }
           }
+          if (!dirtyVersionsRef.current.size) {
+            if (draftCheckpointTimerRef.current !== undefined) window.clearTimeout(draftCheckpointTimerRef.current);
+            draftCheckpointTimerRef.current = undefined;
+            try { localStorage.removeItem(draftKey); } catch { /* Storage unavailable. */ }
+          } else scheduleDraftCheckpoint();
         } catch (error) {
           saveErrorRef.current = error;
-          for (const [key, entry] of batch) {
-            if (dirtyVersionsRef.current.get(key) !== entry.version) continue;
-            const pending = pendingChangesRef.current.get(key);
-            if (!pending || pending.version < entry.version) {
-              pendingChangesRef.current.set(key, entry);
-            } else {
-              // A newer local mutation was queued while this request was in
-              // flight. If the request failed, its earlier base must travel
-              // with that newer value or the retry would lose the first delta.
-              pendingChangesRef.current.set(key, { ...pending, baseValue: entry.baseValue });
-            }
-          }
+          try { localStorage.setItem(draftKey, JSON.stringify({ state: stateRef.current, request: JSON.parse(requestBody) })); } catch { /* Keep in memory. */ }
+          setSaveConflict(error instanceof Error ? error.message : cr().compatSaveFail);
+          const status = (error as { status?: number }).status;
+          if (status && status >= 400 && status < 500 && status !== 429) blockedRef.current = true;
           console.error(cr().compatSaveFail, error);
-          if (retryTimerRef.current === undefined) {
+          if (!blockedRef.current && retryTimerRef.current === undefined) {
             retryTimerRef.current = window.setTimeout(() => {
               retryTimerRef.current = undefined;
               void flushChanges();
@@ -289,10 +361,10 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
       })
       .finally(() => {
         saveInFlightRef.current = false;
-        if (pendingChangesRef.current.size && retryTimerRef.current === undefined) queueMicrotask(() => void flushChanges());
+        if (!blockedRef.current && pendingChangesRef.current.size && retryTimerRef.current === undefined) queueMicrotask(() => void flushChanges());
       });
     return saveQueueRef.current;
-  }, [requestContext]);
+  }, [requestContext, draftKey, scheduleDraftCheckpoint]);
 
   const scheduleFlush = React.useCallback(() => {
     if (flushScheduledRef.current) return;
@@ -302,6 +374,7 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
 
   React.useEffect(() => {
     const flushNow = () => {
+      checkpointDraft();
       if (retryTimerRef.current !== undefined) clearTimeout(retryTimerRef.current);
       retryTimerRef.current = undefined;
       void flushChanges();
@@ -321,7 +394,7 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
       window.removeEventListener('pagehide', flushNow);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [flushChanges]);
+  }, [flushChanges, checkpointDraft]);
 
   const setValue = React.useCallback(<T,>(
     key: string,
@@ -346,8 +419,10 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
     });
     stateRef.current = nextState;
     setState(nextState);
+    if (blockedRef.current) checkpointDraft();
+    else scheduleDraftCheckpoint();
     scheduleFlush();
-  }, [scheduleFlush]);
+  }, [scheduleFlush, checkpointDraft, scheduleDraftCheckpoint]);
 
   const run = React.useCallback(<T,>(action: () => T): T => {
     const before = stateRef.current;
@@ -373,6 +448,7 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
     // Explicit submit/navigation is allowed to retry immediately.
     if (retryTimerRef.current !== undefined) clearTimeout(retryTimerRef.current);
     retryTimerRef.current = undefined;
+    if (blockedRef.current) throw saveErrorRef.current ?? new Error('Recovered canvas draft must be exported or discarded before saving');
     saveErrorRef.current = undefined;
     while (target.some(([key, version]) => (savedVersionsRef.current.get(key) ?? 0) < version)) {
       await flushChanges();
@@ -381,6 +457,12 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
   }, [flushChanges]);
 
   const getState = React.useCallback(() => stateRef.current, []);
+  React.useLayoutEffect(() => {
+    if (!persistenceReady) return;
+    return registerCanvasPersistence(requestContext.projectId, {
+      read: getState, mutationVersion: () => mutationVersionRef.current, flush,
+    });
+  }, [requestContext, persistenceReady, getState, flush]);
   const subscribe = React.useCallback((key: string, listener: () => void) => {
     let subscribers = listeners.current.get(key);
     if (!subscribers) { subscribers = new Set(); listeners.current.set(key, subscribers); }
@@ -397,6 +479,16 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
         default-seeding effects become dirty local writes before the first GET
         resolves. Those writes can then overwrite persisted card positions.
       */}
+      {saveConflict ? <div role="alert" style={{ padding: 12, background: '#471d1d', color: '#fff' }}>
+        <span>{cr().compatSaveFail}: {saveConflict}</span>{' '}
+        <Button onClick={() => {
+          const content = localStorage.getItem(draftKey) || JSON.stringify({ state: stateRef.current }, null, 2);
+          const url = URL.createObjectURL(new Blob([content], { type: 'application/json' }));
+          const link = document.createElement('a'); link.href = url; link.download = 'canvas-unsaved-draft.json'; link.click();
+          window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }}>Export draft</Button>{' '}
+        <Button onClick={() => { localStorage.removeItem(draftKey); window.location.reload(); }}>Discard draft</Button>
+      </div> : null}
       {hydrated ? children : null}
     </CanvasContext.Provider></CanvasIdleWorkContext.Provider>
   );

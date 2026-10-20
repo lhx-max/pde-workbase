@@ -411,6 +411,8 @@ export type WorkbenchCardData = {
 };
 
 export type FlowCanvasApi = {
+  /** Read current React Flow selection; never infer selection from mounted DOM. */
+  getSelectedNodeIds: () => string[];
   zoomIn: () => void;
   zoomOut: () => void;
   zoomTo: (scale: number) => void;

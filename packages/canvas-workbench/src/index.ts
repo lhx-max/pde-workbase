@@ -7,6 +7,9 @@
 
 export { CanvasWorkbenchSurface, default } from './CanvasWorkbenchSurface';
 export { createCanvasTaskSubmitter } from './platform/task-client';
+export { awaitCanvasGenerationBinding, flushCanvasForProject } from './platform/canvas-persistence';
+export { readCanvasSelection } from './platform/object-bridge';
+export { overrideCanvasTextDeliveryInstruction } from './platform/canvas-text-delivery-instruction';
 export type { CanvasTaskClientOptions } from './platform/task-client';
 export type { CanvasHostContext, CanvasTransport } from './platform/api-base';
 export { localizeDaemonMessage } from './locales/daemon-messages';

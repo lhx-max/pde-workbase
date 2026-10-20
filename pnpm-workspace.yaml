@@ -3,6 +3,7 @@ packages:
   - apps/*
   - tools/*
   - e2e
+  - functions/*
 
 overrides:
   '@tiptap/extension-bubble-menu': 3.30.0
@@ -17,6 +18,54 @@ overrides:
   qs: 6.15.2
   tmp: 0.2.7
   yaml: 2.9.0
+
+# These React-typed facades omit a type peer. Without one, pnpm's shared
+# @types hoist lets MF's React19 declarations leak into the React18 canvas.
+# Pin per facade; never override React globally or alias runtime imports to .d.ts.
+packageExtensions:
+  '@xyflow/react@12.8.5':
+    peerDependencies:
+      '@types/react': '18.3.28'
+  'lucide-react@0.468.0':
+    peerDependencies:
+      '@types/react': '18.3.28'
+  'motion@12.40.0':
+    peerDependencies:
+      '@types/react': '18.3.28'
+      '@types/react-dom': '18.3.7'
+  # motion's ^12.40.0 dependency currently resolves to 12.43.0; cover that facade too.
+  'framer-motion@^12.40.0':
+    peerDependencies:
+      '@types/react': '18.3.28'
+      '@types/react-dom': '18.3.7'
+  'next@16.2.6':
+    peerDependencies:
+      '@types/react': '18.3.28'
+      '@types/react-dom': '18.3.7'
+  '@excalidraw/excalidraw@0.18.1':
+    peerDependencies:
+      '@types/react': '18.3.28'
+      '@types/react-dom': '18.3.7'
+  '@base-ui-components/react@1.0.0-rc.0':
+    peerDependencies:
+      '@types/react': '18.3.28'
+  '@base-ui-components/utils@0.2.2':
+    peerDependencies:
+      '@types/react': '18.3.28'
+  '@tiptap/react@3.30.0':
+    peerDependencies:
+      '@types/react': '18.3.28'
+      '@types/react-dom': '18.3.7'
+  '@ks-kp/agent-ui@0.1.5-beta.18':
+    peerDependencies:
+      '@types/react': '19.2.7'
+      '@types/react-dom': '19.2.3'
+  'antd@6.3.2':
+    peerDependencies:
+      '@types/react': '19.2.7'
+  '@ant-design/x@2.3.0':
+    peerDependencies:
+      '@types/react': '19.2.7'
 
 onlyBuiltDependencies:
   - better-sqlite3

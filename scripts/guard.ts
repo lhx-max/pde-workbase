@@ -26,14 +26,20 @@ for (const { file, value } of manifests) {
   for (const [name, spec] of Object.entries({ ...value.dependencies, ...value.devDependencies, ...value.peerDependencies })) {
     if (spec.startsWith('workspace:') && !names.has(name)) errors.push(`${file}: unresolved workspace dependency ${name}`);
     if (/^(?:link:|file:)/.test(spec)) errors.push(`${file}: nonportable local dependency ${name}`);
+    if ((name === '@ks-kp/agent-ui' || name === '@canvas/mf-ui') && file !== 'apps/mf-ui/package.json') errors.push(`${file}: MF SDK must stay inside its isolated document`);
+    if (file === 'apps/mf-ui/package.json' && /^(?:@bezier\/(?:components|canvas-workbench|workbench-ui)|@canvas-workspace\/web)$/.test(name)) errors.push(`${file}: React18 UI dependency crosses the MF document boundary`);
   }
+}
+for (const [file, version] of [['apps/web/package.json', '18.3.1'], ['apps/mf-ui/package.json', '19.2.3']] as const) {
+  const dependencies = manifests.find(item => item.file === file)?.value.dependencies;
+  if (dependencies?.react !== version || dependencies?.['react-dom'] !== version) errors.push(`${file}: expected an explicitly paired React/ReactDOM ${version} runtime`);
 }
 const rootManifest = manifests.find(item => item.file === 'package.json')!.value;
 for (const name of ['dev', 'dev:all', 'start', 'preview', 'daemon', 'build', 'test']) {
   if (rootManifest.scripts?.[name]) errors.push(`package.json: root ${name} alias violates package/tool command ownership`);
 }
 // The original asset-library renderer is allowed for the user-approved local source;
-// chat and the original team/account product are still outside this repository.
+// the original chat/team/account runtime remains excluded. MF is a separate-origin React19 document.
 const bannedApps = /(?:^|\/)(?:ChatPane|ChatComposer|ChatInput|AssistantMessage|SideChatTab|HomeDashboard|TeamWorkbench)\.(?:tsx?|jsx?)$/;
 const javascriptCompatibility = new Set(['packages/contracts/esbuild.config.mjs', 'packages/host/esbuild.config.mjs']);
 for (const file of files) {
@@ -45,6 +51,9 @@ for (const file of files) {
   const imports = ts.preProcessFile(source, true, true).importedFiles;
   for (const item of imports) {
     const specifier = item.fileName;
+    if (/^@ks-kp\/agent-ui(?:\/|$)/.test(specifier) && !file.startsWith('apps/mf-ui/')) errors.push(`${file}: MF SDK import crosses the isolated React19 document boundary`);
+    if (file.startsWith('apps/mf-ui/src/') && /^(?:@bezier\/(?:components|canvas-workbench|workbench-ui)|@canvas-workspace\/web)(?:\/|$)/.test(specifier)) errors.push(`${file}: React18 component import inside MF document`);
+    if (file === 'packages/mf-bridge/src/index.ts' && /^(?:node:|\.\/node-upgrade)/.test(specifier)) errors.push(`${file}: Node upgrade transport must not enter browser RPC exports`);
     if (specifier.includes('/apps/daemon/') || /^@bezier\/(?:daemon|sidecar|sidecar-proto|platform|personal-assets)$/.test(specifier)) errors.push(`${file}: excluded product dependency ${specifier}`);
     if (/^(?:\/Users\/|\/home\/|[A-Za-z]:\\)/.test(specifier)) errors.push(`${file}: absolute runtime import ${specifier}`);
     if (specifier.startsWith('.')) {

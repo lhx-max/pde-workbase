@@ -27,17 +27,6 @@ describe('shared canvas persistence routes', () => {
           ? [{ id: 'event-1', type: 'canvas.node.created', summary: 'Canvas card created' }]
           : [],
       } as unknown as ProjectLedger,
-      workflowResults: {
-        list: () => [],
-        get: (id: string) => id === 'foreign'
-          ? { artifact: {
-              id: 'foreign', projectId: 'another-project', workflowRunId: 'foreign-run',
-              resultDefinitionId: 'result', sourceStepRunId: 'foreign-step', version: 1,
-              title: 'Foreign result', shape: 'document', renderer: 'structured',
-              capabilities: [], actions: [], createdAt: '2026-09-08T10:00:00.000Z',
-            } }
-          : null,
-      } as any,
       authorizeToolRequest: () => ({ projectId: 'project' } as ToolTokenGrant),
       authorizeProjectRequest: async (_req, res, _id, options) => {
         if (denyWrite && options.mode === 'write') { res.status(403).json({ error: 'denied' }); return false; }

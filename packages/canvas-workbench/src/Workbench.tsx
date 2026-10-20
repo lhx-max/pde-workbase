@@ -75,6 +75,7 @@ import {
   shareCanvasTextForDuplicate,
 } from './workbench/model/canvas-text-files';
 import { registerCanvasObjects, canvasObjectReference } from './platform/object-bridge';
+import { acceptsCanvasGenerationPatch } from './workbench/canvas-generation-patch';
 import {
   isCanvasArtifactFile,
   projectFileArtifactDescriptor,
@@ -720,6 +721,7 @@ function FlowHome({
   const canvasHostRef = React.useRef<HTMLElement | null>(null);
   const flowApiRef = React.useRef<FlowCanvasApi | null>(null);
   React.useEffect(() => registerCanvasObjects(getCanvasHostContext().projectId, {
+    selectedNodeIds: () => flowApiRef.current?.getSelectedNodeIds() ?? [],
     preview: nodeId => {
       const node = basicNodes.find(value => value.id === nodeId);
       if (!node) return null;
@@ -728,8 +730,8 @@ function FlowHome({
         format: node.artifactFormat, revision: node.generation?.requestId,
         shots: node.storyboard?.shots.slice(0, 3).map(shot => shot.description.slice(0, 100)) };
     },
-    fail: (nodeId, requestId, error) => setBasicNodes(nodes => nodes.map(node => node.id === nodeId && node.generation?.requestId === requestId
-      ? { ...node, generation: { ...node.generation, status: 'failed', error } } : node)),
+    fail: (nodeId, requestId, error) => setBasicNodes(nodes => nodes.map(node => node.id === nodeId && acceptsCanvasGenerationPatch(node.generation, { requestId, status: 'failed' })
+      ? { ...node, generation: { ...node.generation, requestId, status: 'failed', error } } : node)),
     read: nodeId => {
       const node = basicNodes.find(value => value.id === nodeId);
       return node && (node.kind === 'text' || node.kind === 'page') ? canvasObjectReference(getCanvasHostContext().projectId, node, 'reference') : null;
@@ -1862,6 +1864,8 @@ function FlowHome({
 
   function patchBasicNode(id: string, patch: Partial<CanvasBasicNode>) {
     const apply = () => {
+      const current = basicNodesRef.current.find(item => item.id === id);
+      if (!acceptsCanvasGenerationPatch(current?.generation, patch.generation)) return;
       const safePatch = canvasTextPatchWithCopyOnWrite(basicNodesRef.current, id, patch);
       const next = basicNodesRef.current.map(item => (item.id === id ? { ...item, ...safePatch } : item));
       basicNodesRef.current = next;

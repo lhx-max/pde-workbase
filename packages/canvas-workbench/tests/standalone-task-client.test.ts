@@ -131,12 +131,18 @@ describe('standalone task progress and durable delivery', () => {
     expect(onArtifactResult).toHaveBeenCalledWith(expect.objectContaining({ status: expected, binding: display.canvasArtifactGeneration }));
     expect(vi.getTimerCount()).toBe(0);
   });
+  it.each(['candidate_saved', 'delivery_failed', undefined] as const)('never publishes an applied artifact path without backend confirmation (%s)', async deliveryState => {
+    const { client, onArtifactResult } = harness(async () => taskResponse(receipt('succeeded', { deliveryState, result: { file: 'outputs/candidate.html' } })));
+    await client.submit('Generate', display);
+    expect(onArtifactResult).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }));
+    expect(onArtifactResult.mock.calls[0]?.[0]).not.toHaveProperty('outputPath');
+  });
   it('preserves candidate delivery receipt and does not claim it was applied', async () => {
     const candidate = receipt('succeeded', { deliveryState: 'candidate_saved', result: { content: 'Candidate text', candidatePath: 'outputs/candidate.md' } });
     const { client, onTask, onArtifactResult } = harness(async () => taskResponse(candidate));
     await client.submit('Generate', display);
     expect(onTask).toHaveBeenCalledWith(candidate, display);
-    expect(onArtifactResult).toHaveBeenCalledWith({ binding: display.canvasArtifactGeneration, status: 'succeeded', assistantMessageId: 'task-1' });
+    expect(onArtifactResult).toHaveBeenCalledWith({ binding: display.canvasArtifactGeneration, status: 'failed', assistantMessageId: 'task-1', error: 'Artifact delivery has not been confirmed' });
     expect(onArtifactResult.mock.calls[0]?.[0]).not.toHaveProperty('outputPath');
   });
   it('recovers an existing task by GET without submitting or uploading anything', async () => {

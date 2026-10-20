@@ -4,13 +4,14 @@ import { T } from '../timeouts.js';
 import path from 'node:path';
 import { stageCaptureExtension } from '../tools-dev/extension-fixture.js';
 
-export type WorkerFixtures = { runtimeTarget: RuntimeTarget; runtime: ToolsDevRuntime; runtimeEvidence: { failed: boolean } };
+export type WorkerFixtures = { runtimeTarget: RuntimeTarget; mfFixture: boolean; runtime: ToolsDevRuntime; runtimeEvidence: { failed: boolean } };
 type Fixtures = { nativePage: Page; externalExtension: { page: Page; id: string }; runtimeAttachments: void };
 export const test = base.extend<Fixtures, WorkerFixtures>({
   runtimeTarget: ['web', { option: true, scope: 'worker' }],
+  mfFixture: [false, { option: true, scope: 'worker' }],
   runtimeEvidence: [async ({}, use) => { await use({ failed: false }); }, { scope: 'worker' }],
-  runtime: [async ({ runtimeTarget, runtimeEvidence }, use, workerInfo) => {
-    const runtime = await startToolsDev({ target: runtimeTarget, label: `${runtimeTarget}-worker-${workerInfo.workerIndex}` });
+  runtime: [async ({ runtimeTarget, runtimeEvidence, mfFixture }, use, workerInfo) => {
+    const runtime = await startToolsDev({ target: runtimeTarget, mfFixture, label: `${runtimeTarget}-worker-${workerInfo.workerIndex}` });
     try { await use(runtime); } finally { await runtime.dispose({ preserve: runtimeEvidence.failed }); }
   }, { scope: 'worker', timeout: T.xlong + T.long }],
   baseURL: async ({ runtime }, use) => { await use(runtime.webUrl); },

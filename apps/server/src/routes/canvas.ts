@@ -1,21 +1,16 @@
+import { canvasOperationsJsonSchema, canvasOperationSchema, CANVAS_CARD_KINDS } from '@bezier/contracts';
 import type { Express, RequestHandler } from 'express';
 import type { CanvasNodeHistoryResponse, CanvasContextSummaryResponse } from '@bezier/contracts';
 import type { CanvasStateService } from '../canvas/state.js';
 import { CanvasStateError } from '../canvas/errors.js';
 import type { ProjectLedger } from '../project-ledger/service.js';
-import type { WorkflowResultArtifact } from '@bezier/contracts';
 type ToolTokenGrant = { projectId: string };
-interface WorkflowResultService {
-  list(input: {projectId: string}): WorkflowResultArtifact[];
-  get(id: string): {artifact: WorkflowResultArtifact} | null | undefined;
-}
-import { recordCanvasNodeReconciliation, workflowResultCanvasNode } from '../canvas/context.js';
+import { recordCanvasNodeReconciliation } from '../canvas/context.js';
 import { canvasStateRelativePath } from '../project-layout.js';
 
 export interface RegisterCanvasStateRoutesDeps {
   canvasState?: CanvasStateService;
   ledger?: ProjectLedger;
-  workflowResults?: WorkflowResultService;
   resolveProjectRoot?: (projectId: string) => string | null | Promise<string | null>;
   authorizeProjectRequest?: (req: Parameters<RequestHandler>[0], res: Parameters<RequestHandler>[1], projectId: string, options: { mode: 'read' } | { mode: 'write'; capability: 'writeFiles' }) => Promise<boolean>;
   authorizeToolRequest?: (req: Parameters<RequestHandler>[0], res: Parameters<RequestHandler>[1], operation: string) => ToolTokenGrant | null;
@@ -25,6 +20,39 @@ export function registerCanvasStateRoutes(
   app: Express,
   deps: RegisterCanvasStateRoutesDeps,
 ): void {
+  app.get<{ projectId: string }>('/api/projects/:projectId/canvas/capabilities', async (req, res) => {
+    try {
+      if (!deps.canvasState) throw new CanvasStateError(503, 'CANVAS_CAPABILITY_UNAVAILABLE', 'canvas state is unavailable');
+      if (deps.authorizeProjectRequest && !await deps.authorizeProjectRequest(req, res, req.params.projectId, { mode: 'read' })) return;
+      await deps.canvasState.revision(req.params.projectId);
+      res.json({ protocolVersion: 1, nodeKinds: CANVAS_CARD_KINDS, scope: 'ordinary card content operations require ungrouped cards; relations/layout supports organization groups; clip, workflow-owned cards and attached storyboard children require dedicated adapters',
+        operations: canvasOperationSchema.options.map(option => option.shape.type.value),
+        storyboard: {shots:['add','update','move','duplicate','delete','references'], maxShots:50, assetReferences:'existing storyboard-owned or unowned assets; kind and variant checked'},
+        video: {formats:['mp4'],generate:`/api/projects/${encodeURIComponent(req.params.projectId)}/media/generate`,tasks:`/api/projects/${encodeURIComponent(req.params.projectId)}/media/tasks`,export:`/api/projects/${encodeURIComponent(req.params.projectId)}/files/:path`},
+        sketch: { formats: [1,2], edit: 'sketch.update (expectedPath, expectedContent)', read: 'GET /api/projects/:id/files/:path', export: { json: 'GET /api/projects/:id/files/:path', png: 'browser editor' } },
+        relationsLayout: { operations: ['group.create','group.rename','group.add','group.remove','group.dissolve','group.move','layout.arrange'], scope: 'ordinary cards and organization groups; excludes nested, legacy image groups and business-owned cards', layoutModes: ['left','center-x','right','top','center-y','bottom','distribute-x','distribute-y','row','column','grid','flow'], coordinates: 'world', groupPadding: 16 },
+        document: {edit:'POST /api/projects/:id/files (project-file upload)',versions:'GET /api/projects/:id/files/:path/versions',generate:'POST /api/projects/:id/agent/tasks (requires configured agent adapter)',export:{html:'GET /api/projects/:id/files/:path'},renderedExportsRequire:'desktop-renderer',renderedExports:'unavailable'},
+        image: { transforms:['crop','rotate'], source:deps.canvasState.hasOperationImageAssets?['project-file','personal-asset-version']:['project-file'], assetVersionSource:deps.canvasState.hasOperationImageAssets?'available':'unavailable until asset library adapter is attached',
+          generate:`/api/projects/${encodeURIComponent(req.params.projectId)}/media/generate`, models:'/api/media/models', tasks:`/api/projects/${encodeURIComponent(req.params.projectId)}/media/tasks`,
+          saveAsset:'/api/asset-library/upload', export:`/api/projects/${encodeURIComponent(req.params.projectId)}/files/:path` },
+        requestSchema: canvasOperationsJsonSchema, requiresBaseRevision: true, maxBatchSize: 100, execution: 'synchronous', storageConcurrency: 'single-server' });
+    } catch (error) { sendCanvasError(res, error); }
+  });
+  app.post<{ projectId: string }>('/api/projects/:projectId/canvas/operations', async (req, res) => {
+    try {
+      if (!deps.canvasState) throw new CanvasStateError(503, 'CANVAS_CAPABILITY_UNAVAILABLE', 'canvas state is unavailable');
+      if (deps.authorizeProjectRequest && !await deps.authorizeProjectRequest(req, res, req.params.projectId, { mode: 'write', capability: 'writeFiles' })) return;
+      res.json(await deps.canvasState.applyOperations(req.params.projectId, req.body));
+    } catch (error) { sendCanvasError(res, error); }
+  });
+  app.get<{ projectId: string; operationId: string }>('/api/projects/:projectId/canvas/operations/:operationId', async (req, res) => {
+    try {
+      if (!deps.canvasState) throw new CanvasStateError(503, 'CANVAS_CAPABILITY_UNAVAILABLE', 'canvas state is unavailable');
+      if (deps.authorizeProjectRequest && !await deps.authorizeProjectRequest(req, res, req.params.projectId, { mode: 'read' })) return;
+      res.json({ receipt: await deps.canvasState.operation(req.params.projectId, req.params.operationId) });
+    } catch (error) { sendCanvasError(res, error); }
+  });
+
   app.get<{ projectId: string }>('/api/projects/:projectId/canvas/state', async (req, res) => {
     try {
       if (!deps.canvasState) throw new CanvasStateError(503, 'CANVAS_CAPABILITY_UNAVAILABLE', 'canvas state is unavailable');
@@ -137,7 +165,7 @@ async function sendCanvasContext(
   try {
     if (!deps.canvasState) throw new CanvasStateError(503, 'CANVAS_CAPABILITY_UNAVAILABLE', 'canvas state is unavailable');
     const response: CanvasContextSummaryResponse = {
-      summary: await deps.canvasState.context(projectId, deps.workflowResults?.list({ projectId }) ?? []),
+      summary: await deps.canvasState.context(projectId),
     };
     res.json(response);
   } catch (error) {
@@ -156,28 +184,15 @@ async function sendCanvasNodeHistory(
     if (!deps.canvasState || !deps.ledger) {
       throw new CanvasStateError(503, 'CANVAS_CAPABILITY_UNAVAILABLE', 'canvas history is unavailable');
     }
-    const workflowResultId = nodeId.startsWith('workflow-result-')
-      ? nodeId.slice('workflow-result-'.length)
-      : null;
-    const workflowArtifactCandidate = workflowResultId
-      ? deps.workflowResults?.get(workflowResultId)?.artifact
-      : undefined;
-    const workflowArtifact = workflowArtifactCandidate?.projectId === projectId
-      ? workflowArtifactCandidate
-      : undefined;
-    const node = workflowArtifact
-      ? workflowResultCanvasNode(workflowArtifact)
-      : await deps.canvasState.node(projectId, nodeId);
-    let events = workflowResultId
-      ? deps.ledger.listEntityHistory(projectId, 'workflow_result', workflowResultId, limit)
-      : deps.ledger.listEntityHistory(
-          projectId,
-          'canvas_node',
-          nodeId,
-          limit,
-          { correlationIds: node?.taskIds ?? [], fileNames: node?.outputPaths ?? [] },
-        );
-    if (node && !workflowResultId && events.length === 0) {
+    const node = await deps.canvasState.node(projectId, nodeId);
+    let events = deps.ledger.listEntityHistory(
+      projectId,
+      'canvas_node',
+      nodeId,
+      limit,
+      { correlationIds: node?.taskIds ?? [], fileNames: node?.outputPaths ?? [] },
+    );
+    if (node && events.length === 0) {
       const root = await deps.resolveProjectRoot?.(projectId);
       recordCanvasNodeReconciliation(projectId, node, root ? canvasStateRelativePath(root) : undefined);
       events = deps.ledger.listEntityHistory(

@@ -3,7 +3,6 @@ import { cleanup, render, renderHook, screen, waitFor } from '@testing-library/r
 import { readSketchWorkspaceDocument } from '../src/components/sketch-model';
 import { browserPageExtractionTurn } from '../src/components/browser-page-extraction';
 import { readAssetDocument } from '../src/components/asset-document-content';
-import { useWorkflowCanvasRuns } from '../src/components/workspace/use-workflow-canvas-runs';
 import { assetInspectorCopy } from '../src/i18n/locales/asset-inspector-copy';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider, tForLanguageTag } from '../src/i18n';
@@ -31,11 +30,6 @@ describe('deep first-party Chinese messages', () => {
     const zh = tForLanguageTag('zh-CN')!;
     await expect(readAssetDocument('/broken', new AbortController().signal, en)).rejects.toThrow(en('asset.doc.previewFailed'));
     await expect(readAssetDocument('/broken', new AbortController().signal, zh)).rejects.toThrow(zh('asset.doc.previewFailed'));
-  });
-  it('uses an explicit English provider for workflow synchronization errors', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 500 })));
-    const { result } = renderHook(() => useWorkflowCanvasRuns('project', null), { wrapper: ({ children }) => <I18nProvider initial="en">{children}</I18nProvider> });
-    await waitFor(() => expect(result.current.error).toBe(assetInspectorCopy('en').syncFailed));
   });
   it('localizes source patch failures while retaining target identity and the original source', () => {
     const source = '<html><body><p data-bezier-id="a">User text</p></body></html>';

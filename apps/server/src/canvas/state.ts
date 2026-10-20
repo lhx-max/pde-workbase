@@ -1,27 +1,32 @@
-import { workflowFileVersions } from '../workflows/artifact-versions.js';
-import { workflowDeliveryOutput } from './workflow-delivery-output.js';
-import { workflowDeliveryFiles } from './workflow-delivery-files.js';
-import { canvasImageModelId, canvasTextPath, isCanvasTextPath, type ArtifactGenerationConfig, type ArtifactImageOptions } from '@bezier/contracts';
+import { canvasImageModelId, canvasTextPath, isCanvasTextPath, canvasOperationsRequestSchema, type CanvasOperationReceipt, type CanvasOperationsResponse } from '@bezier/contracts';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { canvasStateRelativePath, assertProjectPathHasNoSymlinks } from '../project-layout.js';
 import { mkdir, readFile, realpath, rename, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import type { ArtifactDescriptor, ProjectFile, ResultRenderer, WorkflowResultArtifact } from '@bezier/contracts';
 import { canvasArtifactProjection, withCanvasResultHistory, parseStoryboardGenerationResult, type StoryboardGenerationDefaults, type ReportStoryboardRequirements } from '@bezier/contracts';
 
 import { CanvasStateError } from './errors.js';
-import { publishCanvasArtifactCandidate, saveCanvasArtifactCandidate, type CanvasArtifactWorkspace } from './artifact-workspace.js';
 import {
   findCanvasNodeSummary,
-  includeWorkflowResults,
   recordCanvasStateChanges,
   renderCanvasContextPrompt,
   summarizeCanvasState,
 } from './context.js';
 import { ProjectSerialLock } from '../storage/project-serial-lock.js';
+import { applyCanvasOperations, assertCanvasMerge, assertCanvasReferences, records, type StoredCanvasOperation } from './operations.js';
+import { canonical, equal, mergeCanvasValue as mergeOperationValue } from './merge.js';
+import { prepareCanvasImage } from './image-operations.js';
+import { prepareCanvasDocument } from './document-operations.js';
+import { prepareCanvasSketch, prepareCanvasVideo } from '@bezier/canvas-core';
+import { ProjectSketchStore } from '../storage/canvas-sketches.js';
+import { ProjectVideoStore } from '../storage/canvas-videos.js';
+import { reconcileTextOperationReferences } from './text-operation-references.js';
+import type { AssetLibraryAdapter } from '../asset-library/service.js';
 import { recordProjectLedgerObservation } from '../project-ledger/active-recorder.js';
+import { FileCanvasContent, FileCanvasPersistence, normalizeSafeProjectFilePath, type CanvasFileContent, type CanvasPersistence, type CanvasStoredBlob } from './persistence.js';
+import type { CanvasItem, ImageOperation, DocumentOperation, SketchOperation, VideoOperation } from '@bezier/canvas-core';
 type ResolveCanvasProjectRoot = (projectId: string) => string | null | Promise<string | null>;
 
 /**
@@ -48,47 +53,6 @@ export interface CanvasPatchOptions {
   expectedRevision?: number;
   /** Previous values for changed keys, enabling a lossless three-way merge. */
   base?: CanvasState;
-}
-
-export type WorkflowCanvasArtifactKind = import('@bezier/contracts').WorkflowArtifactKind;
-
-export interface WorkflowCanvasArtifactInput {
-  workflowRunId: string;
-  stepRunId: string;
-  nodeId: string;
-  /** Agent step that produced the content consumed by this delivery step. */
-  sourceAgentStepRunId?: string;
-  sourceResultId?: string;
-  /** Selected child items on the source result card. */
-  sourceItemIds?: string[];
-  kind: WorkflowCanvasArtifactKind;
-  title: string;
-  content: string;
-  /** Automatic delivery must contain real artifacts, not a generation draft. */
-  requireArtifact?: boolean;
-  generation?: ArtifactGenerationConfig;
-  /** Legacy workflow payload retained for idempotent recovery of older runs. */
-  image?: ArtifactImageOptions;
-}
-
-export interface WorkflowCanvasArtifactResult {
-  content?: string;
-  files?: import('@bezier/contracts').WorkflowArtifactFile[];
-  canvasNodeId: string;
-  kind: WorkflowCanvasArtifactKind;
-  revision: number;
-}
-
-export interface TaskCanvasArtifactInput {
-  taskId: string;
-  file: ProjectFile;
-}
-
-export interface TaskCanvasArtifactResult {
-  canvasNodeId: string;
-  projectFilePath: string;
-  created: boolean;
-  revision: number;
 }
 
 /** Remap card paths and edge-derived inputs without touching frozen uploaded snapshots. */
@@ -120,35 +84,55 @@ interface StoredCanvasState {
   projectId: string;
   updatedAt: string;
   state: CanvasState;
+  revision?: number;
+  operations?: Record<string, StoredCanvasOperation>;
 }
+
+/** Side-effect handlers for asset-touching operations, bound per commit. */
+export interface CanvasEffects {
+  image: (op: ImageOperation, node?: CanvasItem) => Promise<CanvasItem>;
+  document: (op: DocumentOperation, node?: CanvasItem) => Promise<CanvasItem>;
+  sketch: (op: SketchOperation, node?: CanvasItem) => Promise<CanvasItem>;
+  video: (op: VideoOperation, node?: CanvasItem) => Promise<CanvasItem>;
+}
+export type CanvasEffectsFactory = (projectId: string, operationId: string) => CanvasEffects | Promise<CanvasEffects>;
 
 export class CanvasStateService {
   private readonly lock = new ProjectSerialLock();
+  private readonly persistence: CanvasPersistence;
+  private readonly content: CanvasFileContent;
+  private readonly effectsFactory: CanvasEffectsFactory | undefined;
 
+  private readonly imageAssets: AssetLibraryAdapter | undefined;
   constructor(private readonly resolveProjectRoot: ResolveCanvasProjectRoot,
-    private readonly readUsage?: (projectId: string) => import('@bezier/contracts').CanvasContextSummary['recentUsage']) {}
+    private readonly readUsage?: (projectId: string) => import('@bezier/contracts').CanvasContextSummary['recentUsage'],
+    imageAssets?: AssetLibraryAdapter,
+    storage?: { persistence?: CanvasPersistence; content?: CanvasFileContent; effects?: CanvasEffectsFactory }) {
+    this.imageAssets = imageAssets;
+    this.persistence = storage?.persistence ?? new FileCanvasPersistence(resolveProjectRoot);
+    this.content = storage?.content ?? new FileCanvasContent(resolveProjectRoot);
+    this.effectsFactory = storage?.effects;
+  }
+  get hasOperationImageAssets(): boolean { return Boolean(this.imageAssets); }
 
   async read(projectId: string): Promise<CanvasStateSnapshot> {
-    const file = await this.stateFile(projectId);
-    return this.readSnapshot(file);
+    const stored = await this.persistence.load(projectId);
+    return { state: stored.state, revision: stored.revision };
   }
 
   async revision(projectId: string): Promise<number> {
-    const file = await this.stateFile(projectId);
-    return this.readRevision(file);
+    return (await this.persistence.load(projectId)).revision;
   }
 
   /** Media delivery shares the exact serialization boundary with canvas edits. */
   async updateMediaState(projectId: string, update: (state: CanvasState) => CanvasState): Promise<CanvasStateSnapshot> {
-    const file = await this.stateFile(projectId);
     return this.lock.run(projectId, async () => {
-      const current = await this.readSnapshot(file);
+      const current = await this.persistence.load(projectId);
       const next = update(current.state);
-      if (next === current.state) return current;
-      await mkdir(path.dirname(file), { recursive: true });
-      await atomicWrite(file, `${JSON.stringify({ version: 1, projectId, updatedAt: new Date().toISOString(), state: next }, null, 2)}\n`);
-      const revision = await this.readRevision(file);
-      recordCanvasStateChanges(projectId, current.state, next, revision, path.relative(path.dirname(path.dirname(file)), file));
+      if (next === current.state) return { state: current.state, revision: current.revision };
+      const revision = Math.max(current.revision + 1, Date.now());
+      await this.persistence.commit(projectId, { ...current, state: next, revision });
+      recordCanvasStateChanges(projectId, current.state, next, revision, await this.persistence.describe(projectId));
       return { state: next, revision };
     });
   }
@@ -176,30 +160,31 @@ export class CanvasStateService {
   }
 
   /** Publish a saved candidate on its original card without adopting it. */
-  async linkTextCandidate(projectId: string, input: { nodeId: string; requestId: string; runId: string; content: string }): Promise<CanvasStateSnapshot> {
-    const file = await this.stateFile(projectId);
+  async linkTextCandidate(projectId: string, input: { nodeId: string; requestId: string; runId: string; content: string; baseDigest?:string }): Promise<CanvasStateSnapshot> {
     return this.lock.run(projectId, async () => {
-      const current = await this.readSnapshot(file);
+      const current = await this.persistence.load(projectId);
       const nodes = arrayRecords(current.state.workbenchBasicNodes);
       const node = nodes.find(item => item.id === input.nodeId && item.kind === 'text');
       if (!node) throw new CanvasStateError(404, 'CANVAS_NODE_NOT_FOUND', '原文本卡已不存在，候选仍保留');
       const generation = recordValue(node.generation);
-      if (generation.appliedRequestId === input.requestId) return current;
+      if (generation.appliedRequestId === input.requestId) return { state: current.state, revision: current.revision };
       if (generation.requestId !== input.requestId) throw new CanvasStateError(409, 'CANVAS_TEXT_CONFLICT', '当前任务已改变，候选仍保留');
-      if (generation.candidateText === input.content && generation.runId === input.runId && generation.status === 'succeeded') return current;
+      if (generation.candidateText === input.content && generation.runId === input.runId && generation.status === 'succeeded') return { state: current.state, revision: current.revision };
+      if (input.baseDigest && input.baseDigest !== `sha256:${createHash('sha256').update(typeof node.text === 'string' ? node.text : '').digest('hex')}`) {
+        throw new CanvasStateError(409, 'MF_TARGET_STALE', 'MF text target changed; candidate linking rejected');
+      }
       const nextNode = { ...node, generation: { ...generation, status: 'succeeded', candidateText: input.content, runId: input.runId, error: undefined } };
       const next = { ...current.state, workbenchBasicNodes: nodes.map(item => item.id === input.nodeId ? nextNode : item) };
-      await atomicWrite(file, `${JSON.stringify({ version: 1, projectId, updatedAt: new Date().toISOString(), state: next }, null, 2)}\n`);
-      const revision = await this.readRevision(file);
-      recordCanvasStateChanges(projectId, current.state, next, revision, path.relative(path.dirname(path.dirname(file)), file));
+      const revision = Math.max(current.revision + 1, Date.now());
+      await this.persistence.commit(projectId, { ...current, state: next, revision });
+      recordCanvasStateChanges(projectId, current.state, next, revision, await this.persistence.describe(projectId));
       return { state: next, revision };
     });
   }
 
   async failTextDelivery(projectId: string, input: { nodeId: string; requestId: string; runId: string; error: string }): Promise<void> {
-    const file = await this.stateFile(projectId);
     await this.lock.run(projectId, async () => {
-      const current = await this.readSnapshot(file);
+      const current = await this.persistence.load(projectId);
       const nodes = arrayRecords(current.state.workbenchBasicNodes);
       const node = nodes.find(item => item.id === input.nodeId);
       if (!node) return;
@@ -207,21 +192,21 @@ export class CanvasStateService {
       if (generation.requestId !== input.requestId || generation.appliedRequestId === input.requestId) return;
       const next = { ...current.state, workbenchBasicNodes: nodes.map(item => item.id === input.nodeId
         ? { ...item, generation: { ...generation, runId: input.runId, status: 'failed', error: input.error } } : item) };
-      await atomicWrite(file, `${JSON.stringify({ version: 1, projectId, updatedAt: new Date().toISOString(), state: next }, null, 2)}\n`);
-      recordCanvasStateChanges(projectId, current.state, next, await this.readRevision(file), path.relative(path.dirname(path.dirname(file)), file));
+      const revision = Math.max(current.revision + 1, Date.now());
+      await this.persistence.commit(projectId, { ...current, state: next, revision });
+      recordCanvasStateChanges(projectId, current.state, next, revision, await this.persistence.describe(projectId));
     });
   }
 
   /** Backend delivery survives closing chat; a changed/deleted target is never recreated. */
   async applyStoryboardCandidate(projectId: string, input: { nodeId: string; requestId: string; runId: string; content: string }): Promise<CanvasStateSnapshot> {
-    const file = await this.stateFile(projectId);
     return this.lock.run(projectId, async () => {
-      const current = await this.readSnapshot(file);
+      const current = await this.persistence.load(projectId);
       const nodes = arrayRecords(current.state.workbenchBasicNodes);
       const node = nodes.find(item => item.id === input.nodeId && item.kind === 'storyboard');
       if (!node) throw new CanvasStateError(404, 'CANVAS_NODE_NOT_FOUND', '原分镜卡已不存在，候选仍保留');
       const generation = recordValue(node.generation);
-      if (generation.appliedRequestId === input.requestId) return current;
+      if (generation.appliedRequestId === input.requestId) return { state: current.state, revision: current.revision };
       if (generation.requestId !== input.requestId
         || typeof generation.baseStoryboard !== 'string'
         || generation.baseStoryboard !== JSON.stringify(node.storyboard ?? null)) {
@@ -235,9 +220,9 @@ export class CanvasStateService {
         generation: { ...generation, status: 'succeeded', runId: input.runId, appliedRequestId: input.requestId, error: undefined },
       }, ['storyboard']);
       const next = { ...current.state, workbenchBasicNodes: nodes.map(item => item.id === input.nodeId ? nextNode : item) };
-      await atomicWrite(file, `${JSON.stringify({ version: 1, projectId, updatedAt: new Date().toISOString(), state: next }, null, 2)}\n`);
-      const revision = await this.readRevision(file);
-      recordCanvasStateChanges(projectId, current.state, next, revision, path.relative(path.dirname(path.dirname(file)), file));
+      const revision = Math.max(current.revision + 1, Date.now());
+      await this.persistence.commit(projectId, { ...current, state: next, revision });
+      recordCanvasStateChanges(projectId, current.state, next, revision, await this.persistence.describe(projectId));
       return { state: next, revision };
     });
   }
@@ -245,14 +230,13 @@ export class CanvasStateService {
   /** Adopt an existing answer, never execute the model. Compare inside the canvas lock. */
   async applyTextCandidate(projectId: string, input: { nodeId: string; requestId: string; baseDigest: string; content: string }): Promise<CanvasStateSnapshot> {
     if (!/^[A-Za-z0-9_-]+$/u.test(input.nodeId) || !input.content.trim()) throw new CanvasStateError(400, 'CANVAS_INVALID_INPUT', '无效的文本候选');
-    const file = await this.stateFile(projectId);
     return this.lock.run(projectId, async () => {
-      const current = await this.readSnapshot(file);
+      const current = await this.persistence.load(projectId);
       const nodes = arrayRecords(current.state.workbenchBasicNodes);
       const node = nodes.find(item => item.id === input.nodeId && item.kind === 'text');
       if (!node) throw new CanvasStateError(404, 'CANVAS_NODE_NOT_FOUND', '原文本卡已不存在，候选仍保留');
       const generation = recordValue(node.generation);
-      if (generation.appliedRequestId === input.requestId) return current;
+      if (generation.appliedRequestId === input.requestId) return { state: current.state, revision: current.revision };
       const text = typeof node.text === 'string' ? node.text : '';
       if (`sha256:${createHash('sha256').update(text).digest('hex')}` !== input.baseDigest
         || (generation.requestId && generation.requestId !== input.requestId)) {
@@ -260,66 +244,32 @@ export class CanvasStateService {
       }
       const sourceDocumentPath = canvasTextDocumentPath(node);
       const documentPath = canvasTextCandidateTargetPath(nodes, node, input.requestId);
-      const documentFile = path.join(path.dirname(path.dirname(file)), ...sourceDocumentPath.split('/'));
-      try {
-        const stored = await readFile(documentFile, 'utf8');
-        // The candidate value is also accepted to recover an interrupted two-file save.
-        if (stored !== text && stored !== input.content) throw new CanvasStateError(409, 'CANVAS_TEXT_CONFLICT', '项目文档已修改，未覆盖');
-      } catch (error) { if (!isMissing(error)) throw error; }
+      const stored = await this.content.read(projectId, sourceDocumentPath);
+      // The candidate value is also accepted to recover an interrupted two-file save.
+      if (stored !== null && stored !== text && stored !== input.content) throw new CanvasStateError(409, 'CANVAS_TEXT_CONFLICT', '项目文档已修改，未覆盖');
       const nextNode = withCanvasResultHistory(node, {
         text: input.content,
         projectFilePath: documentPath,
         generation: { requestId: input.requestId, status: 'succeeded', appliedRequestId: input.requestId },
       }, documentPath === sourceDocumentPath ? ['text'] : ['text', 'projectFilePath']);
       const next = { ...current.state, workbenchBasicNodes: nodes.map(item => item.id === input.nodeId ? nextNode : item) };
-      await syncCanvasTextDocuments(file, [nextNode]);
-      await atomicWrite(file, `${JSON.stringify({ version: 1, projectId, updatedAt: new Date().toISOString(), state: next }, null, 2)}\n`);
-      const revision = await this.readRevision(file);
-      recordCanvasStateChanges(projectId, current.state, next, revision, path.relative(path.dirname(path.dirname(file)), file));
+      await this.syncTextDocuments(projectId, [nextNode]);
+      const revision = Math.max(current.revision + 1, Date.now());
+      await this.persistence.commit(projectId, { ...current, state: next, revision });
+      recordCanvasStateChanges(projectId, current.state, next, revision, await this.persistence.describe(projectId));
       return { state: next, revision };
     });
   }
 
-  /** Publish and bind under the same lock used by interactive canvas edits. */
-  async applyArtifactCandidate(projectId: string, workspace: CanvasArtifactWorkspace): Promise<CanvasStateSnapshot> {
-    const file = await this.stateFile(projectId);
-    if (workspace.projectRoot !== await realpath(path.dirname(path.dirname(file))) || !workspace.target) {
-      throw new CanvasStateError(400, 'CANVAS_INVALID_INPUT', '候选项目或目标不一致');
-    }
-    return this.lock.run(projectId, async () => {
-      const current = await this.readSnapshot(file);
-      const nodes = arrayRecords(current.state.workbenchBasicNodes);
-      const node = nodes.find(item => item.id === workspace.target!.nodeId);
-      if (node && recordValue(node.generation).appliedRequestId === workspace.target!.requestId
-        && node.projectFilePath === workspace.outputPath) {
-        saveCanvasArtifactCandidate(workspace);
-        return current;
-      }
-      // Conflict leaves a standalone candidate file, never a resurrected node.
-      publishCanvasArtifactCandidate(workspace);
-      if (!node) throw new CanvasStateError(404, 'CANVAS_NODE_NOT_FOUND', '目标已不存在，候选已另存');
-      const nextNode = withCanvasResultHistory(node, { projectFilePath: workspace.outputPath,
-        generation: { ...recordValue(node.generation), requestId: workspace.target!.requestId, status: 'succeeded', appliedRequestId: workspace.target!.requestId } }, ['projectFilePath']);
-      const next = { ...current.state, workbenchBasicNodes: nodes.map(item => item.id === node.id ? nextNode : item) };
-      await atomicWrite(file, `${JSON.stringify({ version: 1, projectId, updatedAt: new Date().toISOString(), state: next }, null, 2)}\n`);
-      const revision = await this.readRevision(file);
-      recordCanvasStateChanges(projectId, current.state, next, revision, path.relative(path.dirname(path.dirname(file)), file));
-      return { state: next, revision };
-    });
-  }
-
-  async context(projectId: string, workflowArtifacts: readonly WorkflowResultArtifact[] = []) {
+  async context(projectId: string) {
     const snapshot = await this.read(projectId);
-    const summary = includeWorkflowResults(
-      summarizeCanvasState(projectId, snapshot.state, snapshot.revision, Number.MAX_SAFE_INTEGER),
-      workflowArtifacts,
-    );
+    const summary = summarizeCanvasState(projectId, snapshot.state, snapshot.revision, Number.MAX_SAFE_INTEGER);
     const recentUsage = this.readUsage?.(projectId);
     return recentUsage?.length ? { ...summary, recentUsage } : summary;
   }
 
-  async contextPrompt(projectId: string, workflowArtifacts: readonly WorkflowResultArtifact[] = []): Promise<string> {
-    return renderCanvasContextPrompt(await this.context(projectId, workflowArtifacts));
+  async contextPrompt(projectId: string): Promise<string> {
+    return renderCanvasContextPrompt(await this.context(projectId));
   }
 
   async node(projectId: string, nodeId: string) {
@@ -328,12 +278,9 @@ export class CanvasStateService {
   }
 
   /**
-   * 合并写入。
-   *
-   * revision 用文件 mtime 的毫秒数，与原版语义一致（原版用 mtime_ns）：
-   * 前端只拿它做「变了没有」的比较，不要求单调自增。没有实际变化时直接
-   * 返回当前 revision 而不落盘，避免拖动结束后的重复 flush 把 revision
-   * 顶上去、触发所有客户端无谓地全量重拉。
+   * Legacy canvases use mtime; once operations introduce a persisted revision,
+   * every writer advances that revision while retaining the operation journal.
+   * Unchanged PATCHes still return without writing.
    */
   async patch(
     projectId: string,
@@ -351,9 +298,8 @@ export class CanvasStateService {
       throw new CanvasStateError(400, 'CANVAS_INVALID_INPUT', 'invalid state key');
     }
 
-    const file = await this.stateFile(projectId);
     return this.lock.run(projectId, async () => {
-      const current = await this.readSnapshot(file);
+      const current = await this.persistence.load(projectId);
       if (
         options.expectedRevision !== undefined
         && options.expectedRevision !== current.revision
@@ -368,14 +314,19 @@ export class CanvasStateService {
       let dirty = false;
       for (const [key, value] of Object.entries(changes)) {
         const hasBase = Object.prototype.hasOwnProperty.call(options.base || {}, key);
+        // An absent collection is the same empty collection observed by a new canvas.
+        // Do not turn a first insertion into a false conflict, but still reject
+        // concurrent same-ID inserts once a remote collection actually exists.
+        const remote = next[key] ?? (hasBase && Array.isArray(options.base?.[key]) ? [] : undefined);
+        if (hasBase && !sameJson(options.base?.[key], value)) assertCanvasMerge(options.base?.[key], value, remote, key);
         const merged = hasBase
-          ? mergeCanvasValue(options.base?.[key], value, next[key])
+          ? mergeCanvasValue(options.base?.[key], value, remote)
           : value;
         if (sameJson(next[key], merged)) continue;
         next[key] = merged;
         dirty = true;
       }
-      if (!dirty) return current;
+      if (!dirty) return { state: current.state, revision: current.revision };
 
       next = reconcileSketchFileReferences(next);
       if (keys.includes('workbenchBasicNodes')) {
@@ -383,569 +334,127 @@ export class CanvasStateService {
           arrayRecords(current.state.workbenchBasicNodes),
           arrayRecords(next.workbenchBasicNodes),
         );
-        await syncCanvasTextDocuments(file, arrayRecords(next.workbenchBasicNodes));
+        await this.syncTextDocuments(projectId, arrayRecords(next.workbenchBasicNodes));
       }
 
-      const payload: StoredCanvasState = {
-        version: 1,
-        projectId,
-        updatedAt: new Date().toISOString(),
-        state: next,
-      };
-      await mkdir(path.dirname(file), { recursive: true });
-      await atomicWrite(file, `${JSON.stringify(payload, null, 2)}\n`);
-      const revision = await this.readRevision(file);
-      recordCanvasStateChanges(projectId, current.state, next, revision, path.relative(path.dirname(path.dirname(file)), file));
+      const revision = Math.max(current.revision + 1, Date.now());
+      await this.persistence.commit(projectId, { ...current, state: next, revision });
+      recordCanvasStateChanges(projectId, current.state, next, revision, await this.persistence.describe(projectId));
       return { state: next, revision };
     });
   }
 
-  /**
-   * Materialize one workflow output through the same persisted canvas state
-   * consumed by the workbench. The stable id makes retries idempotent instead
-   * of duplicating cards after a network timeout.
-   */
-  async workflowFileVersions(projectId: string, value: import('@bezier/contracts').JsonValue, verifyOnly = false) {
-    const root = await this.resolveProjectRoot(projectId);
-    if (!root) throw new CanvasStateError(404, 'PROJECT_NOT_FOUND', '项目不存在');
-    return workflowFileVersions(root, value, verifyOnly);
+  /** Receipts live in the canvas document so operation replay survives process restarts. */
+  async operation(projectId: string, operationId: string): Promise<CanvasOperationReceipt> {
+    const stored = (await this.persistence.load(projectId)).operations ?? {};
+    const entry = Object.hasOwn(stored, operationId) ? stored[operationId] : undefined;
+    if (!entry) throw new CanvasStateError(404, 'CANVAS_OPERATION_NOT_FOUND', 'Operation not found');
+    return entry.receipt;
   }
 
-  async materializeWorkflowArtifact(
-    projectId: string,
-    input: WorkflowCanvasArtifactInput,
-  ): Promise<WorkflowCanvasArtifactResult> {
-    const file = await this.stateFile(projectId);
+  async applyOperations(projectId: string, input: unknown): Promise<CanvasOperationsResponse> {
+    const parsed = canvasOperationsRequestSchema.safeParse(input);
+    if (!parsed.success) throw new CanvasStateError(400, 'CANVAS_INVALID_INPUT', 'Invalid canvas operation', { issues: parsed.error.issues });
+    const request = parsed.data;
+    const fingerprint = createHash('sha256').update(canonical(request)).digest('hex');
+    const effects = await this.effects(projectId, request.operationId);
     return this.lock.run(projectId, async () => {
-      const current = await this.readSnapshot(file);
-      const canvasNodeId = workflowCanvasNodeId(input.workflowRunId, input.stepRunId);
-      const basicNodes = arrayRecords(current.state.workbenchBasicNodes);
-      const instances = arrayRecords(current.state.workbenchInstances);
-      const images = arrayRecords(current.state.workbenchImages);
-      const existingImages = images.filter(image => image.id === canvasNodeId || String(image.id).startsWith(`${canvasNodeId}-image-`));
-      const artifactProjectFilePath = input.kind === 'text'
-        ? canvasTextDocumentPath(basicNodes.find(node => node.id === canvasNodeId) ?? { id: canvasNodeId })
-        : undefined;
-      // Text cards are document-backed everywhere else in the workbench.
-      // Persist the Markdown before exposing the canvas node so a refresh or
-      // "open details" can never observe a card whose resource still 404s.
-      // Repeating this write also repairs artifacts created by older builds
-      // that only stored inline canvas text.
-      const source = {
-        workflowRunId: input.workflowRunId,
-        stepRunId: input.stepRunId,
-        nodeId: input.nodeId,
-        ...(input.sourceAgentStepRunId ? { agentStepRunId: input.sourceAgentStepRunId } : {}),
-        ...(input.sourceResultId ? { resultId: input.sourceResultId } : {}),
-        ...(input.sourceItemIds?.length
-          ? { itemIds: [...new Set(input.sourceItemIds.filter(item => Boolean(item.trim())))] }
-          : {}),
-      };
-      const existingBasicIndex = basicNodes.findIndex(node => node.id === canvasNodeId);
-      const existingInstanceIndex = instances.findIndex(node => node.id === canvasNodeId);
-      const receiptFile = path.join(path.dirname(file), 'workflow-deliveries', `${canvasNodeId}.json`);
-      const savedReceipt = await readFile(receiptFile, 'utf8').then(text => JSON.parse(text)).catch((error: NodeJS.ErrnoException) => {
-        if (error.code === 'ENOENT') return null;
-        throw error;
-      });
-      const finish = async (result: WorkflowCanvasArtifactResult): Promise<WorkflowCanvasArtifactResult> => {
-        if (!input.requireArtifact) return result;
-        const root = path.dirname(path.dirname(file));
-        const output = savedReceipt?.output ?? await workflowDeliveryOutput(root, input.kind, canvasNodeId, (await this.readSnapshot(file)).state);
-        await workflowFileVersions(root, output, true);
-        await mkdir(path.dirname(receiptFile), { recursive: true });
-        await atomicWrite(receiptFile, JSON.stringify({ canvasNodeId, workflowRunId: input.workflowRunId, stepRunId: input.stepRunId, output }));
-        return { ...result, ...output };
-      };
-      if (existingBasicIndex < 0 && existingInstanceIndex < 0 && !existingImages.length) {
-        const receipt = await readFile(receiptFile, 'utf8').catch((error: NodeJS.ErrnoException) => {
-          if (error.code === 'ENOENT') return null;
-          throw error;
+      const current = await this.persistence.load(projectId);
+      const journal = current.operations ?? {};
+      const previous = Object.hasOwn(journal, request.operationId) ? journal[request.operationId] : undefined;
+      if (previous) {
+        if (previous.fingerprint !== fingerprint) throw new CanvasStateError(409, 'CANVAS_OPERATION_ID_CONFLICT', 'Operation ID was used with different input');
+        return { ok: true, state: current.state, revision: current.revision, receipt: previous.receipt, replayed: true };
+      }
+      if (request.baseRevision !== current.revision && !request.expectedState) throw new CanvasStateError(409, 'CANVAS_REVISION_CONFLICT', 'Canvas revision changed', { actualRevision: current.revision });
+      const draft = { ...current.state, ...request.expectedState };
+      const applied = await applyCanvasOperations(draft, request.operations, journal, effects.image, effects.document, effects.sketch, effects.video);
+      for (const key of applied.keys) {
+        if (!request.expectedState || !Object.hasOwn(request.expectedState, key)) {
+          if (request.baseRevision !== current.revision) throw new CanvasStateError(409, 'CANVAS_REVISION_CONFLICT', 'Missing base state for changed collection', { field: key, actualRevision: current.revision });
+          continue;
+        }
+        const base = request.expectedState[key as keyof typeof request.expectedState];
+        assertCanvasMerge(base, applied.state[key], current.state[key] ?? [], key);
+        applied.state[key] = mergeOperationValue(base, applied.state[key], current.state[key] ?? []);
+      }
+      assertCanvasReferences(current.state, applied.state);
+      const nodeIds = new Set([...records(applied.state.workbenchBasicNodes), ...records(applied.state.workbenchImages)].map(node => node.id));
+      const oldEdges = records(current.state.workbenchEdges);
+      for (const edge of records(applied.state.workbenchEdges)) {
+        if (!oldEdges.some(old => equal(old, edge)) && (!nodeIds.has(String(edge.source)) || !nodeIds.has(String(edge.target)))) {
+          throw new CanvasStateError(409, 'CANVAS_REVISION_CONFLICT', 'Connection target was removed', { edgeId: edge.id });
+        }
+      }
+      const oldNodes = records(current.state.workbenchBasicNodes);
+      if (applied.keys.includes('workbenchBasicNodes')) {
+        applied.state.workbenchBasicNodes = records(applied.state.workbenchBasicNodes).map(node => {
+          const old = oldNodes.find(item => item.id === node.id);
+          return node.kind !== 'text' || (old && old.text === node.text)
+            ? node : { ...node, projectFilePath: canvasTextPath(`${node.id}-op-${fingerprint.slice(0, 16)}`) };
         });
-        if (receipt) throw new CanvasStateError(409, 'WORKFLOW_TARGET_REMOVED', '原结果卡已移除；已有产物保留，恢复不会重新创建这张卡');
       }
-      if (existingImages.length) return finish({ canvasNodeId, kind: input.kind, revision: current.revision });
-      if (existingBasicIndex >= 0 || existingInstanceIndex >= 0) {
-        // Reconciliation must not replace a document edited after delivery.
-        await mkdir(path.dirname(receiptFile), { recursive: true });
-        await atomicWrite(receiptFile, JSON.stringify({ canvasNodeId, workflowRunId: input.workflowRunId, stepRunId: input.stepRunId, ...(savedReceipt?.output ? { output: savedReceipt.output } : {}) }));
-        const existing = existingBasicIndex >= 0
-          ? basicNodes[existingBasicIndex]!
-          : instances[existingInstanceIndex]!;
-        if (input.kind === 'text' && artifactProjectFilePath && existing.kind === 'text') {
-          const documentFile = path.join(path.dirname(path.dirname(file)), artifactProjectFilePath);
-          try { await stat(documentFile); }
-          catch (error) {
-            if (!isMissing(error)) throw error;
-            // Repair a missing backing file from the current card, not the
-            // historical AI output, so an intervening edit stays authoritative.
-            await syncCanvasTextDocuments(file, [{ ...existing, projectFilePath: artifactProjectFilePath }]);
-          }
+      const reconciled = reconcileTextOperationReferences(reconcileSketchFileReferences(applied.state), current.state);
+      if (!equal(reconciled.workbenchBasicNodes, applied.state.workbenchBasicNodes) && !applied.keys.includes('workbenchBasicNodes')) applied.keys.push('workbenchBasicNodes');
+      applied.state = reconciled;
+      // Compatibility aliases may also update edge-derived task draft paths.
+      if (!equal(applied.state.workbenchTaskDrafts, current.state.workbenchTaskDrafts) && !applied.keys.includes('workbenchTaskDrafts')) applied.keys.push('workbenchTaskDrafts');
+      const before = Object.fromEntries(applied.keys.map(key => [key, current.state[key] ?? []]));
+      const after = Object.fromEntries(applied.keys.map(key => [key, applied.state[key] ?? []]));
+      const revision = Math.max(current.revision + 1, Date.now());
+      const receipt: CanvasOperationReceipt = { operationId: request.operationId, status: equal(before, after) ? 'noop' : 'applied', baseRevision: current.revision, revision, nodeIds: applied.nodeIds, createdAt: new Date().toISOString() };
+      // Write immutable operation-specific text snapshots before publishing the canvas;
+      // a failed batch can leave an orphan file but cannot alter the prior document.
+      if (applied.keys.includes('workbenchBasicNodes')) {
+        await this.syncTextDocuments(projectId, records(applied.state.workbenchBasicNodes).filter(node => !equal(node, oldNodes.find(item => item.id === node.id))));
+      }
+      await this.persistence.commit(projectId, { ...current, updatedAt: receipt.createdAt, state: applied.state, revision,
+        operations: { ...journal, [request.operationId]: { fingerprint, receipt, before, after } } }, request.operationId);
+      // The asset index is advisory; its immutable version binding is already in the canvas.
+      for (const node of records(applied.state.workbenchImages)) {
+        const source = node.sourceAsset as { assetId?: string; versionId?: string } | undefined;
+        const assets = this.imageAssets;
+        if (assets && source?.assetId && source.versionId && typeof node.path === 'string'
+          && !equal(node, records(current.state.workbenchImages).find(item => item.id === node.id))) {
+          try { await assets.recordUse(source.assetId, { projectId, filename: node.path, versionId: source.versionId, usedAt: Date.now() }); }
+          catch { /* The authoritative version binding remains in the canvas document. */ }
         }
-        const repairedSource = { ...recordValue(existing.source), ...source };
-        const repairedBasic = existingBasicIndex >= 0
-          ? {
-              ...existing,
-              source: repairedSource,
-              ...(artifactProjectFilePath
-                ? { projectFilePath: artifactProjectFilePath, sourceMime: 'text/markdown' }
-                : {}),
-            }
-          : existing;
-        if (
-          JSON.stringify(existing.source) === JSON.stringify(repairedSource)
-          && JSON.stringify(existing) === JSON.stringify(repairedBasic)
-        ) {
-          recordWorkflowCanvasGeneration(projectId, canvasNodeId, input);
-          return finish({ canvasNodeId, kind: input.kind, revision: current.revision });
-        }
-        const nextState: CanvasState = { ...current.state };
-        if (existingBasicIndex >= 0) {
-          nextState.workbenchBasicNodes = basicNodes.map((node, index) => (
-            index === existingBasicIndex ? repairedBasic : node
-          ));
-        } else {
-          nextState.workbenchInstances = instances.map((node, index) => (
-            index === existingInstanceIndex ? { ...node, source: repairedSource } : node
-          ));
-        }
-        const payload: StoredCanvasState = {
-          version: 1,
-          projectId,
-          updatedAt: new Date().toISOString(),
-          state: nextState,
-        };
-        await mkdir(path.dirname(file), { recursive: true });
-        await atomicWrite(file, `${JSON.stringify(payload, null, 2)}\n`);
-        const revision = await this.readRevision(file);
-        recordCanvasStateChanges(projectId, current.state, nextState, revision, path.relative(path.dirname(path.dirname(file)), file));
-        recordWorkflowCanvasGeneration(projectId, canvasNodeId, input);
-        return finish({ canvasNodeId, kind: input.kind, revision });
       }
-
-      const artifactFiles = input.requireArtifact
-        ? await workflowDeliveryFiles(path.dirname(path.dirname(file)), { ...input, ...(input.generation?.image ? { image: input.generation.image } : {}) })
-        : [];
-      const content = artifactFiles[0]?.text ?? input.content;
-      if (input.kind === 'text') {
-        const projectRoot = path.dirname(path.dirname(file));
-        const documentFile = path.join(projectRoot, canvasTextPath(canvasNodeId));
-        await mkdir(path.dirname(documentFile), { recursive: true });
-        await atomicWrite(documentFile, content);
-      }
-      const position = workflowResultArtifactPosition(current.state, input.sourceResultId)
-        ?? nextWorkflowArtifactPosition(basicNodes, instances);
-      const nextState: CanvasState = { ...current.state };
-      if (input.kind === 'image' && input.requireArtifact) {
-        nextState.workbenchImages = [...images, ...artifactFiles.map((artifact, index) => ({
-          id: index === 0 ? canvasNodeId : `${canvasNodeId}-image-${index}`,
-          name: input.title || '图片', path: artifact.path, status: 'ready',
-          x: position.x + index * 360, y: position.y, source,
-          ...(input.generation ? { workflowGeneration: input.generation } : {}),
-        }))];
-      } else if (input.kind === 'image') {
-        const imageOptions = input.generation?.image ?? input.image;
-        const ratio = imageOptions?.ratio ?? '1:1';
-        const count = Math.max(1, Math.min(4, Math.trunc(imageOptions?.count ?? 1)));
-        nextState.workbenchInstances = [
-          ...instances,
-          {
-            id: canvasNodeId,
-            kind: 'visual',
-            x: position.x,
-            y: position.y,
-            label: input.title || '图片',
-            source,
-            workflowGeneration: input.generation,
-          },
-        ];
-        const taskDrafts = recordValue(current.state.workbenchTaskDrafts);
-        nextState.workbenchTaskDrafts = {
-          ...taskDrafts,
-          [canvasNodeId]: {
-            text: input.content,
-            attachments: [],
-            imageCount: count,
-            imageRatio: ratio,
-            imageRatios: [ratio],
-            imageResolution: imageOptions?.resolution ?? '2K',
-            ...(imageOptions?.model ? { models: [canvasImageModelId(imageOptions.model)] } : {}),
-            ...(imageOptions?.references?.length ? { workflowReferences: imageOptions.references } : {}),
-          },
-        };
-      } else {
-        const isText = input.kind === 'text';
-        nextState.workbenchBasicNodes = [
-          ...basicNodes,
-          {
-            id: canvasNodeId,
-            kind: input.kind === 'presentation' ? 'page' : input.kind,
-            ...(input.kind === 'presentation' || input.kind === 'page' ? { artifactFormat: input.kind === 'presentation' ? 'presentation' : 'html' } : {}),
-            ...(input.kind === 'video' ? {
-              videoAspect: input.generation?.video?.ratio ?? '16:9',
-              videoLength: input.generation?.video?.duration ?? 5,
-              videoResolution: input.generation?.video?.resolution ?? '720p',
-              videoModel: input.generation?.video?.model,
-              videoMode: input.generation?.video?.mode ?? 't2v',
-              videoCameraMove: input.generation?.video?.cameraMove,
-            } : {}),
-            ...(input.kind === 'presentation' ? { presentationOptions: {
-              ...input.generation?.presentation,
-              length: input.generation?.presentation?.length ?? 'standard',
-              template: input.generation?.presentation?.template ?? 'smart',
-              templateTitle: input.generation?.presentation?.templateTitle ?? '智能匹配',
-            } } : {}),
-            ...(input.kind === 'page' ? { webpageOptions: input.generation?.page ?? {} } : {}),
-            ...(input.kind === 'text' ? { textOptions: input.generation?.text ?? {} } : {}),
-            x: position.x,
-            y: position.y,
-            width: 420,
-            height: isText ? 520 : 300,
-            title: input.title || (isText ? '文本' : '页面'),
-            text: input.requireArtifact && !isText ? '' : content,
-            ...(artifactFiles[0] && !isText ? { projectFilePath: artifactFiles[0].path } : {}),
-            ...(input.kind === 'video' && artifactFiles[0] ? { videoTask: { id: canvasNodeId, status: 'done', path: artifactFiles[0].path } } : {}),
-            ...(artifactProjectFilePath
-              ? { projectFilePath: artifactProjectFilePath, sourceMime: 'text/markdown' }
-              : {}),
-            source,
-            ...(input.generation ? { workflowGeneration: input.generation } : {}),
-          },
-        ];
-      }
-
-      const payload: StoredCanvasState = {
-        version: 1,
-        projectId,
-        updatedAt: new Date().toISOString(),
-        state: nextState,
-      };
-      await mkdir(path.dirname(file), { recursive: true });
-      await atomicWrite(file, `${JSON.stringify(payload, null, 2)}\n`);
-      const revision = await this.readRevision(file);
-      recordCanvasStateChanges(projectId, current.state, nextState, revision, path.relative(path.dirname(path.dirname(file)), file));
-      recordWorkflowCanvasGeneration(projectId, canvasNodeId, input);
-      await mkdir(path.dirname(receiptFile), { recursive: true });
-      await atomicWrite(receiptFile, JSON.stringify({ canvasNodeId, workflowRunId: input.workflowRunId, stepRunId: input.stepRunId, ...(savedReceipt?.output ? { output: savedReceipt.output } : {}) }));
-      return finish({ canvasNodeId, kind: input.kind, revision });
+      recordCanvasStateChanges(projectId, current.state, applied.state, revision, await this.persistence.describe(projectId));
+      return { ok: true, state: applied.state, revision, receipt, replayed: false };
     });
   }
 
-  /**
-   * Materialize the primary durable output from an ordinary chat turn.
-   *
-   * The project-relative file path is the identity. A retry, reload, or later
-   * turn that rewrites the same artifact updates the existing card instead of
-   * appending another one. Canvas-authored turns are filtered by the caller;
-   * this method deliberately knows nothing about chat/run ownership.
-   */
-  async materializeTaskArtifact(
-    projectId: string,
-    input: TaskCanvasArtifactInput,
-  ): Promise<TaskCanvasArtifactResult> {
-    const file = await this.stateFile(projectId);
-    return this.lock.run(projectId, async () => {
-      const projectRoot = path.dirname(path.dirname(file));
-      const projectFilePath = normalizeSafeProjectFilePath(input.file.path ?? input.file.name);
-      const absoluteFile = path.resolve(projectRoot, projectFilePath);
-      if (!absoluteFile.startsWith(`${path.resolve(projectRoot)}${path.sep}`)) {
-        throw new CanvasStateError(400, 'CANVAS_INVALID_INPUT', 'artifact path escapes the project root');
-      }
-      let fileStat;
-      try {
-        fileStat = await stat(absoluteFile);
-      } catch (error) {
-        if (isMissing(error)) {
-          throw new CanvasStateError(404, 'CANVAS_ITEM_NOT_FOUND', 'chat artifact file not found', {
-            projectFilePath,
-          });
-        }
-        throw error;
-      }
-      if (!fileStat.isFile()) {
-        throw new CanvasStateError(400, 'CANVAS_INVALID_INPUT', 'chat artifact must reference a project file');
-      }
-      const resolvedRoot = await realpath(projectRoot);
-      if (!(await realpath(absoluteFile)).startsWith(`${resolvedRoot}${path.sep}`)) {
-        throw new CanvasStateError(400, 'CANVAS_INVALID_INPUT', 'artifact symlink escapes the project root');
-      }
-
-      const current = await this.readSnapshot(file);
-      const basicNodes = arrayRecords(current.state.workbenchBasicNodes);
-      const instances = arrayRecords(current.state.workbenchInstances);
-      const descriptor = chatProjectFileArtifactDescriptor(projectId, input.file, {
-        projectFilePath,
-        size: fileStat.size,
-        mtimeMs: fileStat.mtimeMs,
-      });
-      if (descriptor.renderer === 'document' && fileStat.size <= 2 * 1024 * 1024 && /\.(md|markdown|txt)$/i.test(projectFilePath)) {
-        descriptor.preview = { markdown: await readFile(absoluteFile, 'utf8') };
-      }
-      if (/\.storyboard\.json$/i.test(projectFilePath)) {
-        if (fileStat.size > 2 * 1024 * 1024) throw new CanvasStateError(400, 'CANVAS_INVALID_INPUT', '镜头脚本超过 2 MB，未载入画布');
-        const content = await readFile(absoluteFile, 'utf8');
-        parseStoryboardGenerationResult(content, { aspectRatio: '16:9', visualStyle: '', referenceRoles: {} });
-        descriptor.renderer = 'structured';
-        descriptor.preview = { storyboard: content };
-      }
-      if (input.file.kind === 'sketch') descriptor.preview = { canvasKind: 'sketch' };
-      const existingIndex = basicNodes.findIndex(node => (
-        canvasNodeProjectFilePath(node) === projectFilePath
-      ));
-
-      if (descriptor.renderer === 'image' && (existingIndex < 0 || basicNodes[existingIndex]?.kind === 'artifact')) {
-        const images = arrayRecords(current.state.workbenchImages);
-        const existingImage = images.find(image => image.path === projectFilePath);
-        if (existingImage) {
-          recordTaskCanvasGeneration(projectId, String(existingImage.id), projectFilePath, input);
-          return { canvasNodeId: String(existingImage.id), projectFilePath, created: false, revision: current.revision };
-        }
-        const previous = existingIndex >= 0 ? basicNodes[existingIndex] : undefined;
-        const position = previous ?? nextWorkflowArtifactPosition(basicNodes, [...instances, ...images]);
-        const canvasNodeId = String(previous?.id ?? chatCanvasNodeId(projectFilePath));
-        const nextState = {
-          ...current.state,
-          workbenchBasicNodes: basicNodes.filter(node => node !== previous),
-          workbenchImages: [...images, {
-            id: canvasNodeId, name: descriptor.title, path: projectFilePath,
-            x: position.x, y: position.y, status: 'ready',
-          }],
-        };
-        await this.writeSnapshot(file, projectId, nextState, current.state);
-        recordTaskCanvasGeneration(projectId, canvasNodeId, projectFilePath, input);
-        return { canvasNodeId, projectFilePath, created: !previous, revision: await this.readRevision(file) };
-      }
-
-      if (existingIndex >= 0) {
-        const existing = basicNodes[existingIndex]!;
-        const projection = canvasArtifactProjection(descriptor);
-        // Do not replace an in-canvas text edit with a replayed file delivery.
-        const previousPreview = recordValue(recordValue(existing.artifact).preview);
-        if (projection.kind === 'text' && existing.kind === 'text' && existing.text !== previousPreview.markdown) {
-          projection.text = typeof existing.text === 'string' ? existing.text : projection.text;
-        }
-        if (projection.kind === 'storyboard' && existing.kind === 'storyboard') {
-          // Script editing is canvas-owned after initial delivery; replay only repairs the binding.
-          projection.storyboard = existing.storyboard as typeof projection.storyboard;
-        }
-        const updated = existing.kind === 'artifact' || existing.artifact
-          ? {
-              ...existing,
-              title: descriptor.title,
-              projectFilePath,
-              sourceMime: descriptor.resource.kind === 'project-file'
-                ? descriptor.resource.mimeType
-                : input.file.mime,
-              artifact: descriptor,
-              ...projection,
-            }
-          : {
-              ...existing,
-              // A canvas-owned generator card keeps the user's own title;
-              // only its durable file binding is repaired. Generated artifact
-              // cards above continue to follow their manifest title.
-              title: existing.title || descriptor.title,
-              projectFilePath,
-              sourceMime: input.file.mime,
-            };
-        if (sameJson(existing, updated)) {
-          recordTaskCanvasGeneration(projectId, String(existing.id), projectFilePath, input);
-          return {
-            canvasNodeId: String(existing.id),
-            projectFilePath,
-            created: false,
-            revision: current.revision,
-          };
-        }
-        const nextState: CanvasState = {
-          ...current.state,
-          workbenchBasicNodes: basicNodes.map((node, index) => index === existingIndex ? updated : node),
-        };
-        await this.writeSnapshot(file, projectId, nextState, current.state);
-        recordTaskCanvasGeneration(projectId, String(existing.id), projectFilePath, input);
-        return {
-          canvasNodeId: String(existing.id),
-          projectFilePath,
-          created: false,
-          revision: await this.readRevision(file),
-        };
-      }
-
-      const position = nextWorkflowArtifactPosition(basicNodes, instances);
-      const canvasNodeId = chatCanvasNodeId(projectFilePath);
-      const nextState: CanvasState = {
-        ...current.state,
-        workbenchBasicNodes: [
-          ...basicNodes,
-          {
-            id: canvasNodeId,
-            ...canvasArtifactProjection(descriptor),
-            x: position.x,
-            y: position.y,
-            width: 420,
-            height: 320,
-            title: descriptor.title,
-            projectFilePath,
-            sourceMime: input.file.mime,
-            artifact: descriptor,
-          },
-        ],
-      };
-      await this.writeSnapshot(file, projectId, nextState, current.state);
-      recordTaskCanvasGeneration(projectId, canvasNodeId, projectFilePath, input);
-      return {
-        canvasNodeId,
-        projectFilePath,
-        created: true,
-        revision: await this.readRevision(file),
-      };
-    });
-  }
-
-  private async writeSnapshot(
-    file: string,
-    projectId: string,
-    state: CanvasState,
-    previousState: CanvasState = {},
-  ): Promise<void> {
-    const payload: StoredCanvasState = {
-      version: 1,
-      projectId,
-      updatedAt: new Date().toISOString(),
-      state,
-    };
-    await mkdir(path.dirname(file), { recursive: true });
-    await atomicWrite(file, `${JSON.stringify(payload, null, 2)}\n`);
-    recordCanvasStateChanges(projectId, previousState, state, await this.readRevision(file), path.relative(path.dirname(path.dirname(file)), file));
-  }
-
-  private async stateFile(projectId: string): Promise<string> {
-    const root = await this.resolveProjectRoot(projectId);
-    if (!root) {
-      throw new CanvasStateError(404, 'CANVAS_PROJECT_NOT_FOUND', 'project not found', { projectId });
-    }
-    if (!path.isAbsolute(root)) {
-      throw new CanvasStateError(500, 'CANVAS_STORAGE_ERROR', 'project resolver returned a non-absolute root');
-    }
-    const relative = canvasStateRelativePath(root);
-    assertProjectPathHasNoSymlinks(root, relative);
-    return path.join(path.resolve(root), relative);
-  }
-
-  private async readSnapshot(file: string): Promise<CanvasStateSnapshot> {
-    let raw: string;
-    try {
-      raw = await readFile(file, 'utf8');
-    } catch (error) {
-      if (isMissing(error)) return { state: {}, revision: 0 };
-      throw error;
-    }
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      // 状态文件坏了不该让画布打不开——它是视图状态，丢了最多是节点回到
-      // 默认布局。当成空状态继续，下一次写入自然覆盖修好。
-      return { state: {}, revision: await this.readRevision(file) };
-    }
-    const state = (parsed as StoredCanvasState | null)?.state;
-    if (state && Array.isArray(state.workbenchBasicNodes)) {
-      const root = path.dirname(path.dirname(file));
-      state.workbenchBasicNodes = state.workbenchBasicNodes.map((node) => {
-        if (!node || node.kind !== 'text' || node.projectFilePath || typeof node.id !== 'string' || !/^[A-Za-z0-9_-]+$/.test(node.id)) return node;
-        const legacy = `画布文本/${node.id}.md`;
-        return { ...node, projectFilePath: existsSync(path.join(root, legacy)) ? legacy : canvasTextPath(node.id) };
-      });
-    }
+  /** Effect handlers bound to this canvas's backend. Default: project-filesystem
+   * stores; the Appwrite backend injects bucket+index stores at construction. */
+  private async effects(projectId: string, operationId: string): Promise<CanvasEffects> {
+    if (this.effectsFactory) return this.effectsFactory(projectId, operationId);
+    const root = await this.requireRoot(projectId);
     return {
-      state: state && typeof state === 'object' && !Array.isArray(state) ? state : {},
-      revision: await this.readRevision(file),
+      image: (op, node) => prepareCanvasImage(root, projectId, operationId, op, node, this.imageAssets),
+      document: (op, node) => prepareCanvasDocument(root, operationId, op, node),
+      sketch: (op, node) => prepareCanvasSketch(new ProjectSketchStore(root), operationId, op, node),
+      video: (op, node) => prepareCanvasVideo(new ProjectVideoStore(root), operationId, op, node),
     };
   }
 
-  private async readRevision(file: string): Promise<number> {
-    try {
-      return Math.trunc((await stat(file)).mtimeMs);
-    } catch (error) {
-      if (isMissing(error)) return 0;
-      throw error;
-    }
+  private async requireRoot(projectId: string): Promise<string> {
+    const root = await this.resolveProjectRoot(projectId);
+    if (!root) throw new CanvasStateError(404, 'CANVAS_PROJECT_NOT_FOUND', 'project not found', { projectId });
+    if (!path.isAbsolute(root)) throw new CanvasStateError(500, 'CANVAS_STORAGE_ERROR', 'project resolver returned a non-absolute root');
+    return path.resolve(root);
   }
-}
 
-function recordWorkflowCanvasGeneration(
-  projectId: string,
-  canvasNodeId: string,
-  input: WorkflowCanvasArtifactInput,
-): void {
-  recordProjectLedgerObservation({
-    projectId,
-    type: 'canvas.generation.succeeded',
-    actorType: 'agent',
-    source: 'workflow',
-    entityType: 'canvas_node',
-    entityId: canvasNodeId,
-    workflowRunId: input.workflowRunId,
-    correlationId: input.workflowRunId,
-    summary: `Workflow output materialized on canvas: ${input.title}`,
-    payload: {
-      kind: input.kind,
-      workflowRunId: input.workflowRunId,
-      stepRunId: input.stepRunId,
-      sourceAgentStepRunId: input.sourceAgentStepRunId,
-      sourceResultId: input.sourceResultId,
-      sourceItemIds: input.sourceItemIds,
-    },
-    evidenceRefs: input.sourceResultId
-      ? [{ kind: 'db_row', table: 'workflow_result_artifacts', id: input.sourceResultId }]
-      : [],
-    idempotencyKey: `canvas.workflow.materialized:${canvasNodeId}:${input.stepRunId}`,
-  });
-}
-
-function recordTaskCanvasGeneration(
-  projectId: string,
-  canvasNodeId: string,
-  projectFilePath: string,
-  input: TaskCanvasArtifactInput,
-): void {
-  recordProjectLedgerObservation({
-    projectId,
-    type: 'canvas.generation.succeeded',
-    actorType: 'agent',
-    source: 'agent-adapter',
-    entityType: 'canvas_node',
-    entityId: canvasNodeId,
-    correlationId: input.taskId,
-    summary: `Task artifact materialized on canvas: ${projectFilePath}`,
-    payload: { taskId: input.taskId, projectFilePath },
-    evidenceRefs: [
-      { kind: 'project_file', id: projectFilePath, path: projectFilePath },
-    ],
-    idempotencyKey: `canvas.task.materialized:${canvasNodeId}:${input.taskId}:${projectFilePath}`,
-  });
-}
-
-async function syncCanvasTextDocuments(
-  stateFile: string,
-  nodes: readonly Record<string, unknown>[],
-): Promise<void> {
-  const projectRoot = path.dirname(path.dirname(stateFile));
-  for (const node of nodes) {
-    if (node.kind !== 'text' || typeof node.text !== 'string') continue;
-    const id = typeof node.id === 'string' ? node.id : '';
-    if (!/^[A-Za-z0-9_-]+$/u.test(id)) continue;
-    const documentPath = canvasTextDocumentPath(node);
-    const documentFile = path.join(projectRoot, ...documentPath.split('/'));
-    let current = null;
-    try {
-      current = await readFile(documentFile, 'utf8');
-    } catch (error) {
-      if (!isMissing(error)) throw error;
+  private async syncTextDocuments(projectId: string, nodes: readonly Record<string, unknown>[]): Promise<void> {
+    for (const node of nodes) {
+      if (node.kind !== 'text' || typeof node.text !== 'string') continue;
+      const id = typeof node.id === 'string' ? node.id : '';
+      if (!/^[A-Za-z0-9_-]+$/u.test(id)) continue;
+      const documentPath = canvasTextDocumentPath(node);
+      const current = await this.content.read(projectId, documentPath);
+      if (current === node.text) continue;
+      await this.content.write(projectId, documentPath, node.text);
     }
-    if (current === node.text) continue;
-    await mkdir(path.dirname(documentFile), { recursive: true });
-    await atomicWrite(documentFile, node.text);
   }
 }
 
@@ -1109,223 +618,58 @@ function mergeCanvasValue(base: unknown, local: unknown, remote: unknown): unkno
   return local;
 }
 
-function workflowCanvasNodeId(workflowRunId: string, stepRunId: string): string {
-  const stable = `${workflowRunId}-${stepRunId}`.replace(/[^A-Za-z0-9_-]/gu, '-');
-  return `workflow-artifact-${stable}`;
-}
-
-function workflowResultArtifactPosition(
-  state: CanvasState,
-  sourceResultId?: string,
-): { x: number; y: number } | null {
-  if (!sourceResultId) return null;
-  const positions = recordValue(state.workbenchWorkflowStagePositionsV2);
-  const source = recordValue(positions[`workflow-result-${sourceResultId}`]);
-  const x = typeof source.x === 'number' && Number.isFinite(source.x) ? source.x : null;
-  const y = typeof source.y === 'number' && Number.isFinite(source.y) ? source.y : null;
-  return x === null || y === null ? null : { x: x + 600, y };
-}
-
-function nextWorkflowArtifactPosition(
-  basicNodes: Array<Record<string, unknown>>,
-  instances: Array<Record<string, unknown>>,
-): { x: number; y: number } {
-  const nodes = [...basicNodes, ...instances];
-  if (nodes.length === 0) return { x: 160, y: 120 };
-  const rightmost = nodes.reduce((value, node) => {
-    const x = typeof node.x === 'number' && Number.isFinite(node.x) ? node.x : 0;
-    const width = typeof node.width === 'number' && Number.isFinite(node.width) ? node.width : 360;
-    return Math.max(value, x + width);
-  }, 0);
-  return { x: rightmost + 80, y: 120 + (nodes.length % 3) * 72 };
-}
-
-/** Select exactly one durable deliverable; supporting files never become cards. */
-export function selectPrimaryTaskCanvasArtifact(
-  files: readonly ProjectFile[],
-): ProjectFile | null {
-  const candidates = files
-    .filter(isSupportedTaskCanvasArtifact)
-    .map(file => ({ file, rank: chatCanvasArtifactRank(file) }))
-    .sort((left, right) => (
-      left.rank - right.rank
-      || Number(right.file.mtime || 0) - Number(left.file.mtime || 0)
-    ));
-  return candidates[0]?.file ?? null;
-}
-
-function isSupportedTaskCanvasArtifact(file: ProjectFile): boolean {
-  if (file.type === 'dir') return false;
-  if (file.artifactManifest?.status === 'error' || file.artifactManifest?.status === 'streaming') {
-    return false;
+async function readCanvasDocument(file: string): Promise<StoredCanvasState | null> {
+  let raw: string;
+  try { raw = await readFile(file, 'utf8'); }
+  catch (error) { if (isMissing(error)) return null; throw error; }
+  let document: unknown;
+  try { document = JSON.parse(raw); }
+  catch { throw new CanvasStateError(500, 'CANVAS_STORAGE_ERROR', 'Canvas document is unreadable; existing file was preserved'); }
+  if (!document || typeof document !== 'object' || Array.isArray(document)) {
+    throw new CanvasStateError(500, 'CANVAS_STORAGE_ERROR', 'Canvas document is invalid; existing file was preserved');
   }
-  const filePath = file.path ?? file.name;
-  if (file.artifactManifest) return true;
-  return [
-    'html',
-    'image',
-    'video',
-    'audio',
-    'sketch',
-    'pdf',
-    'document',
-    'presentation',
-    'spreadsheet',
-    'text',
-  ].includes(file.kind) || /\.(?:html?|md|markdown|svg|pptx?|pdf|storyboard\.json)$/iu.test(filePath);
-}
-
-function chatCanvasArtifactRank(file: ProjectFile): number {
-  if (manifestDeclaresPrimary(file)) return 0;
-  const manifest = file.artifactManifest;
-  if (manifest && manifest.metadata?.inferred !== true) return 1;
-  if (manifest?.kind === 'deck' || file.kind === 'presentation') return 2;
-  const filePath = file.path ?? file.name;
-  if (/(^|\/)index\.html?$/iu.test(filePath)) return 3 + filePath.split('/').length / 100;
-  if (file.kind === 'html' || /\.html?$/iu.test(filePath)) return 4;
-  if (file.kind === 'image' || /\.svg$/iu.test(filePath)) return 5;
-  if (file.kind === 'video') return 6;
-  if (file.kind === 'pdf') return 7;
-  if (file.kind === 'document' || /\.(?:md|markdown)$/iu.test(filePath)) return 8;
-  if (file.kind === 'spreadsheet') return 9;
-  if (file.kind === 'audio') return 10;
-  if (file.kind === 'sketch') return 11;
-  return 12;
-}
-
-function manifestDeclaresPrimary(file: ProjectFile): boolean {
-  const manifest = file.artifactManifest;
-  if (!manifest) return false;
-  if (primaryValueTargetsFile(manifest.primary, file.path ?? file.name)) return true;
-  const metadata = manifest.metadata;
-  if (!metadata || typeof metadata !== 'object') return false;
-  if (primaryValueTargetsFile(metadata.primary, file.path ?? file.name)) return true;
-  const outputs = metadata.outputs;
-  return Boolean(
-    outputs
-    && typeof outputs === 'object'
-    && !Array.isArray(outputs)
-    && primaryValueTargetsFile(
-      (outputs as { primary?: unknown }).primary,
-      file.path ?? file.name,
-    ),
-  );
-}
-
-function primaryValueTargetsFile(value: unknown, fileName: string): boolean {
-  if (value === true) return true;
-  if (typeof value !== 'string') return false;
-  return normalizeComparableProjectFilePath(value) === normalizeComparableProjectFilePath(fileName);
-}
-
-function chatProjectFileArtifactDescriptor(
-  projectId: string,
-  file: ProjectFile,
-  actual: { projectFilePath: string; size: number; mtimeMs: number },
-): ArtifactDescriptor {
-  const manifest = file.artifactManifest;
-  const renderer = chatArtifactRenderer(file, actual.projectFilePath);
-  const isDeck = manifest?.kind === 'deck' || file.artifactKind === 'deck' || file.kind === 'presentation';
-  const title = String(manifest?.title || path.basename(actual.projectFilePath)).trim();
-  return {
-    id: `project-file:${actual.projectFilePath}`,
-    projectId,
-    title,
-    summary: `${chatArtifactKindLabel(file, renderer, isDeck)} · ${formatFileSize(actual.size)}`,
-    renderer,
-    preview: { artifactFormat: isDeck ? 'presentation' : 'html' },
-    resource: {
-      kind: 'project-file',
-      path: actual.projectFilePath,
-      mimeType: file.mime,
-    },
-    ...(renderer === 'image' ? { thumbnail: { path: actual.projectFilePath } } : {}),
-    capabilities: renderer === 'html' ? ['edit', 'export', 'download'] : ['download'],
-    status: 'ready',
-    updatedAt: new Date(actual.mtimeMs > 0 ? actual.mtimeMs : 0).toISOString(),
-  };
-}
-
-function chatArtifactRenderer(file: ProjectFile, projectFilePath: string): ResultRenderer {
-  const manifestRenderer = file.artifactManifest?.renderer;
-  if (
-    file.kind === 'html'
-    || /\.html?$/iu.test(projectFilePath)
-    || manifestRenderer === 'html'
-    || manifestRenderer === 'deck-html'
-    || manifestRenderer === 'mini-app'
-  ) return 'html';
-  if (file.kind === 'image' || manifestRenderer === 'svg' || manifestRenderer === 'diagram') return 'image';
-  if (file.kind === 'video') return 'video';
-  if (file.kind === 'audio') return 'audio';
-  if (
-    file.kind === 'document' || file.kind === 'text'
-    || /\.(?:md|markdown)$/iu.test(projectFilePath)
-    || manifestRenderer === 'markdown'
-  ) return 'document';
-  if (file.kind === 'code' || manifestRenderer === 'code' || manifestRenderer === 'react-component') {
-    return 'code';
+  const stored = document as StoredCanvasState;
+  if (!stored.state || typeof stored.state !== 'object' || Array.isArray(stored.state)
+    || (stored.revision !== undefined && (!Number.isSafeInteger(stored.revision) || stored.revision < 0))
+    || (stored.operations !== undefined && (!stored.operations || typeof stored.operations !== 'object' || Array.isArray(stored.operations)))) {
+    throw new CanvasStateError(500, 'CANVAS_STORAGE_ERROR', 'Canvas document is invalid; existing file was preserved');
   }
-  return 'file';
+  return stored;
 }
 
-function chatArtifactKindLabel(
-  file: ProjectFile,
-  renderer: ResultRenderer,
-  isDeck: boolean,
-): string {
-  if (isDeck) return '幻灯片';
-  if (renderer === 'html') return '网页产物';
-  if (renderer === 'image') return '图片';
-  if (renderer === 'video') return '视频';
-  if (renderer === 'audio') return '音频';
-  if (renderer === 'document') return '文档';
-  if (renderer === 'code') return '代码';
-  if (file.kind === 'pdf') return 'PDF';
-  if (file.kind === 'spreadsheet') return '表格';
-  return '项目产物';
-}
-
-function canvasNodeProjectFilePath(node: Record<string, unknown>): string | null {
-  if (typeof node.projectFilePath === 'string') {
-    return normalizeComparableProjectFilePath(node.projectFilePath);
-  }
-  const artifact = recordValue(node.artifact);
-  const resource = recordValue(artifact.resource);
-  return resource.kind === 'project-file' && typeof resource.path === 'string'
-    ? normalizeComparableProjectFilePath(resource.path)
-    : null;
-}
-
-function normalizeSafeProjectFilePath(value: string): string {
-  const normalized = String(value || '').replace(/\\/gu, '/').replace(/^\.\//u, '');
-  if (
-    !normalized
-    || path.posix.isAbsolute(normalized)
-    || normalized.split('/').some(segment => !segment || segment === '.' || segment === '..')
-  ) {
-    throw new CanvasStateError(400, 'CANVAS_INVALID_INPUT', 'invalid chat artifact project path');
-  }
-  return normalized;
-}
-
-function normalizeComparableProjectFilePath(value: string): string {
-  return String(value || '').replace(/\\/gu, '/').replace(/^\.\//u, '');
-}
-
-function chatCanvasNodeId(projectFilePath: string): string {
-  const digest = createHash('sha256').update(projectFilePath).digest('hex').slice(0, 20);
-  return `chat-artifact-${digest}`;
-}
-
-function formatFileSize(size: number): string {
-  if (!Number.isFinite(size) || size <= 0) return '项目文件';
-  if (size < 1024) return `${Math.round(size)} B`;
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-  return `${(size / 1024 / 1024).toFixed(1)} MB`;
+async function legacyCanvasRevision(file: string): Promise<number> {
+  return Math.trunc((await stat(file)).mtimeMs);
 }
 
 async function atomicWrite(target: string, content: string): Promise<void> {
+  // Legacy PATCH, media delivery and workflow writes must not discard operation receipts.
+  // Keep their original state/side-effect path but advance the shared document revision.
+  if (target.endsWith('/canvas-state.json')) {
+    let incoming: StoredCanvasState;
+    try { incoming = JSON.parse(content) as StoredCanvasState; }
+    catch { throw new CanvasStateError(500, 'CANVAS_STORAGE_ERROR', 'Invalid canvas write payload'); }
+    if (incoming?.version === 1 && incoming.projectId && incoming.state && typeof incoming.state === 'object') {
+      const previous = await readCanvasDocument(target);
+      if (previous?.projectId && previous.projectId !== incoming.projectId) {
+        throw new CanvasStateError(500, 'CANVAS_STORAGE_ERROR', 'Canvas document project does not match; existing file was preserved');
+      }
+      // A newer/legacy writer can omit operation metadata entirely. Preserve its
+      // receipts, revision, and unknown envelope fields before committing state.
+      if (previous) incoming = { ...previous, ...incoming };
+      if (previous?.operations) incoming.operations = { ...previous.operations, ...incoming.operations };
+      // Carry forward receipts and unknown envelope fields, then issue the first
+      // explicit revision from the legacy file's last observed mtime. Later
+      // writes compare against that stored number, not filesystem timestamp
+      // resolution, so even back-to-back writes remain distinguishable.
+      const priorRevision = previous ? previous.revision ?? await legacyCanvasRevision(target) : 0;
+      // The operation path already allocated a revision for its receipt. Keep
+      // that exact value; legacy writers supply none and allocate it here.
+      incoming.revision = incoming.revision !== undefined && incoming.revision > priorRevision
+        ? incoming.revision
+        : Math.max(priorRevision + 1, Date.now());
+      content = `${JSON.stringify(incoming, null, 2)}\n`;
+    }
+  }
   const temporary = path.join(
     path.dirname(target),
     `.${path.basename(target)}.${process.pid}.${randomUUID()}.tmp`,

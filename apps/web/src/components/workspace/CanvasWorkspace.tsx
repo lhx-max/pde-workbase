@@ -10,10 +10,7 @@ import {usePersonalAssetInProject} from '../../providers/asset-library';
 import {openAssetLibrary} from '../../state/asset-library-navigation';
 import {createAssetLibraryReferenceAdapter} from '../asset-library-reference-adapter';
 import { CanvasWorkbenchSurface, type CanvasWorkbenchSurfaceProps, type CanvasUiHost } from '@bezier/canvas-workbench';
-import { WorkflowCanvasQuestion } from './WorkflowCanvasQuestion';
-import type {QuestionReferenceAdapter} from '../QuestionForm';
-import {useWorkflowArtifacts} from './use-workflow-artifacts';
-import { useWorkflowCanvasRuns } from './use-workflow-canvas-runs';
+import type { QuestionReferenceAdapter } from '../question-form-reference-adapter';
 import { MarkdownWordDocument } from '../MarkdownWordDocument';
 import { useI18n } from '../../i18n';
 import { downloadProjectResource } from '../../providers/project-usage';
@@ -29,13 +26,10 @@ export function CanvasWorkspace({ uiHost,referenceAdapter, ...props }: CanvasWor
     const referenceSelection=useRef<AbortController|null>(null);
     useEffect(()=>()=>{referenceSelection.current?.abort();referenceSelection.current=null;},[props.projectId,props.workspaceContext]);
     const resolvedReferenceAdapter=useMemo(()=>referenceAdapter??createAssetLibraryReferenceAdapter(props.projectId),[referenceAdapter,props.projectId]);
-    const workflowRunState = useWorkflowCanvasRuns(props.projectId, props.workspaceContext ?? null);
-    const workflowArtifacts=useWorkflowArtifacts(props.projectId,props.workspaceContext);
     const host = useMemo<CanvasUiHost>(() => ({
         renderAssetPicker: picker => renderWorkspaceAssetPicker(picker, JSON.stringify([props.projectId, props.workspaceContext ?? null])),
         renderTemplateGrid: grid => <SelectableTemplateGrid {...grid}/>,
         formatTemplateCategory: category => templateCategoryLabel(locale, category, t),
-        renderWorkflowQuestion:snapshot=><WorkflowCanvasQuestion snapshot={snapshot} context={props.workspaceContext} referenceAdapter={resolvedReferenceAdapter}/>,
         renderArtifactPreview: preview => <CanvasArtifactPreview key={preview.src} {...preview}/>,
         renderArtifactThumbnail: preview => <CanvasArtifactThumbnail key={preview.src} {...preview}/>,
         cacheArtifactThumbnail: cacheCanvasArtifactThumbnail,
@@ -57,6 +51,6 @@ export function CanvasWorkspace({ uiHost,referenceAdapter, ...props }: CanvasWor
         },
         ...uiHost,
     }), [uiHost, props.projectId, props.workspaceContext,resolvedReferenceAdapter,t,locale]);
-    return <CanvasWorkbenchSurface workflowRuns={workflowRunState.runs} workflowRunsError={workflowRunState.error||workflowArtifacts.error} workflowArtifacts={workflowArtifacts.artifacts} onWorkflowArtifactsRefresh={workflowArtifacts.refresh} onInteractionActiveChange={workflowArtifacts.onInteractionActiveChange} {...props} uiHost={host} locale={locale}/>;
+    return <CanvasWorkbenchSurface {...props} uiHost={host} locale={locale}/>;
 }
 export default CanvasWorkspace;

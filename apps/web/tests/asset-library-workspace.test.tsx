@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import {act,cleanup,render,screen} from '@testing-library/react';
+import {act,cleanup,render,screen,fireEvent} from '@testing-library/react';
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
 import {FileWorkspace} from '../src/components/FileWorkspace';
 import {OPEN_ASSET_LIBRARY_EVENT} from '../src/state/asset-library-navigation';
@@ -7,7 +7,7 @@ import {OPEN_COLLECTOR_TAB_EVENT} from '../src/components/browser-collector-tool
 const mocks=vi.hoisted(()=>({t:(key:string)=>key,browser:{} as any,sidebar:{} as any,submit:vi.fn(),persist:vi.fn()}));
 vi.mock('../src/i18n',()=>({useT:()=>mocks.t,useI18n:()=>({t:mocks.t,locale:'en'})}));
 vi.mock('@bezier/canvas-workbench',()=>({clipEditorTabId:(id:string)=>`clip:${id}`,clipNodeIdFromTab:()=>null,createCanvasTaskSubmitter:()=>({submit:mocks.submit,dispose:vi.fn(),recover:vi.fn()})}));
-vi.mock('../src/providers/registry',()=>({fetchProjectFiles:vi.fn().mockResolvedValue([]),projectFileUrl:vi.fn(),requestJson:vi.fn(),deleteProjectFile:vi.fn(),fetchProjectFileText:vi.fn(),renameProjectFile:vi.fn(),uploadProjectFiles:vi.fn(),writeProjectTextFile:vi.fn(),WorkspaceApiError:class extends Error{}}));
+vi.mock('../src/providers/registry',()=>({fetchProjectFiles:vi.fn().mockResolvedValue([]),projectFileUrl:vi.fn(),requestJson:vi.fn().mockResolvedValue({available:false,reason:'MF_NOT_CONFIGURED',uiPath:'/mf-ui/',capabilities:{chat:false,webMcp:false,artifacts:false}}),deleteProjectFile:vi.fn(),fetchProjectFileText:vi.fn(),renameProjectFile:vi.fn(),uploadProjectFiles:vi.fn(),writeProjectTextFile:vi.fn(),WorkspaceApiError:class extends Error{}}));
 vi.mock('../src/state/workspace-tabs',()=>({loadTabs:vi.fn().mockResolvedValue({tabs:['__browser__:one'],active:'__browser__:one',browserTabs:[{id:'__browser__:one',label:'Browser',url:'https://first.test/'}]}),cacheTabs:(_id:string,tabs:any)=>tabs,persistTabs:(...args:any[])=>mocks.persist(...args),moveWorkspaceTab:vi.fn(),updateBrowserTabInfo:vi.fn()}));
 vi.mock('../src/components/HtmlViewer',()=>({IframeKeepAliveProvider:({children}:any)=>children,createManualEditRetention:()=>({protectedFiles:()=>new Set(),isProtected:()=>false,settleAll:async()=>true,settle:async()=>true})}));
 vi.mock('../src/components/DesignBrowserPanel',()=>({DesignBrowserPanel:(props:any)=>{mocks.browser=props;return <div data-testid="browser">{props.initialUrl}</div>;}}));
