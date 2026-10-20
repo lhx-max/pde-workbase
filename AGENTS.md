@@ -1,5 +1,7 @@
 # Canvas Workspace — independent extraction
 
+> **必读规范入口（任何 AI / Agent 进仓先读）**：根目录 [`SKILL.md`](./SKILL.md)（卡片包开发、App 互联协议、COI 接口、冻结区、分支规则）与 [`docs/canvas-card-pack.zh-CN.md`](./docs/canvas-card-pack.zh-CN.md)、[`docs/canvas-app-interop.zh-CN.md`](./docs/canvas-app-interop.zh-CN.md)。
+
 This is a standalone repository extracted from Bezier/Loom commit `319e5eee556a3641d2ee68a6111a36ddc7a1eff7`. Do not import, symlink, or resolve runtime resources from the original checkout. Keep the upstream Apache-2.0 license and record adapted source provenance.
 
 ## Product boundary
