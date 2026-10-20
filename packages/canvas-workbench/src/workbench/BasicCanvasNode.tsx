@@ -1,6 +1,7 @@
 'use client';
 
 import { CanvasErrorNotice } from './CanvasErrorNotice';
+import { cardRendererFor } from './card-registry';
 import { bn } from '../locales/basic-node';
 import { TextGenerationOptionControls } from './TextGenerationOptionControls';
 import { type ArtifactTextOptions, type ArtifactPageOptions, type ArtifactPresentationOptions } from '@bezier/contracts';
@@ -78,7 +79,7 @@ import {
   type StoryboardPlan,
 } from './storyboard-card';
 
-export type CanvasBasicNodeKind = 'text' | 'sketch' | 'page' | 'image' | 'artifact' | 'storyboard' | 'video' | 'clip';
+export type CanvasBasicNodeKind = 'text' | 'sketch' | 'page' | 'image' | 'artifact' | 'storyboard' | 'video' | 'clip' | (string & {});
 
 export const TEXT_CARD_DEFAULT_WIDTH = 420;
 export const TEXT_CARD_DEFAULT_HEIGHT = 520;
@@ -169,6 +170,9 @@ export type CanvasBasicNode = {
   artifact?: ArtifactDescriptor;
   /** Project-backed inputs derived from incoming canvas edges. */
   linkedAttachments?: CanvasLinkedAttachment[];
+  /** Team card-pack payload: opaque to the platform, owned by the pack. */
+  data?: Record<string, unknown>;
+  dataVersion?: number;
   /** Canvas-native shot order and generation intent. Media remains in image/video nodes. */
   storyboard?: StoryboardPlan;
   /** Empty storyboard cards choose generation or direct editing before materializing shots. */
@@ -219,7 +223,7 @@ export type BasicCanvasNodeData = {
 };
 
 function NodeGlyph({ kind }: { kind: CanvasBasicNodeKind }) {
-  const names: Record<CanvasBasicNodeKind, IconName> = {
+  const names: Partial<Record<CanvasBasicNodeKind, IconName>> = {
     text: 'text',
     sketch: 'edit',
     page: 'code',
@@ -229,7 +233,7 @@ function NodeGlyph({ kind }: { kind: CanvasBasicNodeKind }) {
     video: 'video',
     clip: 'storyboard',
   };
-  return <Icon name={names[kind]} size={18} />;
+  return <Icon name={names[kind] ?? 'layers'} size={18} />;
 }
 
 export function CanvasNodeLabel({ kind, title, actions }: {
@@ -1199,6 +1203,7 @@ function BasicCanvasNodeComponent({ data, selected }: NodeProps<Node<BasicCanvas
       />
 
       {item.kind === 'image' && <ImageBody onPick={file => data.onPickImage(item.id, file)} />}
+      <RegisteredCardBody node={item} selected={Boolean(selected)} onPatch={patch => data.onPatch(item.id, patch)} />
       <Handle type="target" position={Position.Left} className="basic-node-handle basic-node-handle-target" />
       <CanvasNodeSourceHandle onAddNode={kind => data.onAddConnectedNode(item.id, kind, {
         x: item.x,
@@ -1208,6 +1213,14 @@ function BasicCanvasNodeComponent({ data, selected }: NodeProps<Node<BasicCanvas
       })} />
     </article>
   );
+}
+
+/** Renders a registered card-pack body inside the generic card shell. Core
+ * kinds render nothing here — their dedicated bodies are handled above. */
+function RegisteredCardBody({ node, selected, onPatch }: { node: CanvasBasicNode; selected: boolean; onPatch: (patch: Partial<CanvasBasicNode>) => void }) {
+  const Renderer = cardRendererFor(node.kind);
+  if (!Renderer) return null;
+  return <Renderer node={node} selected={selected} onPatch={onPatch} />;
 }
 
 /**

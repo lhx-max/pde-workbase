@@ -1,4 +1,4 @@
-import { canvasImageModelId, canvasTextPath, isCanvasTextPath, canvasOperationsRequestSchema, type CanvasOperationReceipt, type CanvasOperationsResponse } from '@bezier/contracts';
+import { canvasImageModelId, canvasTextPath, isCanvasTextPath, canvasOperationsRequestSchema, type CanvasCardOperation, type CanvasOperation, type CanvasOperationReceipt, type CanvasOperationsResponse } from '@bezier/contracts';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { canvasStateRelativePath, assertProjectPathHasNoSymlinks } from '../project-layout.js';
@@ -15,6 +15,7 @@ import {
   summarizeCanvasState,
 } from './context.js';
 import { ProjectSerialLock } from '../storage/project-serial-lock.js';
+import { createCardEffect } from './card-ops.js';
 import { applyCanvasOperations, assertCanvasMerge, assertCanvasReferences, records, type StoredCanvasOperation } from './operations.js';
 import { canonical, equal, mergeCanvasValue as mergeOperationValue } from './merge.js';
 import { prepareCanvasImage } from './image-operations.js';
@@ -94,6 +95,8 @@ export interface CanvasEffects {
   document: (op: DocumentOperation, node?: CanvasItem) => Promise<CanvasItem>;
   sketch: (op: SketchOperation, node?: CanvasItem) => Promise<CanvasItem>;
   video: (op: VideoOperation, node?: CanvasItem) => Promise<CanvasItem>;
+  /** Optional card-pack op dispatch (card.<team>.<name>.<verb>). */
+  card?: (op: CanvasCardOperation, node: CanvasItem) => Promise<CanvasItem>;
 }
 export type CanvasEffectsFactory = (projectId: string, operationId: string) => CanvasEffects | Promise<CanvasEffects>;
 
@@ -368,7 +371,7 @@ export class CanvasStateService {
       }
       if (request.baseRevision !== current.revision && !request.expectedState) throw new CanvasStateError(409, 'CANVAS_REVISION_CONFLICT', 'Canvas revision changed', { actualRevision: current.revision });
       const draft = { ...current.state, ...request.expectedState };
-      const applied = await applyCanvasOperations(draft, request.operations, journal, effects.image, effects.document, effects.sketch, effects.video);
+      const applied = await applyCanvasOperations(draft, request.operations as (CanvasOperation | CanvasCardOperation)[], journal, effects.image, effects.document, effects.sketch, effects.video, effects.card);
       for (const key of applied.keys) {
         if (!request.expectedState || !Object.hasOwn(request.expectedState, key)) {
           if (request.baseRevision !== current.revision) throw new CanvasStateError(409, 'CANVAS_REVISION_CONFLICT', 'Missing base state for changed collection', { field: key, actualRevision: current.revision });
@@ -428,13 +431,15 @@ export class CanvasStateService {
   /** Effect handlers bound to this canvas's backend. Default: project-filesystem
    * stores; the Appwrite backend injects bucket+index stores at construction. */
   private async effects(projectId: string, operationId: string): Promise<CanvasEffects> {
-    if (this.effectsFactory) return this.effectsFactory(projectId, operationId);
+    const card = createCardEffect({ projectId, files: this.content });
+    if (this.effectsFactory) return { ...await this.effectsFactory(projectId, operationId), card };
     const root = await this.requireRoot(projectId);
     return {
       image: (op, node) => prepareCanvasImage(root, projectId, operationId, op, node, this.imageAssets),
       document: (op, node) => prepareCanvasDocument(root, operationId, op, node),
       sketch: (op, node) => prepareCanvasSketch(new ProjectSketchStore(root), operationId, op, node),
       video: (op, node) => prepareCanvasVideo(new ProjectVideoStore(root), operationId, op, node),
+      card,
     };
   }
 

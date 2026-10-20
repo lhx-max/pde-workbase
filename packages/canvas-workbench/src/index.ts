@@ -145,4 +145,6 @@ export { CanvasUiHostProvider } from './platform/ui-host';
 export { useCanvasMediaCatalog, useCanvasImageModels } from './platform/media-catalog';
 export { PageGenerationOptionControls } from './workbench/PageGenerationOptionControls';
 export { TextGenerationOptionControls } from './workbench/TextGenerationOptionControls';
-export { VideoGenerationOptionControls } from './workbench/VideoGenerationOptionControls';
+export { VideoGenerationOptionControls } from './workbench/VideoGenerationOptionControls';export type { CardRenderProps, CardRenderer, CardPack, CardPackCard } from './workbench/card-registry';
+export { registerCardPack, cardRendererFor } from './workbench/card-registry';
+import './packs';

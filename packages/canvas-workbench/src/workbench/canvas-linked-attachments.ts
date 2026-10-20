@@ -21,7 +21,7 @@ export type CanvasLinkedAttachment = {
 
 type BasicArtifactSource = {
   id: string;
-  kind: 'text' | 'sketch' | 'page' | 'image' | 'artifact' | 'storyboard' | 'video' | 'clip';
+  kind: 'text' | 'sketch' | 'page' | 'image' | 'artifact' | 'storyboard' | 'video' | 'clip' | (string & {});
   title?: string;
   text?: string;
   storyboard?: StoryboardPlan;

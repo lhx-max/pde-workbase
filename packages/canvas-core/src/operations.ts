@@ -4,7 +4,7 @@ import type { SketchOperation } from './sketch.js';
 import { applyCanvasRelationsLayout } from './relations-layout.js';
 import type { DocumentOperation } from './assets.js';
 import type { ImageOperation } from './assets.js';
-import type { CanvasOperation, CanvasOperationReceipt } from '@bezier/contracts';
+import type { CanvasCardOperation, CanvasOperation, CanvasOperationReceipt } from '@bezier/contracts';
 import { CanvasStateError } from './errors.js';
 import { canonical, equal, mergeCanvasValue } from './merge.js';
 export { canonical, equal } from './merge.js';
@@ -36,7 +36,7 @@ export function assertCanvasReferences(before: State, after: State): void {
 }
 
 /** State semantics; optional file effects are explicit host capabilities. */
-export async function applyCanvasOperations(state: State, operations: CanvasOperation[], journal: Record<string, StoredCanvasOperation>, image?: (op:ImageOperation, node?:Item)=>Promise<Item>, document?: (op:DocumentOperation,node?:Item)=>Promise<Item>, sketch?: (op:SketchOperation,node?:Item)=>Promise<Item>, video?: (op:VideoOperation,node?:Item)=>Promise<Item>) {
+export async function applyCanvasOperations(state: State, operations: (CanvasOperation|CanvasCardOperation)[], journal: Record<string, StoredCanvasOperation>, image?: (op:ImageOperation, node?:Item)=>Promise<Item>, document?: (op:DocumentOperation,node?:Item)=>Promise<Item>, sketch?: (op:SketchOperation,node?:Item)=>Promise<Item>, video?: (op:VideoOperation,node?:Item)=>Promise<Item>, card?: (op:CanvasCardOperation, node:Item)=>Promise<Item>) {
   let next: State = structuredClone(state);
   const touched = new Set<string>();
   const nodeIds = new Set<string>();
@@ -203,6 +203,17 @@ export async function applyCanvasOperations(state: State, operations: CanvasOper
           touched.add(key);
         }
         previous!.receipt.nodeIds.forEach(id => nodeIds.add(id)); break;
+      }
+      default: {
+        // Team card-pack ops (card.<team>.<name>.<verb>) route to the host's
+        // registered handler; the card may live in either node collection.
+        if (!card) return fail('CANVAS_CAPABILITY_UNAVAILABLE', 'Card pack runtime unavailable', 503);
+        const target = [...nodes(), ...images()].find(n => n.id === op.nodeId);
+        if (!target) throw new CanvasStateError(404, 'CANVAS_NODE_NOT_FOUND', `Node not found: ${op.nodeId}`);
+        const prepared = await card(op, target);
+        if (images().includes(target)) replaceImages(images().map(n => n.id === target.id ? prepared : n));
+        else replaceNodes(nodes().map(n => n.id === target.id ? prepared : n));
+        nodeIds.add(target.id); break;
       }
     }
   }

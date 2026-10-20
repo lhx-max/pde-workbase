@@ -1631,7 +1631,7 @@ function FlowHome({
     const screenY = rect ? rect.top + rect.height / 2 : window.innerHeight / 2;
     const world = toFlowPoint(screenX, screenY);
     const id = `basic-${kind}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-    const title = canvasNodeDefaultTitle(canvasLocale, kind, artifactFormat);
+    const title = kind.startsWith('card.') ? kind.split('.').pop() ?? kind : canvasNodeDefaultTitle(canvasLocale, kind as CanvasNodeCreationKind | 'artifact', artifactFormat);
     const defaultVideoFrame = getVideoFrameSize();
     const width = kind === 'sketch' ? 420 : kind === 'clip' ? 760 : kind === 'video' ? defaultVideoFrame.width : kind === 'text' ? TEXT_CARD_DEFAULT_WIDTH : kind === 'storyboard' ? STORYBOARD_CARD_DEFAULT_WIDTH : kind === 'page' ? HTML_PAGE_CARD_SIZE.width : 320;
     const height = kind === 'sketch' ? 300 : kind === 'clip' ? 156 : kind === 'video' ? defaultVideoFrame.height : kind === 'text' ? TEXT_CARD_DEFAULT_HEIGHT : kind === 'storyboard' ? STORYBOARD_CARD_DEFAULT_HEIGHT : kind === 'page' ? HTML_PAGE_CARD_SIZE.height : 220;

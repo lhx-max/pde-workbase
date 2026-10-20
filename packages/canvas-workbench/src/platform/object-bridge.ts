@@ -95,6 +95,6 @@ export function failCanvasObject(reference: CanvasObjectReference, requestId: st
 }
 export function canvasObjectReference(projectId: string, node: CanvasBasicNode, intent: CanvasObjectReference['intent']): CanvasObjectReference {
   if (node.kind !== 'text' && node.kind !== 'page') throw new Error(cr().objectNoChatEdit);
-  return { projectId, nodeId: node.id, kind: node.kind, label: node.title || cr().canvasObject, text: node.text || '',
+  return { projectId, nodeId: node.id, kind: node.kind as 'text' | 'page', label: node.title || cr().canvasObject, text: node.text || '',
     path: node.projectFilePath, format: node.artifactFormat, intent, requestId: node.generation?.requestId };
 }

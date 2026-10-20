@@ -99,7 +99,7 @@ export function canvasOperationBatch(base: State, changes: State, context: State
   if(ids.some(id=>known.some(n=>n.id===id && (n.groupId || n.embeddedInSource || n.workflowRunId || n.parentId)))) return null;
   if (ids.some(id => Object.entries(context).some(([key, value]) => /Groups|groups/.test(key) && JSON.stringify(value)?.includes(JSON.stringify(id))))) return null;
   const parsed = canvasOperationsRequestSchema.safeParse({ operationId: 'ui', baseRevision: 0, operations });
-  return parsed.success ? parsed.data.operations : null;
+  return parsed.success ? (parsed.data.operations as CanvasOperation[]) : null;
 }
 
 /** Rebase edits typed while an acknowledged save was in flight. Server-owned

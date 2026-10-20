@@ -24,9 +24,13 @@ const dimensions = { width: z.number().finite().min(40).max(10000), height: z.nu
 const commonCard = z.object({id, x:coordinate, y:coordinate, title:z.string().max(1000).optional(), width:dimensions.width.optional(),height:dimensions.height.optional()});
 const videoFields = z.object({text:z.string().max(500_000).optional(),videoModel:z.string().max(200).optional(),videoMode:z.enum(['t2v','i2v','firstlast']).optional(),videoAspect:z.enum(['16:9','9:16','1:1','4:3','3:4']).optional(),videoLength:z.number().int().min(1).max(120).optional(),videoResolution:z.string().max(40).optional(),videoFirstFrameUrl:z.string().url().max(4000).optional(),videoLastFrameUrl:z.string().url().max(4000).optional()}).strict();
 const storyboardShotFields = z.object({description:z.string().max(50000).optional(),shotSize:z.enum(['远景','全景','中景','近景','特写']).optional(),cameraMovement:z.enum(['固定','推进','拉远','横移','跟拍','环绕']).optional(),durationSec:z.number().finite().min(1).max(120).optional(),dialogue:z.string().max(50000).optional(),lighting:z.string().max(10000).optional(),sound:z.string().max(10000).optional(),finalPrompt:z.string().max(50000).optional()}).strict();
+export const canvasCardKindSchema = z.string().min(7).max(160).regex(/^card\.[a-z0-9-]+\.[a-z0-9-]+$/, 'Card kinds use card.<team>.<name>');
 export const canvasBasicCardSchema = z.union([canvasTextNodeSchema,
   commonCard.extend({kind:z.literal('storyboard')}).strict(),
   commonCard.extend({kind:z.literal('video'),...videoFields.shape}).strict(),
+  // Team card packs: envelope is validated, `data` is the team's opaque box and
+  // passthrough keeps any other team-owned top-level fields across persistence.
+  commonCard.extend({kind:canvasCardKindSchema,data:z.record(z.string(),z.unknown()).optional(),dataVersion:z.number().int().nonnegative().optional()}).passthrough(),
 ]);
 export const canvasOperationSchema = z.discriminatedUnion('type', [
   ...canvasRelationsLayoutSchemas,
@@ -62,9 +66,22 @@ export const canvasOperationSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('edge.disconnect'), edgeId: id }).strict(),
   z.object({ type: z.literal('operation.undo'), operationId: id }).strict(),
 ]);
+/** Team card-pack operation: platform validates the envelope, `params` stays opaque. */
+export const canvasCardOperationSchema = z.object({
+  type: z.string().regex(/^card\.[a-z0-9-]+\.[a-z0-9-]+\.[a-z0-9-]+$/, 'Card operations use card.<team>.<name>.<verb>'),
+  nodeId: id,
+  params: z.record(z.string(), z.unknown()).optional(),
+}).strict();
+/** Template-literal discriminant keeps switch narrowing intact across the op union. */
+export interface CanvasCardOperation {
+  type: `card.${string}`;
+  nodeId: string;
+  params?: Record<string, unknown>;
+}
+
 export const canvasOperationsRequestSchema = z.object({
   operationId: id, baseRevision: z.number().finite().nonnegative().int(),
-  operations: z.array(canvasOperationSchema).min(1).max(100),
+  operations: z.array(z.union([canvasOperationSchema, canvasCardOperationSchema])).min(1).max(100),
   // UI autosave can hold a draft from before its latest revision poll. These
   // read-only preconditions prevent that draft from overwriting a newer value.
   expectedState: z.object({ workbenchBasicNodes: baseCollection.optional(), workbenchEdges: baseCollection.optional(), workbenchImages: baseCollection.optional() }).strict().optional(),

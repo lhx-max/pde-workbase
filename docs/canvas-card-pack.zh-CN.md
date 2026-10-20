@@ -1,4 +1,4 @@
-# 画布卡片包开发规范 v1（FDE 同步开发基线）
+d# 画布卡片包开发规范 v1（FDE 同步开发基线）
 
 > 适用对象：在画布 App 上开发业务卡片的团队（FDE）。
 > 本文件是**唯一契约**：照此开发即可并行推进，不需要等通用版实现细节定型。
@@ -228,17 +228,23 @@ pnpm tools-dev run web --data-dir /tmp/<你的数据目录> --daemon-port 17460 
    - [ ] README 写清：建卡动作、data 字段表、专属动作清单
    - [ ] 构建期挂包只改 `packs.ts` 一行
 
-## 11. 平台侧已知待补（不影响你按契约开发）
+## 11. 平台侧接缝状态（已接通 / 待补）
 
-诚实记录：以下接缝平台还在实现，契约已冻结，**你照着写，等平台接上即可**：
+**已接通**（代码已在基线分支，可直接用）：
+
+- `registerCardPack`/`packs.ts` 挂载点：未知 kind 的卡片自动走注册表渲染，平台壳（拖拽/缩放/连线/标题栏）照常
+- `card.*` 专属动作路由：schema 放行 `card.<team>.<name>.<verb>`，管道分发到注册的 server handler，凭条/幂等/version 冲突全套生效；handler 的 kind 前缀必须等于目标卡 kind，否则 400
+- `CardOpContext`：handler 拿 `{projectId, files}`，`files.write/read` 走当前存储后端（文件或 Appwrite）
+- 动作自动进 COI 能力清单（`GET /api/apps/canvas` 的 `actions`）和内部 capabilities
+
+**待补**：
 
 | 待补 | 影响 | 临时方案 |
 |---|---|---|
-| `registerCard`/packs.ts 挂载点 | 现在 BasicCanvasNode 按 kind 写死分发 | 提交 PR 时平台和你的包一起联调接上 |
-| `card.*` 专属动作路由进 operations 管道 | 现在动作 union 是封闭枚举 | 先按 §4.2 声明好，平台补 `card.*` 前缀分发 |
-| `CardOpContext`/`ctx.files` 注入 | server 侧 handler 拿不到 ctx | 一期只用 `onPatch`+纯 data，二期补 ctx |
-| 运行时动态挂包 | 现在构建期打包 | 一期够用，二期优化 |
-| Agent 动作 schema 自动暴露 inputSchema | COI 清单暂时只有 actionId | 文档里自己描述 params |
+| 运行时动态挂包 | 现在构建期打包（改 `packs.ts` 一行） | 一期够用，二期优化 |
+| Agent 动作 schema 自动暴露 inputSchema | COI 清单只有 actionId | 文档里自己描述 params |
+| `onOpenFile` 宿主回调 | 暂时拿不到 | 一期忽略 |
+| Function（canvas-coi）内 card handler 注册 | Function 里 card.* 返回 503 | 一期管理侧只走核心动作 |
 
 ## 12. 禁止清单（会拒收）
 
