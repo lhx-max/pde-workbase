@@ -266,6 +266,8 @@ importers:
         specifier: 0.28.0
         version: 0.28.0
 
+  packages/canvas-card-sdk: {}
+
   packages/canvas-core:
     dependencies:
       '@bezier/contracts':
@@ -282,8 +284,27 @@ importers:
         specifier: 4.1.6
         version: 4.1.6(@types/node@24.12.2)(jsdom@29.1.1)(vite@8.3.4(@types/node@24.12.2)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))
 
+  packages/canvas-pack-demo:
+    dependencies:
+      '@bezier/canvas-card-sdk':
+        specifier: workspace:*
+        version: link:../canvas-card-sdk
+      react:
+        specifier: 18.3.1
+        version: 18.3.1
+    devDependencies:
+      '@types/react':
+        specifier: ^18.3.0
+        version: 18.3.28
+
   packages/canvas-workbench:
     dependencies:
+      '@bezier/canvas-card-sdk':
+        specifier: workspace:*
+        version: link:../canvas-card-sdk
+      '@bezier/canvas-pack-demo':
+        specifier: workspace:*
+        version: link:../canvas-pack-demo
       '@bezier/components':
         specifier: workspace:*
         version: link:../components

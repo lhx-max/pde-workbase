@@ -29,6 +29,8 @@
     "react-dom": "18.3.1"
   },
   "dependencies": {
+    "@bezier/canvas-card-sdk": "workspace:*",
+    "@bezier/canvas-pack-demo": "workspace:*",
     "@bezier/components": "workspace:*",
     "@bezier/contracts": "workspace:*",
     "@bezier/workbench-core": "workspace:*",
