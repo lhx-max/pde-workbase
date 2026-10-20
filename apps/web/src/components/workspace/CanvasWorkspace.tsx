@@ -11,7 +11,7 @@ import {openAssetLibrary} from '../../state/asset-library-navigation';
 import {createAssetLibraryReferenceAdapter} from '../asset-library-reference-adapter';
 import { CanvasWorkbenchSurface, CanvasKindAvailability, type CanvasWorkbenchSurfaceProps, type CanvasUiHost } from '@bezier/canvas-workbench';
 import type { QuestionReferenceAdapter } from '../question-form-reference-adapter';
-import { MarkdownWordDocument } from '../MarkdownWordDocument';
+import { MarkdownWordDocument } from '@doc/surface';
 import { useI18n } from '../../i18n';
 import { downloadProjectResource } from '../../providers/project-usage';
 import { CanvasArtifactPreview } from './CanvasArtifactPreview';
@@ -23,7 +23,7 @@ export type CanvasWorkspaceProps = Omit<CanvasWorkbenchSurfaceProps, 'uiHost' | 
 };
 /** Kinds that are always canvas-native — no external editor App required
  * (spec: text/image/video/storyboard edit inside canvas). */
-const NATIVE_CARD_KINDS = new Set(['text', 'image', 'video', 'storyboard']);
+const NATIVE_CARD_KINDS = new Set(['image', 'video', 'storyboard']);
 
 /** Card-kind availability from the App registry (rule: App-backed kinds only
  * show while their editor App is registered and active; native kinds always

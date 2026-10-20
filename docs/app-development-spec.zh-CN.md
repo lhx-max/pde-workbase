@@ -109,7 +109,7 @@ App 自己领域的接口（doc 的 `/api/documents` 列表/读写/导出）。�
 | # | 端点 | 级别 | 干什么 |
 |---|---|---|---|
 | P1 | `GET /api/apps` | 必须 | 目录：列出所有已注册 App（调用方在宿主/画布侧调） |
-| P2 | 启动时 `POST <宿主>/api/apps/register` `{appId,name,endpoint,webUrl?,description?}` | 必须 | 自注册：告诉宿主「我上线了，在这个地址」。`endpoint` 是协议/API 面地址；`webUrl` 是**你自己前端页面的地址**（宿主「打开 App 详情页」时跳它，不填退化到 endpoint） |
+| P2 | 启动时 `POST <宿主>/api/apps/register` `{appId,name,endpoint,webUrl?,description?}` | 必须 | 自注册：告诉宿主「我上线了，在这个地址」。`endpoint` 是协议/API 面地址；`webUrl` 是**你自己前端页面的地址**（宿主「打开 App 详情页」时跳它，不填退化到 endpoint）。**注销**：宿主侧 `DELETE /api/apps/<appId>` 把 App 从目录移除——此后它的卡片从所有「+」菜单消失、页签「+」不再列出它；`canvas` 自身不可注销 |
 | P3 | `GET /api/apps/<appId>` | 必须 | 能力清单：我是谁、我编辑什么卡、我有哪些动作、事件流在哪 |
 | P4 | `POST /api/apps/<appId>/open-editor` `{nodeId,filePath,canvasId?}` → `{openUrl}` | 编辑器 App 必须 | 收「打开我编辑这张卡」的请求；配套 `GET ?nodeId=` 可查回话 |
 
@@ -167,8 +167,8 @@ App 自己领域的接口（doc 的 `/api/documents` 列表/读写/导出）。�
 画布界面**没有任何写死的卡片入口**——所有「+」菜单都由注册表决定：
 
 - **画布上的「+」加卡菜单**（卡柄、底栏、空白画布）：卡的种类必须出现在画布 manifest `nodeKinds` 里，且——
-  - **原生卡**（text / image / video / storyboard）：始终显示，画布自己就能编辑；
-  - **App 支撑卡**（sketch / page / presentation，及 manifest `editorApps` 里登记的任何 kind）：**对应 App 已注册且 active 才显示**。App 一上线卡就出现，一下线/未装就消失——不是灰掉，是隐藏。
+  - **原生卡**（image / video / storyboard）：始终显示，画布自己就能编辑；
+  - **App 支撑卡**（text / sketch / page / presentation，及 manifest `editorApps` 里登记的任何 kind）：**对应 App 已注册且 active 才显示**。App 一上线卡就出现，一下线/未装就消失——不是灰掉，是隐藏。**文字卡也是 App 卡**：`text` 归 doc App（`editorApps['text']='doc'`）——卡内正文渲染直接用 doc 的 surface 组件（`@doc/surface` 的 `MarkdownWordDocument`），doc 注销后文字卡从加卡菜单消失（画布上已存在的卡仍以 surface 组件渲染，只是不再可新建、深度编辑入口失效）。
 - **页签栏「+」**：列出已注册的外部 App（画布自己除外），点击**在工作区新开一个页签、挂载 App 的 TSX 组件**（不是 URL 跳转）——页签 id `app:<appId>:<target>`，存进持久化页签状态。它只负责「打开 App 页签」，不负责「建卡」；建卡永远走画布上的「+」。
 - **App 页签的挂载方式**：宿主安装 App 的 surface npm 包（如 `@doc/surface`），按 appId 找到对应组件渲染；组件通过 App 的 `endpoint`（协议面地址）读写数据，**不走 iframe**。App 的 API 必须允许宿主页面跨源调用（本地开发可放开，生产环境白名单宿主来源）。
 - 所以 App 想让自己的卡在画布上可建：① 注册自己（P2）② manifest `editorKinds` 声明你编辑什么 kind ③ 宿主 manifest `editorApps` 里有 kind→appId 映射（卡包注册时写入）。

@@ -107,8 +107,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/workbench-ui
       '@doc/surface':
-        specifier: file:../../../designai-app-doc/packages/doc-surface
-        version: file:../designai-app-doc/packages/doc-surface(@floating-ui/dom@1.8.0)(@tiptap/pm@3.30.0)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: file:../../vendor/doc-surface-0.1.0.tgz
+        version: file:vendor/doc-surface-0.1.0.tgz(@floating-ui/dom@1.8.0)(@tiptap/pm@3.30.0)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@excalidraw/excalidraw':
         specifier: 0.18.1
         version: 0.18.1(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -610,8 +610,9 @@ packages:
     resolution: {integrity: sha512-OoKoR0f76dCY666JlcbhmVTs2drYj1GUXZTYTcbUgJjh9Nv41aFfZ21bPQTERm5+L5cBDo466NltB2lplS5GBw==}
     engines: {node: '>=20.19.0'}
 
-  '@doc/surface@file:../designai-app-doc/packages/doc-surface':
-    resolution: {directory: ../designai-app-doc/packages/doc-surface, type: directory}
+  '@doc/surface@file:vendor/doc-surface-0.1.0.tgz':
+    resolution: {integrity: sha512-fBsCJk52fUkl3ZjX+DlE+X2n7oqNvE/Pjh52jj7qRwUfbK39TF5Gnfevh7EfB8sPL7SDVDXcMgYWHgDaIP9x+w==, tarball: file:vendor/doc-surface-0.1.0.tgz}
+    version: 0.1.0
     peerDependencies:
       react: ^18.3.1
       react-dom: ^18.3.1
@@ -5200,7 +5201,7 @@ snapshots:
 
   '@csstools/css-tokenizer@4.0.2': {}
 
-  '@doc/surface@file:../designai-app-doc/packages/doc-surface(@floating-ui/dom@1.8.0)(@tiptap/pm@3.30.0)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@doc/surface@file:vendor/doc-surface-0.1.0.tgz(@floating-ui/dom@1.8.0)(@tiptap/pm@3.30.0)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@tiptap/core': 3.30.0(@tiptap/pm@3.30.0)
       '@tiptap/extension-text-align': 3.30.0(@tiptap/core@3.30.0(@tiptap/pm@3.30.0))

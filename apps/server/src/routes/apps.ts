@@ -33,8 +33,19 @@ export function registerAppsRoutes(app: Express, deps: RegisterAppsRoutesDeps): 
       if (!appId || !name || !endpoint) throw new CanvasStateError(400, 'BAD_REQUEST', 'appId, name and endpoint are required');
       if (!/^https?:\/\//.test(endpoint)) throw new CanvasStateError(400, 'BAD_REQUEST', 'endpoint must be an http(s) URL');
       if (webUrl !== undefined && !/^https?:\/\//.test(webUrl)) throw new CanvasStateError(400, 'BAD_REQUEST', 'webUrl must be an http(s) URL when provided');
-      const row = await deps.registry.register({ appId, name, endpoint: endpoint.replace(/\/+$/, ''), webUrl: webUrl?.replace(/\/+$/, ''), description, status: 'active' });
+      const cleanWebUrl = webUrl?.replace(/\/+$/, '');
+      const row = await deps.registry.register({ appId, name, endpoint: endpoint.replace(/\/+$/, ''), ...(cleanWebUrl ? { webUrl: cleanWebUrl } : {}), description, status: 'active' });
       res.status(201).json({ requestId: requestId(), data: { app: row } });
+    } catch (error) { sendAppError(res, error); }
+  });
+
+  app.delete('/api/apps/:appId', async (req, res) => {
+    try {
+      const { appId } = req.params;
+      if (!appId || appId === 'canvas') throw new CanvasStateError(400, 'BAD_REQUEST', 'cannot unregister canvas itself');
+      const existed = await deps.registry.unregister(appId);
+      if (!existed) throw new CanvasStateError(404, 'APP_NOT_FOUND', `app ${appId} is not registered`);
+      res.json({ requestId: requestId(), data: { unregistered: appId } });
     } catch (error) { sendAppError(res, error); }
   });
 }

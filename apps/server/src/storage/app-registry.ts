@@ -52,12 +52,15 @@ export class AppRegistryStore {
     if (!this.client || !this.databaseId) return [...this.memory.values()];
     try {
       const body = await this.client.call<{ documents: Record<string, unknown>[] }>('GET', `${this.path()}?${AppwriteClient.query([AppwriteClient.limit(100)])}`);
-      const rows = body.documents.map(doc => ({
-        appId: String(doc.appId ?? ''), name: String(doc.name ?? ''), endpoint: String(doc.endpoint ?? ''),
-        webUrl: String(doc.webUrl ?? '') || undefined,
-        description: String(doc.description ?? ''), status: (doc.status === 'disabled' ? 'disabled' : 'active') as RegisteredApp['status'],
-        registeredAt: String(doc.registeredAt ?? ''),
-      })).filter(row => row.appId && row.endpoint);
+      const rows = body.documents.map(doc => {
+        const webUrl = String(doc.webUrl ?? '');
+        return {
+          appId: String(doc.appId ?? ''), name: String(doc.name ?? ''), endpoint: String(doc.endpoint ?? ''),
+          ...(webUrl ? { webUrl } : {}),
+          description: String(doc.description ?? ''), status: (doc.status === 'disabled' ? 'disabled' : 'active') as RegisteredApp['status'],
+          registeredAt: String(doc.registeredAt ?? ''),
+        };
+      }).filter(row => row.appId && row.endpoint);
       for (const row of rows) this.memory.set(row.appId, row);
       return rows;
     } catch (error) {
@@ -70,5 +73,14 @@ export class AppRegistryStore {
     const cached = this.memory.get(appId);
     if (cached) return cached;
     return (await this.list()).find(row => row.appId === appId) ?? null;
+  }
+
+  async unregister(appId: string): Promise<boolean> {
+    const existed = this.memory.delete(appId) || Boolean(await this.list().then(rows => rows.find(r => r.appId === appId)));
+    if (this.client && this.databaseId) {
+      try { await this.client.call('DELETE', `${this.path()}/${appId}`); }
+      catch (error) { if (!isMissing(error)) throw error; }
+    }
+    return existed;
   }
 }
