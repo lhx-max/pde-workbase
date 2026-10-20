@@ -18,7 +18,7 @@ d# 画布卡片包开发规范 v1（FDE 同步开发基线）
 @your-team/canvas-pack-yourbiz/
 ├── src/
 │   ├── index.ts            # export default 一个 CardPack（渲染挂载用，可含 React）
-│   ├── server.ts           # 服务端入口：packId/name/cards[].kind/cards[].ops（不含 React，必须）
+│   ├── server.ts           # 服务端入口：packId/name/cards[].kind/cards[].editorApp?/cards[].ops（不含 React，必须）
 │   ├── cards/
 │   │   └── product-card.tsx  # 卡片渲染器（TSX 组件）
 │   ├── ops.ts              # 卡片专属动作的 handler（可选）
@@ -249,6 +249,7 @@ pnpm tools-dev run web --data-dir /tmp/<你的数据目录> --daemon-port 17460 
 - `CardOpContext`：handler 拿 `{projectId, files}`，`files.write/read` 走当前存储后端（文件或 Appwrite）
 - 动作自动进 COI 能力清单（`GET /api/apps/canvas` 的 `actions`）和内部 capabilities
 - **卡种注册闸口**：`card.*` 卡种必须由服务端挂载的包注册（包导出 `/server` 入口，`apps/server/src/card-packs.ts` 挂载），未注册的卡种建卡返回 `CARD_KIND_NOT_ALLOWED`（403）。能力清单同时上报 `cardKinds` 和 `cardPacks`
+- **卡↔App 关联**：卡的深编辑归某个独立 App 时，`/server` 入口 `cards[].editorApp` 声明 appId（如 `doc`），能力清单 `editorApps` 带上；`POST /api/apps/register` 自注册、`POST .../open-editor` 卡→App 解析、`GET/PUT .../files?path=` 跨 App 文件通道均已上线（详见 `canvas-app-interop.zh-CN.md` §3/§5）
 - **卡片注册表（Appwrite）**：挂载包启动时镜像到 `card_packs` 集合（packId/team/kinds/ops/状态）；`card_grants` 集合记录授权——`scope` 为 `project:<id>`/`team:<id>`/`*`，`allowedKinds` 为空数组即禁用全部。无授权行 = 默认全放开；有行则按行放行。后续对接一寒仓库的团队权限 API（grant 的 `source: 'ma'`），不同团队可用不同卡种
 
 **待补**：

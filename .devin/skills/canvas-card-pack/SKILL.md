@@ -60,6 +60,7 @@ version: 1.0.0
    - 前端渲染：`packages/canvas-workbench/src/packs.ts` 加一行 `import`/注册（一期构建期挂载）
    - 服务端注册：包必须再导出一个 **`/server` 入口**（`src/server.ts`，只含 `packId`/`name`/`cards[].kind`/`cards[].ops`，**不许 import React/TSX**），在 `apps/server/src/card-packs.ts` 挂载；参考 `@bezier/canvas-pack-demo/server`
    - ⚠️ **闸口**：`card.*` 卡种必须在服务端完成注册才能建卡——没挂 `/server` 入口的卡种会被 `CARD_KIND_NOT_ALLOWED` 拒掉（403）。`card_packs` 注册表会把挂载包镜像到 Appwrite，管理侧据此发现能力；`card_grants` 控制哪些团队/画布能用哪些卡（无授权行=默认全放开）
+   - 💡 **卡有深编辑 App 时**：`/server` 入口里给 `cards[]` 加 `editorApp: '<appId>'`（如 `'doc'`），能力清单的 `editorApps` 会带上，画布「打开编辑器」和管理侧都认这个关联
 5. **本地验证**：
 
 ```bash
@@ -102,6 +103,24 @@ curl http://127.0.0.1:17460/api/apps/canvas/instances/my-test/state
 curl http://127.0.0.1:17460/api/apps/canvas/instances/my-test/action-receipts/op-demo-1
 ```
 
+### App 互联（卡片有对应 App 时才用）
+
+```bash
+# 6. 看装了哪些 App（自注册的都在这里）
+curl http://127.0.0.1:17460/api/apps
+# 外部 App 自注册：POST /api/apps/register {"appId","name","endpoint"}
+
+# 7. 卡 → 编辑器 App 解析（kind→editorApps→endpoint+filePath）
+curl -X POST http://127.0.0.1:17460/api/apps/canvas/instances/my-test/open-editor \
+  -H 'content-type: application/json' -d '{"nodeId":"c1"}'
+# 未关联/未注册返回 404 APP_NOT_INSTALLED
+
+# 8. 卡片文件取件（App 读写卡里 projectFilePath 指的同一份文件）
+curl "http://127.0.0.1:17460/api/apps/canvas/instances/my-test/files?path=<相对路径>"
+curl -X PUT "http://127.0.0.1:17460/api/apps/canvas/instances/my-test/files?path=<相对路径>" \
+  -H 'content-type: application/json' -d '{"content":"..."}'
+```
+
 **规则**：响应统一 `{requestId, data}` 信封；错误 `{code: "CANVAS_*"}`；409 = 版本冲突（带 `expectedRevision` 重试）；`idempotency-key` 相同重复提交返回旧凭条。
 
 ### CLI / 服务起法
@@ -138,6 +157,8 @@ curl -X POST https://frontend-cloud.corp.kuaishou.com/v1/account/sessions/email 
 - **「我的卡渲染不出来」**：先查 kind 前缀对不对、`packs.ts` 挂没挂、数据里 `kind` 字段和注册名一不一致
 - **「改了 data 画布没变」**：你绕开 `onPatch` 直接改了 node——补丁必须过 onPatch 才进持久化
 - **「动作 404」**：动作名没带全前缀，或没在包的 `ops` 表里注册
+- **「建卡 403 CARD_KIND_NOT_ALLOWED」**：服务端没挂你的 `/server` 入口——卡种注册是强制的，不是只有 ops 才需要
+- **「open-editor 404」**：卡没声明 `editorApp` 或那个 App 没 `POST /api/apps/register` 自注册
 - **「卡数据丢了」**：data 超过 256KB 被截/拒；大内容落 `ctx.files`，卡里存路径
 - **审批/字段细节未定**：全塞 `data` 黑盒，平台不认得的字段原样保留——别把"未定"当阻塞
 
