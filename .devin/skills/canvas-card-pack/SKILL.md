@@ -31,6 +31,7 @@ version: 1.0.0
 
 | 环境 | 你的卡要遵守的 |
 |---|---|
+| **工具链** | Node 24 + pnpm 10.33.2（corepack 自选锁版本）；装包统一 `pnpm add` |
 | **渲染宿主** | 卡片跑在 React Flow（xyflow）节点里——你写的是节点内容区组件，不是独立页面 |
 | **React 版本** | 仓内组件约束 **React 18**；不要引入 React 19 专属 API（compiler、use()、新 ref 写法） |
 | **语言** | 新代码全 TypeScript；不要新增 `.js/.mjs` 源文件（存量 .mjs 是构建产物） |
@@ -39,6 +40,16 @@ version: 1.0.0
 | **数据路径** | 服务存储一律从显式 data root / 构造参数派生，禁止 cwd 推断、禁止引用上游仓路径 |
 | **提交前必跑** | `pnpm install`（改了依赖）→ `pnpm guard` → `pnpm typecheck` → 包级测试（`pnpm --filter <包> test`），不准用根级 build/test 别名 |
 | **测试位置** | 包级 `tests/` 目录（src 同级），src 里不放 `*.test.*`；UI 自动化归 `e2e/ui/` |
+
+## 分支模型
+
+| 分支 | 角色 | 谁能动 |
+|---|---|---|
+| `main` | 稳定主线 | 只收 MR，由仓库 Owner（zhuzhiheng）审 |
+| `feat/zhuzhiheng-card-pack-base` | 卡片包共同开发基线 | FDE 从这里拉、MR 回这里 |
+| `feat/card-pack-<团队>-<业务>` | 你的工作分支 | 你自己 |
+
+**你的流程**：从 `feat/zhuzhiheng-card-pack-base` 拉 `feat/card-pack-<团队>-<业务>` → 干活 → MR 回 `feat/zhuzhiheng-card-pack-base` → Owner 审核合入。主干 `main` 由 Owner 定期从基线升级，FDE 不直接合 main。
 
 ## 开发流程
 
