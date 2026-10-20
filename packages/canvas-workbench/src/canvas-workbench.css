@@ -11,12 +11,10 @@
 @import './styles/canvas-effects.css';
 @import './styles/canvas-image-editors.css';
 @import './styles/canvas-video-node.css';
-@import './styles/canvas-clip-node.css';
 /* Next transpiles CSS-module class maps from workspace packages but can omit
    their emitted side effect. Pull the detailed editor sheet through the
    package's canonical style manifest as well, so the mapped classes have
    rules in every host. */
-@import './workbench/ClipDetailedEditor.module.css';
 @import './styles/canvas-node-actions.css';
 @import './styles/canvas-edges.css';
 /* Presentation-only LOD and offscreen paint policy; never hides node handles. */
