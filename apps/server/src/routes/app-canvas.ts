@@ -89,6 +89,17 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
     } catch (error) { sendAppError(res, error); }
   });
 
+  /** Permissions (P19): canvas has its own card-grant model; the external
+   * team-permission provider is not wired yet — report both honestly. */
+  app.get('/api/apps/canvas/permissions', (_req, res) => {
+    res.json({ requestId: requestId(), data: {
+      available: true, provider: 'internal-card-grants',
+      scope: 'card kind availability per team/project via card_grants',
+      teamPermissionsProvider: { available: false, configured: Boolean(process.env.TEAM_PERMISSIONS_URL?.trim()),
+        reason: '团队权限 API 地址与返回格式尚未提供，接线保留未启用' },
+    } });
+  });
+
   /** App-level action: create a canvas instance. */
   app.post<{ actionId: string }>('/api/apps/canvas/actions/:actionId', async (req, res) => {
     try {
