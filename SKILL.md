@@ -105,6 +105,8 @@ curl http://127.0.0.1:17460/api/apps/canvas/instances/my-test/action-receipts/op
 
 ### App 互联（卡片有对应 App 时才用）
 
+> 开发一个新 App（不是卡包）时，规范真源是 [`docs/app-development-spec.zh-CN.md`](../../../docs/app-development-spec.zh-CN.md)：仓库结构、存储、协议面 P1–P11、嵌入形态、合规自检表——照它做就能插进这套体系。
+
 ```bash
 # 6. 看装了哪些 App（自注册的都在这里）
 curl http://127.0.0.1:17460/api/apps
