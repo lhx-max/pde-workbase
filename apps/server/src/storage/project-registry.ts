@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import type { Project, ProjectMetadata, ProjectTabsState, ProjectBrowserWorkspaceTab } from '@bezier/contracts';
@@ -82,6 +82,24 @@ export function createProjectRegistry(dataRoot: string) {
       requireProject(id);
       assertProjectPathHasNoSymlinks(dataRoot, `projects/${id}`);
       return path.join(projectsRoot, id);
+    },
+    update(id: string, input: { name?: string }): Project {
+      const project = requireProject(id);
+      const state = load();
+      const index = state.projects.findIndex(p => p.id === project.id);
+      if (typeof input.name === 'string' && input.name.trim()) project.name = input.name.trim();
+      project.updatedAt = Date.now();
+      state.projects[index] = project;
+      save(state);
+      return project;
+    },
+    delete(id: string): void {
+      requireProject(id);
+      const state = load();
+      state.projects = state.projects.filter(p => p.id !== id);
+      delete state.tabs[id];
+      save(state);
+      rmSync(path.join(projectsRoot, id), { recursive: true, force: true });
     },
     getTabs(id: string): ProjectTabsState {
       requireProject(id);

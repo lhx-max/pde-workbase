@@ -100,23 +100,56 @@ APPWRITE_SESSION_COOKIE=a_session_grworkspace=<值>   # 整串 cookie 对，只�
 
 App 自己领域的接口（doc 的 `/api/documents` 列表/读写/导出）。形状自己设计，但响应包格式必须遵守 §五，未实现的能力显式返回 `501`，不许装死或假成功。
 
-### 4.2 协议面 P1–P11（合规清单）
+### 4.2 统一协议合同（v1，唯一标准）
+
+这是整个体系的**唯一 API 标准**——画布和所有 App 用同一副骨架，管理侧 Agent 学会一套就会调全部。画布、doc、sketch、browser、未来的 App 一律按此实现；历史 DA 交付形状（`/api/canvases`）作废，能力由本合同吸收。
+
+**目录与接入**
 
 | # | 端点 | 级别 | 干什么 |
 |---|---|---|---|
-| P1 | `GET /api/apps/<appId>` | 必须 | 能力清单：我是谁、我编辑什么卡、我有哪些动作 |
-| P2 | 启动时 `POST <宿主>/api/apps/register` | 必须 | 自注册：告诉画布「我上线了，在这个地址」 |
-| P3 | `POST /api/apps/<appId>/open-editor` | 必须 | 收 `{nodeId, filePath, canvasId?}` → 回 `{openUrl}`，即「打开我编辑这张卡」 |
-| P4 | `GET /api/apps/<appId>/instances/:id/state` | 必须 | 查我这个实例的当前状态 |
-| P5 | `GET/PUT /api/apps/<appId>/instances/:id/files?path=` | 必须 | 读写我这个实例的文件 |
-| P6 | `POST /api/apps/<appId>/actions/<app>.create` | 应当 | 创建新实例的 App 级动作 |
-| P7 | `POST .../instances/:id/actions/:actionId` | 应当 | 实例动作统一入口——manifest 里声明的每个动作都必须有路由，**声明了没实现 = 不合规** |
-| P8 | `GET .../instances/:id/action-receipts/:receiptId` | 应当 | 查动作执行回执（同步动作可直接内嵌返回） |
-| P9 | `GET/PUT /api/apps/<appId>/canvas/:canvasId/files?path=` | 应当 | 画布文件桥：后端转发到画布文件通道，前端不用直接知道画布地址 |
-| P10 | `GET /api/apps/<appId>/permissions` | 必须 | 团队权限查询口；没接入时返回 `501 + {available:false, reason}`，**不许编一个不存在的权限服务** |
-| P11 | `GET .../instances/:id/events` | 二期 | 我这边的变化事件流（SSE），MVP 可缓但 manifest 要如实标 `available:false` |
+| P1 | `GET /api/apps` | 必须 | 目录：列出所有已注册 App（调用方在宿主/画布侧调） |
+| P2 | 启动时 `POST <宿主>/api/apps/register` `{appId,name,endpoint,description?}` | 必须 | 自注册：告诉宿主「我上线了，在这个地址」 |
+| P3 | `GET /api/apps/<appId>` | 必须 | 能力清单：我是谁、我编辑什么卡、我有哪些动作、事件流在哪 |
+| P4 | `POST /api/apps/<appId>/open-editor` `{nodeId,filePath,canvasId?}` → `{openUrl}` | 编辑器 App 必须 | 收「打开我编辑这张卡」的请求；配套 `GET ?nodeId=` 可查回话 |
 
-> 「必须」= 没有它插不进画布；「应当」= Agent 的统一调用面，缺了 Agent 就没法标准操作你；「二期」= 可缓但要诚实标注。
+**实例与状态**
+
+| # | 端点 | 级别 | 干什么 |
+|---|---|---|---|
+| P5 | `GET /api/apps/<appId>/instances` | 应当 | 实例列表 |
+| P6 | `POST /api/apps/<appId>/actions/<app>.create` `{input:{name?}}` | 应当 | 建实例（App 级动作） |
+| P7 | `GET /api/apps/<appId>/instances/:id/state` | 必须 | 实例当前状态（含 `revision`/`eventCursor`） |
+| P8 | `GET /api/apps/<appId>/instances/:id/revision` | 可 | 只拿版本号 |
+| P9 | `GET /api/apps/<appId>/instances/:id/context` | 可 | 实例摘要（Agent 读的轻量上下文） |
+| P10 | `GET /api/apps/<appId>/instances/:id/nodes/:nodeId` | 可 | 单实体读取 |
+| P11 | `GET /api/apps/<appId>/instances/:id/nodes/:nodeId/history?limit=` | 可 | 实体历史 |
+
+**写操作（统一动作模型）**
+
+| # | 端点 | 级别 | 干什么 |
+|---|---|---|---|
+| P12 | `POST .../instances/:id/operations` `{operationId,baseRevision,operations[]}` | 画布必须；其他 App 有批量语义时必须 | **批量原子提交**，1–100 个操作一个版本——写操作的正形 |
+| P13 | `POST .../instances/:id/actions/:actionId` `{input,expectedRevision}` + `idempotency-key` 头 | 应当 | 单操作糖 = 批次为 1；manifest 声明的每个 actionId 必须有路由，**声明没实现 = 不合规** |
+| P14 | `GET .../instances/:id/operations/:operationId` 或 `.../action-receipts/:receiptId` | 应当 | 回执查询：网络结果不确定时先查这里不重发 |
+| P15 | 实例生命周期动作 `<app>.rename`/`<app>.delete`/`<app>.duplicate` | 应当 | 挂在 P13 动作入口下，不走 REST DELETE |
+
+**文件与交换**
+
+| # | 端点 | 级别 | 干什么 |
+|---|---|---|---|
+| P16 | `GET/PUT /api/apps/<appId>/instances/:id/files?path=` | 必须 | 读写我这个实例的文件，响应 `{data:{content}}` |
+| P17 | `GET/PUT /api/apps/<appId>/canvas/:canvasId/files?path=` | 编辑器 App 应当 | 画布文件桥：后端转发到画布文件通道，前端不用直接知道画布地址 |
+
+**事件与权限**
+
+| # | 端点 | 级别 | 干什么 |
+|---|---|---|---|
+| P18 | `GET .../instances/:id/events?after=<cursor>` | 画布已实现；其他 App 二期 | SSE 变化流：`ready` → 实体增删改；`resync:true` 时先重读 state |
+| P19 | `GET /api/apps/<appId>/permissions` | 必须 | 团队权限口；未接入返回 `501 + {available:false, reason}`，**不许编造权限服务** |
+| P20 | `.../instances/:id/snapshots*` | 二期 | 快照 CRUD+恢复；未实现时 manifest 标 `available:false` |
+
+> 「必须」= 没有它插不进体系；「应当」= Agent 的统一调用面；「可」= 有就给、没有不强求；「二期」= 可缓但要诚实标注。
 
 ### 命名与包格式（钉死）
 
@@ -138,13 +171,18 @@ App 自己领域的接口（doc 的 `/api/documents` 列表/读写/导出）。�
   "appId": "doc",
   "name": "文档编辑器",
   "version": "0.1.0",
+  "protocolVersion": 1,
   "editorKinds": ["text"],
   "actions": [
     { "actionId": "doc.list",  "mode": "app",      "async": false },
     { "actionId": "doc.read",  "mode": "instance", "async": false },
-    { "actionId": "doc.write", "mode": "instance", "async": false }
+    { "actionId": "doc.write", "mode": "instance", "async": false },
+    { "actionId": "doc.open",  "mode": "instance", "async": false }
   ],
-  "events": { "available": false }
+  "events": { "available": false },
+  "snapshots": { "available": false },
+  "requiresExpectedRevision": false,
+  "execution": "synchronous"
 }
 ```
 
@@ -207,16 +245,17 @@ import { DocumentEditorPane } from '@doc/surface';
 - [ ] 未配置的能力全部显式 501/503
 - [ ] README 写明：结构、自闭环验证方法、环境变量、启动命令、未实现清单
 
-## 十一、doc 当前差距（基准线）
+## 十一、doc 当前差距（基准线，按统一合同 P 编号）
 
-| 差距 | 状态 |
-|---|---|
-| 响应包缺 `requestId` | 待补 |
-| manifest 声明 4 个动作但无 `/actions/` 路由（P7） | 待补 |
-| 无 `/action-receipts/`（P8） | 待补 |
-| 无 `/events`（P11，二期） | 如实标注即可 |
-| 文件写无版本冲突控制（一期放宽，需写明） | 标注 |
-| open-editor 会话存内存，重启即丢 | 标注 |
+| 差距 | 合同条目 | 状态 |
+|---|---|---|
+| 响应包缺 `requestId` | 命名与包格式 | 待补 |
+| manifest 声明 4 个动作但无 `/actions/` 路由 | P13 | 待补 |
+| 无回执查询端点 | P14 | 待补 |
+| 无 `/events` | P18（二期） | 如实标注即可 |
+| 无 `/snapshots` | P20（二期） | 如实标注即可 |
+| 文件写无版本冲突控制（一期放宽，需写明） | P16 | 标注 |
+| open-editor 会话存内存，重启即丢 | P4 | 标注 |
 
 ---
 
@@ -326,22 +365,33 @@ curl http://127.0.0.1:19000/api/apps/doc/instances/<docId>/state
   "path": "documents/d-abc123.md", "size": 128, "updatedAt": "..." }, "content": "# ..." } }
 ```
 
-### A.7 统一动作（P7，画布形状照此做）
+### A.7 批量操作（P12，写操作正形）
 
 ```bash
-curl -X POST "http://<host>/api/apps/<appId>/instances/<id>/actions/<actionId>" \
-  -H 'content-type: application/json' -H 'idempotency-key: op-<uuid>' \
-  -d '{"input":{ ...动作的参数字段... }, "expectedRevision": 1792492885801}'
+curl -X POST "http://<host>/api/apps/<appId>/instances/<id>/operations" \
+  -H 'content-type: application/json' \
+  -d '{"operationId":"op-<uuid>","baseRevision":1792492885801,
+       "operations":[{"type":"node.create","node":{"id":"brief","kind":"text","title":"需求","x":0,"y":0}},
+                     {"type":"node.update","nodeId":"result","set":{"text":"方案初稿"}}]}'
 ```
 
 ```json
 { "requestId": "req_...", "data": {
-  "receiptId": "op-<uuid>", "status": "succeeded",
-  "result": { ... }, "revision": 1792493393642, "replayed": false,
-  "eventCursor": "1792493393642" } }
+  "receipt": { "operationId": "op-<uuid>", "status": "applied",
+               "baseRevision": 1792492885801, "revision": 1792493393642,
+               "nodeIds": ["brief"], "createdAt": "..." },
+  "revision": 1792493393642, "state": { ... }, "replayed": false } }
 ```
 
-`expectedRevision` 冲突回 `409`；带同一 `idempotency-key` 重发返回原结果 `replayed:true`。
+`baseRevision` 冲突回 `409`；同 `operationId` 重发返回原回执 `replayed:true`，不重复执行。
+
+单操作糖（P13）同语义、批次为 1：
+
+```bash
+curl -X POST "http://<host>/api/apps/<appId>/instances/<id>/actions/node.update" \
+  -H 'content-type: application/json' -H 'idempotency-key: op-<uuid>' \
+  -d '{"input":{"nodeId":"result","set":{"text":"方案初稿"}},"expectedRevision":1792492885801}'
+```
 
 ### A.8 错误包
 

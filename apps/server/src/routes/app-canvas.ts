@@ -13,6 +13,9 @@ type Authorize = (req: Request, res: Response, projectId: string, access?: { mod
 
 interface Registry {
   create(input: { id?: string; name: string; metadata?: unknown }): { id: string };
+  list?(): { id: string; name: string; createdAt: number; updatedAt: number }[];
+  update?(id: string, input: { name?: string }): { id: string; name: string };
+  delete?(id: string): void;
 }
 
 /** Generic App-protocol facade over the canvas implementation.
@@ -46,6 +49,8 @@ export interface RegisterAppCanvasRoutesDeps {
   /** Canvas-owned file channel — external Apps read/write the same files
    * the cards point at (`projectFilePath`). Text payloads in v1. */
   content?: CanvasFileContent;
+  /** Entity history for node timeline queries. */
+  ledger?: { listEntityHistory(projectId: string, entity: string, entityId: string, limit: number, options?: { correlationIds?: string[]; fileNames?: string[] }): unknown[] };
 }
 
 export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRoutesDeps): void {
@@ -62,7 +67,19 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
         cardKinds: listRegisteredCardKinds(),
         editorApps: { ...CORE_EDITOR_APPS, ...listRegisteredCardApps() },
         cardPacks: listRegisteredPacks().map(pack => ({ packId: pack.packId, team: pack.team, name: pack.name, kinds: pack.kinds, ops: pack.ops, editorApps: pack.editorApps })),
-        actions: [{ actionId: 'canvas.create', target: 'app' }, ...actions],
+        actions: [{ actionId: 'canvas.create', target: 'app' },
+          { actionId: 'canvas.rename', target: 'instance' }, { actionId: 'canvas.delete', target: 'instance' }, { actionId: 'canvas.duplicate', target: 'instance', available: false },
+          ...actions],
+        endpoints: {
+          instances: 'GET /api/apps/canvas/instances',
+          state: 'GET /api/apps/canvas/instances/{id}/state',
+          revision: 'GET /api/apps/canvas/instances/{id}/revision',
+          context: 'GET /api/apps/canvas/instances/{id}/context',
+          node: 'GET /api/apps/canvas/instances/{id}/nodes/{nodeId}',
+          nodeHistory: 'GET /api/apps/canvas/instances/{id}/nodes/{nodeId}/history',
+          operations: 'POST /api/apps/canvas/instances/{id}/operations',
+          operationReceipt: 'GET /api/apps/canvas/instances/{id}/operations/{operationId}',
+        },
         createActions: CARD_CREATE_ACTIONS,
         cardCapabilities: CARD_CAPABILITY_MATRIX,
         events: { method: 'GET', path: '/api/apps/canvas/instances/{instanceId}/events', query: { after: 'eventCursor' }, types: ['card.created', 'card.updated', 'card.deleted'] },
@@ -145,12 +162,100 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
     } catch (error) { sendAppError(res, error); }
   });
 
+  /** Instance list (P5). */
+  app.get('/api/apps/canvas/instances', async (_req, res) => {
+    try {
+      const instances = (deps.registry.list?.() ?? []).map(p => ({ instanceId: p.id, name: p.name, createdAt: p.createdAt, updatedAt: p.updatedAt }));
+      res.json({ requestId: requestId(), data: { instances } });
+    } catch (error) { sendAppError(res, error); }
+  });
+
+  /** Revision only (P8). */
+  app.get<{ instanceId: string }>('/api/apps/canvas/instances/:instanceId/revision', async (req, res) => {
+    try {
+      const projectId = resolveInstanceId(req.params.instanceId);
+      if (!await authorize(req, res, projectId, { mode: 'read' })) return;
+      res.json({ requestId: requestId(), data: { instanceId: req.params.instanceId, revision: await deps.canvasState.revision(projectId) } });
+    } catch (error) { sendAppError(res, error); }
+  });
+
+  /** Instance summary for agents (P9). */
+  app.get<{ instanceId: string }>('/api/apps/canvas/instances/:instanceId/context', async (req, res) => {
+    try {
+      const projectId = resolveInstanceId(req.params.instanceId);
+      if (!await authorize(req, res, projectId, { mode: 'read' })) return;
+      res.json({ requestId: requestId(), data: { instanceId: req.params.instanceId, summary: await deps.canvasState.context(projectId) } });
+    } catch (error) { sendAppError(res, error); }
+  });
+
+  /** Single node read (P10) and node history (P11). */
+  app.get<{ instanceId: string; nodeId: string }>('/api/apps/canvas/instances/:instanceId/nodes/:nodeId', async (req, res) => {
+    try {
+      const projectId = resolveInstanceId(req.params.instanceId);
+      if (!await authorize(req, res, projectId, { mode: 'read' })) return;
+      const node = await deps.canvasState.node(projectId, req.params.nodeId);
+      if (!node) throw new CanvasStateError(404, 'CANVAS_NODE_NOT_FOUND', `Node not found: ${req.params.nodeId}`);
+      res.json({ requestId: requestId(), data: { nodeId: req.params.nodeId, node } });
+    } catch (error) { sendAppError(res, error); }
+  });
+
+  app.get<{ instanceId: string; nodeId: string }>('/api/apps/canvas/instances/:instanceId/nodes/:nodeId/history', async (req, res) => {
+    try {
+      const projectId = resolveInstanceId(req.params.instanceId);
+      if (!await authorize(req, res, projectId, { mode: 'read' })) return;
+      if (!deps.ledger) throw new CanvasStateError(503, 'CANVAS_HISTORY_UNAVAILABLE', 'node history is unavailable');
+      const limit = Number(req.query.limit);
+      const node = await deps.canvasState.node(projectId, req.params.nodeId);
+      const events = deps.ledger.listEntityHistory(projectId, 'canvas_node', req.params.nodeId,
+        Number.isSafeInteger(limit) && limit > 0 ? limit : 100,
+        { correlationIds: node?.taskIds ?? [], fileNames: node?.outputPaths ?? [] });
+      if (!node && events.length === 0) throw new CanvasStateError(404, 'CANVAS_NODE_NOT_FOUND', `Node not found: ${req.params.nodeId}`);
+      res.json({ requestId: requestId(), data: { nodeId: req.params.nodeId, node, events } });
+    } catch (error) { sendAppError(res, error); }
+  });
+
+  /** Batch operations (P12) — canonical write shape. Atomic multi-op apply,
+   * one revision per batch. Same semantics as the legacy /operations route. */
+  app.post<{ instanceId: string }>('/api/apps/canvas/instances/:instanceId/operations', async (req, res) => {
+    try {
+      const projectId = resolveInstanceId(req.params.instanceId);
+      if (!await authorize(req, res, projectId, { mode: 'write', capability: 'writeFiles' })) return;
+      const response = await deps.canvasState.applyOperations(projectId, req.body);
+      res.json({ requestId: requestId(), data: { receipt: response.receipt, revision: response.revision, state: response.state, replayed: response.replayed, eventCursor: String(response.revision) } });
+    } catch (error) { sendAppError(res, error); }
+  });
+
+  /** Operation receipt lookup (P14). */
+  app.get<{ instanceId: string; operationId: string }>('/api/apps/canvas/instances/:instanceId/operations/:operationId', async (req, res) => {
+    try {
+      const projectId = resolveInstanceId(req.params.instanceId);
+      if (!await authorize(req, res, projectId, { mode: 'read' })) return;
+      res.json({ requestId: requestId(), data: { receipt: await deps.canvasState.operation(projectId, req.params.operationId) } });
+    } catch (error) { sendAppError(res, error); }
+  });
+
   /** Instance action: single semantic operation mapped into the operations batch. */
   app.post<{ instanceId: string; actionId: string }>('/api/apps/canvas/instances/:instanceId/actions/:actionId', async (req, res) => {
     try {
       const projectId = resolveInstanceId(req.params.instanceId);
-      if (!await authorize(req, res, projectId, { mode: 'write', capability: 'writeFiles' })) return;
+      const actionId = req.params.actionId;
       const input = req.body?.input && typeof req.body.input === 'object' ? req.body.input : {};
+      if (actionId === 'canvas.rename' || actionId === 'canvas.delete') {
+        if (!await authorize(req, res, projectId, { mode: 'write', capability: 'writeFiles' })) return;
+        if (actionId === 'canvas.rename') {
+          const name = typeof input.name === 'string' ? input.name : '';
+          if (!name.trim()) throw new CanvasStateError(400, 'BAD_REQUEST', 'input.name is required');
+          const project = deps.registry.update?.(projectId, { name });
+          if (!project) throw new CanvasStateError(503, 'CANVAS_REGISTRY_UNAVAILABLE', 'rename is unavailable');
+          res.json({ requestId: requestId(), data: { receiptId: req.get('idempotency-key') ?? null, status: 'succeeded', result: { instanceId: project.id, name: project.name } } });
+          return;
+        }
+        deps.registry.delete?.(projectId);
+        res.json({ requestId: requestId(), data: { receiptId: req.get('idempotency-key') ?? null, status: 'succeeded', result: { instanceId: projectId, deleted: true } } });
+        return;
+      }
+      if (actionId === 'canvas.duplicate') throw new CanvasStateError(501, 'CANVAS_ACTION_UNAVAILABLE', 'canvas.duplicate is not implemented yet');
+      if (!await authorize(req, res, projectId, { mode: 'write', capability: 'writeFiles' })) return;
       const operationId = req.get('idempotency-key') ?? `op-${randomUUID()}`;
       const baseRevision = typeof req.body?.expectedRevision === 'number' ? req.body.expectedRevision : await deps.canvasState.revision(projectId);
       const response = await deps.canvasState.applyOperations(projectId, {

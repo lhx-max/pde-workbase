@@ -100,7 +100,7 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
  app.get('/api/health',(_req,res)=>res.json({ok:true,service:'canvas-workspace'}));
  registerCanvasStateRoutes(app,{canvasState:canvas,ledger,resolveProjectRoot:id=>registry.resolveProjectRoot(id),authorizeProjectRequest});
  registerAppsRoutes(app,{registry:appRegistry});
- registerAppCanvasRoutes(app,{canvasState:canvas,registry,authorizeProjectRequest,appRegistry,content:appContent});
+ registerAppCanvasRoutes(app,{canvasState:canvas,registry,authorizeProjectRequest,appRegistry,content:appContent,ledger});
  registerProjectFileRoutes(app,{registry,canvasFiles:canvas,authorize:authorizeProjectRequest,sketchDocuments:{
   async read(filePath){const endpoint=await sketchEndpoint();if(!endpoint||!isSketchDocumentPath(filePath))return undefined;return new SketchAppFiles(endpoint).read(filePath);},
   async write(filePath,content){const endpoint=await sketchEndpoint();if(!endpoint||!isSketchDocumentPath(filePath))return undefined;const saved=await new SketchAppFiles(endpoint).write(filePath,content);return {name:saved.path,path:saved.path,size:saved.size,mtime:Date.parse(saved.updatedAt)||Date.now(),kind:'sketch',mime:'application/json',type:'file'};},

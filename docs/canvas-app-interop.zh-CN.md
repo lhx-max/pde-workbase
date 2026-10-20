@@ -124,6 +124,7 @@ interface OpenEditorRequest {
 | **打开编辑器** | ✅ `open-editor` 端点已实现（见 §3） |
 | **跨 App 文件通道** | ✅ `GET/PUT /api/apps/canvas/instances/:id/files?path=`——App 读写卡里存的同一份文件（一期文本负载） |
 | **变化订阅** | ✅ `GET /api/apps/canvas/instances/:id/events`——卡片增删改；游标掉出缓冲时 `ready.resync`，调用方重读 state |
+| **统一合同补全**（2026-10-20） | ✅ 实例列表 `GET .../instances`、批量 `POST .../instances/:id/operations`（原子多操作、operationId 幂等、baseRevision 冲突 409）、回执 `GET .../operations/:operationId`、`/revision`、`/context`、`/nodes/:nodeId`、`/nodes/:nodeId/history`、生命周期动作 `canvas.rename`/`canvas.delete`（`canvas.duplicate` 501 未实现）。完整合同见 `app-development-spec.zh-CN.md` §4.2 |
 | App 独立仓/独立部署 | ⏳ 拆出中 |
 
 ## 6. 待定（二期）
