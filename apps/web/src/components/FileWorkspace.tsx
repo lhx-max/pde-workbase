@@ -192,7 +192,26 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
     } updateTabs(state => ({ ...state, tabs: state.tabs.filter(id => !deleted.includes(id)), active: deleted.includes(state.active || '') ? DESIGN_FILES_TAB : state.active })); await refreshFiles(); return deleted; }, [projectId, ports.workspaceContext, updateTabs, refreshFiles, reportError]);
     const createFile = useCallback(async (kind: 'text' | 'sketch') => { const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19); const base = `sketch-${stamp}.sketch.json`; const name = kind === 'sketch' ? (uploadDir ? `${uploadDir}/${base}` : base) : nextMarkdownDocumentPath(files, uploadDir); const file = await writeProjectTextFile(projectId, name, kind === 'sketch' ? serializeExcalidrawSketchScene(emptySketchScene(name), name) : initialMarkdownDocument(name, projectKind, t), undefined, ports.workspaceContext); if (!file)
         throw new Error(tRef.current('workspace.createMissingFile')); await refreshFiles(); openFile(file.name); }, [files, projectId, projectKind, uploadDir, ports.workspaceContext, refreshFiles, openFile, t]);
-    const launcherContext: LauncherContext = { projectId, openTab: openFile, createBrowser: () => {void navigate(()=>{const id=`__browser__:${crypto.randomUUID()}`;updateTabs(state=>({...state,tabs:[...state.tabs,id],active:id,browserTabs:[...(state.browserTabs||[]),{id,label:t('workspace.newBrowser')}]}));}).catch(reportError);}, createSketch: () => void createFile('sketch').catch(reportError), createDocument: () => void createFile('text').catch(reportError), };
+    const [registeredApps, setRegisteredApps] = useState<{ appId: string; name: string; url: string }[]>([]);
+    useEffect(() => {
+        let cancelled = false;
+        const load = async () => {
+            try {
+                const res = await fetch('/api/apps');
+                if (!res.ok) return;
+                const body = await res.json();
+                const apps = ((body?.data?.apps ?? []) as { appId: string; name: string; endpoint?: string; webUrl?: string; status?: string }[])
+                    .filter(app => app.appId !== 'canvas' && app.status !== 'disabled')
+                    .map(app => ({ appId: app.appId, name: app.name, url: app.webUrl || app.endpoint || '' }))
+                    .filter(app => app.url);
+                if (!cancelled) setRegisteredApps(apps);
+            } catch { /* registry unreachable → menu stays empty */ }
+        };
+        void load();
+        const timer = setInterval(load, 15000);
+        return () => { cancelled = true; clearInterval(timer); };
+    }, []);
+    const launcherContext: LauncherContext = { projectId, openTab: openFile, apps: registeredApps, createBrowser: () => {void navigate(()=>{const id=`__browser__:${crypto.randomUUID()}`;updateTabs(state=>({...state,tabs:[...state.tabs,id],active:id,browserTabs:[...(state.browserTabs||[]),{id,label:t('workspace.newBrowser')}]}));}).catch(reportError);}, createSketch: () => void createFile('sketch').catch(reportError), createDocument: () => void createFile('text').catch(reportError), };
     const sketchCallbacks = useMemo(() => Object.fromEntries(tabs.tabs.map(name => [name, { onDirtyChange: (dirty: boolean) => setDirtyTabs(current => current[name] === dirty ? current : { ...current, [name]: dirty }), registerFlush: (flush: (() => Promise<boolean>) | null) => { if (flush)
                 flushers.current.set(name, flush);
             else

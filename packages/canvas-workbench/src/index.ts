@@ -13,6 +13,7 @@ export { overrideCanvasTextDeliveryInstruction } from './platform/canvas-text-de
 export type { CanvasTaskClientOptions } from './platform/task-client';
 export type { CanvasHostContext, CanvasTransport } from './platform/api-base';
 export { localizeDaemonMessage } from './locales/daemon-messages';
+export { CanvasKindAvailability, useCanvasKindAvailability } from './platform/kind-availability';
 export { focusCanvasObject, prepareCanvasObject, failCanvasObject, readCanvasObject, continueCanvasObject, registerCanvasNavigator, revealCanvasObject } from './platform/object-bridge';
 export type { CanvasObjectReference } from './platform/object-bridge';
 export { readCanvasObjectPreview, subscribeCanvasObjectPreviews } from './platform/object-bridge';

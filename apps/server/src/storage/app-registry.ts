@@ -6,6 +6,9 @@ import { CanvasStateError } from '../canvas/errors.js';
  * browser) self-register via POST /api/apps/register. */
 export interface RegisteredApp {
   appId: string;
+  /** The App's own web page — opened when a host wants to show the App's
+   * detail/home UI. Falls back to `endpoint` when unset. */
+  webUrl?: string;
   name: string;
   /** Base URL of the App's protocol surface (e.g. https://…/api/apps/doc). */
   endpoint: string;
@@ -34,7 +37,7 @@ export class AppRegistryStore {
     const row: RegisteredApp = { ...app, registeredAt: new Date().toISOString() };
     this.memory.set(row.appId, row);
     if (this.client && this.databaseId) {
-      const data = { appId: row.appId, name: row.name, endpoint: row.endpoint, description: row.description ?? '', status: row.status, registeredAt: row.registeredAt };
+      const data = { appId: row.appId, name: row.name, endpoint: row.endpoint, webUrl: row.webUrl ?? '', description: row.description ?? '', status: row.status, registeredAt: row.registeredAt };
       try {
         await this.client.call('PATCH', `${this.path()}/${row.appId}`, { data });
       } catch (error) {
@@ -51,6 +54,7 @@ export class AppRegistryStore {
       const body = await this.client.call<{ documents: Record<string, unknown>[] }>('GET', `${this.path()}?${AppwriteClient.query([AppwriteClient.limit(100)])}`);
       const rows = body.documents.map(doc => ({
         appId: String(doc.appId ?? ''), name: String(doc.name ?? ''), endpoint: String(doc.endpoint ?? ''),
+        webUrl: String(doc.webUrl ?? '') || undefined,
         description: String(doc.description ?? ''), status: (doc.status === 'disabled' ? 'disabled' : 'active') as RegisteredApp['status'],
         registeredAt: String(doc.registeredAt ?? ''),
       })).filter(row => row.appId && row.endpoint);

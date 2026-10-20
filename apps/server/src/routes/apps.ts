@@ -29,10 +29,11 @@ export function registerAppsRoutes(app: Express, deps: RegisterAppsRoutesDeps): 
 
   app.post('/api/apps/register', async (req, res) => {
     try {
-      const { appId, name, endpoint, description } = (req.body ?? {}) as { appId?: string; name?: string; endpoint?: string; description?: string };
+      const { appId, name, endpoint, webUrl, description } = (req.body ?? {}) as { appId?: string; name?: string; endpoint?: string; webUrl?: string; description?: string };
       if (!appId || !name || !endpoint) throw new CanvasStateError(400, 'BAD_REQUEST', 'appId, name and endpoint are required');
       if (!/^https?:\/\//.test(endpoint)) throw new CanvasStateError(400, 'BAD_REQUEST', 'endpoint must be an http(s) URL');
-      const row = await deps.registry.register({ appId, name, endpoint: endpoint.replace(/\/+$/, ''), description, status: 'active' });
+      if (webUrl !== undefined && !/^https?:\/\//.test(webUrl)) throw new CanvasStateError(400, 'BAD_REQUEST', 'webUrl must be an http(s) URL when provided');
+      const row = await deps.registry.register({ appId, name, endpoint: endpoint.replace(/\/+$/, ''), webUrl: webUrl?.replace(/\/+$/, ''), description, status: 'active' });
       res.status(201).json({ requestId: requestId(), data: { app: row } });
     } catch (error) { sendAppError(res, error); }
   });

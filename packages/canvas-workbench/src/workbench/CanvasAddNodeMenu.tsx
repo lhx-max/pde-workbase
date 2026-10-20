@@ -6,6 +6,7 @@ import { useCanvasLocale } from '../platform/canvas-locale';
 import { canvasAddNodeChrome } from '../locales/node-catalog';
 import { Icon } from '../ui/Icon';
 import { CANVAS_NODE_MENU_GROUPS, canvasNodeCreationOptions, type CanvasNodeCreationKind, type CanvasNodeCreationOption } from './canvas-node-catalog';
+import { useCanvasKindAvailability } from '../platform/kind-availability';
 import styles from './CanvasAddNodeMenu.module.css';
 
 function addNodeMenuItems(
@@ -51,6 +52,8 @@ export function CanvasAddNodeMenu({ open, onOpenChange, trigger, onAddNode, excl
   const renderMenu = requireCanvasMenuRenderer(useCanvasUiHost());
   const locale = useCanvasLocale();
   const chrome = canvasAddNodeChrome(locale);
+  const kindAvailable = useCanvasKindAvailability();
+  const options = canvasNodeCreationOptions(locale).filter(option => kindAvailable(option.kind));
   return renderMenu({
     open,
     onOpenChange,
@@ -60,6 +63,6 @@ export function CanvasAddNodeMenu({ open, onOpenChange, trigger, onAddNode, excl
     side,
     scale,
     align: 'start',
-    items: addNodeMenuItems(canvasNodeCreationOptions(locale), excludedKinds, onAddNode),
+    items: addNodeMenuItems(options, excludedKinds, onAddNode),
   });
 }

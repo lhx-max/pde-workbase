@@ -52,6 +52,9 @@ export interface LauncherContext {
   createSketch?: () => void;
   /** Create a new Markdown document in the current Design Files directory. */
   createDocument?: () => void;
+  /** Registered external Apps — each entry opens the App's own page
+   * (`webUrl`, falling back to its protocol `endpoint`). */
+  apps?: { appId: string; name: string; url: string }[];
 }
 
 interface LauncherActionBase {
@@ -97,6 +100,21 @@ export const ENABLE_BLANK_PAGE_WORKSPACE_ENTRYPOINT = false;
  * same way, gated on context.
  */
 export function buildLauncherActions(ctx: LauncherContext): LauncherAction[] {
+  // Registered Apps only: the "+" launcher opens each App's own page — the
+  // App decides what to show (documents list, browser surface, …). Creating
+  // canvas *cards* happens through the canvas add-node menus, not here.
+  return (ctx.apps ?? []).map(app => ({
+    id: `app:${app.appId}`,
+    iconName: 'globe',
+    label: app.name,
+    description: app.url,
+    run: () => { window.open(app.url, '_blank', 'noopener'); },
+  }));
+}
+
+/** @deprecated kept for the disabled entries below; the live launcher list is
+ * the registered-App table in `buildLauncherActions`. */
+function buildLegacyLauncherActions(ctx: LauncherContext): LauncherAction[] {
   const actions: LauncherAction[] = [];
   if (ENABLE_BLANK_PAGE_WORKSPACE_ENTRYPOINT && ctx.createPage) {
     actions.push({

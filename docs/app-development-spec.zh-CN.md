@@ -109,7 +109,7 @@ App 自己领域的接口（doc 的 `/api/documents` 列表/读写/导出）。�
 | # | 端点 | 级别 | 干什么 |
 |---|---|---|---|
 | P1 | `GET /api/apps` | 必须 | 目录：列出所有已注册 App（调用方在宿主/画布侧调） |
-| P2 | 启动时 `POST <宿主>/api/apps/register` `{appId,name,endpoint,description?}` | 必须 | 自注册：告诉宿主「我上线了，在这个地址」 |
+| P2 | 启动时 `POST <宿主>/api/apps/register` `{appId,name,endpoint,webUrl?,description?}` | 必须 | 自注册：告诉宿主「我上线了，在这个地址」。`endpoint` 是协议/API 面地址；`webUrl` 是**你自己前端页面的地址**（宿主「打开 App 详情页」时跳它，不填退化到 endpoint） |
 | P3 | `GET /api/apps/<appId>` | 必须 | 能力清单：我是谁、我编辑什么卡、我有哪些动作、事件流在哪 |
 | P4 | `POST /api/apps/<appId>/open-editor` `{nodeId,filePath,canvasId?}` → `{openUrl}` | 编辑器 App 必须 | 收「打开我编辑这张卡」的请求；配套 `GET ?nodeId=` 可查回话 |
 
@@ -161,6 +161,16 @@ App 自己领域的接口（doc 的 `/api/documents` 列表/读写/导出）。�
 - 共享资源的写建议认 `expectedRevision`：冲突回 `409`；一期可放宽但要在文档写明「最后写赢」
 
 **诚实铁律**：没配置、没接入的能力返回显式 `501/503`，**永不假成功、永不编造端点**。
+
+### 4.3 卡片可见性 = 注册表驱动（宿主侧规则）
+
+画布界面**没有任何写死的卡片入口**——所有「+」菜单都由注册表决定：
+
+- **画布上的「+」加卡菜单**（卡柄、底栏、空白画布）：卡的种类必须出现在画布 manifest `nodeKinds` 里，且——
+  - **原生卡**（text / image / video / storyboard）：始终显示，画布自己就能编辑；
+  - **App 支撑卡**（sketch / page / presentation，及 manifest `editorApps` 里登记的任何 kind）：**对应 App 已注册且 active 才显示**。App 一上线卡就出现，一下线/未装就消失——不是灰掉，是隐藏。
+- **页签栏「+」**：列出已注册的外部 App（画布自己除外），点击打开 App 的 `webUrl` 页面——**它只负责「打开 App」，不负责「建卡」**。建卡永远走画布上的「+」。
+- 所以 App 想让自己的卡在画布上可建：① 注册自己（P2）② manifest `editorKinds` 声明你编辑什么 kind ③ 宿主 manifest `editorApps` 里有 kind→appId 映射（卡包注册时写入）。
 
 ## 五、能力清单 manifest
 
@@ -272,7 +282,7 @@ App 启动时：
 ```bash
 curl -X POST http://<画布>/api/apps/register \
   -H 'content-type: application/json' \
-  -d '{"appId":"doc","name":"文档编辑器","endpoint":"http://127.0.0.1:19000","description":"Document editor App"}'
+  -d '{"appId":"doc","name":"文档编辑器","endpoint":"http://127.0.0.1:19000","webUrl":"http://127.0.0.1:19001","description":"Document editor App"}'
 ```
 
 之后 `GET <画布>/api/apps` 返回：
@@ -280,6 +290,7 @@ curl -X POST http://<画布>/api/apps/register \
 ```json
 { "requestId": "req_...", "data": { "apps": [
   { "appId": "doc", "name": "文档编辑器", "endpoint": "http://127.0.0.1:19000",
+    "webUrl": "http://127.0.0.1:19001",
     "description": "...", "status": "active", "registeredAt": "2026-10-20T09:11:54.070Z" }
 ] } }
 ```
