@@ -105,6 +105,20 @@ node apps/server/dist/cli.js --data-dir /tmp/<数据目录> --port 17460
 - `CANVAS_AUTH_TOKEN` 可选，给服务加令牌鉴权
 - 内部画布 API（`/api/projects/:id/canvas/*`）是实现细节，卡片开发统一走上面 COI 门
 
+### 自助拿 Appwrite 会话（不用求人）
+
+```bash
+# 1. 注册测试账号（内网实例开放注册）
+curl -X POST https://frontend-cloud.corp.kuaishou.com/v1/account \
+  -H 'content-type: application/json' -H 'x-appwrite-project: grworkspace' \
+  -d '{"userId":"unique()","email":"<你>@kuaishou.com","password":"<密码>","name":"dev"}'
+# 2. 登录拿会话 cookie（X-Fallback-Cookies 头里的 a_session_grworkspace）
+curl -X POST https://frontend-cloud.corp.kuaishou.com/v1/account/sessions/email \
+  -H 'content-type: application/json' -H 'x-appwrite-project: grworkspace' \
+  -d '{"email":"<你>@kuaishou.com","password":"<密码>"}' -D - -o /dev/null | grep Fallback
+# 3. 起服务时：APPWRITE_SESSION_COOKIE='a_session_grworkspace=<上一步的值>'
+```
+
 ## 常见坑
 
 - **「我的卡渲染不出来」**：先查 kind 前缀对不对、`packs.ts` 挂没挂、数据里 `kind` 字段和注册名一不一致
