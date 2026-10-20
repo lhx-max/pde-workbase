@@ -119,3 +119,18 @@ node apps/server/dist/cli.js --data-dir /tmp/<数据目录> --port 17460
 - 卡片要的业务后端是你的事，平台只提供画布内通道（onPatch/files/动作）
 - 视频大卡（>30MB）本期不支持
 - 画布引擎/通用卡/平台 API 的改动走平台侧分支，不在卡片包里夹带
+
+## 冻结区（正在拆出，禁止 FDE 改动）
+
+以下代码正在拆成独立 App 仓（`designai-app-*`），**不是卡片开发面，不要读、不要改、不要引用**：
+
+- `apps/web/src/components/Browser*`、`DesignBrowserPanel`、浏览器标签/收集面板——拆为 `designai-app-browser`
+- `SketchEditor`、`SketchWorkspaceTab`、`CanvasSketchCard`、草图相关路由——拆为 `designai-app-sketch`（**草图卡类型留在画布**，编辑器是独立 App，交互协议见 `docs/canvas-app-interop.zh-CN.md`）
+- 剪辑器相关（`clip-*`、ClipEditor、clip 导出）——**已决定整体删除**，别依赖 clip 卡类型
+- `apps/server/src/routes/`、`apps/web/src/components/FileWorkspace.tsx` 等非卡片面——平台运行时，一律视为冻结
+
+你的工作面**只有**：`packages/canvas-pack-*`、`packages/canvas-workbench/src/packs.ts`、`apps/server/src/card-packs.ts` 三处，外加自己的测试。
+
+## App ↔ 画布交互
+
+卡片点开编辑器是「画布 → 独立 App」的请求，协议见 `docs/canvas-app-interop.zh-CN.md`：COI 读状态 / COI 动作写回 / 共享桶存文件，App 与画布互不依赖内部代码。
