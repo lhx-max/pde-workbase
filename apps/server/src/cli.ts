@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import path from 'node:path';
-import { createCanvasServer, createBrowserHostAdapter } from './server.js';
+import { createCanvasServer } from './server.js';
 import {createHttpMediaAdapter,createHttpCapabilityAdapter,createHttpAssetAdapter} from './http-adapters.js';
 const args=process.argv.slice(2);
 if(args[0]==='request'||args[0]==='browser'||args[0]==='assets'){await (await import('./http-cli.js')).runHttpCli(args);process.exit(process.exitCode??0);}
@@ -12,7 +12,7 @@ const host=option('--host')??'127.0.0.1';
 if(!['127.0.0.1','::1','localhost'].includes(host)&&!process.env.CANVAS_AUTH_TOKEN)throw new Error('Non-loopback binding requires CANVAS_AUTH_TOKEN');
 const port=Number(option('--port')??process.env.CANVAS_PORT??17456);if(!Number.isInteger(port)||port<0||port>65535)throw new Error('invalid port');
 const appwrite=process.env.APPWRITE_ENDPOINT?{endpoint:process.env.APPWRITE_ENDPOINT,projectId:process.env.APPWRITE_PROJECT??'',databaseId:process.env.APPWRITE_DATABASE??'canvas_app',bucketId:process.env.APPWRITE_BUCKET??'canvas_assets',...(process.env.APPWRITE_SESSION_COOKIE?{sessionCookie:process.env.APPWRITE_SESSION_COOKIE}:{})}:undefined;
-const server=createCanvasServer({dataRoot,host,...(appwrite?{appwrite}:{}),...(process.env.CANVAS_MEDIA_ADAPTER_URL?{media:createHttpMediaAdapter(process.env.CANVAS_MEDIA_ADAPTER_URL,process.env.CANVAS_MEDIA_ADAPTER_TOKEN)}:{}),...(process.env.CANVAS_CAPABILITY_ADAPTER_URL?{capabilities:createHttpCapabilityAdapter(process.env.CANVAS_CAPABILITY_ADAPTER_URL,process.env.CANVAS_CAPABILITY_ADAPTER_TOKEN)}:{}),...(process.env.CANVAS_ASSET_ADAPTER_URL?{assets:createHttpAssetAdapter(process.env.CANVAS_ASSET_ADAPTER_URL,process.env.CANVAS_ASSET_ADAPTER_TOKEN)}:{}),...(process.env.CANVAS_AUTH_TOKEN?{authToken:process.env.CANVAS_AUTH_TOKEN}:{}),allowedOrigins:process.env.CANVAS_WEB_URL?[new URL(process.env.CANVAS_WEB_URL).origin]:[],...(process.env.CANVAS_BROWSER_HOST_URL&&process.env.CANVAS_DESKTOP_AUTH_TOKEN?{browserResources:createBrowserHostAdapter(process.env.CANVAS_BROWSER_HOST_URL,process.env.CANVAS_DESKTOP_AUTH_TOKEN)}:{})});
+const server=createCanvasServer({dataRoot,host,...(appwrite?{appwrite}:{}),...(process.env.CANVAS_MEDIA_ADAPTER_URL?{media:createHttpMediaAdapter(process.env.CANVAS_MEDIA_ADAPTER_URL,process.env.CANVAS_MEDIA_ADAPTER_TOKEN)}:{}),...(process.env.CANVAS_CAPABILITY_ADAPTER_URL?{capabilities:createHttpCapabilityAdapter(process.env.CANVAS_CAPABILITY_ADAPTER_URL,process.env.CANVAS_CAPABILITY_ADAPTER_TOKEN)}:{}),...(process.env.CANVAS_ASSET_ADAPTER_URL?{assets:createHttpAssetAdapter(process.env.CANVAS_ASSET_ADAPTER_URL,process.env.CANVAS_ASSET_ADAPTER_TOKEN)}:{}),...(process.env.CANVAS_AUTH_TOKEN?{authToken:process.env.CANVAS_AUTH_TOKEN}:{}),allowedOrigins:process.env.CANVAS_WEB_URL?[new URL(process.env.CANVAS_WEB_URL).origin]:[]});
 await server.ready;
 const listener=server.app.listen(port,host,()=>console.log(JSON.stringify({service:'canvas-workspace',address:listener.address()})));
 listener.on('upgrade',server.handleUpgrade);

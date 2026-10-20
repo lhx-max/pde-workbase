@@ -13,6 +13,8 @@ export interface CardPackRegistration {
   ops: string[];
   /** How a host should render these kinds (module name now; bundle URL later). */
   renderEntry?: string;
+  /** kind → appId for kinds whose deep editor lives in a separate App. */
+  editorApps?: Record<string, string> | undefined;
   status: 'active' | 'disabled';
 }
 
@@ -51,6 +53,7 @@ export class CardRegistryStore {
       packId: pack.packId, team: pack.team, name: pack.name ?? pack.packId,
       version: pack.version ?? '', kinds: JSON.stringify(pack.kinds),
       ops: JSON.stringify(pack.ops), renderEntry: pack.renderEntry ?? '',
+      editorApps: JSON.stringify(pack.editorApps ?? {}),
       status: pack.status, updatedAt: new Date().toISOString(),
     };
     try {
@@ -68,6 +71,7 @@ export class CardRegistryStore {
         packId: String(doc.packId ?? ''), team: String(doc.team ?? ''), name: String(doc.name ?? ''),
         version: String(doc.version ?? ''), kinds: JSON.parse(String(doc.kinds ?? '[]')) as string[],
         ops: JSON.parse(String(doc.ops ?? '[]')) as string[], renderEntry: String(doc.renderEntry ?? ''),
+        editorApps: JSON.parse(String(doc.editorApps ?? '{}')) as Record<string, string>,
         status: (doc.status === 'disabled' ? 'disabled' : 'active') as CardPackRegistration['status'],
       })).filter(pack => pack.packId);
     } catch (error) {

@@ -8,7 +8,8 @@ import type { CardRegistryStore } from './storage/card-registry.js';
 type CardPackLike = {
   packId?: string;
   name?: string;
-  cards: { kind: string; ops?: Record<string, CardOpHandler | { handler: CardOpHandler; targets?: string }> }[];
+  cards: { kind: string; /** App id that owns this kind's deep editor (e.g. 'doc'). */
+    editorApp?: string; ops?: Record<string, CardOpHandler | { handler: CardOpHandler; targets?: string }> }[];
 };
 
 /** Server-side card-pack mount: each pack's card ops register under
@@ -39,7 +40,8 @@ for (const pack of CARD_PACKS) {
       ops.push(`${card.kind}.${verb}`);
     }
   }
-  registerCardPack({ packId, team, name: pack.name, kinds, ops });
+  const editorApps = Object.fromEntries(pack.cards.filter(card => card.editorApp).map(card => [card.kind, card.editorApp!]));
+  registerCardPack({ packId, team, name: pack.name, kinds, ops, editorApps });
 }
 
 /** Mirror mounted packs into the Appwrite `card_packs` collection so the
@@ -47,6 +49,6 @@ for (const pack of CARD_PACKS) {
  * Best-effort: sync failures must not block startup. */
 export async function syncCardPackRegistry(store: CardRegistryStore): Promise<void> {
   for (const pack of listRegisteredPacks() satisfies MountedCardPack[]) {
-    await store.upsertPack({ packId: pack.packId, team: pack.team, name: pack.name, kinds: pack.kinds, ops: pack.ops, status: 'active' });
+    await store.upsertPack({ packId: pack.packId, team: pack.team, name: pack.name, kinds: pack.kinds, ops: pack.ops, editorApps: pack.editorApps, status: 'active' });
   }
 }

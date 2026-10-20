@@ -4,7 +4,6 @@ import type {IncomingMessage} from 'node:http';
 import type {Duplex} from 'node:stream';
 import path from 'node:path';
 import { mkdirSync } from 'node:fs';
-import { BrowserResourceError, type BrowserResourceCommand, type BrowserResourceResult } from '@bezier/contracts';
 import { createProjectRegistry } from './storage/project-registry.js';
 import { CanvasStateService } from './canvas/state.js';
 import { ProjectLedger } from './project-ledger/service.js';
@@ -12,13 +11,10 @@ import { withProjectLedgerRecorder } from './project-ledger/active-recorder.js';
 import { registerCanvasStateRoutes } from './routes/canvas.js';
 import { registerAppCanvasRoutes } from './routes/app-canvas.js';
 import { registerProjectFileRoutes } from './routes/files.js';
-import { registerBrowserResourceRoutes } from './routes/browser-resources.js';
 import {Database} from './storage/database.js';
 import {MediaAdapterService,type MediaAdapter} from './media/adapter-service.js';
 import {registerMediaRoutes,type CapabilityAdapter} from './routes/media.js';
 import {registerAssetRoutes,type AssetAdapter} from './routes/assets.js';
-import { BrowserPreferencesService } from './services/browser-preferences.js';
-import { registerBrowserPreferenceRoutes } from './routes/browser-preferences.js';
 import {createLocalAssetLibrary,type AssetLibraryAdapter,type AssetLibraryOptions} from './asset-library/service.js';
 import {registerAssetLibraryRoutes} from './routes/asset-library.js';
 export type {AssetLibraryAdapter,AssetLibraryOptions,AssetLibraryAnalysisHook,AssetLibraryCatalogueHook} from './asset-library/service.js';
@@ -37,7 +33,6 @@ export interface CanvasServerOptions {
  appwrite?:{endpoint:string;projectId:string;databaseId:string;bucketId:string;sessionCookie?:string;sessionSecret?:string};
  authorize?:RequestHandler;
  authorizeProject?:(req:express.Request,res:Response,projectId:string,access:{mode:'read'|'write';capability?:string})=>boolean|Promise<boolean>;
- browserResources?:(command:BrowserResourceCommand)=>Promise<BrowserResourceResult>;
 }
 export interface CanvasServer {
  app:express.Express;registry:ReturnType<typeof createProjectRegistry>;canvas:CanvasStateService;ledger:ProjectLedger;media:MediaAdapterService;
@@ -95,25 +90,13 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
  registerCanvasStateRoutes(app,{canvasState:canvas,ledger,resolveProjectRoot:id=>registry.resolveProjectRoot(id),authorizeProjectRequest});
  registerAppCanvasRoutes(app,{canvasState:canvas,registry,authorizeProjectRequest});
  registerProjectFileRoutes(app,{registry,canvasFiles:canvas,authorize:authorizeProjectRequest});
- registerBrowserResourceRoutes(app,{registry,http:{requireLocalDaemonRequest:authorize},authorizeProjectRequest,...(options.browserResources?{desktopBrowserResources:options.browserResources}:{})});
  registerMediaRoutes(app,{media,registry,...(options.capabilities?{capabilities:options.capabilities}:{})});
  registerAssetRoutes(app,{registry,library:assetLibrary,...(options.assets?{adapter:options.assets}:{})});
  registerAssetLibraryRoutes(app,{...options.assetLibrary,service:assetLibrary,registry,authorizeProject:authorizeProjectRequest});
- registerBrowserPreferenceRoutes(app,new BrowserPreferencesService(db));
  app.use((error:unknown,_req:express.Request,res:Response,_next:express.NextFunction)=>{const value=error as {status?:number;code?:string;message?:string};sendApiError(res,value.status??500,value.code??'SERVER_ERROR',value.message??'Internal server error');});
  const ready=withProjectLedgerRecorder(input=>{ledger.record(input);},async()=>{await media.ready();});
  const handleUpgrade=(_req:IncomingMessage,socket:Duplex,_head:Buffer):void=>{
   socket.end('HTTP/1.1 403 Forbidden\r\n\r\n');
  };
  return {app,registry,canvas,ledger,media,assetLibrary,db,ready,handleUpgrade,close:async()=>{await media.close();await assetLibrary.close?.();db.close();}};
-}
-/** Native grants remain in the desktop host; HTTP only forwards validated commands. */
-export function createBrowserHostAdapter(url:string,token:string):(command:BrowserResourceCommand)=>Promise<BrowserResourceResult>{
- const endpoint=new URL('/command',url);if(endpoint.protocol!=='http:'||!['127.0.0.1','localhost','[::1]'].includes(endpoint.hostname))throw new Error('Browser host must be loopback HTTP');
- return async command=>{
-  const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify(command),signal:AbortSignal.timeout(30000)});
-  const value=await response.json() as {ok?:boolean;result?:BrowserResourceResult;error?:{code?:string}};
-  if(!response.ok||!value.result)throw new BrowserResourceError((value.error?.code??'read-failed') as ConstructorParameters<typeof BrowserResourceError>[0], 'Browser resource host rejected request');
-  return value.result;
- };
 }

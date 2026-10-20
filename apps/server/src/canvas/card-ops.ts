@@ -28,6 +28,8 @@ export interface MountedCardPack {
   name?: string | undefined;
   kinds: string[];
   ops: string[];
+  /** kind → appId: which editor App owns deep editing for a kind. */
+  editorApps?: Record<string, string> | undefined;
 }
 
 const packs = new Map<string, MountedCardPack>();
@@ -38,6 +40,7 @@ export function registerCardPack(pack: MountedCardPack): void {
     ...pack,
     kinds: [...new Set([...(existing?.kinds ?? []), ...pack.kinds])],
     ops: [...new Set([...(existing?.ops ?? []), ...pack.ops])],
+    editorApps: { ...(existing?.editorApps ?? {}), ...(pack.editorApps ?? {}) },
   });
 }
 
@@ -52,6 +55,12 @@ export function listRegisteredCardKinds(): string[] {
 
 export function isCardKindRegistered(kind: string): boolean {
   return [...packs.values()].some(pack => pack.kinds.includes(kind));
+}
+
+/** kind → appId across all mounted packs (pack-provided associations only;
+ * core-kind associations live in the app route's platform map). */
+export function listRegisteredCardApps(): Record<string, string> {
+  return Object.assign({}, ...[...packs.values()].map(pack => pack.editorApps ?? {}));
 }
 
 /** Register a card-pack op under its full id: `card.<team>.<name>.<verb>`.

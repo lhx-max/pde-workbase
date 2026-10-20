@@ -36,7 +36,7 @@ appwrite-cf databases create-collection --database-id "$DB" --collection-id card
 for attr in packId team name version renderEntry status updatedAt; do
   appwrite-cf databases create-string-attribute --database-id "$DB" --collection-id card_packs --key "$attr" --size 2000 --required true || true
 done
-for attr in kinds ops; do
+for attr in kinds ops editorApps; do
   appwrite-cf databases create-string-attribute --database-id "$DB" --collection-id card_packs --key "$attr" --size $MAX_SIZE --required true || true
 done
 

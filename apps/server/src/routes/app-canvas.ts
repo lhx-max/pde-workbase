@@ -3,7 +3,7 @@ import { canvasOperationSchema, canvasOperationsJsonSchema, CANVAS_CARD_KINDS, t
 import type { Express, Request, Response } from 'express';
 import type { CanvasStateService } from '../canvas/state.js';
 import { CanvasStateError } from '../canvas/errors.js';
-import { listCardOps, listRegisteredCardKinds, listRegisteredPacks } from '../canvas/card-ops.js';
+import { listCardOps, listRegisteredCardKinds, listRegisteredCardApps, listRegisteredPacks } from '../canvas/card-ops.js';
 
 type Authorize = (req: Request, res: Response, projectId: string, access?: { mode: 'read' | 'write'; capability?: string }) => Promise<boolean>;
 
@@ -17,6 +17,16 @@ interface Registry {
 const resolveInstanceId = (instanceId: string): string => instanceId;
 
 const requestId = () => `req_${randomUUID()}`;
+
+/** Platform-declared core-kind → editor-App associations. A kind listed here
+ * keeps light editing on canvas; deep editing opens the named App via the
+ * card↔App interop protocol. Native kinds (image/video/storyboard) have no App. */
+const CORE_EDITOR_APPS: Record<string, string> = {
+  text: 'doc',
+  sketch: 'sketch',
+  page: 'page',
+  presentation: 'slides',
+};
 
 function sendAppError(res: Response, error: unknown): void {
   const err = error instanceof CanvasStateError ? error : new CanvasStateError(500, 'CANVAS_STORAGE_ERROR', String(error));
@@ -41,7 +51,8 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
         appId: 'canvas', protocolVersion: 1,
         nodeKinds: CANVAS_CARD_KINDS,
         cardKinds: listRegisteredCardKinds(),
-        cardPacks: listRegisteredPacks().map(pack => ({ packId: pack.packId, team: pack.team, name: pack.name, kinds: pack.kinds, ops: pack.ops })),
+        editorApps: { ...CORE_EDITOR_APPS, ...listRegisteredCardApps() },
+        cardPacks: listRegisteredPacks().map(pack => ({ packId: pack.packId, team: pack.team, name: pack.name, kinds: pack.kinds, ops: pack.ops, editorApps: pack.editorApps })),
         actions: [{ actionId: 'canvas.create', target: 'app' }, ...actions],
         requestSchema: canvasOperationsJsonSchema,
         requiresExpectedRevision: true, maxBatchSize: 100, execution: 'synchronous',
