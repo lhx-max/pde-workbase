@@ -65,11 +65,15 @@ interface OpenEditorRequest {
 }
 ```
 
-- 画布侧把「kind → appId」做成映射表（一期写死，二期可挂配置）；
+- 画布侧「kind → appId」映射：**已落地**——核心卡写死在能力清单 `editorApps`
+  （text→doc、sketch→sketch、page→page、presentation→slides），业务卡由卡包
+  `/server` 入口的 `cards[].editorApp` 声明；
+- 服务端解析端点（已实现）：
+  `POST /api/apps/canvas/instances/:instanceId/open-editor` `{nodeId}`
+  → 返回 `{appId, endpoint, nodeId, kind, filePath}`；
+  未关联或未注册 → `404 APP_NOT_INSTALLED`，不允许静默失败；
 - 宿主（管理侧/工作台）负责把请求路由到对应 App（新窗口/内嵌面板/跳转，
-  由宿主决定，画布不规定呈现形态）；
-- **未安装该 App** → 卡片显示「编辑器 App 未安装」，请求返回 unavailable，
-  不允许静默失败。
+  由宿主决定，画布不规定呈现形态）。
 
 ## 4. 卡 ↔ App 的数据归属
 
@@ -91,12 +95,14 @@ interface OpenEditorRequest {
 |---|---|
 | COI 读/写通道 | ✅ 已上线（本地 server + Function） |
 | 共享桶 + projectFilePath | ✅ 已上线 |
-| 「打开编辑器」请求与 appId 映射 | ⏳ 一期桩：unavailable |
+| **App 目录** | ✅ `GET /api/apps` 列已注册 App；`POST /api/apps/register` 外部 App 自注册（body: `{appId,name,endpoint,description?}`）；镜像 Appwrite `apps` 集合 |
+| **打开编辑器** | ✅ `open-editor` 端点已实现（见 §3） |
+| **跨 App 文件通道** | ✅ `GET/PUT /api/apps/canvas/instances/:id/files?path=`——App 读写卡里存的同一份文件（一期文本负载） |
 | App 独立仓/独立部署 | ⏳ 拆出中 |
 
 ## 6. 待定（二期）
 
-- App 安装/发现清单（宿主怎么知道装了哪些 App）；
 - App → 画布回调（编辑器完成后的「回到画布」）；
 - 多实例并发编辑同一卡内容的锁策略；
-- 交互的 auth 委托（画布会话 → App 会话）。
+- 交互的 auth 委托（画布会话 → App 会话）；
+- 文件通道二进制负载（当前文本；图片/视频走素材通道）。
