@@ -40,6 +40,11 @@ for attr in kinds ops editorApps; do
   appwrite-cf databases create-string-attribute --database-id "$DB" --collection-id card_packs --key "$attr" --size $MAX_SIZE --required true || true
 done
 
+appwrite-cf databases create-collection --database-id "$DB" --collection-id apps --name "Apps" --document-security false --permissions "${PERMS[@]}" || true
+for attr in appId name endpoint description status registeredAt; do
+  appwrite-cf databases create-string-attribute --database-id "$DB" --collection-id apps --key "$attr" --size 2000 --required true || true
+done
+
 appwrite-cf databases create-collection --database-id "$DB" --collection-id card_grants --name "Card Grants" --document-security false --permissions "${PERMS[@]}" || true
 for attr in scope source updatedAt; do
   appwrite-cf databases create-string-attribute --database-id "$DB" --collection-id card_grants --key "$attr" --size 2000 --required true || true

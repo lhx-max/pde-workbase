@@ -4,6 +4,8 @@ import type { Express, Request, Response } from 'express';
 import type { CanvasStateService } from '../canvas/state.js';
 import { CanvasStateError } from '../canvas/errors.js';
 import { listCardOps, listRegisteredCardKinds, listRegisteredCardApps, listRegisteredPacks } from '../canvas/card-ops.js';
+import type { AppRegistryStore } from '../storage/app-registry.js';
+import type { CanvasFileContent } from '../canvas/persistence.js';
 
 type Authorize = (req: Request, res: Response, projectId: string, access?: { mode: 'read' | 'write'; capability?: string }) => Promise<boolean>;
 
@@ -37,6 +39,11 @@ export interface RegisterAppCanvasRoutesDeps {
   canvasState: CanvasStateService;
   registry: Registry;
   authorizeProjectRequest?: Authorize;
+  /** App catalog — resolves kind→app→endpoint for open-editor. */
+  appRegistry?: AppRegistryStore;
+  /** Canvas-owned file channel — external Apps read/write the same files
+   * the cards point at (`projectFilePath`). Text payloads in v1. */
+  content?: CanvasFileContent;
 }
 
 export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRoutesDeps): void {
@@ -111,6 +118,64 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
       if (!await authorize(req, res, projectId, { mode: 'read' })) return;
       const receipt = await deps.canvasState.operation(projectId, req.params.receiptId);
       res.json({ requestId: requestId(), data: { receiptId: receipt.operationId, status: receipt.status === 'applied' ? 'succeeded' : 'noop', result: receipt } });
+    } catch (error) { sendAppError(res, error); }
+  });
+
+  /** Open-editor: resolve a card to its editor App. Returns the App
+   * descriptor + the shared file handle so the caller (UI or manage Agent)
+   * can open or invoke the App. 404 APP_NOT_INSTALLED when the kind has no
+   * editor association or the App isn't registered. */
+  app.post<{ instanceId: string }>('/api/apps/canvas/instances/:instanceId/open-editor', async (req, res) => {
+    try {
+      const projectId = resolveInstanceId(req.params.instanceId);
+      if (!await authorize(req, res, projectId, { mode: 'read' })) return;
+      const nodeId = typeof req.body?.nodeId === 'string' ? req.body.nodeId : '';
+      if (!nodeId) throw new CanvasStateError(400, 'BAD_REQUEST', 'nodeId is required');
+      const snapshot = await deps.canvasState.read(projectId);
+      const nodes = (snapshot.state.workbenchBasicNodes ?? []) as { id: string; kind?: string; projectFilePath?: string; text?: string; data?: Record<string, unknown> }[];
+      const node = nodes.find(n => n.id === nodeId);
+      if (!node) throw new CanvasStateError(404, 'CANVAS_NODE_NOT_FOUND', `Node not found: ${nodeId}`);
+      const kind = node.kind ?? 'text';
+      const appId = { ...CORE_EDITOR_APPS, ...listRegisteredCardApps() }[kind];
+      if (!appId) throw new CanvasStateError(404, 'APP_NOT_INSTALLED', `Kind ${kind} has no editor App`);
+      const app = deps.appRegistry ? await deps.appRegistry.get(appId) : null;
+      if (!app || app.status !== 'active') throw new CanvasStateError(404, 'APP_NOT_INSTALLED', `Editor App '${appId}' is not registered`);
+      const filePath = node.projectFilePath
+        ?? (typeof node.data?.projectFilePath === 'string' ? node.data.projectFilePath : undefined);
+      res.json({ requestId: requestId(), data: { appId, endpoint: app.endpoint, nodeId, kind, filePath: filePath ?? null } });
+    } catch (error) { sendAppError(res, error); }
+  });
+
+  /** Shared file channel: external Apps read/write the exact file a card
+   * points at (`projectFilePath`). Query `path` is required; paths are
+   * project-relative and must not escape the canvas root. */
+  const filePath = (req: Request): string => {
+    const value = typeof req.query.path === 'string' ? req.query.path : '';
+    if (!value || value.includes('..') || value.startsWith('/')) throw new CanvasStateError(400, 'BAD_REQUEST', 'a project-relative path is required');
+    return value;
+  };
+
+  app.get<{ instanceId: string }>('/api/apps/canvas/instances/:instanceId/files', async (req, res) => {
+    try {
+      const projectId = resolveInstanceId(req.params.instanceId);
+      if (!await authorize(req, res, projectId, { mode: 'read' })) return;
+      if (!deps.content) throw new CanvasStateError(503, 'CANVAS_FILES_UNAVAILABLE', 'file channel is not configured');
+      const content = await deps.content.read(projectId, filePath(req));
+      if (content === null) throw new CanvasStateError(404, 'CANVAS_FILE_NOT_FOUND', 'File not found');
+      res.json({ requestId: requestId(), data: { content } });
+    } catch (error) { sendAppError(res, error); }
+  });
+
+  app.put<{ instanceId: string }>('/api/apps/canvas/instances/:instanceId/files', async (req, res) => {
+    try {
+      const projectId = resolveInstanceId(req.params.instanceId);
+      if (!await authorize(req, res, projectId, { mode: 'write', capability: 'writeFiles' })) return;
+      if (!deps.content) throw new CanvasStateError(503, 'CANVAS_FILES_UNAVAILABLE', 'file channel is not configured');
+      const content = typeof req.body?.content === 'string' ? req.body.content : null;
+      if (content === null) throw new CanvasStateError(400, 'BAD_REQUEST', 'content (string) is required');
+      const path = filePath(req);
+      await deps.content.write(projectId, path, content);
+      res.json({ requestId: requestId(), data: { path, status: 'written' } });
     } catch (error) { sendAppError(res, error); }
   });
 }
