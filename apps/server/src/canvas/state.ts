@@ -15,7 +15,7 @@ import {
   summarizeCanvasState,
 } from './context.js';
 import { ProjectSerialLock } from '../storage/project-serial-lock.js';
-import { createCardEffect } from './card-ops.js';
+import { createCardEffect, isCardKindRegistered } from './card-ops.js';
 import { applyCanvasOperations, assertCanvasMerge, assertCanvasReferences, records, type StoredCanvasOperation } from './operations.js';
 import { canonical, equal, mergeCanvasValue as mergeOperationValue } from './merge.js';
 import { prepareCanvasImage } from './image-operations.js';
@@ -105,16 +105,19 @@ export class CanvasStateService {
   private readonly persistence: CanvasPersistence;
   private readonly content: CanvasFileContent;
   private readonly effectsFactory: CanvasEffectsFactory | undefined;
+  private readonly cardEntitlement: ((projectId: string) => Promise<string[] | undefined>) | undefined;
 
   private readonly imageAssets: AssetLibraryAdapter | undefined;
   constructor(private readonly resolveProjectRoot: ResolveCanvasProjectRoot,
     private readonly readUsage?: (projectId: string) => import('@bezier/contracts').CanvasContextSummary['recentUsage'],
     imageAssets?: AssetLibraryAdapter,
-    storage?: { persistence?: CanvasPersistence; content?: CanvasFileContent; effects?: CanvasEffectsFactory }) {
+    storage?: { persistence?: CanvasPersistence; content?: CanvasFileContent; effects?: CanvasEffectsFactory;
+      cardEntitlement?: (projectId: string) => Promise<string[] | undefined> }) {
     this.imageAssets = imageAssets;
     this.persistence = storage?.persistence ?? new FileCanvasPersistence(resolveProjectRoot);
     this.content = storage?.content ?? new FileCanvasContent(resolveProjectRoot);
     this.effectsFactory = storage?.effects;
+    this.cardEntitlement = storage?.cardEntitlement;
   }
   get hasOperationImageAssets(): boolean { return Boolean(this.imageAssets); }
 
@@ -360,6 +363,22 @@ export class CanvasStateService {
     if (!parsed.success) throw new CanvasStateError(400, 'CANVAS_INVALID_INPUT', 'Invalid canvas operation', { issues: parsed.error.issues });
     const request = parsed.data;
     const fingerprint = createHash('sha256').update(canonical(request)).digest('hex');
+    // Card-kind gate: a `card.<team>.<name>` create must come from a mounted
+    // pack the calling scope is entitled to. Unrestricted when no grant row
+    // exists; an explicit grant (even []) is authoritative.
+    const createdCardKinds = request.operations
+      .filter(op => op.type === 'node.create')
+      .map(op => (op as { node?: { kind?: string } }).node?.kind)
+      .filter((kind): kind is string => typeof kind === 'string' && kind.startsWith('card.'));
+    if (createdCardKinds.length) {
+      const unregistered = createdCardKinds.filter(kind => !isCardKindRegistered(kind));
+      if (unregistered.length) throw new CanvasStateError(403, 'CARD_KIND_NOT_ALLOWED', `Card kind not provided by any mounted pack: ${unregistered.join(', ')}`);
+      const allowed = this.cardEntitlement ? await this.cardEntitlement(projectId) : undefined;
+      if (allowed && !allowed.includes('*')) {
+        const denied = createdCardKinds.filter(kind => !allowed.includes(kind));
+        if (denied.length) throw new CanvasStateError(403, 'CARD_KIND_NOT_ALLOWED', `Card kind not granted for this scope: ${denied.join(', ')}`);
+      }
+    }
     const effects = await this.effects(projectId, request.operationId);
     return this.lock.run(projectId, async () => {
       const current = await this.persistence.load(projectId);

@@ -3,13 +3,15 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CanvasStateService } from '../src/canvas/state.js';
-import { registerCardOp, listCardOps } from '../src/canvas/card-ops.js';
+import { registerCardOp, registerCardPack, listCardOps } from '../src/canvas/card-ops.js';
 
 let root = '';
 let canvas: CanvasStateService;
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'canvas-pack-'));
   canvas = new CanvasStateService(() => root);
+  // Pack registry is process-global; idempotent re-register keeps tests order-safe.
+  registerCardPack({ packId: 'acme', team: 'acme', kinds: ['card.acme.product', 'card.acme.other'], ops: [] });
 });
 afterEach(async () => { await rm(root, { recursive: true, force: true }); });
 
@@ -34,6 +36,13 @@ it('creates a custom card via node.create and runs its card.* op', async () => {
   expect((card.data as Record<string, unknown>).sku).toBe('A1'); // 原 data 保留
   expect((card.data as Record<string, unknown>).price).toBe(9.9); // handler 补丁合并
   expect(listCardOps()).toContain('card.acme.product.refresh');
+});
+
+it('rejects unmounted card kinds before any op runs', async () => {
+  await expect(canvas.applyOperations('p1', {
+    operationId: 'op-ghost', baseRevision: 0,
+    operations: [{ type: 'node.create', node: { id: 'g1', kind: 'card.ghost.nope', x: 0, y: 0 } }],
+  })).rejects.toMatchObject({ code: 'CARD_KIND_NOT_ALLOWED' });
 });
 
 it('rejects card ops whose kind prefix mismatches the target card', async () => {

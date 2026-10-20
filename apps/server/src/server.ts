@@ -26,7 +26,8 @@ export type {AssetAdapter} from './routes/assets.js';
 import {AppwriteClient} from './storage/appwrite-client.js';
 import {AppwriteCanvasFileContent, AppwriteCanvasPersistence} from './storage/canvas-appwrite-persistence.js';
 import {appwriteCanvasEffects,readLocalProjectFile} from './storage/canvas-appwrite-effects.js';
-import './card-packs.js';
+import {CardRegistryStore} from './storage/card-registry.js';
+import {syncCardPackRegistry} from './card-packs.js';
 export interface CanvasServerOptions {
  dataRoot:string; host?:string; authToken?:string; allowedOrigins?:string[]; assets?:AssetAdapter;
  media?:MediaAdapter; capabilities?:CapabilityAdapter; assetLibrary?:AssetLibraryOptions;
@@ -47,7 +48,7 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
  const dataRoot=path.resolve(options.dataRoot);mkdirSync(dataRoot,{recursive:true});
  const registry=createProjectRegistry(dataRoot), ledger=new ProjectLedger(dataRoot);
  const assetLibrary=options.assetLibrary?.adapter??createLocalAssetLibrary(dataRoot);
- const appwriteStorage=options.appwrite?(()=>{const client=new AppwriteClient(options.appwrite!);const resolveRoot=(id:string)=>registry.resolveProjectRoot(id);return {persistence:new AppwriteCanvasPersistence(client,options.appwrite!.databaseId),content:new AppwriteCanvasFileContent(client,options.appwrite!.databaseId,options.appwrite!.bucketId,'canvas_files',(pid,rel)=>readLocalProjectFile(resolveRoot,pid,rel)),effects:appwriteCanvasEffects(client,options.appwrite!.databaseId,options.appwrite!.bucketId,resolveRoot)};})():undefined;
+ const appwriteStorage=options.appwrite?(()=>{const client=new AppwriteClient(options.appwrite!);const resolveRoot=(id:string)=>registry.resolveProjectRoot(id);const cardRegistry=new CardRegistryStore(client,options.appwrite!.databaseId);syncCardPackRegistry(cardRegistry).catch(err=>console.warn('[card-registry] pack sync failed:',err));return {persistence:new AppwriteCanvasPersistence(client,options.appwrite!.databaseId),content:new AppwriteCanvasFileContent(client,options.appwrite!.databaseId,options.appwrite!.bucketId,'canvas_files',(pid,rel)=>readLocalProjectFile(resolveRoot,pid,rel)),effects:appwriteCanvasEffects(client,options.appwrite!.databaseId,options.appwrite!.bucketId,resolveRoot),cardEntitlement:(projectId:string)=>cardRegistry.resolveAllowedKinds({projectId})};})():undefined;
  const canvas=new CanvasStateService(id=>registry.resolveProjectRoot(id),undefined,assetLibrary,appwriteStorage);
  const db=new Database(path.join(dataRoot,'workspace.sqlite'));
  db.exec('CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY)');

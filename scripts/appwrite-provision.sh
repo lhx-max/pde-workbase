@@ -32,6 +32,20 @@ appwrite-cf databases create-integer-attribute --database-id "$DB" --collection-
 appwrite-cf databases create-index --database-id "$DB" --collection-id canvas_files --key canvas_path_unique --type unique --attributes canvasId path || true
 appwrite-cf databases create-index --database-id "$DB" --collection-id canvas_files --key canvas_id_idx --type key --attributes canvasId || true
 
+appwrite-cf databases create-collection --database-id "$DB" --collection-id card_packs --name "Card Packs" --document-security false --permissions "${PERMS[@]}" || true
+for attr in packId team name version renderEntry status updatedAt; do
+  appwrite-cf databases create-string-attribute --database-id "$DB" --collection-id card_packs --key "$attr" --size 2000 --required true || true
+done
+for attr in kinds ops; do
+  appwrite-cf databases create-string-attribute --database-id "$DB" --collection-id card_packs --key "$attr" --size $MAX_SIZE --required true || true
+done
+
+appwrite-cf databases create-collection --database-id "$DB" --collection-id card_grants --name "Card Grants" --document-security false --permissions "${PERMS[@]}" || true
+for attr in scope source updatedAt; do
+  appwrite-cf databases create-string-attribute --database-id "$DB" --collection-id card_grants --key "$attr" --size 2000 --required true || true
+done
+appwrite-cf databases create-string-attribute --database-id "$DB" --collection-id card_grants --key allowedKinds --size $MAX_SIZE --required true || true
+
 # NOTE: the internal instance intermittently half-creates buckets (returns an
 # empty object and uploads 500). If uploads fail, delete the bucket in the
 # console and re-run with a fresh BUCKET id — canvas_assets was a casualty.

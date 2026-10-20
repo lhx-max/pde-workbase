@@ -56,7 +56,10 @@ version: 1.0.0
 1. **建分支**：`feat/card-pack-<团队>-<业务>`，从 `feat/zhuzhiheng-card-pack-base` 拉
 2. **建包**：`packages/canvas-pack-<业务>/`（或独立仓发 npm 包），结构见契约 §1
 3. **写卡**：TSX 渲染器实现 `CardRenderProps`（node/selected/onPatch/onOpenFile）
-4. **挂包**：`packages/canvas-workbench/src/packs.ts` 加一行（一期构建期挂载）
+4. **挂包（两处都要）**：
+   - 前端渲染：`packages/canvas-workbench/src/packs.ts` 加一行 `import`/注册（一期构建期挂载）
+   - 服务端注册：包必须再导出一个 **`/server` 入口**（`src/server.ts`，只含 `packId`/`name`/`cards[].kind`/`cards[].ops`，**不许 import React/TSX**），在 `apps/server/src/card-packs.ts` 挂载；参考 `@bezier/canvas-pack-demo/server`
+   - ⚠️ **闸口**：`card.*` 卡种必须在服务端完成注册才能建卡——没挂 `/server` 入口的卡种会被 `CARD_KIND_NOT_ALLOWED` 拒掉（403）。`card_packs` 注册表会把挂载包镜像到 Appwrite，管理侧据此发现能力；`card_grants` 控制哪些团队/画布能用哪些卡（无授权行=默认全放开）
 5. **本地验证**：
 
 ```bash

@@ -21,6 +21,39 @@ export type CardOpHandler = (
 
 const handlers = new Map<string, { handler: CardOpHandler; targetKind?: string | undefined }>();
 
+/** Mounted-pack metadata — the in-memory truth mirrored into `card_packs`. */
+export interface MountedCardPack {
+  packId: string;
+  team: string;
+  name?: string | undefined;
+  kinds: string[];
+  ops: string[];
+}
+
+const packs = new Map<string, MountedCardPack>();
+
+export function registerCardPack(pack: MountedCardPack): void {
+  const existing = packs.get(pack.packId);
+  packs.set(pack.packId, {
+    ...pack,
+    kinds: [...new Set([...(existing?.kinds ?? []), ...pack.kinds])],
+    ops: [...new Set([...(existing?.ops ?? []), ...pack.ops])],
+  });
+}
+
+export function listRegisteredPacks(): MountedCardPack[] {
+  return [...packs.values()];
+}
+
+/** Every `card.<team>.<name>` kind any mounted pack provides. */
+export function listRegisteredCardKinds(): string[] {
+  return [...new Set([...packs.values()].flatMap(pack => pack.kinds.filter(kind => kind.startsWith('card.'))))];
+}
+
+export function isCardKindRegistered(kind: string): boolean {
+  return [...packs.values()].some(pack => pack.kinds.includes(kind));
+}
+
 /** Register a card-pack op under its full id: `card.<team>.<name>.<verb>`.
  * `targetKind` overrides the default "op prefix must equal card kind" check —
  * use it when an action intentionally targets a different kind (e.g. a core card). */

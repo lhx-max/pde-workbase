@@ -3,7 +3,7 @@ import { canvasOperationSchema, canvasOperationsJsonSchema, CANVAS_CARD_KINDS, t
 import type { Express, Request, Response } from 'express';
 import type { CanvasStateService } from '../canvas/state.js';
 import { CanvasStateError } from '../canvas/errors.js';
-import { listCardOps } from '../canvas/card-ops.js';
+import { listCardOps, listRegisteredCardKinds, listRegisteredPacks } from '../canvas/card-ops.js';
 
 type Authorize = (req: Request, res: Response, projectId: string, access?: { mode: 'read' | 'write'; capability?: string }) => Promise<boolean>;
 
@@ -40,6 +40,8 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
       res.json({ requestId: requestId(), data: {
         appId: 'canvas', protocolVersion: 1,
         nodeKinds: CANVAS_CARD_KINDS,
+        cardKinds: listRegisteredCardKinds(),
+        cardPacks: listRegisteredPacks().map(pack => ({ packId: pack.packId, team: pack.team, name: pack.name, kinds: pack.kinds, ops: pack.ops })),
         actions: [{ actionId: 'canvas.create', target: 'app' }, ...actions],
         requestSchema: canvasOperationsJsonSchema,
         requiresExpectedRevision: true, maxBatchSize: 100, execution: 'synchronous',

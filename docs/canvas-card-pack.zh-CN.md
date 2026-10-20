@@ -17,12 +17,13 @@ d# 画布卡片包开发规范 v1（FDE 同步开发基线）
 ```
 @your-team/canvas-pack-yourbiz/
 ├── src/
-│   ├── index.ts            # export default 一个 CardPack
+│   ├── index.ts            # export default 一个 CardPack（渲染挂载用，可含 React）
+│   ├── server.ts           # 服务端入口：packId/name/cards[].kind/cards[].ops（不含 React，必须）
 │   ├── cards/
 │   │   └── product-card.tsx  # 卡片渲染器（TSX 组件）
 │   ├── ops.ts              # 卡片专属动作的 handler（可选）
 │   └── schema.ts           # 卡片 data 黑盒的校验（可选但推荐）
-├── package.json
+├── package.json            # exports: "."→src/index.ts； "./server"→dist/server.js（配独立 build）
 └── README.md               # 你的卡怎么建、data 里有什么字段
 ```
 
@@ -35,9 +36,12 @@ export const CARD_PACKS = [yourPack /*, ...*/];
 ```
 
 ```ts
-// apps/server/src/card-packs.ts —— 专属动作挂载（你的包有 ops 才需要）
-const CARD_PACKS = [yourPack /*, ...*/];  // 包的 cards[].ops 自动注册为 card.<团队>.<名>.<动词>
+// apps/server/src/card-packs.ts —— 服务端注册（kinds+ops，必填）
+import yourPackServer from '@your-team/canvas-pack-yourbiz/server';
+const CARD_PACKS = [yourPackServer /*, ...*/];  // cards[].kind 注册卡种，ops 注册 card.<团队>.<名>.<动词>
 ```
+
+> ⚠️ 服务端挂载是**必需的**，不只是 ops 需要：`card.*` 卡种没在这里注册，建卡直接被 `CARD_KIND_NOT_ALLOWED` 拒掉（卡种闸口见 §11）。
 
 二期再做运行时动态挂包，一期不追。
 
@@ -215,7 +219,7 @@ await ctx.files.read('card-assets/product-p1.json');          // 读
 ## 10. 开发流程
 
 1. 从画布主仓 `feat/zhuzhiheng-da-cloud` 拉分支 `feat/card-pack-<团队>-<业务>`。
-2. 新建包 `packages/canvas-pack-<业务>/`（或独立仓库发 npm 包）。
+2. 新建包 `packages/canvas-pack-<业务>/`（或独立仓库发 npm 包），含 `src/server.ts` 服务端入口；把 `./server` 出口指向构建产物（参考 `canvas-pack-demo` 的 `tsconfig.build.json`）。
 3. 本地起工作台验证（数据走 Appwrite）：
 
 ```bash
@@ -229,6 +233,7 @@ pnpm tools-dev run web --data-dir /tmp/<你的数据目录> --daemon-port 17460 
 
 4. 交付检查清单：
    - [ ] kind/动作全用自己的团队前缀
+   - [ ] `src/server.ts` 服务端入口已导出，`apps/server/src/card-packs.ts` 已挂载（否则建卡被闸口拒）
    - [ ] `data` 黑盒 ≤256KB、JSON 可序列化
    - [ ] 渲染器不写死颜色、能 memo
    - [ ] 卡片动作幂等（重发同 operationId 返回旧凭条）
@@ -243,6 +248,8 @@ pnpm tools-dev run web --data-dir /tmp/<你的数据目录> --daemon-port 17460 
 - `card.*` 专属动作路由：schema 放行 `card.<team>.<name>.<verb>`，管道分发到注册的 server handler，凭条/幂等/version 冲突全套生效；handler 的 kind 前缀必须等于目标卡 kind，否则 400
 - `CardOpContext`：handler 拿 `{projectId, files}`，`files.write/read` 走当前存储后端（文件或 Appwrite）
 - 动作自动进 COI 能力清单（`GET /api/apps/canvas` 的 `actions`）和内部 capabilities
+- **卡种注册闸口**：`card.*` 卡种必须由服务端挂载的包注册（包导出 `/server` 入口，`apps/server/src/card-packs.ts` 挂载），未注册的卡种建卡返回 `CARD_KIND_NOT_ALLOWED`（403）。能力清单同时上报 `cardKinds` 和 `cardPacks`
+- **卡片注册表（Appwrite）**：挂载包启动时镜像到 `card_packs` 集合（packId/team/kinds/ops/状态）；`card_grants` 集合记录授权——`scope` 为 `project:<id>`/`team:<id>`/`*`，`allowedKinds` 为空数组即禁用全部。无授权行 = 默认全放开；有行则按行放行。后续对接一寒仓库的团队权限 API（grant 的 `source: 'ma'`），不同团队可用不同卡种
 
 **待补**：
 

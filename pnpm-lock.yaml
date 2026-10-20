@@ -67,6 +67,9 @@ importers:
       '@bezier/canvas-core':
         specifier: workspace:*
         version: link:../../packages/canvas-core
+      '@bezier/canvas-pack-demo':
+        specifier: workspace:*
+        version: link:../../packages/canvas-pack-demo
       '@bezier/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
