@@ -1,77 +1,101 @@
-# Runtime verification
+# 运行验证与交付证据
 
-## Harness ownership
+本记录对应独立仓库的三入口恢复交付，原代码基线为 `319e5eee556a3641d2ee68a6111a36ddc7a1eff7`。功能范围见 [功能对照](<feature-parity.md>)；不是仅凭编译或复制组件宣布功能完成。
 
-The independent [e2e package](../e2e/package.json) uses only `pnpm tools-dev run web|desktop --data-dir <absolute-isolated-root> --daemon-port <reserved-port> --web-port <reserved-port> --browser-host-port <reserved-port> --production`. Desktop adds `--inspect-port` for an explicit loopback CDP connection. The neutral [runtime harness](../e2e/lib/tools-dev/runtime.ts) owns ports, readiness, logs, one process group and one temporary data root per worker; it never attaches to an ambient/shared web runtime or starts replacement application servers.
+## 最终结论
 
-The [Playwright suite](../e2e/lib/playwright/suite.ts) provides the dynamic web origin and desktop CDP attachment. UI tests import only this suite. Test data is created through real HTTP project/file APIs. The native test serves a hermetic reference page through its own temporary fixture server; it does not replace or intercept workspace APIs or use provider accounts. All tested navigation targets the local fixture; the inherited browser home can still request optional public favicon images. Browser settings are limited to the supported English locale preference inside the isolated test profile.
+- `pnpm install --frozen-lockfile`：通过，12 个 workspace manifests。
+- `pnpm guard`：通过；无上游运行目录或被排除产品的导入。
+- `pnpm typecheck`：根工具和所有包通过。
+- 包级测试：**162 个文件、1647 项通过**。
+- 真实 HTTP/CLI 集成：**2 个文件、7 项通过**。
+- 真实 UI：**9 个场景各重复两次，18 次通过**；其中 Web 7 个场景、Electron 2 个场景。
+- 外部扩展人工场景在默认批次中明确跳过：重复两次产生 **2 skipped**，不计入通过数。**用户选择暂缓修复后的完整原生链路复验**，详见下节。
+- 已成功构建共享依赖、服务器、生产 Web 和 Electron；最终 UI 使用生产构建，包含最后的焦点、地址编辑及采集会话修复。扩展 ZIP 由桌面构建生成并检查全部 13 个条目。
 
-Success disposes only owned runtime scratch; failures preserve the isolated data root/logs and attach the path. Screenshots and reports stay under the e2e package's generated `test-results` and `playwright-report` directories. Native resource traces are disabled because Playwright traces would otherwise persist temporary grant authorization headers. Native result evidence records paths and status codes, never bearer/access tokens.
+环境：macOS arm64、Node 24.21.0、pnpm 10.33.2、Next 16.2.6、React 18.3.1、Electron 41.3.0。Web 使用 Chrome channel 的全新测试 profile；外部扩展单独使用 Chrome for Testing 的全新 profile，不使用日常浏览器资料。
 
-## Commands
+| 包 | 测试文件 | 通过项 |
+|---|---:|---:|
+| components | 2 | 12 |
+| release | 1 | 5 |
+| contracts | 54 | 586 |
+| host | 2 | 16 |
+| desktop | 17 | 172 |
+| server | 32 | 374 |
+| workbench-core | 1 | 3 |
+| workbench-ui | 4 | 15 |
+| canvas-workbench | 14 | 182 |
+| web | 35 | 282 |
+| HTTP/CLI e2e（单列） | 2 | 7 |
 
-Build the independent shared packages, backend, web production bundle and desktop before running. Install the matching Playwright Chromium once. Use ordinary Node 24 for native Node dependencies; the hardened bundled agent runtime may reject Rolldown native loads.
+## 外部扩展：部分实际通过，完整复验暂缓
+
+[人工协作测试](<../e2e/ui/native-extension.test.ts>)加载桌面构建产物中的实际扩展，使用真实鼠标选中页面文字、打开原保存对话框，并由用户确认真实系统授权；没有模拟系统同意、直接调用扩展消息来代替操作或增加产品测试后门。
+
+本次实际运行已经证明：
+
+1. 独立扩展身份校验、加载、选择工具栏和原保存对话框可用。
+2. 用户同意后，选择内容确实写入本地库，原文字节、来源 URL 和项目关联断言通过。
+3. 保存后的检查器链路暴露两个缺陷：上游 worker 丢失 `assetData/sessionId`；本地能力刷新临时清空能力导致原生宿主撤销检查器会话。第二轮实际运行已到达保存后检查器，但编辑因会话撤销失败。
+4. 两个缺陷均已修复，并有先红后绿回归；另补充了异步操作不跨资产来源的回归。最后一次原生复验等待授权超时，未执行写入。用户随后明确选择先完成其它交付，不再弹出授权窗口。
+
+因此，**不得将新版的“外部扩展保存 → 保存后编辑 → YAML → 库内展示”全链路记为已通过**。相关 worker 协议、能力生命周期和来源归属测试已通过，但不替代这项人工复验。扩展安装到普通 profile、系统文件保存落盘、Pinterest/Google 真实账号与 cookie 交接也未宣布验收。
+
+继续人工复验时，首个系统弹窗选择 **Enable**。随后的扩展 ZIP 保存框可以取消，测试已将真实构建包加载到其独立 profile。不要关闭工作区中的扩展设置对话框。运行命令见下节。
+
+## 可复现命令
+
+使用 Node 24 和仓库固定 pnpm 版本。数据根规则只以 [根目录说明](<../AGENTS.md#safety-and-data>)为准，不使用共享/环境中的现成应用实例。
 
 ```sh
-pnpm --filter @canvas/e2e typecheck
+pnpm install --frozen-lockfile
+pnpm guard
+pnpm typecheck
+pnpm --filter './packages/*' -r --if-present build
+pnpm --filter @canvas/server build
+pnpm --filter @canvas-workspace/web build
+pnpm --filter @canvas/desktop build
+pnpm --filter './apps/*' --filter './packages/*' --workspace-concurrency=1 -r --if-present test
 pnpm --filter @canvas/e2e test
-pnpm --filter @canvas/e2e exec playwright test --project=web --workers=1 --output=test-results/web
-pnpm --filter @canvas/e2e exec playwright test --project=desktop --workers=1 --output=test-results/desktop
+pnpm --filter @canvas/e2e test:ui --repeat-each=2 --reporter=list
 ```
 
-When invoking the test runner directly rather than through pnpm, set `CANVAS_E2E_PNPM` to the installed pnpm script so the neutral harness still invokes the repository's sole lifecycle entry. If Chromium was installed into a custom cache, supply the identical `PLAYWRIGHT_BROWSERS_PATH` for tests. Alternatively, `CANVAS_E2E_BROWSER_CHANNEL=chrome` uses an installed Chrome binary through Playwright's fresh, isolated temporary browser profile—not the user's normal profile. These settings do not change application product behavior.
+安装匹配的 Playwright Chromium，或以 `CANVAS_E2E_BROWSER_CHANNEL=chrome` 使用已安装 Chrome 的临时 profile。直接以 Node 执行 pnpm 脚本时，设置 `CANVAS_E2E_PNPM` 指向该脚本；自定义浏览器缓存时保持 `PLAYWRIGHT_BROWSERS_PATH` 一致。
 
-## Scenarios
+仅在用户准备好确认系统弹窗时运行：
 
-- Original full canvas shell, launcher tabs, project asset drawer, Markdown autosave, sketch creation, clip timeline, reload persistence; no chat or global personal/team library surface.
-- HTML interactive preview, original Code view, original manual element editing, durable file version history/reload, presentation preview/source.
-- Electron browser start page and real guest navigation; guest has no privileged bridge; resource discovery sanitizes URLs and keeps SVG metadata-only; original PNG bytes save into current project files; grants reject another project and fail after close; native screenshot persists a real PNG; page archive persists HTML/CSS/manifest; existing local `file:` and privileged-origin navigation are denied.
-- Real HTTP project isolation, file version save/restore and web proxy; unavailable browser host is an explicit error in web-only mode. A separate nested scenario runs two production workspaces concurrently and proves both web proxies target their own independent backend/data root.
+```sh
+CANVAS_E2E_CONFIRM_NATIVE_EXTENSION=1 pnpm --filter @canvas/e2e test:ui native-extension.test.ts --project=desktop --reporter=list
+```
 
-The browser-panel inspect/edit handlers are inherited from the original source but have no reachable toolbar entrypoint in that baseline. Tests do not invent a new UI or invoke private state setters to claim that capability. The original HTML file viewer's manual editing entrypoint is tested separately.
+默认使用匹配的完整 Chromium；需要时用 `CANVAS_E2E_EXTENSION_EXECUTABLE` 指定支持加载扩展的 Chrome for Testing **绝对可执行路径**。这不是 profile 路径，也不改变产品权限。人工用例在写入前检查唯一测试项目名称，避免写入另一独立运行实例。
 
-## Evidence status
+## 真实场景与边界
 
-### Final acceptance — all exercised gates passed
+- [资产 UI](<../e2e/ui/asset-library.test.ts>)：原 Canvas/Assets/Collect 三入口、本地空间创建、文本资产、收藏、真实字节导入画布、使用记录、展开原资产库、删除空间默认转移、重载持久化；以及浏览器偏好真实 PUT/重载和 Web 扩展设置入口。曾出现的复选框名称不匹配已经纠正，最终完整流程两次通过。
+- [工作区](<../e2e/ui/workspace.test.ts>)：原顶部标签、项目文件、Markdown 编辑/保存/重开、草图模板落盘、剪辑编辑器重开；HTML 交互、源码、手动编辑、版本和演示文稿翻页。
+- [原生浏览器](<../e2e/ui/native-browser.test.ts>)：真实 guest 导航/返回、截图与归档、资源发现和 PNG 原始字节保存到本地库；权限拒绝其它项目、关闭后失效、禁止本地文件及特权来源导航。guest 没有主应用特权桥。
+- [原采集器](<../e2e/ui/native-collector.test.ts>)：侧栏浏览、跨页签保留、项目采集托盘与来源、原保存对话框写入库、加入画布、展开浏览器、真实扩展设置菜单。打开设置不等于扩展安装成功。
+- [Office 预览](<../e2e/ui/office-previews.test.ts>)：DOCX/PPTX/XLSX 合成 OOXML 档案经真实 HTTP 上传；原侧栏发现/选择，再从原 Quick Switcher 打开结构化文本预览，验证段落、幻灯片、工作表和 Download 链接资源的精确字节。**不是 Office 排版还原、公式计算、编辑或下载系统弹窗验收。** 侧栏文件点击只选择，不自行打开预览。
+- [HTTP/CLI](<../e2e/tests/asset-library-cli.test.ts>)：实际 CLI 子进程、空间/资产/版本/收藏、导入保存/使用记录/默认空间转移、multipart 精确字节、captureId 重放/冲突、ZIP 和 create-only 二进制输出，以及偏好 CAS。[工作区 HTTP 集成](<../e2e/tests/workspace.test.ts>)另验证版本恢复、代理及两个并发独立实例。
 
-| Gate | Result |
-| --- | --- |
-| Guard, all package typechecks and production build | Passed |
-| Package/application tests | 1,388 passed, including 112 desktop host tests |
-| Real HTTP integration | 4/4 passed in 5.18 seconds |
-| Original workspace + HTML/presentation web UI | 2/2 passed in 48.2 seconds |
-| Real Electron browser/resource/security chain | 1/1 passed in 8.5 seconds; scenario execution 3.7 seconds |
+## 修复证据而非放宽断言
 
-The published evidence directory contains only 18 selected PNG images from these successful web/native runs. It excludes raw traces, failure artifacts, runtime logs and temporary authorization headers. The inherited native inspect/edit limitation described above is unchanged.
+- 标签菜单退场抢夺 Capture 弹层焦点：[焦点回归](<../apps/web/tests/asset-library-launcher-focus.test.tsx>)，先红后绿，随后真实偏好场景通过。
+- 地址栏延迟 blur/选择回调覆盖再次输入：[地址编辑回归](<../apps/web/tests/browser-address-editing.test.tsx>)，先红后绿，原生导航重复通过。
+- 扩展已保存结果字段丢失：[实际打包 worker 回归](<../apps/desktop/tests/main/browser-extension-worker.test.ts>)，修复前 8 项失败、修复后 9 项通过；内部令牌不交给内容脚本，检查器绑定标签页。
+- 同来源能力刷新误撤销会话：[能力回归](<../apps/web/tests/asset-library-capabilities.test.tsx>)；异步读写来源漂移：[来源回归](<../apps/web/tests/asset-library-capture-source.test.ts>)。都已先红后绿。
+- 最终默认 Web 测试不依赖额外 `--environment` 参数；相关 DOM 测试显式声明 jsdom。未删除或跳过失败断言来获得默认套件通过。
 
-### Fresh independent-repository verification
+## 运行所有权与证据
 
-After copying source and the 18 selected images into the separate repository, no `node_modules`, build output, runtime data or diagnostic traces were reused from the extraction workspace. A fresh frozen-lockfile installation installed 799 packages, then every shared package, server, desktop and production web build passed. Guard checked 1,133 source/evidence files and 12 package manifests; all typechecks passed.
+[统一生命周期 harness](<../e2e/lib/tools-dev/runtime.ts>)只经 `pnpm tools-dev run web|desktop --production` 启动应用，并拥有预留端口、就绪检查、进程组和每个 worker 的独立运行数据。UI 只导入 [Playwright suite](<../e2e/lib/playwright/suite.ts>)，HTTP 集成使用对应 Vitest suite。测试通过真实 API 创建数据，不拦截工作区接口，不连接环境中已有服务。
 
-The complete 1,388-test package/application regression set passed again from this independent checkout. HTTP integration passed **4/4 in 10.61 seconds**, including two concurrently live production instances and a real forged-Host request. All three UI scenarios passed together in **29.9 seconds**: workspace 10.0 seconds, HTML/PPT 5.0 seconds and Electron 7.0 seconds. The verification used Node 24.21.0 and pnpm 10.33.2, with the Node executable outside the original checkout; Chrome and Electron used isolated profiles. No Electron sandbox protection was disabled. The repository has its own Git history and retains the upstream license/provenance.
+原生 trace 关闭，避免保存短时授权头。成功运行清理自己拥有的临时数据；失败保留诊断数据，均不进入 Git。无真实账号、日常浏览器 profile 或用户 cookie 被自动化操作。没有使用 `--no-sandbox`。浏览器原首页仍可能请求公开 favicon，目标采集页面则来自独立本地 fixture。
 
-The initial Git whitespace review reported only end-of-file blank lines and three trailing-whitespace lines in copied/adapted source. Those formatting-only warnings were retained rather than mechanically rewriting the preserved source/CSS; they are separate from the passing build, type, functional and security checks above.
+最终第二次重复运行的 **32 张原始截图**保存在 [交付证据目录](<../e2e/evidence/restoration-final/>)，校验摘要见 [summary](<../e2e/evidence/restoration-final/verification-summary.json>)。原生截图保持原始捕获字节，部分文件虽沿用 `.png` 名称，实际编码为 JPEG；未重绘或修图。初次抽取的旧截图不作为本轮功能闭环的证明。
 
-The original checkout contained concurrent uncommitted changes at the final inspection. Those changes were neither overwritten nor reverted by this extraction; the independent source baseline remains the commit identified in [NOTICE](<../NOTICE>).
+重点截图：[原三入口](<../e2e/evidence/restoration-final/20-three-original-sidebar-tabs.png>)、[原资产卡片与空间](<../e2e/evidence/restoration-final/22-original-local-asset-cards-and-space.png>)、[展开资产库](<../e2e/evidence/restoration-final/23-original-expanded-asset-library.png>)、[默认空间转移](<../e2e/evidence/restoration-final/24-space-removal-preserves-assets-by-default.png>)、[原生采集侧栏](<../e2e/evidence/restoration-final/27-original-native-collector-sidebar.png>)、[原保存对话框](<../e2e/evidence/restoration-final/29-canonical-original-save-asset-dialog.png>)、[原生扩展设置](<../e2e/evidence/restoration-final/30-native-browser-extension-entry-and-status.png>)、[DOCX](<../e2e/evidence/restoration-final/34-docx-text-preview.png>)、[PPTX](<../e2e/evidence/restoration-final/35-pptx-text-preview.png>)、[XLSX](<../e2e/evidence/restoration-final/36-xlsx-text-preview.png>)。
 
-### Integration findings and corrections
-
-Harness typecheck passed and Playwright discovered all three scenarios before runtime startup.
-
-The first real HTTP run completed **1 of 2 tests successfully** and exposed the production Next rewrite manifest's build-time `17456` backend destination. No browser was started against that faulty build. The runtime proxy was corrected rather than weakening isolation.
-
-After the fresh production build, **all 3 real HTTP checks passed in 8.43 seconds**: HTML save/version/restore, web proxy, project isolation, unavailable native capability, traversal rejection, absent chat/library routes, and two concurrently live production workspaces with distinct data roots and correct per-runtime web/backend routing. Successful runtime scratch was cleaned.
-
-On the final production build including the proxy Host guard, **4/4 real HTTP checks passed in 5.18 seconds**. The added security witness sends an actual forged `Host: rebound.example` with `node:http` and receives `403 / CANVAS_WEB_HOST_FORBIDDEN` before project data is returned. A first version using Node 24 `fetch` was rejected as an invalid test: an independent wire-level echo probe confirmed that fetch silently replaces a supplied Host with the URL authority. The corrected test uses a real low-level HTTP request, not a mocked request object.
-
-The first real Chrome run passed the original launcher/project-assets/Markdown/sketch/clip/reload scenario but screenshot inspection exposed missing shared-component toolbar CSS, stale empty-canvas chat advice and internal version/sidecar files in the asset drawer. These integration defects were fixed, and the strengthened scenario **passed in 9.5 seconds**: computed horizontal toolbar dimensions/icons, exactly three visible project files, no chat advice, original Page wireframe starter saved into the sketch JSON, Markdown autosave and Clip reload persistence. The corrected screenshots below were opened and visually inspected.
-
-**The complete two-scenario web acceptance run passed: 2/2 in 56.2 seconds**, with the workspace chain taking 10.9 seconds and the HTML/deck chain taking 22.9 seconds. It verifies the real interactive HTML button, Code view, original heading Text inspector, successful file save, at least two durable versions, revised heading after reload, both presentation slides, actual Next-slide navigation and presentation source. A second complete run on the final production build also passed **2/2 in 48.2 seconds** (workspace 10.0 seconds; HTML/deck 10.1 seconds), concurrently with the isolated HTTP run.
-
-Initial fixture/test failures were corrected without product backdoors: the original URL-load/srcDoc activation and edit-bridge re-emit require observable readiness and idempotent click completion; text targets use the inspector's accessible Text textbox rather than the container-only HTML field; deck fixtures use the original `deck-stage` runtime with correctly overlaid slide CSS. The floating navigation is revealed through a real hover on the canvas border outside its nested iframe, with opacity/actionability verified before clicking. There are no sleeps, forced clicks, private UI state setters or mocked workspace endpoints.
-
-The first actual Electron run exposed an ESM startup deadlock: top-level `await app.whenReady()` prevented Electron from emitting ready. The entry now invokes an async bootstrap without top-level await. A focused import/readiness regression passes. A subsequent security audit added canonical loopback-host/effective-port checks for navigation and subresources, including HTTP/HTTPS/WebSocket and blob-origin aliases while retaining distinct local fixture ports. All host tests now pass (**112/112**), with typecheck and build green.
-
-The next actual Electron run reached its DevTools endpoint but the enclosing agent execution sandbox denied Electron's own macOS sandbox initialization (`Operation not permitted`); GPU/network helper startup failed and the host correctly exited rather than reporting ready. No `--no-sandbox` flag or renderer/guest security weakening was added. The parent agent owns explicit permission-controlled retries of the same command. A wider-context retry did start Electron and the workspace successfully, but opening New Browser reached the application's error boundary. Native renderer diagnostics captured the browser-parent render loop; the parent fixed it and included the fix in the final production build. The final permitted-context Electron run passed **1/1 in 8.5 seconds**. It exercised the original New Browser UI, real navigation/back/forward, resource discovery, byte-identical project image saving, cross-project and revoked-grant 403 responses, actual PNG capture, HTML/CSS/manifest page archive, privileged subresource denial, existing local-file denial with a private-content sentinel absent from the guest DOM, and privileged-origin/localhost-alias navigation denial. The test waits for the original address bar's delayed blur to clear before the next focus/fill; it accepts Chromium's native cancellation error-code variants while retaining rejection and no-private-content assertions. No source security policy was weakened.
-
-Final passing-run screenshots: [Canvas](../e2e/evidence/acceptance-final/01-full-workspace.png), [Project assets](../e2e/evidence/acceptance-final/02-project-assets.png), [Launcher](../e2e/evidence/acceptance-final/03-launcher-tabs.png), [Markdown](../e2e/evidence/acceptance-final/04-text-editor.png), [Populated sketch](../e2e/evidence/acceptance-final/05-sketch-editor.png), [Clip](../e2e/evidence/acceptance-final/06-clip-workspace.png), [Interactive HTML](../e2e/evidence/acceptance-final/07-html-preview.png), [HTML source](../e2e/evidence/acceptance-final/08-html-source.png), [Saved manual edit](../e2e/evidence/acceptance-final/09-html-manual-edit.png), [Versions](../e2e/evidence/acceptance-final/10-html-versions.png), [Presentation slide one](../e2e/evidence/acceptance-final/11-presentation-preview.png), [Presentation slide two](../e2e/evidence/acceptance-final/11b-presentation-second-slide.png), [Presentation source](../e2e/evidence/acceptance-final/12-presentation-source.png). Native evidence: [Browser home](../e2e/evidence/acceptance-final/13-native-browser-home.png), [Real guest page](../e2e/evidence/acceptance-final/14-native-browser-page.png), [Discovered page resources](../e2e/evidence/acceptance-final/15-native-resources.png), [Project resource saved](../e2e/evidence/acceptance-final/16-native-project-resource-saved.png), [Actual captured project PNG](../e2e/evidence/acceptance-final/17-native-captured-project-image.png). Only these selected acceptance images are published; diagnostic artifacts are excluded.
+完整逐像素 golden-image 比较、供应商付费执行、普通 profile 扩展安装、原生下载保存及真实登录结果未覆盖。原浏览器停用的 inspect/edit/comment 工具栏、缺少的 viewport UI、批注闭环和归档边界仍见 [功能对照](<feature-parity.md>)，不把内部处理器的存在写成可用功能。

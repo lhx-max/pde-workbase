@@ -31,6 +31,18 @@ beforeEach(() => vi.useFakeTimers());
 afterEach(() => { for (const client of clients.splice(0)) client.dispose(); vi.useRealTimers(); vi.unstubAllGlobals(); setCanvasHostContext(null); });
 
 describe('standalone task submission', () => {
+  it('forwards browser execution metadata and explicit snapshot inputs together with attachments', async () => {
+    const fetch = vi.fn(async (url: string, _init?: RequestInit) => url.endsWith('/upload') ? json({ files: [{ path: 'inputs/attachments/photo.png' }] }) : taskResponse(receipt('succeeded')));
+    const { client } = harness(fetch);
+    const executionContext = { skillIds: ['page-recreation'], sessionMode: 'design', visiblePrompt: 'Extract page', context: { skillIds: ['page-recreation'], workspaceItems: [{ id: 'tab', kind: 'browser', label: 'Example', title: 'Example', url: 'https://example.com/', tabId: 'tab' }] } };
+    await client.submit('Extract', { ...display, executionContext, inputPaths: ['snap/page.html', 'snap/page.css', 'snap/manifest.json'] } as AgentTaskDisplay, [new File(['image'], 'photo.png')]);
+    expect(JSON.parse(String(fetch.mock.calls[1]![1]?.body))).toMatchObject({ executionContext, inputPaths: ['snap/page.html', 'snap/page.css', 'snap/manifest.json', 'inputs/attachments/photo.png'] });
+  });
+  it('rejects workflow continuation context or new snapshot paths instead of silently dropping them', async () => {
+    const fetch = vi.fn(async () => taskResponse(receipt())); const { client } = harness(fetch);
+    await expect(client.submit('Continue', { kind: 'instruction-card', title: 'Continue', genericWorkflow: { runId: 'run', workflowId: 'workflow', stepRunId: 'step', nodeTitle: 'Node', expectsCandidates: false }, inputPaths: ['snap/page.html'] } as AgentTaskDisplay)).rejects.toThrow(/verified input snapshot/);
+    expect(fetch).not.toHaveBeenCalled();
+  });
   it('confirms all uploads before task creation and preserves input order, multipart dir order and binding request identity', async () => {
     const first = deferred<Response>(); const second = deferred<Response>();
     const fetch = vi.fn(async (url: string, init?: RequestInit) => {

@@ -70,6 +70,17 @@ export function TabLauncherMenu({
         className={styles.menu}
         aria-label={t('workspace.createNew')}
         data-testid="tab-launcher-menu"
+        onCloseAutoFocus={event => {
+          // The animated menu may unmount after its action has opened another
+          // surface. Restore keyboard focus only while the old menu still owns
+          // it; stealing an already-committed focus dismisses the new popover.
+          const focused = document.activeElement;
+          const closingMenu = event.target;
+          if (focused instanceof HTMLElement && focused !== document.body
+            && closingMenu instanceof HTMLElement && !closingMenu.contains(focused)) {
+            event.preventDefault();
+          }
+        }}
       >
         {actions.map((action) => (
           <DropdownMenuItem

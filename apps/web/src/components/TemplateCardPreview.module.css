@@ -1,0 +1,31 @@
+/* Loading/error covers must be legible even without a template accent token. */
+.status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  text-align: center;
+  pointer-events: none;
+}
+
+.status strong {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status span {
+  font-size: 11px;
+  line-height: 1.4;
+}

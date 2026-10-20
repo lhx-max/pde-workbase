@@ -21,6 +21,35 @@ const host: BezierHostBridge = {
   version: 2,
   client: { type: 'desktop', platform: process.platform },
   browser: {
+    connectPinterest: guestId => action('browser:connect-pinterest', guestId),
+    cancelPinterest: guestId => ipcRenderer.invoke('browser:cancel-pinterest', guestId),
+    onPinterestAuthStatus: listener => {
+      const handler = (_event: Electron.IpcRendererEvent, value: Parameters<typeof listener>[0]) => listener(value);
+      ipcRenderer.on('browser:pinterest-status', handler);
+      return () => ipcRenderer.removeListener('browser:pinterest-status', handler);
+    },
+    startCaptureBridge: () => action('browser:start-capture-bridge'),
+    stopCaptureBridge: () => ipcRenderer.invoke('browser:stop-capture-bridge'),
+    setBrowserCaptureContext: context => { void ipcRenderer.invoke('browser:set-capture-context', context).catch(() => undefined); },
+    completeBrowserCapture: result => ipcRenderer.invoke('browser:complete-capture', result),
+    getCaptureExtensionStatus: () => ipcRenderer.invoke('browser:extension-status'),
+    installCaptureExtension: () => ipcRenderer.invoke('browser:install-extension'),
+    listCaptureRecords: () => ipcRenderer.invoke('browser:capture-records'),
+    onBrowserCapture: listener => {
+      const handler = (_event: Electron.IpcRendererEvent, value: Parameters<typeof listener>[0]) => listener(value);
+      ipcRenderer.on('browser:capture-received', handler);
+      return () => ipcRenderer.removeListener('browser:capture-received', handler);
+    },
+    onCaptureExtensionStatus: listener => {
+      const handler = (_event: Electron.IpcRendererEvent, value: Parameters<typeof listener>[0]) => listener(value);
+      ipcRenderer.on('browser:extension-status', handler);
+      return () => ipcRenderer.removeListener('browser:extension-status', handler);
+    },
+    onCaptureRecord: listener => {
+      const handler = (_event: Electron.IpcRendererEvent, value: Parameters<typeof listener>[0]) => listener(value);
+      ipcRenderer.on('browser:capture-record', handler);
+      return () => ipcRenderer.removeListener('browser:capture-record', handler);
+    },
     openResourceCapture: (guestId, projectId, tabId) => ipcRenderer.invoke('browser:open-resource-capture', guestId, projectId, tabId),
     closeResourceCapture: (sessionId, accessToken) => ipcRenderer.invoke('browser:close-resource-capture', sessionId, accessToken),
     setCollector: (guestId, enabled) => ipcRenderer.invoke('browser:set-collector', guestId, enabled),

@@ -98,6 +98,8 @@ export * from './api/native-team-migration.js';
 export * from './api/team-resources.js';
 export * from './api/storyboard-assets.js';
 export * from './api/personal-assets.js';
+export * from './api/asset-library.js';
+export * from './api/browser-preferences.js';
 export * from './api/inspiration.js';
 export * from './api/thumbnails.js';
 export type { WorkflowExecutionRequest, WorkflowExecutionStatus } from './api/workflow-execution.js';

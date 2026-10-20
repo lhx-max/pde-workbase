@@ -1,6 +1,6 @@
 # Canvas Workspace
 
-从 Bezier/Loom 原仓库独立抽取的画布创作工作区。保留原画布、组件、样式和交互，不包含对话产品，也不内置个人／团队全局资产平台。
+从 Bezier/Loom 原仓库独立抽取的画布创作工作区。保留原画布、组件、样式和交互，包含原 **画布／资产／采集** 三个入口及独立本地资产库；不包含对话产品或原账号／团队平台。
 
 原始版本：`319e5eee556a3641d2ee68a6111a36ddc7a1eff7`。来源与授权见 [NOTICE](NOTICE) 和 [LICENSE](LICENSE)。
 
@@ -8,17 +8,20 @@
 
 - 原画布及图片、文本、草图、分镜、视频、剪辑、网页、演示文稿节点。
 - 原顶部标签及浏览器、草图、文本、剪辑入口。
-- 项目资产侧栏：文件、上传、预览、搜索、筛选、重命名、删除及拖入画布。
-- 原 Markdown／文档编辑器、Excalidraw 草图编辑器、HTML/PPT 查看器与手动编辑、媒体预览和剪辑导出。
+- **画布**侧栏：项目文件、上传、预览、搜索、筛选、引用计数、定位、重命名、删除及拖入画布。
+- **资产**侧栏与展开资产库：本地空间、文件夹、文本／文件创建、上传、元数据、收藏、批量管理、版本、导出、导入画布及从画布保存。复用原卡片、筛选器和检查器；数据不依赖原账号。
+- **采集**侧栏：原内嵌浏览器、项目采集托盘、来源记录、加入画布、保存到资产库及展开到浏览器标签。
+- 原 Markdown／文档编辑器、Excalidraw 草图编辑器、HTML/PPT 查看器与手动编辑、媒体预览和剪辑导出；DOCX/PPTX/XLSX/PDF 保留原结构化文本预览及下载，不是完整 Office 排版或编辑器。
 - 独立后端：画布 JSON、修订冲突、文件／目录、版本、产物清单、候选交付、任务回执和工作流执行。
-- 原生 Electron 浏览器宿主：WebView 导航、资源观测与授权读取、页面／图片捕获；采集结果进入项目文件。
+- 原生 Electron 浏览器宿主：WebView 导航、历史、书签、参考站点、资源观测与授权读取、页面／图片捕获、页面归档和经系统 Save As 确认的下载。浏览器批量资源与外部扩展采集进入资产库；采集托盘保留项目文件。
+- 独立网页采集扩展、原保存后检查器及受条件限制的登录接续；安装须由用户确认并手动加载导出的扩展包，不会静默修改真实浏览器配置。
 - 可替换的 Agent、媒体、目录、外部资产来源与宿主接口。没有配置的外部能力会明确报错，不会模拟成功。
 
-**验证状态与限制以 [功能对照表](docs/feature-parity.md) 为准。** 复制代码、类型检查通过与真实交互验收是不同层次。
+**验证状态与限制见 [功能对照表](<docs/feature-parity.md>) 和 [运行记录](<docs/runtime-verification.md>)。** 复制代码、类型检查通过与真实交互验收是不同层次。三入口、资产／空间、原生浏览器／采集和 Office 文本预览已有真实验证；外部扩展实际采集写入已通过，但保存后编辑问题修复后的完整原生复验由用户选择暂缓，不能记为全链路验收通过。
 
 ## 安装与构建
 
-要求 Node **24.x**、pnpm **10.33.2**。视频导出需要 `ffmpeg` 与 `ffprobe` 可执行文件。Electron 为桌面浏览器模式所需；纯 Web 模式不具备跨域页面的原生 DOM／资源采集能力。
+要求 Node **24.x**、pnpm **10.33.2**。视频导出需要 `ffmpeg` 与 `ffprobe` 可执行文件；桌面扩展打包需要系统 `zip`。Electron 为桌面浏览器模式所需；纯 Web 模式不具备跨域页面的原生 DOM／资源采集能力。
 
 ```sh
 node --version
@@ -53,6 +56,16 @@ pnpm tools-dev run desktop --data-dir "$CANVAS_DATA_DIR" --production
 ```
 
 桌面模式自动为后端到原生宿主的连接生成仅本次进程使用的传输密钥，并使用独立浏览器 profile。API 的可选 `CANVAS_AUTH_TOKEN` 与该原生宿主密钥相互独立。`Ctrl+C` 停止本次启动的进程。可通过 `--daemon-port`、`--web-port`、`--browser-host-port` 和 `--desktop-user-data` 配置独立实例；并发实例必须使用不同的数据根、profile 和端口。原生能力说明见 [browser-host.md](docs/browser-host.md)。
+
+## 三个入口与本地资产库
+
+在画布底部工具栏打开资产侧栏，然后切换 **画布／资产／采集**。资产页右上角可展开原资产库；空间菜单提供创建、重命名和删除。删除空间默认把内容移至默认空间，只有明确取消“移动资产”并确认删除时才永久删除内容，不删除项目。
+
+资产库由当前服务的数据根独立持久化。空间、文件夹与项目是不同概念；把资产加入画布会导入指定版本的真实字节，并记录项目使用关系，不把全局资产 ID 伪装成项目文件路径。保存对话框在用户确认前不写入，失败可保留草稿重试。
+
+浏览器菜单内的 **Browser extension／浏览器扩展** 打开原扩展设置。书签、参考站点与采集开关通过后端持久化，不再仅存于浏览器 localStorage。原生浏览器和采集需要桌面模式；Web 会明确说明能力不可用，不以普通 iframe 冒充完整浏览器。
+
+AI 元数据分析和外部模板目录是可选适配器，默认不可用；手动编辑元数据不受影响。浏览器“加入引用”只暂存引用，**不会立即启动 Agent**；用户下一次明确提交任务后才发送。
 
 ## 接入 Agent
 
@@ -100,7 +113,11 @@ CANVAS_SERVER_URL=http://127.0.0.1:17456 \
   pnpm --filter @canvas/server exec node dist/cli.js request GET /api/projects --json
 ```
 
-通用 `request METHOD /api/path --body-file FILE|- --json` 可以调用同一套画布、文件、版本、任务和工作流接口。浏览器资源命令使用原生宿主签发的会话授权；不能凭项目 ID 自行铸造读取权限。
+通用 `request METHOD /api/path --body-file FILE|- --prompt-file FILE|- --json` 可以调用同一套画布、文件、版本、任务和工作流接口。长提示可从文件或标准输入读取。
+
+`assets` 提供 `info/list/get/create/upload/patch/batch/versions/content/export/spaces/uses/metadata/analysis/prompt/import/save`；`browser preferences` 读写书签、参考站点与采集开关。它们与 UI 调用同一套 HTTP API，不另开数据库。二进制内容用 `--output FILE` 输出，文件必须不存在；上传用 `--file FILE --mime MIME`，元数据和修订参数用 `--body-file FILE|-`。协议与示例见 [服务端说明](<apps/server/README.md>)。
+
+浏览器资源命令使用原生宿主签发的会话授权；不能凭项目 ID 自行铸造读取权限。系统 Save As、扩展安装及真实账号登录的同意操作只在 GUI 中完成，CLI 不提供绕过确认的通道。
 
 主要协议实现：
 
@@ -108,7 +125,9 @@ CANVAS_SERVER_URL=http://127.0.0.1:17456 \
 - [项目文件、目录、预览、标签和事件](apps/server/src/routes/files.ts)
 - [Agent 任务和候选交付](apps/server/src/routes/tasks.ts)
 - [剪辑编辑与导出](apps/server/src/routes/clip-editor.ts)
-- [浏览器资源授权协议](apps/server/src/routes/browser-resources.ts)
+- [浏览器资源授权协议](<apps/server/src/routes/browser-resources.ts>)
+- [本地资产库、空间、版本、导入与保存](<apps/server/src/routes/asset-library.ts>)
+- [浏览器偏好设置](<packages/contracts/src/api/browser-preferences.ts>)
 - [共享项目内容布局](packages/contracts/src/project-layout.ts)
 
 ## 验证
@@ -130,7 +149,9 @@ pnpm --filter @canvas/e2e test:ui
 ## 明确不包含
 
 - 原对话产品、聊天历史数据库、内置模型进程管理平台。
-- 原个人／团队全局资产管理平台、团队协作权限后台。
-- 原产品更新器、发布控制台、Pinterest／外部浏览器扩展登录平台。
+- 原账号／团队资产平台和团队协作权限后台。这里的本地资产库独立运行，不需要这些平台。
+- 原产品更新器、发布控制台或托管账号登录服务。
 
-项目资产、画布产物和项目版本是本工作区的核心能力，不属于上述被排除的平台功能。
+独立采集扩展与原浏览器登录接续已经纳入；Pinterest 接续保留原 macOS、未打包开发模式限制，并须用户明确同意。真实账号登录、日常浏览器安装与系统弹窗人工确认不会由自动化验收擅自执行。
+
+项目资产、本地资产库、画布产物和项目版本均属于本工作区的核心能力。

@@ -20,6 +20,14 @@ import type { ChatCommentAttachment, ChatAttachment, CanvasTaskListResponse } fr
 import type { CanvasTransport, CanvasWorkbenchSurfaceProps } from '@bezier/canvas-workbench';
 type AgentTaskSubmitter = NonNullable<CanvasWorkbenchSurfaceProps['onSubmitAgentTask']>;
 import { CanvasAssetsSidebar } from './CanvasAssetsSidebar';
+import {AssetLibraryBrowser} from './AssetLibraryBrowser';
+import {SaveAssetDialogHost} from './SaveAssetDialog';
+import {BrowserExtensionCaptureHost} from './BrowserExtensionCaptureHost';
+import {WorkspaceReferenceTray} from './WorkspaceReferenceTray';
+import {OPEN_ASSET_LIBRARY_EVENT,type AssetLibraryRequest} from '../state/asset-library-navigation';
+import {OPEN_COLLECTOR_TAB_EVENT} from './browser-collector-tools';
+import {saveProjectFileAsAsset} from '../providers/asset-library';
+import type {AssetLibraryPanelProps} from './AssetLibraryPanel';
 import { FileViewer } from './FileViewer';
 import { IframeKeepAliveProvider,createManualEditRetention, type HtmlViewerAdapters } from './HtmlViewer';
 import { DesignBrowserPanel } from './DesignBrowserPanel';
@@ -44,6 +52,9 @@ export type WorkspacePorts = {
     uiHost?: Partial<CanvasUiHost>;
     workspaceContext?: WorkspaceCollabContext | null;
     saveToLibrary?: (file: ProjectFile) => Promise<void>;
+    /** Accept a reference into the host's draft, without running an agent task. */
+    onStageReference?: (attachment:ChatAttachment)=>void|Promise<void>;
+    assetCatalogue?:Pick<AssetLibraryPanelProps,'installedTemplates'|'designSystems'|'onUseTemplate'|'onOpenDesignSystem'>;
     revealFile?: (name?: string) => Promise<boolean>;
     registerBeforeLeave?: (settle:(()=>Promise<boolean>)|null)=>void;
 };
@@ -62,6 +73,13 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
     const [error, setError] = useState('');
     const [launcherOpen, setLauncherOpen] = useState(false);
     const [filesDrawerOpen, setFilesDrawerOpen] = useState(false);
+    const [assetRequest,setAssetRequest]=useState<AssetLibraryRequest|null>(null);
+    const assetRequestRef=useRef<AssetLibraryRequest|null>(null);
+    const [fullLibraryOpen,setFullLibraryOpen]=useState(false);
+    const [stagedReferences,setStagedReferences]=useState<ChatAttachment[]>([]);
+    const cancelAssetSelection=useCallback(()=>{const current=assetRequestRef.current;current?.selection?.controller.abort();if(current?.selection){assetRequestRef.current=null;setAssetRequest(null);}},[]);
+    const closeAssetLibrary=useCallback(()=>{cancelAssetSelection();assetRequestRef.current=null;setAssetRequest(null);setFullLibraryOpen(false);setFilesDrawerOpen(false);},[cancelAssetSelection]);
+    useEffect(()=>{setStagedReferences([]);setFullLibraryOpen(false);cancelAssetSelection();assetRequestRef.current=null;setAssetRequest(null);return()=>assetRequestRef.current?.selection?.controller.abort();},[projectId,ports.workspaceContext,cancelAssetSelection]);
     const [filesDrawerWidth, setFilesDrawerWidth] = useState(() => { try {
         const width = Number(localStorage.getItem('bezier-design:canvas-assets-sidebar-width'));
         return width >= 240 && width <= 480 ? width : 320;
@@ -95,10 +113,12 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
     const fileForViewer=(name:string)=>retention.current.isProtected(name)?fileSnapshots.current.get(name)||files.find(file=>file.name===name):files.find(file=>file.name===name);
     useEffect(()=>{const beforeUnload=(event:BeforeUnloadEvent)=>{if(retention.current.protectedFiles().size||Object.values(dirtyTabs).some(Boolean)){event.preventDefault();event.returnValue='';}};window.addEventListener('beforeunload',beforeUnload);return()=>window.removeEventListener('beforeunload',beforeUnload);},[dirtyTabs]);
     useEffect(()=>{ports.registerBeforeLeave?.(async()=>{if(!await retention.current.settleAll())return false;return (await Promise.all([...flushers.current.values()].map(flush=>flush()))).every(Boolean);});return()=>ports.registerBeforeLeave?.(null);},[ports.registerBeforeLeave]);
-    useEffect(() => { const toggle = () => setFilesDrawerOpen(open => !open); window.addEventListener('bezier-design:toggle-project-assets', toggle); return () => window.removeEventListener('bezier-design:toggle-project-assets', toggle); }, []);
+    useEffect(() => { const toggle = () => {if(filesDrawerOpen)closeAssetLibrary();else setFilesDrawerOpen(true);}; window.addEventListener('bezier-design:toggle-project-assets', toggle); return () => window.removeEventListener('bezier-design:toggle-project-assets', toggle); }, [filesDrawerOpen,closeAssetLibrary]);
     useEffect(() => { window.dispatchEvent(new CustomEvent('bezier-design:project-assets-state', { detail: { open: filesDrawerOpen } })); }, [filesDrawerOpen]);
     const active = tabs.active || DESIGN_FILES_TAB;
     const browserTabs = useMemo(() => tabs.browserTabs || [], [tabs.browserTabs]);
+    useEffect(()=>{if(active!==DESIGN_FILES_TAB)cancelAssetSelection();},[active,cancelAssetSelection]);
+    useEffect(()=>{const controller=assetRequest?.selection?.controller;if(!controller)return;const abort=()=>{if(assetRequestRef.current===assetRequest){const next={...assetRequest,selection:undefined};assetRequestRef.current=next;setAssetRequest(next);}};if(controller.signal.aborted)abort();else controller.signal.addEventListener('abort',abort,{once:true});return()=>controller.signal.removeEventListener('abort',abort);},[assetRequest]);
     const reportError = useCallback((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)), []);
     const renderScope=`${projectId}:${JSON.stringify(ports.workspaceContext??null)}`;const currentScope=useRef(renderScope);currentScope.current=renderScope;
     const refreshFiles = useCallback(async () => { const next = await fetchProjectFiles(projectId, { fresh: true, requireAuthoritative: true, workspaceContext: ports.workspaceContext }); if(currentScope.current===renderScope)setFiles(next); }, [projectId, ports.workspaceContext,renderScope]);
@@ -113,12 +133,29 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
     const navigate=useCallback(async(change:()=>void,targetToSettle?:string)=>{const source=tabsRef.current.active||DESIGN_FILES_TAB;const sequence=++navigationSequence.current;const target=targetToSettle||source;if(retention.current.isProtected(target)){const settled=await retention.current.settle(target);syncProtection();if(!settled)return false;}if(sequence!==navigationSequence.current||(tabsRef.current.active||DESIGN_FILES_TAB)!==source)return false;change();return true;},[syncProtection]);
     const openFile=useCallback((name:string)=>{void navigate(()=>updateTabs(state=>({...state,tabs:name===DESIGN_FILES_TAB?state.tabs:state.tabs.includes(name)?state.tabs:[...state.tabs,name],active:name}))).catch(reportError);},[navigate,updateTabs,reportError]);
     const closeTab=useCallback(async(name:string)=>{const source=tabsRef.current.active;const sequence=++navigationSequence.current;const settled=await retention.current.settle(name);syncProtection();if(!settled)return;const flush=flushers.current.get(name);if(flush&&!await flush())return;if(sequence!==navigationSequence.current||tabsRef.current.active!==source)return;updateTabs(state=>{const index=state.tabs.indexOf(name);const next=state.tabs.filter(id=>id!==name);return {...state,tabs:next,browserTabs:state.browserTabs?.filter(tab=>tab.id!==name),active:state.active===name?next[Math.min(index,next.length-1)]||DESIGN_FILES_TAB:state.active};});},[updateTabs,syncProtection]);
+    const showAssetLibrary=useCallback((request:AssetLibraryRequest)=>{
+        if(request.selection?.controller.signal.aborted)return;
+        void navigate(()=>{if(assetRequestRef.current?.selection?.controller!==request.selection?.controller)assetRequestRef.current?.selection?.controller.abort();assetRequestRef.current=request;setAssetRequest(request);setFullLibraryOpen(Boolean(request.full));setFilesDrawerOpen(!request.full);updateTabs(state=>({...state,active:DESIGN_FILES_TAB}));}).then(accepted=>{if(!accepted)request.selection?.controller.abort();}).catch(cause=>{request.selection?.controller.abort();reportError(cause);});
+    },[navigate,updateTabs,reportError]);
+    useEffect(()=>{const receive=(event:Event)=>{const request=(event as CustomEvent<AssetLibraryRequest>).detail;if(request&&(!request.projectId||request.projectId===projectId))showAssetLibrary(request);};window.addEventListener(OPEN_ASSET_LIBRARY_EVENT,receive);return()=>window.removeEventListener(OPEN_ASSET_LIBRARY_EVENT,receive);},[projectId,showAssetLibrary]);
+    useEffect(()=>{const receive=(event:Event)=>{const detail=(event as CustomEvent<{projectId:string;url:string}>).detail;if(detail?.projectId!==projectId)return;let url:URL;try{url=new URL(detail.url);if(!['http:','https:'].includes(url.protocol)||url.username||url.password)return;}catch{return;}void navigate(()=>updateTabs(state=>{const existing=state.browserTabs?.find(tab=>tab.url===url.href);if(existing)return {...state,active:existing.id};const id=`__browser__:${crypto.randomUUID()}`;return {...state,tabs:[...state.tabs,id],active:id,browserTabs:[...(state.browserTabs||[]),{id,label:t('workspace.newBrowser'),url:url.href}]};})).catch(reportError);};window.addEventListener(OPEN_COLLECTOR_TAB_EVENT,receive);return()=>window.removeEventListener(OPEN_COLLECTOR_TAB_EVENT,receive);},[projectId,navigate,updateTabs,reportError,t]);
     const [taskBridge,setTaskBridge]=useState<ReturnType<typeof createCanvasTaskSubmitter>|null>(null);
     useEffect(()=>{const client=createCanvasTaskSubmitter({context:{projectId,workspaceContext:ports.workspaceContext,transport:ports.transport},onTask:task=>{if(task.status==='failed'||task.status==='interrupted'||task.deliveryState==='delivery_failed')reportError(new Error(task.error||`Task ${task.id} did not complete`));},onTextResult:result=>{setTextResults(current=>[...current.filter(item=>item.binding.nodeId!==result.binding.nodeId),result]);void refreshFiles().catch(reportError);},onArtifactResult:result=>{setArtifactResults(current=>[...current.filter(item=>item.binding.nodeId!==result.binding.nodeId),result]);void refreshFiles().catch(reportError);},onError:reportError});setTaskBridge(client);return()=>client.dispose();},[projectId,ports.workspaceContext,ports.transport,refreshFiles,reportError]);
-    const submitAgentTask=useCallback<AgentTaskSubmitter>(async(...args)=>{if(ports.onSubmitAgentTask)return ports.onSubmitAgentTask(...args);if(!taskBridge)throw new Error('Agent task client is not ready');return taskBridge.submit(...args);},[ports.onSubmitAgentTask,taskBridge]);
+    const submitAgentTask=useCallback<AgentTaskSubmitter>(async(text,display,attachments)=>{
+        const staged=stagedReferences;
+        const nextDisplay=staged.length?{...(display??{kind:'instruction-card' as const,title:text.split('\n')[0]!.slice(0,120)}),inputPaths:[...new Set([...(display?.inputPaths??[]),...staged.map(item=>item.path)])]}:display;
+        if(ports.onSubmitAgentTask)await ports.onSubmitAgentTask(text,nextDisplay,attachments);
+        else {if(!taskBridge)throw new Error('Agent task client is not ready');await taskBridge.submit(text,nextDisplay,attachments);}
+        if(staged.length)setStagedReferences(current=>current.filter(item=>!staged.includes(item)));
+    },[ports.onSubmitAgentTask,taskBridge,stagedReferences]);
     const sendComments = useCallback(async (attachments: ChatCommentAttachment[], images: File[] = []): Promise<CommentSendResult> => { await submitAgentTask(messageContentWithCommentAttachments('', attachments), undefined, images); return { status: 'accepted', commentIds: attachments.map(item => item.id) }; }, [submitAgentTask]);
-    const sendImageReference = useCallback(async (attachment: ChatAttachment) => { const response = await fetch(projectFileUrl(projectId, attachment.path, ports.workspaceContext)); if (!response.ok)
-        throw new Error(`Image reference read failed (${response.status})`); const file = new File([await response.blob()], attachment.name, { type: response.headers.get('content-type') || 'image/png' }); await submitAgentTask('Analyze this selected browser image reference without modifying project files.', undefined, [file]); }, [projectId, ports.workspaceContext, submitAgentTask]);
+    const sendImageReference = useCallback(async (attachment: ChatAttachment) => {
+        if(currentScope.current!==renderScope)throw new Error(t('asset.error.saveCancelled'));
+        if(ports.onStageReference){await ports.onStageReference(attachment);return;}
+        setStagedReferences(current=>[...current.filter(item=>item.path!==attachment.path),attachment]);
+    }, [ports.onStageReference,renderScope,t]);
+    const saveToLibrary=useCallback(async(file:ProjectFile)=>{if(ports.saveToLibrary)await ports.saveToLibrary(file);else await saveProjectFileAsAsset(projectId,file.name,ports.workspaceContext);},[ports.saveToLibrary,projectId,ports.workspaceContext]);
+    const extractPage=useCallback(async(request:import('./browser-page-extraction').BrowserPageExtractionRequest)=>{const turn=browserPageExtractionTurn(request,t('designBrowser.extractPage'));await submitAgentTask(turn.prompt,{kind:'instruction-card',title:t('designBrowser.extractPage'),visiblePrompt:turn.meta.visiblePrompt,executionContext:turn.meta,inputPaths:turn.inputPaths});},[submitAgentTask,t]);
     useEffect(() => { if (ports.onSubmitAgentTask||!taskBridge)
         return; let active = true; const controller = new AbortController(); const transport = ports.transport; const endpoint = `${transport?.baseUrl?.replace(/\/$/, '') || ''}/api/projects/${encodeURIComponent(projectId)}/agent/tasks`; void (transport?.fetch || fetch)(endpoint, { signal: controller.signal, headers: { ...(ports.workspaceContext ? workspaceProjectHeaders(ports.workspaceContext) : {}), ...transport?.headers?.() } }).then(async (response) => { if (!response.ok)
         throw new Error(`Task recovery failed (${response.status})`); const body = await response.json() as CanvasTaskListResponse; if (!Array.isArray(body.tasks))
@@ -213,8 +250,9 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
         setQuickSwitcherOpen(false); }; window.addEventListener('keydown', onKeyDown, { capture: true }); return () => window.removeEventListener('keydown', onKeyDown, { capture: true }); }, [active, tabs.tabs, openFile, closeTab, quickSwitcherOpen, reportError]);
     if (!ready)
         return <div className="viewer-empty" role={error ? 'alert' : undefined}>{error || t('fileViewer.loading')}</div>;
-    return <IframeKeepAliveProvider><div className="workspace" data-testid="file-workspace">
+    return <IframeKeepAliveProvider><SaveAssetDialogHost/><BrowserExtensionCaptureHost projectId={projectId} projectName={projectName}/><div className="workspace" data-testid="file-workspace">
   <SketchEnginePrewarm />
+  {fullLibraryOpen?<AssetLibraryBrowser {...ports.assetCatalogue} projectId={projectId} openRequest={assetRequest} onCancelSelection={cancelAssetSelection} onRefreshFiles={refreshFiles} onClose={closeAssetLibrary}/>:null}
   <div className="ws-tabs-shell">
    <div ref={tabBar} className="ws-tabs-bar" role="tablist" aria-label={t('workspace.pages')} onWheel={event => { if (event.currentTarget.scrollWidth > event.currentTarget.clientWidth && Math.abs(event.deltaY) > Math.abs(event.deltaX))
         event.currentTarget.scrollLeft += event.deltaY; }}>
@@ -223,18 +261,18 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
         updateTabs(state => ({ ...state, tabs: moveWorkspaceTab(state.tabs, draggedTab, name, dragOver?.edge === 'after') })); setDraggedTab(null); setDragOver(null); }} onDragEnd={() => { setDraggedTab(null); setDragOver(null); }}/>; })}
    </div>
    <div className="ws-add-tab"><TabLauncherMenu open={launcherOpen} onOpenChange={setLauncherOpen} trigger={<Button type="button" className="icon-only ws-tab-add bezier-tooltip" data-testid="workspace-add-tab" aria-label={t('workspace.newTab')} title={t('workspace.newTab')}><Icon name="plus" size={15}/></Button>} actions={buildLauncherActions(launcherContext)} launcherContext={launcherContext}/></div>
-   <div className="ws-tabs-actions"><div id="app-chrome-file-actions" className="ws-tabs-file-actions" data-app-chrome-file-actions="true"/></div>
+   <div className="ws-tabs-actions"><WorkspaceReferenceTray projectId={projectId} workspaceContext={ports.workspaceContext} references={stagedReferences} onRemove={path=>setStagedReferences(current=>current.filter(item=>item.path!==path))} onClear={()=>setStagedReferences([])}/><div id="app-chrome-file-actions" className="ws-tabs-file-actions" data-app-chrome-file-actions="true"/></div>
   </div>
   <div className="ws-body">
    {error && <div className="df-upload-banner" data-testid="upload-error-banner" role="alert"><span>{error}</span><Button onClick={() => setError('')} aria-label={t('entry.canvasAssets.close')}><Icon name="close" size={14}/></Button></div>}
-   {browserTabs.filter(browser => browser.id === active || mountedBrowserTabs.includes(browser.id)).map(browser => <div key={browser.id} className={`ws-browser-panel ${active === browser.id ? 'active' : ''}`} aria-hidden={active !== browser.id || undefined}><DesignBrowserPanel {...ports.previewAnnotations} workspaceContext={ports.workspaceContext} onExtractPage={async (request) => { const turn = browserPageExtractionTurn(request, t('designBrowser.extractPage')); await submitAgentTask(turn.prompt); }} onSendBoardCommentAttachments={sendComments} onAddImageToChat={sendImageReference} projectId={projectId} browserTabId={browser.id} initialUrl={browser.url} initialTitle={browser.title} initialIconUrl={browser.iconUrl} onOpenFile={openFile} onBezierFiles={() => openFile(DESIGN_FILES_TAB)} onRefreshFiles={refreshFiles} onPageInfoChange={browserInfoCallbacks[browser.id]}/></div>)}
+   {browserTabs.filter(browser => browser.id === active || mountedBrowserTabs.includes(browser.id)).map(browser => <div key={browser.id} className={`ws-browser-panel ${active === browser.id ? 'active' : ''}`} aria-hidden={active !== browser.id || undefined}><DesignBrowserPanel {...ports.previewAnnotations} workspaceContext={ports.workspaceContext} onExtractPage={extractPage} onSendBoardCommentAttachments={sendComments} onAddImageToChat={sendImageReference} projectId={projectId} browserTabId={browser.id} initialUrl={browser.url} initialTitle={browser.title} initialIconUrl={browser.iconUrl} onOpenFile={openFile} onBezierFiles={() => openFile(DESIGN_FILES_TAB)} onRefreshFiles={refreshFiles} onPageInfoChange={browserInfoCallbacks[browser.id]}/></div>)}
    <div className="design-files-shell" data-testid="design-files-shell" style={{ display: active === DESIGN_FILES_TAB || clipNodeIdFromTab(active) ? undefined : 'none' }}>
     <div className={`design-files-panel${filesDrawerOpen && !clipNodeIdFromTab(active) ? ' is-open' : ''}`} data-resizable-file-panel="true" style={{ ['--design-files-panel-width' as string]: `${filesDrawerWidth}px` }} role="region" aria-label={t('workspace.designFiles')} data-testid="design-files-panel" aria-hidden={!filesDrawerOpen || undefined}>
-     <div className="design-files-panel-body"><CanvasAssetsSidebar projectId={projectId} projectName={projectName} active={filesDrawerOpen && !clipNodeIdFromTab(active)} files={visibleFiles} onClose={() => setFilesDrawerOpen(false)} width={filesDrawerWidth} onWidthChange={width => { setFilesDrawerWidth(width); try {
+     <div className="design-files-panel-body"><CanvasAssetsSidebar {...ports.assetCatalogue} openRequest={assetRequest} onCancelSelection={cancelAssetSelection} onOpenAssetLibrary={showAssetLibrary} onExtractPage={extractPage} projectId={projectId} projectName={projectName} active={filesDrawerOpen && !clipNodeIdFromTab(active)} files={visibleFiles} onClose={closeAssetLibrary} width={filesDrawerWidth} onWidthChange={width => { setFilesDrawerWidth(width); try {
         localStorage.setItem('bezier-design:canvas-assets-sidebar-width', String(width));
     }
     catch { /* Optional local preference storage. */ } }} onRefreshFiles={refreshFiles} onOpenFile={openFile} onRenameFile={rename} onDeleteFiles={removeFiles} onDeleteFile={name => { if (window.confirm(t('entry.canvasAssets.deleteBatchBody')))
-        void removeFiles([name]).catch(reportError); }} onUpload={() => fileInput.current?.click()} onLocateFile={name => window.dispatchEvent(new CustomEvent('bezier-design:locate-project-file', { detail: { projectId, fileName: name } }))} onSaveToLibrary={ports.saveToLibrary} onRevealInFinder={ports.revealFile}/></div>
+        void removeFiles([name]).catch(reportError); }} onUpload={() => fileInput.current?.click()} onLocateFile={name => window.dispatchEvent(new CustomEvent('bezier-design:locate-project-file', { detail: { projectId, fileName: name } }))} onSaveToLibrary={saveToLibrary} onRevealInFinder={ports.revealFile}/></div>
     </div>
     <div className="design-files-canvas-wrap"><div className="design-files-canvas-slot"><CanvasWorkspace referenceAdapter={ports.referenceAdapter} projectId={projectId} workspaceContext={ports.workspaceContext} transport={ports.transport} onSubmitAgentTask={submitAgentTask} textGenerationResults={textResults} artifactGenerationResults={artifactResults} textDocumentChange={textDocumentChange} clipEditor={{ nodeId: clipNodeIdFromTab(active), onOpen: id => openFile(clipEditorTabId(id)), onBack: () => openFile(DESIGN_FILES_TAB) }} nodeCreationRequest={nodeCreationRequest} onNodeCreationConsumed={(nonce, id) => { setNodeCreationRequest(current => current?.nonce === nonce ? null : current); openFile(clipEditorTabId(id)); }} onOpenArtifact={async (resource) => { if (resource.kind !== 'project-file')
         throw new Error('This artifact requires an external artifact host'); await refreshFiles(); openFile(resource.path); }} onOpenTextDocument={async (request) => { let content: string | null = null; try {

@@ -23,7 +23,7 @@ export function createHttpAgentAdapter(base:string,token?:string):AgentAdapter {
     inputFiles.push({path:item.path,digest,contentBase64:content.toString('base64')});
    }
   }
-  return request<TaskDelivery>('',{task:input.task,request:input.request,...(input.workspace?{workspace:input.workspace}:{}),inputFiles,...(input.execution?{execution:input.execution}:{}),...(input.systemPrompt?{systemPrompt:input.systemPrompt}:{}),...(input.skillIds?{skillIds:input.skillIds}:{})},input.signal);
+  return request<TaskDelivery>('',{task:input.task,request:input.request,...(input.executionContext?{executionContext:input.executionContext}:{}),...(input.installedSkills?{installedSkills:input.installedSkills}:{}),...(input.workspace?{workspace:input.workspace}:{}),inputFiles,...(input.execution?{execution:input.execution}:{}),...(input.systemPrompt?{systemPrompt:input.systemPrompt}:{}),...(input.skillIds?{skillIds:input.skillIds}:{})},input.signal);
  }};
 }
 export function createHttpMediaAdapter(base:string,token?:string):MediaAdapter{

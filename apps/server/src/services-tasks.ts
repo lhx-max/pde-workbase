@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { CanvasTaskRequest, CanvasTaskReceipt, CanvasTaskDelivery, CanvasTaskWithRequest, ExecutionSnapshot } from '@bezier/contracts';
+import type { CanvasTaskExecutionContext, CanvasTaskRequest, CanvasTaskReceipt, CanvasTaskDelivery, CanvasTaskWithRequest, ExecutionSnapshot } from '@bezier/contracts';
 import { CanvasStateService } from './canvas/state.js';
 import { prepareCanvasGenerationWorkspace } from './canvas/generation-workspace.js';
 import { materializeCanvasArtifactResponse, prepareCanvasTextWorkspace, type CanvasArtifactWorkspace, type CanvasWorkingCopy } from './canvas/artifact-workspace.js';
@@ -12,19 +12,22 @@ import { ProjectSerialLock } from './storage/project-serial-lock.js';
 import type { ProjectRegistry } from './storage/project-registry.js';
 import { recordProjectLedgerObservation } from './project-ledger/active-recorder.js';
 
+import { normalizeTaskRequest, taskRequestDigest } from './task-request.js';
+import { resolveTaskSkills, type InstalledTaskSkill } from './task-skills.js';
+
 export type TaskRequest = CanvasTaskRequest;
 export type TaskDelivery = CanvasTaskDelivery;
 export type TaskReceipt = CanvasTaskReceipt;
-interface StoredTask { receipt: TaskReceipt; request: TaskRequest; workspace?: CanvasWorkingCopy; artifact?: CanvasArtifactWorkspace; baseDigest?: string; delivery?: TaskDelivery; }
+interface StoredTask { receipt: TaskReceipt; request: TaskRequest; requestDigest?: string; workspace?: CanvasWorkingCopy; artifact?: CanvasArtifactWorkspace; baseDigest?: string; delivery?: TaskDelivery; }
 /** Executor receives only an isolated working copy; publication remains server-owned. */
-export interface AgentExecutionContext {execution?:ExecutionSnapshot;systemPrompt?:string;skillIds?:string[]}
+export interface AgentExecutionContext {execution?:ExecutionSnapshot;systemPrompt?:string;skillIds?:string[];executionContext?:CanvasTaskExecutionContext;installedSkills?:InstalledTaskSkill[]}
 export interface AgentAdapter {
  execute(input: {task: TaskReceipt; request: TaskRequest; workspace?: CanvasWorkingCopy; signal: AbortSignal}&AgentExecutionContext): Promise<TaskDelivery>;
 }
 export class AgentTasks {
  private readonly active = new Map<string, AbortController>();
  private readonly lock = new ProjectSerialLock();
- constructor(private readonly registry: ProjectRegistry, private readonly canvas: CanvasStateService, private readonly adapter?: AgentAdapter) {}
+ constructor(private readonly registry: ProjectRegistry, private readonly canvas: CanvasStateService, private readonly adapter?: AgentAdapter, private readonly installedSkillRoot?: string) {}
  private directory() { return path.join(this.registry.dataRoot, 'agent-tasks'); }
  private file(id: string) { if (!/^[A-Za-z0-9_-]+$/.test(id)) throw new Error('invalid task id'); return path.join(this.directory(), `${id}.json`); }
  private save(task: StoredTask) {
@@ -50,7 +53,8 @@ export class AgentTasks {
   return task.receipt;
  }
  async submit(projectId:string, request:TaskRequest,runtimeContext:AgentExecutionContext={}):Promise<TaskReceipt> {
-  if (!request || typeof request.requestId!=='string' || !request.requestId || typeof request.prompt!=='string' || !request.prompt.trim()) throw new Error('requestId and prompt are required');
+   request = normalizeTaskRequest(request);
+   const requestDigest = taskRequestDigest(request);
   if (request.canvasTextGeneration && request.canvasArtifactGeneration) throw new Error('one generation target is required');
   return this.lock.run(projectId, async()=>{
    const directory=this.directory();
@@ -58,14 +62,22 @@ export class AgentTasks {
     if (!entry.endsWith('.json')) continue;
     const saved=this.load(entry.slice(0,-5));
     if(saved?.receipt.projectId===projectId && saved.receipt.requestId===request.requestId) {
-     if(JSON.stringify(saved.request)!==JSON.stringify(request)) throw new Error('requestId already belongs to a different request');
+     if((saved.requestDigest ?? taskRequestDigest(saved.request))!==requestDigest) throw Object.assign(new Error('requestId already belongs to a different request'), {status:409,code:'TASK_REQUEST_CONFLICT'});
      return this.get(projectId,saved.receipt.id)!;
     }
    }
    if(!this.adapter) throw Object.assign(new Error('No agent adapter configured'),{status:503,code:'AGENT_ADAPTER_UNAVAILABLE'});
+   const installedSkills = resolveTaskSkills(this.installedSkillRoot, [...(request.executionContext?.skillIds ?? []), ...(request.executionContext?.context?.skillIds ?? [])]);
+   const adapterContext: AgentExecutionContext = { ...runtimeContext,
+    ...(request.executionContext ? { executionContext: request.executionContext } : {}),
+    ...(installedSkills.length ? { installedSkills,
+      skillIds: [...new Set([...(runtimeContext.skillIds ?? []), ...installedSkills.map(skill => skill.id)])],
+      systemPrompt: [runtimeContext.systemPrompt, ...installedSkills.map(skill => `Installed task skill: ${skill.id}\n${skill.instructions}\n${skill.resources.map(resource => `Resource: ${resource.path}\n${resource.content}`).join('\n\n')}`)].filter(Boolean).join('\n\n'),
+    } : {}),
+   };
    const root=this.registry.resolveProjectRoot(projectId); if(!root) throw new Error('project not found');
    const id=randomUUID(), now=Date.now();
-   const task:StoredTask={receipt:{id,projectId,requestId:request.requestId,status:'queued',createdAt:now,updatedAt:now},request};
+   const task:StoredTask={receipt:{id,projectId,requestId:request.requestId,status:'queued',createdAt:now,updatedAt:now},request,requestDigest};
    const binding=request.canvasArtifactGeneration ?? request.canvasTextGeneration;
    if(binding) {
     if(binding.requestId!==request.requestId) throw new Error('generation requestId does not match task requestId');
@@ -83,7 +95,7 @@ export class AgentTasks {
    void (async()=>{
     try {
      task.receipt.status='running'; this.save(task);
-     const delivery=await this.adapter!.execute({...runtimeContext,task:task.receipt,request,...(task.workspace?{workspace:task.workspace}:{}),signal:abort.signal});
+     const delivery=await this.adapter!.execute({...adapterContext,task:task.receipt,request,...(task.workspace?{workspace:task.workspace}:{}),signal:abort.signal});
      if(!abort.signal.aborted) await this.deliver(projectId,id,delivery);
     } catch(error) {
      const current=this.load(id)!;

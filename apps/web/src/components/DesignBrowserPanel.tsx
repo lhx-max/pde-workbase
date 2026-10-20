@@ -3,7 +3,8 @@ import { AssetPreviewDialog } from './AssetContentPreview';
 import '../styles/workspace/design-browser.css';
 import homeStyles from './DesignBrowserStart.module.css';
 import { BrowserSiteDialog } from './BrowserSiteDialog';
-import { ConfirmDialog } from './ui';
+import { ConfirmDialog, Dialog, DialogTitle, DialogBody, DialogFooter } from './ui';
+import { BrowserExtensionSection } from './BrowserExtensionSection';
 import { browserHttpUrl, reloadBrowserPreferences, updateBrowserReferences, useBrowserPreferences } from '../browser-resources/browser-preferences';
 
 import { Button, Input, Select, Textarea, Popover, PopoverAnchor, PopoverContent } from '@/src/components/ui';
@@ -677,12 +678,13 @@ export function DesignBrowserPanel({
   const [loadUrl, setLoadUrl] = useState(initialState.url);
   const [currentUrl, setCurrentUrl] = useState(initialState.url);
   const [addressValue, setAddressValue] = useState(initialState.addressValue);
-  const [addressEditing, setAddressEditing] = useState(false);
+  const [addressEditing, setAddressEditingState] = useState(false);
   const [history, setHistory] = useState<BrowserHistoryEntry[]>(() => loadHistory(projectId));
   const [navigationStack, setNavigationStack] = useState<BrowserNavigationEntry[]>(initialState.navigationStack);
   const [navigationIndex, setNavigationIndex] = useState(initialState.navigationIndex);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [extensionSettingsOpen, setExtensionSettingsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [webviewNode, setWebviewNode] = useState<WebviewElement | null>(null);
   const [viewport, setViewportState] = useState<BrowserViewportId>(() => loadBrowserViewport(projectId));
@@ -710,6 +712,23 @@ export function DesignBrowserPanel({
   const [archiveElapsedSeconds, setArchiveElapsedSeconds] = useState(0);
   const [downloadAttentionNonce, setDownloadAttentionNonce] = useState<number | null>(null);
   const addressInputRef = useRef<HTMLInputElement | null>(null);
+  const addressEditingRef = useRef(false);
+  const addressBlurTimerRef = useRef<number | null>(null);
+  const addressSelectFrameRef = useRef<number | null>(null);
+  const cancelAddressCallbacks = useCallback(() => {
+    if (addressBlurTimerRef.current !== null) window.clearTimeout(addressBlurTimerRef.current);
+    if (addressSelectFrameRef.current !== null) window.cancelAnimationFrame(addressSelectFrameRef.current);
+    addressBlurTimerRef.current = null;
+    addressSelectFrameRef.current = null;
+  }, []);
+  // The current edit owns its draft immediately, including native callbacks that
+  // arrive before React's next effect. A previous blur/select cannot end it.
+  const setAddressEditing = useCallback((editing: boolean) => {
+    cancelAddressCallbacks();
+    addressEditingRef.current = editing;
+    setAddressEditingState(editing);
+  }, [cancelAddressCallbacks]);
+  useEffect(() => cancelAddressCallbacks, [cancelAddressCallbacks]);
   const chromeRef = useRef<HTMLDivElement | null>(null);
   const pickerRequestIdRef = useRef(0);
   const restoredIconUrlRef = useRef(initialIconUrl?.trim() ?? '');
@@ -1002,7 +1021,7 @@ export function DesignBrowserPanel({
       recordNavigation(nextUrl);
     }
     if (nextUrl !== EMPTY_URL) loadWebviewUrl(nextUrl);
-  }, [commitHistory, loadWebviewUrl, recordNavigation]);
+  }, [commitHistory, loadWebviewUrl, recordNavigation, setAddressEditing]);
 
   useEffect(() => {
     if (!navigateRequest) return;
@@ -1031,12 +1050,12 @@ export function DesignBrowserPanel({
       // context and let the display fall back to labelFromUrl().
     }
     setCurrentUrl(nextUrl);
-    if (!addressEditing) setAddressValue(nextUrl);
+    if (!addressEditingRef.current) setAddressValue(nextUrl);
     commitHistory(nextUrl, { title: nextTitle }, { countVisit: false });
     recordNavigation(nextUrl, nextTitle, { replacePendingTarget: true });
     updateCurrentNavigationTitle(nextTitle);
     setIsLoading(false);
-  }, [addressEditing, commitHistory, loadUrl, recordNavigation, updateCurrentNavigationTitle]);
+  }, [commitHistory, loadUrl, recordNavigation, updateCurrentNavigationTitle]);
 
   const updateLoadingState = useCallback((node: WebviewElement | null = webviewNode) => {
     if (!node) {
@@ -1066,7 +1085,7 @@ export function DesignBrowserPanel({
       const nextUrl = url || safeGetWebviewUrl(node);
       if (nextUrl) {
         setCurrentUrl(nextUrl);
-        if (!addressEditing) {
+        if (!addressEditingRef.current) {
           setAddressValue(nextUrl === EMPTY_URL ? '' : nextUrl);
         }
       }
@@ -1134,7 +1153,7 @@ export function DesignBrowserPanel({
       node.removeEventListener('did-fail-load', onFail);
       node.removeEventListener('dom-ready', onStop);
     };
-  }, [addressEditing, commitHistory, recordNavigation, updateCurrentNavigationTitle, updateLoadingState, webviewNode]);
+  }, [commitHistory, recordNavigation, updateCurrentNavigationTitle, updateLoadingState, webviewNode]);
 
   const suggestions = useMemo(() => {
     const query = addressValue.trim().toLocaleLowerCase();
@@ -2304,16 +2323,25 @@ export function DesignBrowserPanel({
                 setSuggestionsOpen(true);
               }}
               onFocus={(event) => {
+                const resumingDraft = addressEditingRef.current;
                 setAddressEditing(true);
-                setAddressValue(isBlank ? '' : currentUrl);
+                if (!resumingDraft) setAddressValue(isBlank ? '' : currentUrl);
                 setSuggestionsOpen(true);
                 const input = event.currentTarget;
-                window.requestAnimationFrame(() => input.select());
+                addressSelectFrameRef.current = window.requestAnimationFrame(() => {
+                  addressSelectFrameRef.current = null;
+                  if (input.isConnected && document.activeElement === input && addressEditingRef.current) input.select();
+                });
               }}
               onBlur={(event) => {
-                if (event.currentTarget.form?.contains(event.relatedTarget as Node | null)) return;
+                cancelAddressCallbacks();
+                if (event.relatedTarget instanceof Node && event.currentTarget.form?.contains(event.relatedTarget)) return;
                 setSuggestionsOpen(false);
-                window.setTimeout(() => setAddressEditing(false), 80);
+                if (!addressEditingRef.current) return;
+                addressBlurTimerRef.current = window.setTimeout(() => {
+                  addressBlurTimerRef.current = null;
+                  if (document.activeElement !== addressInputRef.current) setAddressEditing(false);
+                }, 80);
               }}
               placeholder={addressDisplayParts.url ? '' : t('designBrowser.addressPlaceholder')}
               aria-label={t('designBrowser.addressAria')}
@@ -2423,6 +2451,10 @@ export function DesignBrowserPanel({
                 <Icon name="download" size={14} />
                 {t('designBrowser.downloadPage')}
               </Button>
+              <Button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setExtensionSettingsOpen(true); }}>
+                <Icon name="external-link" size={14} />
+                {t('browserExtension.title')}
+              </Button>
               <Button type="button" role="menuitem" onClick={clearHistoryOnly}>
                 <Icon name="history" size={14} />
                 {t('designBrowser.menu.clearBrowsingHistory')}
@@ -2439,6 +2471,11 @@ export function DesignBrowserPanel({
           ) : null}
         </div>
       </div>
+      {extensionSettingsOpen ? createPortal(<Dialog ariaLabel={t('browserExtension.title')} closeOnEscape onClose={() => setExtensionSettingsOpen(false)}>
+        <DialogTitle>{t('browserExtension.title')}</DialogTitle>
+        <DialogBody><BrowserExtensionSection /></DialogBody>
+        <DialogFooter><Button type="button" variant="ghost" onClick={() => setExtensionSettingsOpen(false)}>{t('common.close')}</Button></DialogFooter>
+      </Dialog>, document.body) : null}
       <BrowserBookmarks url={currentUrl} title={pageTitle} onNavigate={navigateTo} />
       {pinterestNotice ? <div className="db-status" role="status">
         <span>{pinterestNotice.message}</span>

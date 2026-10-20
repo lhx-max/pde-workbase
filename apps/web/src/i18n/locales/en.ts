@@ -1,6 +1,17 @@
 import type { Dict } from "../types";
 
 export const en: Dict = {
+  'assetLibrary.spaces.moveContents': 'Move assets to another space',
+  'assetLibrary.spaces.moveDescription': 'Assets stay. Only this space is removed.',
+  'assetLibrary.spaces.deleteDescription': 'All assets and folders in this space will be permanently deleted. This cannot be undone.',
+  'assetLibrary.local': 'Local library',
+  'assetLibrary.external': 'External source',
+  'assetLibrary.externalUnavailable': 'No external asset source is configured.',
+  'assetLibrary.sources': 'Asset sources',
+  'assetLibrary.fullTitle': 'Asset library',
+  'assetLibrary.stagedReferences': 'Reference materials ({count})',
+  'assetLibrary.removeReference': 'Remove reference {name}',
+  'assetLibrary.clearReferences': 'Clear references',
   'browserResources.title': 'Page resources',
   'browserResources.sort': 'Sort resources',
   'browserResources.sort.resolution': 'Resolution ↓',
@@ -302,8 +313,8 @@ export const en: Dict = {
   "designBrowser.status.openBeforeScreenshot":
     "Open a page before taking a screenshot.",
   "designBrowser.status.screenshotSaved": "Screenshot saved.",
-  "designBrowser.addImageToChatButton": "Send to Agent",
-  "designBrowser.status.imageAddedToChat": "Image submitted to the Agent.",
+  "designBrowser.addImageToChatButton": "Add as reference",
+  "designBrowser.status.imageAddedToChat": "Image staged for your next task. No Agent task has been started.",
   "designBrowser.status.screenshotFailed": "Screenshot failed.",
   "designBrowser.status.openBeforeDownload":
     "Open a page before saving a snapshot.",

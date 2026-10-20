@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Canvas Workspace Pinterest Login (Development)",
+  "version": "0.0.3",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqLcXFvckiIhbZt+lD5g/egh4/7AEiMvX2C0NcotkEwEB8aRxtgEt/uCu1pxnJGQxPbtrchsO+IRmHJyys/WYkBiKvgfcOvIW7jxrOBrQ3cCdQo3X085DrGS3Bg1/BWZIGYg+wuz3MLiNl1mR5h4GknraChBZLIdYXlYjJKyslX+ezHKjIc0M8otVxIyWYQheditneIV3OPEFFx91FFe8TlQ5yXB+QzoKmWQI+CBZ//kHzPoXH/Q0WbEBj4YaVSI+llV6n9Ubp694xJ8FIEIJVFSMm9nzcwIwsJUgU1XwkHCunB0q5wfORXXdB0Ca0Xd6Qxp0FIKa50PcsRmFaJy+EwIDAQAB",
+  "description": "仅在用户确认时，将当前浏览器中的 Pinterest 站点会话接入本机 Canvas Workspace。非正式发布功能。",
+  "permissions": [
+    "cookies",
+    "nativeMessaging",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1/*"
+  ],
+  "optional_host_permissions": [
+    "https://*.pinterest.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Canvas Workspace · Pinterest 接续",
+    "default_popup": "connect.html"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; connect-src http://127.0.0.1:*"
+  }
+}

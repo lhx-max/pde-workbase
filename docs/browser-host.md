@@ -1,54 +1,40 @@
 # Independent native browser host
 
-## Scope and provenance
+## Scope
 
-`@canvas/desktop` is a focused Electron host for the original Canvas Workspace renderer. It adds no substitute browser UI and does not start web/server processes, import upstream application internals, or include Loom's sidecar, updater, extension installation, personal assets, chat, or packaged launcher control planes.
+`@canvas/desktop` hosts the original workspace browser and Collect sidebar. It does not substitute a new browser UI or start the Web/API services itself. Navigation, history, bookmarks, reference sites, resource capture, project screenshots, page archives, asset saves, downloads, extension capture and conditional login handoff are included. The original chat, account/team, sidecar and updater platforms are not.
 
-The upstream Apache-2.0 extraction baseline is recorded in the repository's [agent guidance](../AGENTS.md). The native resource engine, image-reader attestation and associated security tests were extracted from upstream `apps/desktop/src/main/browser-resource-capture.ts`, `browser-resource-policy.ts`, `browser-image-read.ts`, and their sibling tests. The narrow preload is adapted from upstream `preload.cts`; guest ownership and lifecycle wiring are adapted from upstream `runtime.ts`. The image response helper now also verifies signatures, rejects partial-content responses, and releases streams. A request multiplexer keeps navigation policy active while resource capture observers start/stop.
+Source provenance and boundaries are recorded in [agent guidance](<../AGENTS.md>) and [NOTICE](<../NOTICE>). The independent native bridge reuses the original resource engine, image attestation, capture extension, inspector and login connector code, with isolated application identity and storage.
 
-## Launcher contract
+## Launch and ownership
 
-The repository's `tools-dev` owns lifecycle. Build with:
-
-```sh
-pnpm --filter @canvas/desktop build
-pnpm --filter @canvas/desktop typecheck
-pnpm --filter @canvas/desktop test
-```
-
-Resolve the installed Electron executable from the desktop package's `electron` dependency, then invoke it with the absolute path to `apps/desktop/dist/main.js` as its application argument. Do not invoke that entrypoint with plain Node. No custom command-line arguments are required. Do not set `ELECTRON_RUN_AS_NODE`.
-
-The launcher must provide:
+Build with `pnpm --filter @canvas/desktop build`, then use `pnpm tools-dev run desktop --data-dir "$CANVAS_DATA_DIR" --production`. Data-root rules are centralized in [agent guidance](<../AGENTS.md#safety-and-data>). The launcher resolves Electron from the desktop package, supplies the absolute compiled entry, and owns all child processes. Do not run the Electron entry with plain Node or set `ELECTRON_RUN_AS_NODE`.
 
 | Environment | Contract |
 | --- | --- |
-| `CANVAS_WEB_URL` | Exact application document URL reported by the independent web lifecycle. HTTP(S), loopback, no credentials/query/fragment. SPA query/hash changes remain allowed. |
-| `CANVAS_SERVER_URL` | Explicit independent backend loopback HTTP(S) origin. The guest cannot navigate to or request this privileged origin. |
-| `CANVAS_BROWSER_HOST_PORT` | Explicit reserved port, 1–65535, for native command transport. No discovery, guessed default or fallback. |
-| `CANVAS_DESKTOP_AUTH_TOKEN` | Per-instance cryptographically random base64url secret, at least 32 characters, shared only with the independent server process. Never renderer configuration, URL, logs or persisted asset metadata. |
-| `CANVAS_DESKTOP_USER_DATA` | Explicit absolute, per-instance Electron profile directory. Distinct for concurrent workspace instances; never the upstream application's profile. |
+| `CANVAS_WEB_URL` | Exact loopback application origin reported by the Web lifecycle; no credentials/query/fragment. SPA query/hash navigation remains allowed. |
+| `CANVAS_SERVER_URL` | Explicit backend origin, denied to remote guests. |
+| `CANVAS_BROWSER_HOST_PORT` | Explicit reserved native **resource transport** port. |
+| `CANVAS_DESKTOP_AUTH_TOKEN` | Per-instance random base64url secret shared only with the server. Never renderer configuration, logs, metadata or URLs. |
+| `CANVAS_DESKTOP_USER_DATA` | Explicit absolute, separate Electron profile for this instance. Never the original application's or the user's ordinary browser profile. |
 
-The application emits a secret-free JSON readiness line after the configured web document loads: `{ "app": "canvas-desktop", "ready": true, "nativePort": 12345 }`. Closing the window disposes grants, cancels image reads, closes transport connections, and quits. The launcher remains responsible for process startup/termination/error reporting. This package's implementation work does not start development servers.
+A secret-free readiness line reports `{ "app": "canvas-desktop", "ready": true, "nativePort": 12345 }`. Closing the application revokes grants, cancels reads and pending native work, closes listeners, and quits. Concurrent instances require distinct data roots, profiles and transport ports.
 
-## Original renderer contract
+## UI and persistence
 
-The sandboxed preload exposes the original version-2 `__bezier__` contract solely to the configured application main document. The frontend must continue using `getBezierHost()` from `@bezier/host`, not access the global directly. The original panel's `<webview partition="persist:bezier-design-browser">` remains the native browser surface; webview navigation, DOM execution for inspect/edit/archive, and guest screenshot APIs remain native Electron APIs.
+- The original browser lives in a workspace tab; **Canvas → asset sidebar → Collect** opens the original compact collector and its project-file tray. Expansion creates a full browser tab without navigating the project away.
+- The sandboxed application preload exposes the original version-2 host contract only to its trusted main document. App code uses `getBezierHost()` from `@bezier/host`.
+- Project screenshots and collected images retain source metadata. The tray can add them to the canvas or open the canonical asset save dialog.
+- Page-resource batches and browser asset captures save actual bytes to the selected local asset space/folder. Opening or canceling the save dialog is not a write. Idempotent capture IDs protect retries.
+- Bookmarks, reference sites and capture switches persist through `/api/browser-preferences`; only a one-time, revision-zero migration reads the old localStorage values. Failed server writes do not pretend to have succeeded.
+- Browser images added as references are staged. They enter an Agent request only after a subsequent explicit user submission.
+- Page archive means HTML, CSS and a manifest, not a complete website/runtime clone. Page extraction forwards bounded context, archive inputs and the installed page-recreation instructions to an optional Agent adapter. No Agent adapter means an explicit unavailable response.
 
-Implemented host methods:
+Pure Web mode retains the original fallback/home UI but cannot provide Electron DOM/resource capture. Its Collect and extension settings explain the native requirement.
 
-- `browser.openResourceCapture(guestId, projectId, tabId)` / `closeResourceCapture(sessionId, accessToken)`.
-- `browser.setCollector(guestId, enabled)`, `readImage(guestId, url)`, `collectImage(guestId, url)`, `onCollectedResource(listener)`.
-- `browser.clearData({cookies?, storage?})`, isolated to the native browser partition; it also revokes grants and pending reads.
-- `capture.page({clip?})` returns native PNG pixels with dimensions. Rectangles must lie inside the window content bounds.
-- `shell.openExternal(url)` permits credential-free HTTP(S) only.
+## Resource transport and CLI
 
-`readImage` is read-only. `collectImage` sends the original collected-resource event only after native document attestation and verified raster-byte retrieval. The frontend's project-file adapter owns persistence and reports backend failures; a native read/event is **not** a successful file-save acknowledgment.
-
-Required legacy methods unrelated to this host deliberately return `ok:false` with an `unsupported` reason (`pdf.print`, `project.pickAndImport`, `project.pickAndReplaceWorkingDir`, `shell.openPath`, updater actions with action-result return values). Updater status-returning methods reject with an explicit unsupported error; updater event subscription methods throw unsupported. They exist only because the original host detector requires their structural presence. The optional external Chrome/Edge capture bridge/extension installer, Pinterest auth connector, working-directory picker, appearance and locale hooks are **absent**, not successful no-ops. Browser-only use without Electron has no native bridge and must show the existing unavailable state.
-
-## Server-to-native resource commands
-
-The host binds only `127.0.0.1:${CANVAS_BROWSER_HOST_PORT}`. The independent server uses:
+The native resource listener binds only `127.0.0.1:${CANVAS_BROWSER_HOST_PORT}`. The server sends:
 
 ```http
 POST /command
@@ -58,23 +44,42 @@ Content-Type: application/json
 {"sessionId":"…","accessToken":"…","projectId":"…","action":"start"}
 ```
 
-Input is the original `BrowserResourceCommand` from `@bezier/contracts`: `start`, `snapshot`, `scan`, `stop`, or `read` (the latter additionally requires opaque `resourceId` and `navigationId`). Commands are at most 64 KiB. Success is HTTP 200 `{ "ok": true, "result": BrowserResourceResult }`. Failure is `{ "ok": false, "error": { "code": "…", "message": "…" } }` with 400/401/409/413/503 as appropriate. Origin-bearing/browser-fetch-metadata requests are denied; there is no CORS allowance, generic URL-fetch endpoint, evaluation endpoint, or native filesystem endpoint.
+The fixed command union is `start`, `snapshot`, `scan`, `stop`, or `read`; reads also require opaque resource/navigation IDs. Requests are bounded to 64 KiB. Results use `{ok:true,result}` or structured `{ok:false,error:{code,message}}`. Browser-origin requests are denied. This is not a generic URL-fetch, filesystem, evaluation or native-invoke endpoint.
 
-The server must enforce its ordinary project existence/write authorization before saving. Native grants are project-bound but do not replace server project authorization. Persist verified `read` results through project files (or an explicitly configured AssetSource), never a built-in personal/team library. The resource host itself never writes capture files. UI and CLI resource routes must call the same independent server APIs.
+The UI and `canvas-server browser resources …` use the same project-authorized server APIs. A resource grant does not replace project authorization. The resource engine reads bytes; the project or asset-library service owns acknowledged persistence.
 
-## Security boundaries
+## Downloads and login consent
 
-- The main application and every guest use sandbox/context isolation, with Node integration disabled. Guest preloads are removed, nested webviews are disabled, and web security remains enabled.
-- Both preload exposure and every IPC invocation require the exact configured application document. Subframes, guests, different ports/origins and same-origin preview/API paths cannot invoke the privileged bridge.
-- Guest initial attach, navigation, redirects and popups permit HTTP(S) or `about:blank` only, without URL credentials and excluding privileged application/backend/native-transport origins. Popups navigate the owned guest in place instead of creating privileged windows.
-- A request-level policy covers programmatic `webview.loadURL`, which Electron's `will-navigate` event does not intercept. Starting/stopping capture cannot remove that policy. Local `file:` requests remain blocked.
-- Remote guest permissions and automatic downloads are denied; downloads use explicit project capture workflows instead. Only the exact trusted application main frame can perform sanitized clipboard writes for the original canvas copy interaction. Clipboard reads, OS permission prompts, file downloads and custom-protocol launches are not silently allowed.
-- Grants are random, disabled initially, bounded, expiring, owned-guest and project-bound. Start enables bounded fixed-script isolated-world discovery. Native image reads attest `document.images` before and after fetching.
-- Resource reads accept only observed opaque IDs, not arbitrary caller URLs; MIME and magic bytes must match. Active SVG/segmented media stay metadata-only. Limits remain 500 entries, 25 MiB/read, 30 seconds/operation and 30 minutes/grant. Redirects and partial responses are rejected.
-- Navigation/reload/crash/close invalidates discovery generations and cancels reads. Grant replacement revokes the old project's grant. Owner document navigation revokes all grants. No cookies, secret URL queries or native errors are exported by resource snapshots.
+- Native downloads belong to an owned WebContents, pass URL/redirect checks, and always require the system Save As dialog. Canceling, navigation or owner loss cancels pending work. Owned same-origin blob downloads are supported.
+- Electron's DownloadItem API does **not** expose a trustworthy initiating-frame identity. The implementation does not claim frame-level download attribution; owned-WebContents checks, protected-origin guards and native Save As remain the boundary.
+- Google login buttons/popups hand off the confirmed source site's ordinary login page; OAuth state/authorization URLs are not forwarded as a generic external-opening channel.
+- Pinterest retains the original **macOS + unpackaged development** condition. Explicit onboarding precedes any connector registration/profile change. Its independent native host is `com.canvas_workspace.pinterest_auth`. Cookie scope, rollback and navigation cancellation remain enforced. Actual account authentication requires the user's browser and consent; automated tests use temporary synthetic inputs, not real accounts.
 
-## Validation and remaining evidence
+## Independent capture extension
 
-The package includes the original focused grant/epoch/read tests, original image attestation tests adapted to verified raster fixtures, independent URL/frame/secret/clip/request-multiplexer tests, and sandbox-preload contract tests. Validation on the staged independent workspace: `pnpm --filter @canvas/desktop typecheck` **passed** and `pnpm --filter @canvas/desktop build` **passed** with bundled Node 24.21.0. **100 tests across 4 files passed** with verified official Node 24.21.0 (`node node_modules/vitest/vitest.mjs run` from the desktop package). The hardened bundled runtime could not load Rolldown's native binding, so the test runner used the official runtime without changing product dependencies. These tests do not start application servers.
+**Browser menu → Browser extension** opens the original settings section. Installation first requests native confirmation and a Save As destination for the built ZIP. The user unpacks and loads it manually in a compatible browser; the application does not silently modify an ordinary browser profile.
 
-Compilation and simulated Electron unit tests do not prove native GUI parity. A real Electron run must still verify browser navigation (including file-URL denial), inspect/edit/archive, screenshots, collector events, project-bound resource saving, clearing browser data, and concurrent instance isolation through the actual independent web/server stack. External extension installation/auth handoff, native PDF export/project folder pickers, updater and OS permission-dependent web content are intentionally not implemented in this focused package.
+- Extension identity: `filiogdhdejjikcnhfgdclfcnflecgpd`.
+- Normal discovery: loopback ports **18373–18382**, separate from both the original application and the resource transport above.
+- Consent enables capture for the current owned desktop session, not permanently. After restarting, use Install extension again to enable reception. Canceling the subsequent ZIP export does not undo an already granted Enable confirmation; it merely skips exporting the package.
+- Receivers are bounded, short-lived and one-use. Exact Host/origin/header validation, project context revocation and limited saved-asset inspector scopes are retained. The worker keeps the private inspector session internal and exposes only a tab-bound opaque handle to content scripts.
+- A same-source asset refresh retains previously verified capabilities while refreshing; new sources and failed refreshes fail closed. Capture/inspector persistence holds one adapter across asynchronous writes and follow-up reads.
+- The original optional Native Messaging fallback was renamed to `com.canvas_workspace.browser_bridge`, but this installer does **not** register a relay for it. Normal capture uses HTTP discovery; do not depend on or claim validation of that fallback.
+- Build packaging requires system `zip` (macOS/Linux baseline); Windows-native packaging is unverified.
+
+See the [extension guide](<../apps/desktop/browser-extension/README.md>) and [Pinterest connector guide](<../apps/desktop/experiments/pinterest-auth/README.md>).
+
+## Security invariants
+
+- Sandboxing, context isolation and web security remain enabled; guests get no Node integration, privileged preload or nested webviews.
+- Preload and every privileged IPC require the exact owned application main frame. Guests, subframes and same-origin API/preview paths cannot invoke them.
+- Guest navigation, redirects and popups allow credential-free HTTP(S) or `about:blank`, excluding privileged app/API/native origins and their loopback aliases. Programmatic `loadURL` is covered by request policy; capture observers cannot replace that policy.
+- Remote guest permissions remain denied. Clipboard reads and arbitrary custom protocols are not granted. Native installation/download/login consent cannot be bypassed through the resource CLI.
+- Grants are random, bounded, expiring, project/guest/navigation-owned and initially disabled. Reads use observed opaque IDs, attest the image document before and after retrieval, and verify raster MIME/signature. Active SVG and segmented media stay metadata-only.
+- Resource bounds remain 500 entries, 25 MiB/read, 30 seconds/operation and 30 minutes/grant. Navigation, reload, crash, close, grant replacement and owner loss invalidate epochs and cancel reads. Snapshots do not export cookies, secret queries or raw native errors.
+
+## Verification boundary
+
+Unit coverage includes original resource/epoch/image tests, ownership/preload/transport guards, extension receiver/inspector protocols, native-download lifecycle and conditional login cancellation. Real UI tests exercise the owned production Web/API/Electron lifecycle, not a replacement server.
+
+Current counts, screenshots and unresolved/manual checks belong in [runtime verification](<runtime-verification.md>) and [feature parity](<feature-parity.md>). Compilation is not GUI acceptance. No automated check should be described as real-account login, ordinary-profile installation or manual OS-dialog acceptance when it used mocks or temporary profiles. Native PDF printing, project-directory pickers and updater methods remain explicitly unsupported compatibility stubs; they are not browser-download implementations.

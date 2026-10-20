@@ -1,0 +1,32 @@
+/* Specificity keeps the shared geometry above legacy collection grid classes. */
+.grid.grid {
+  display: grid;
+  columns: auto;
+  grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
+  grid-auto-rows: 1px;
+  grid-auto-flow: row;
+  column-gap: 16px;
+  row-gap: 0;
+  align-items: start;
+  /* Even a tiny global reduced-motion duration would delay gap changes after
+     resize and leave measured spans stale in a fixed-width, single-column host. */
+  transition-property: none;
+}
+
+/* Density is a shared preset, not a second layout implementation per surface. */
+.grid[data-masonry-density='library'] {
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+  column-gap: 18px;
+}
+
+.grid[data-masonry-density='compact'] {
+  grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
+  column-gap: 10px;
+}
+
+@media (max-width: 720px) {
+  .grid[data-masonry-density='picker'] {
+    grid-template-columns: repeat(auto-fill, minmax(min(170px, 100%), 1fr));
+    column-gap: 12px;
+  }
+}

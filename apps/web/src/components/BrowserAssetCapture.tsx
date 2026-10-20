@@ -2,8 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { WorkspaceCollabContext } from '@bezier/contracts';
 import { getBezierHost } from '@bezier/host';
 import { useT } from '../i18n';
-import { BrowserSaveDialog } from '../browser-resources/BrowserSaveDialog';
-import type { BrowserSaveDraft, BrowserSavedCapture } from '../browser-resources/project-capture';
+import { requestSaveAsset } from '../state/save-asset';
 import { BrowserCaptureToolbar } from './BrowserCaptureToolbar';
 import {
   captureHttpUrl, EMBEDDED_CAPTURE_HINT_PREFIX, embeddedCaptureObserverScript,
@@ -44,13 +43,6 @@ type Options = {
  * downloads, saves, or AI. A captured draft is immutable across navigation. */
 export function useBrowserAssetCapture({ node, currentUrl, projectId, workspaceContext, enabled, selectionOverlayEnabled = true, imageOverlayEnabled = true, onNotice, onAddImageToChat }: Options) {
   const t = useT();
-  const [saveRequest, setSaveRequest] = useState<{ draft: BrowserSaveDraft; resolve: (asset: BrowserSavedCapture | null) => void } | null>(null);
-  const pendingSave = useRef<((asset: BrowserSavedCapture | null) => void) | null>(null);
-  useEffect(() => () => { pendingSave.current?.(null); pendingSave.current = null; }, []);
-  const requestSaveAsset = useCallback((draft: BrowserSaveDraft) => new Promise<BrowserSavedCapture | null>(resolve => {
-    pendingSave.current = resolve;
-    setSaveRequest({ draft, resolve });
-  }), []);
   const [hint, setHint] = useState<EmbeddedCaptureHint | null>(null);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
@@ -170,7 +162,5 @@ export function useBrowserAssetCapture({ node, currentUrl, projectId, workspaceC
       const image = hint; dismiss(); onAddImageToChat({ ...image, src: image.url });
     } : undefined}
   /> : null;
-  return { toolbar: <>{toolbar}{saveRequest && <BrowserSaveDialog draft={saveRequest.draft} onFinish={asset => {
-    saveRequest.resolve(asset); pendingSave.current = null; setSaveRequest(null);
-  }} />}</>, busy, dismiss, saveSelection: (text?: string) => run('selection', text), saveImage: (url: string, alt?: string) => run('image', url, alt) };
+  return { toolbar, busy, dismiss, saveSelection: (text?: string) => run('selection', text), saveImage: (url: string, alt?: string) => run('image', url, alt) };
 }

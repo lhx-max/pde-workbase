@@ -102,7 +102,7 @@ export function createCanvasTaskSubmitter(options: CanvasTaskClientOptions) {
     }
     if (display?.genericWorkflow) {
       // A graph continuation belongs to its existing durable executor, never a detached paid task.
-      if (attachments.length) throw new Error('Workflow continuation inputs must be bound through its verified input snapshot');
+      if (attachments.length || display.inputPaths?.length || display.executionContext) throw new Error('Workflow continuation inputs and context must be bound through its verified input snapshot');
       const binding = display.genericWorkflow;
       const path = `/api/workflow-graph-runs/${encodeURIComponent(binding.runId)}`;
       const current = await platformFetchWithContext(context, path);
@@ -125,14 +125,16 @@ export function createCanvasTaskSubmitter(options: CanvasTaskClientOptions) {
     }
     const uploads = await Promise.all(attachments.map(file => uploadCanvasAttachment(file, context)));
     if (disposed) throw new Error('Canvas task client is disposed');
+    const inputPaths = [...new Set([...(display?.inputPaths ?? []), ...uploads.map(file => file.path)])];
     const body: CanvasTaskRequest = {
+      ...(display?.executionContext ? { executionContext: display.executionContext } : {}),
       requestId: display?.canvasTextGeneration?.requestId ?? display?.canvasArtifactGeneration?.requestId ?? crypto.randomUUID(),
       prompt: text,
       ...(display?.designSystemId ? { designSystemId: display.designSystemId } : {}),
       ...(display?.taskContext ? { taskContext: display.taskContext } : {}),
       ...(display?.canvasTextGeneration ? { canvasTextGeneration: display.canvasTextGeneration } : {}),
       ...(display?.canvasArtifactGeneration ? { canvasArtifactGeneration: display.canvasArtifactGeneration } : {}),
-      ...(uploads.length ? { inputPaths: uploads.map(file => file.path) } : {}),
+      ...(inputPaths.length ? { inputPaths } : {}),
     };
     const task = await request('/agent/tasks', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),

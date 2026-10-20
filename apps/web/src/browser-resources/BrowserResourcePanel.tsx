@@ -116,7 +116,7 @@ export default function BrowserResourcePanel({ node, projectId, tabId, workspace
           captureIds.current.set(key, id);
           return id;
         },
-        read: item => session.read(item.id, input.navigationId), upload: (file, _parent, source, _space, metadata) => saveBrowserCaptureFile(file, source, metadata, workspaceContext),
+        read: item => session.read(item.id, input.navigationId), upload: (file, parentId, source, spaceId, metadata) => saveBrowserCaptureFile(file, source, metadata, workspaceContext, { parentId, spaceId }),
         onProgress: update => {
           if (!alive.current) return;
           setProgress(current => ({ ...current, [update.id]: update }));

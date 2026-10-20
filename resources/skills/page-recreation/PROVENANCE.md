@@ -1,0 +1,7 @@
+# Provenance and standalone adaptation
+
+The instruction data in SKILL.md and fidelity.md is adapted from the original Bezier/Loom `skills/page-recreation/SKILL.md` and `skills/page-recreation/references/fidelity-contract.md`, read from the source checkout during this extraction. The stable extraction snapshot at commit 319e5eee556a3641d2ee68a6111a36ddc7a1eff7 omitted skills; this resource is a separately reviewed adaptation, not a claim that the stable snapshot bundled it. The original skill's MIT license is retained in LICENSE; the surrounding extracted repository retains its own upstream licensing.
+
+The original operational script/daemon references have deliberately been translated into the standalone AgentAdapter protocol. No CLI scripts, browser binaries, Playwright packages, source-checkout links, decision-assistant calls or native browser permission grants are installed by these instructions. Evidence capture, resource recovery, preview/runtime testing and visual/motion comparison are requirements on an explicitly configured capable adapter, not claims about features implemented in this instruction resource.
+
+The server resolves only allowlisted application-installed resources beneath its explicit installation root, checks containment/symlinks and bounded text sizes, and supplies their actual contents and digest to the adapter. Source webpage metadata remains untrusted data. Resource availability does not prove adapter capability or page fidelity.

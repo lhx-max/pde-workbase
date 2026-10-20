@@ -776,14 +776,15 @@ export async function writeProjectFile(
   projectId,
   name,
   body,
-  { overwrite = true, artifactManifest = null }: { overwrite?: boolean; artifactManifest?: unknown } = {},
+  { overwrite = true, artifactManifest = null, preserveBytes = false }: { overwrite?: boolean; artifactManifest?: unknown; preserveBytes?: boolean } = {},
   metadata?,
 ) {
   assertVisibleForImportedProject(name, metadata);
   const dir = await ensureProject(projectsRoot, projectId, metadata);
   const safeName = sanitizePath(name);
   const target = await resolveSafeReal(dir, safeName);
-  body = normalizeArtifactRuntimeImports(safeName, body);
+  // Immutable library imports preserve source bytes; generated artifacts retain compatibility repair.
+  if (!preserveBytes) body = normalizeArtifactRuntimeImports(safeName, body);
   if (!overwrite) {
     try {
       await stat(target);
@@ -850,26 +851,34 @@ export async function writeProjectFile(
     }
   }
   await writeFile(target, body, { flag: overwrite ? 'w' : 'wx' });
-  await projectFileWriteTestHooks.afterCommit?.({ safeName, target, body });
-  if (validatedManifest) {
-    const manifestFileName = artifactManifestNameFor(safeName);
-    const manifestTarget = await resolveSafeReal(dir, manifestFileName);
-    await writeFile(manifestTarget, JSON.stringify(validatedManifest, null, 2));
+  try {
+    await projectFileWriteTestHooks.afterCommit?.({ safeName, target, body });
+    if (validatedManifest) {
+      const manifestFileName = artifactManifestNameFor(safeName);
+      const manifestTarget = await resolveSafeReal(dir, manifestFileName);
+      await writeFile(manifestTarget, JSON.stringify(validatedManifest, null, 2));
+    }
+    const st = await stat(target);
+    const persistedManifest = await readManifestForPath(dir, safeName);
+    const result = {
+      name: safeName,
+      path: safeName,
+      size: st.size,
+      mtime: st.mtimeMs,
+      kind: kindFor(safeName),
+      mime: mimeFor(safeName),
+      artifactKind: persistedManifest?.kind,
+      artifactManifest: persistedManifest,
+    };
+    if (stubGuardWarning) result.stubGuardWarning = stubGuardWarning;
+    return result;
+  } catch (error) {
+    // Publication already happened. Callers must report partial success rather
+    // than retry blindly or delete a path another writer may have since edited.
+    const failure = error instanceof Error ? error : new Error(String(error));
+    failure.committedPath = safeName;
+    throw failure;
   }
-  const st = await stat(target);
-  const persistedManifest = await readManifestForPath(dir, safeName);
-  const result = {
-    name: safeName,
-    path: safeName,
-    size: st.size,
-    mtime: st.mtimeMs,
-    kind: kindFor(safeName),
-    mime: mimeFor(safeName),
-    artifactKind: persistedManifest?.kind,
-    artifactManifest: persistedManifest,
-  };
-  if (stubGuardWarning) result.stubGuardWarning = stubGuardWarning;
-  return result;
 }
 
 function artifactManifestNameFor(name) {

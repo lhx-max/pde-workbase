@@ -25,7 +25,8 @@ describe('sandboxed original host contract', () => {
     const f = fixture(); expect(f.host).not.toBeNull(); expect(f.host?.version).toBe(2);
     expect(f.host?.browser.readImage).toBeTypeOf('function');
     expect(f.host?.browser.openResourceCapture).toBeTypeOf('function');
-    expect(f.host?.browser.startCaptureBridge).toBeUndefined();
+    expect(f.host?.browser.startCaptureBridge).toBeTypeOf('function');
+    expect(f.host?.browser.onBrowserCapture).toBeTypeOf('function');
   });
   it.each(['http://127.0.0.1:3210/artifacts/p.html', 'http://127.0.0.1:3211/', 'https://evil.test/', 'file:///private'])('does not expose bridge to %s', url => {
     expect(fixture(url).exposed).toEqual({});

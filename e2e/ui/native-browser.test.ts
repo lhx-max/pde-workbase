@@ -36,10 +36,11 @@ test('[P0] native browser navigation, project capture, resource grants and safe 
     await expect.poll(() => view.evaluate(node => (node as NativeView).executeJavaScript<string>('document.querySelector("#headline")?.textContent'))).toBe('Capture references into this project.');
     expect(await view.evaluate(node => (node as NativeView).executeJavaScript<string>('typeof globalThis.__bezier__'))).toBe('undefined');
     await screenshot(page, testInfo, '14-native-browser-page');
-    // The original address bar settles blur into its label view asynchronously.
-    // Observe that completion before refocusing, rather than racing its pending blur reset.
+    // Refocus as soon as the label view appears. A pending blur callback must
+    // not clobber this next draft or send the previous URL on Enter.
     await expect(page.getByRole('textbox', { name: 'Browser address', exact: true })).toHaveValue('');
     await page.getByRole('textbox', { name: 'Browser address', exact: true }).fill(`${fixture.url}/second`);
+    await expect(page.getByRole('textbox', { name: 'Browser address', exact: true })).toHaveValue(`${fixture.url}/second`);
     await page.getByRole('textbox', { name: 'Browser address', exact: true }).press('Enter');
     await expect.poll(() => view.evaluate(node => (node as NativeView).executeJavaScript<string>('document.querySelector("#page-marker")?.textContent'))).toBe('Second page');
     await page.getByRole('button', { name: 'Go Back', exact: true }).click();
@@ -68,15 +69,17 @@ test('[P0] native browser navigation, project capture, resource grants and safe 
     expect(crossed.status).toBe(403);
 
     await page.getByRole('button', { name: 'Save selected…', exact: true }).click();
-    const saveImage = page.waitForResponse(response => response.url().endsWith(`/api/projects/${id}/files`) && response.request().method() === 'POST' && String(response.request().postDataJSON()?.name).endsWith('.png'));
+    const saveImage = page.waitForResponse(response => response.url().endsWith('/api/asset-library/upload') && response.request().method() === 'POST');
     await page.getByRole('button', { name: 'Confirm and save', exact: true }).click();
     const imageSaved = await saveImage;
     expect(imageSaved.ok()).toBe(true);
-    const imageFile = (await imageSaved.json() as { file: { name: string } }).file.name;
-    const savedBytes = Buffer.from(await (await fetch(`${runtime.serverUrl}/api/projects/${id}/files/${encodeURIComponent(imageFile)}`)).arrayBuffer());
+    const imageAsset = (await imageSaved.json() as { asset: { id: string; name: string; source: { projectId?: string } } }).asset;
+    expect(imageAsset.source.projectId).toBe(id);
+    const imageFile = imageAsset.name;
+    const savedBytes = Buffer.from(await (await fetch(`${runtime.serverUrl}/api/asset-library/${encodeURIComponent(imageAsset.id)}/content`)).arrayBuffer());
     expect(savedBytes.equals(pngBytes)).toBe(true);
     await expect(page.getByText('1 saved · 0 failed', { exact: true })).toBeVisible();
-    await screenshot(page, testInfo, '16-native-project-resource-saved');
+    await screenshot(page, testInfo, '16-native-library-resource-saved');
 
     await page.getByRole('button', { name: 'Close resource capture', exact: true }).click();
     let revokedStatus = 0;
@@ -131,7 +134,7 @@ test('[P0] native browser navigation, project capture, resource grants and safe 
     }, aliasUrl);
     expect(aliasNavigationDenied).toBe(true);
     await expectIndependentWorkspace(page);
-    await testInfo.attach('native-evidence.json', { body: JSON.stringify({ projectId: id, capturedFile: captureFile, originalResourceFile: imageFile, resourceProjectIsolation: crossed.status, revokedGrantStatus: revokedStatus, fileNavigationDenied: denied.rejected, privilegedNavigationDenied: privilegeDenied, aliasSubresourceDenied, aliasNavigationDenied }), contentType: 'application/json' });
+    await testInfo.attach('native-evidence.json', { body: JSON.stringify({ projectId: id, capturedFile: captureFile, originalResourceFile: imageFile, libraryAssetId: imageAsset.id, resourceProjectIsolation: crossed.status, revokedGrantStatus: revokedStatus, fileNavigationDenied: denied.rejected, privilegedNavigationDenied: privilegeDenied, aliasSubresourceDenied, aliasNavigationDenied }), contentType: 'application/json' });
   } finally {
     page.off('console', onConsole);
     page.off('pageerror', onPageError);

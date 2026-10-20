@@ -5,18 +5,19 @@ import type {CanvasAssetSourceDescriptor} from '@bezier/contracts';
 import type {ProjectRegistry} from '../storage/project-registry.js';
 import {writeProjectFile,sanitizePath} from '../projects.js';
 import {assertProjectPathHasNoSymlinks} from '../project-layout.js';
+import type {AssetLibraryAdapter} from '../asset-library/service.js';
 export interface AssetAdapter {
  list(projectId:string,query:Record<string,unknown>):Promise<unknown>;
  import(projectId:string,reference:unknown):Promise<{files:Array<{path:string;content:Uint8Array}>}>;
 }
-export function registerAssetRoutes(app:Express,deps:{registry:ProjectRegistry;adapter?:AssetAdapter}):void {
+export function registerAssetRoutes(app:Express,deps:{registry:ProjectRegistry;adapter?:AssetAdapter;library?:AssetLibraryAdapter}):void {
  const {registry,adapter}=deps;
  const requireProject=(id:string,res:Response)=>{if(registry.get(id))return true;res.status(404).json({error:{code:'PROJECT_NOT_FOUND',message:'Project not found'}});return false;};
  const unavailable=(res:Response)=>res.status(503).json({error:{code:'ASSET_ADAPTER_UNAVAILABLE',message:'No external asset adapter configured'}});
  app.get('/api/projects/:id/asset-sources',(req,res)=>{
   if(!requireProject(String(req.params.id),res))return;
-  const sources:CanvasAssetSourceDescriptor[]=[{id:'project',name:'Project files',capabilities:{search:true,read:true,preview:true,write:true,versioned:true}},...(adapter?[{id:'external',name:'External adapter',capabilities:{search:true,read:false,preview:false,write:false,versioned:false}}]:[])];
-  res.json({sources:sources.map(source=>({...source,kind:source.id,capabilities:{...source.capabilities,list:true,import:source.id==='project'||Boolean(adapter)}}))});
+  const sources:CanvasAssetSourceDescriptor[]=[{id:'project',name:'Project files',capabilities:{search:true,read:true,preview:true,write:true,versioned:true}},...(deps.library?[{id:'asset-library',name:deps.library.source.name,capabilities:{search:false,read:true,preview:true,write:true,versioned:true}}]:[]),...(adapter?[{id:'external',name:'External adapter',capabilities:{search:true,read:false,preview:false,write:false,versioned:false}}]:[])];
+  res.json({sources:sources.map(source=>({...source,kind:source.id,capabilities:{...source.capabilities,list:true,import:source.id==='project'||source.id==='asset-library'||Boolean(adapter)}}))});
  });
  app.get('/api/projects/:id/external-assets',async(req,res,next)=>{
   const projectId=String(req.params.id);if(!requireProject(projectId,res))return;if(!adapter){unavailable(res);return;}
@@ -40,6 +41,6 @@ export function registerAssetRoutes(app:Express,deps:{registry:ProjectRegistry;a
    for(const file of prepared){try{await lstat(path.join(root,file.path));throw Object.assign(new Error('Asset output already exists'),{code:'EEXIST'});}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;}}
    for(const file of prepared){attemptedPath=file.path;files.push(await writeProjectFile(registry.projectsRoot,projectId,file.path,Buffer.from(file.content),{overwrite:false},registry.get(projectId)?.metadata));}
    res.json({files});
-  }catch(error){const value=error as {code?:string;message?:string};res.status(files.length||value.code==='EEXIST'?409:400).json({error:{code:files.length?'ASSET_IMPORT_PARTIAL':'ASSET_IMPORT_FAILED',message:value.message??String(error)},files,...(attemptedPath?{attemptedPath}:{})});}
+  }catch(error){const value=error as {code?:string;message?:string;committedPath?:string};const partial=files.length>0||Boolean(attemptedPath&&value.committedPath===attemptedPath);res.status(partial||value.code==='EEXIST'?409:400).json({error:{code:partial?'ASSET_IMPORT_PARTIAL':'ASSET_IMPORT_FAILED',message:value.message??String(error)},files,...(attemptedPath?{attemptedPath}:{}),...(value.committedPath===attemptedPath&&attemptedPath?{publishedPaths:[...files.map(file=>file.path),attemptedPath]}:{})});}
  });
 }

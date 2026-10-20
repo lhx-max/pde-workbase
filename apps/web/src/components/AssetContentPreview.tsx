@@ -1,7 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Button } from '@/src/components/ui';
 import { AssetDocumentPreview } from './AssetDocumentPreview';
-import { AssetDetailBody, AssetDetailDialog, AssetDetailInspector, AssetDetailSection } from '../browser-resources/AssetDetailDialog';
+import { AssetDetailBody, AssetDetailDialog, AssetDetailInspector, AssetDetailSection } from './AssetDetailDialog';
+import type { PersonalAsset } from '@bezier/contracts';
+import { personalAssets } from '../providers/asset-library';
+import { AssetMetadataReadOnly } from './AssetMetadataReadOnly';
 import styles from './AssetContentPreview.module.css';
 import { useI18n } from '../i18n';
 
@@ -13,7 +16,20 @@ export type AssetPreviewSource = {
   text?: string;
   mime?: string;
   spaceName?: string;
+  asset?: PersonalAsset;
 };
+
+/** Keep the original record with its preview so reference details retain metadata. */
+export function personalAssetPreviewSource(asset: PersonalAsset): AssetPreviewSource {
+  const version = asset.versions.at(-1);
+  const template = version?.filename === 'template-prompt.md' ? asset.source.template : undefined;
+  const base = { asset, name: asset.name, kind: asset.kind, mime: version?.mime, url: version ? personalAssets.contentUrl(asset) : undefined };
+  if (!template) return base;
+  if (template.type === 'Image' && template.posterSrc) return { ...base, kind: 'image', url: template.posterSrc };
+  if (template.type === 'Video' && template.previewVideo) return { ...base, kind: 'video', url: template.previewVideo };
+  if (template.previewSrc) return { ...base, kind: 'webpage', mime: 'text/html', url: template.previewSrc };
+  return { ...base, kind: 'text' };
+}
 
 export function filePreviewKind(name: string, mime = ''): string {
   if (/\.storyboard\.json$/i.test(name)) return 'script';
@@ -102,13 +118,13 @@ export function AssetContentPreview({ source }: { source: AssetPreviewSource }) 
   if (['webpage', 'slides', 'motion'].includes(kind) && (mime === 'text/html' || /\.html?$/i.test(name) || text !== undefined)) {
     // These endpoints return self-contained template HTML. Ordinary webpages
     // retain URL navigation, so their relative resources and origin are unchanged.
-    if ((kind === 'slides') && text === undefined && url && /^\/api\/skills\/[^/?]+\/example(?:\?|$)/.test(url)) {
+    if ((source.asset?.kind === 'slides' || kind === 'slides') && text === undefined && url && /^\/api\/skills\/[^/?]+\/example(?:\?|$)/.test(url)) {
       return <TemplateSlidePreview key={url} url={url} name={name} />;
     }
-    if (kind === 'webpage' && ((url && /^\/api\/skills\/[^/?]+\/example(?:\?|$)/.test(url)))) {
+    if (kind === 'webpage' && (source.asset?.source.template?.type === 'Prototype' || (url && /^\/api\/skills\/[^/?]+\/example(?:\?|$)/.test(url)))) {
       return <DesktopTemplatePreview name={name} url={url} text={text} />;
     }
-    return <iframe data-asset-preview={kind === 'slides' ? 'slides' : kind} className={styles.frame} title={t('entry.preview.assetTitle', { name })} sandbox="allow-scripts" src={text === undefined ? url : undefined} srcDoc={text} />;
+    return <iframe data-asset-preview={source.asset?.kind === 'slides' || kind === 'slides' ? 'slides' : kind} className={styles.frame} title={t('entry.preview.assetTitle', { name })} sandbox="allow-scripts" src={text === undefined ? url : undefined} srcDoc={text} />;
   }
   return <div className={styles.unavailable} role="status"><strong>{name}</strong><p>{t('entry.preview.unavailable')}</p></div>;
 }
@@ -118,7 +134,7 @@ export function AssetPreviewDialog({ source, onClose, actions, loading, error, o
   return <AssetDetailDialog title={source.name} onClose={onClose}>
     <AssetDetailBody>
       <div>{error ? <div role="alert">{error}{onRetry && <Button variant="ghost" onClick={onRetry}>{t('entry.preview.retry')}</Button>}</div> : loading ? <div role="status">{t('entry.preview.loading')}</div> : <AssetContentPreview source={source} />}</div>
-      {<AssetDetailInspector actions={actions}>
+      {source.asset ? <AssetMetadataReadOnly key={source.asset.id} asset={source.asset} spaceName={source.spaceName} actions={actions} /> : <AssetDetailInspector actions={actions}>
         <AssetDetailSection title={t('entry.preview.nameSection')}><p>{source.name}</p></AssetDetailSection>
         <AssetDetailSection title={t('entry.preview.previewSection')}><p>{t('entry.preview.previewHint')}</p></AssetDetailSection>
       </AssetDetailInspector>}

@@ -1,6 +1,6 @@
 'use client';
 
-import type { CanvasArtifactGenerationBinding, CanvasTextGenerationBinding } from '@bezier/contracts';
+import type { CanvasArtifactGenerationBinding, CanvasTextGenerationBinding, CanvasTaskExecutionContext } from '@bezier/contracts';
 import { cr } from '../locales/canvas-remainder';
 
 /**
@@ -13,6 +13,10 @@ import { cr } from '../locales/canvas-remainder';
  */
 
 export type AgentTaskDisplay = {
+  /** Portable source evidence, never host permissions or execution credentials. */
+  executionContext?: CanvasTaskExecutionContext;
+  /** Explicitly authorized project files; the server pins only these input bytes. */
+  inputPaths?: string[];
   kind: 'instruction-card';
   title: string;
   summary?: string;

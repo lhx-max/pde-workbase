@@ -3,7 +3,7 @@ import path from 'node:path';
 import { createCanvasServer, createBrowserHostAdapter } from './server.js';
 import {createHttpAgentAdapter,createHttpMediaAdapter,createHttpCapabilityAdapter,createHttpAssetAdapter} from './http-adapters.js';
 const args=process.argv.slice(2);
-if(args[0]==='request'||args[0]==='browser'){await (await import('./http-cli.js')).runHttpCli(args);process.exit(process.exitCode??0);}
+if(args[0]==='request'||args[0]==='browser'||args[0]==='assets'){await (await import('./http-cli.js')).runHttpCli(args);process.exit(process.exitCode??0);}
 function option(name:string):string|undefined{const index=args.indexOf(name);return index<0?undefined:args[index+1];}
 if(args.includes('--help')){console.log('canvas-server --data-dir ABSOLUTE_PATH [--host 127.0.0.1] [--port 17456]\nRequires explicit DATA ROOT. CANVAS_DATA_DIR, CANVAS_PORT, CANVAS_AUTH_TOKEN, CANVAS_WEB_URL, CANVAS_AGENT_ADAPTER_URL, CANVAS_AGENT_ADAPTER_TOKEN, CANVAS_BROWSER_HOST_URL, CANVAS_DESKTOP_AUTH_TOKEN are supported.');process.exit(0);}
 const dataRoot=option('--data-dir')??process.env.CANVAS_DATA_DIR;

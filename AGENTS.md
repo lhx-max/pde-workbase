@@ -4,7 +4,7 @@ This is a standalone repository extracted from Bezier/Loom commit `319e5eee556a3
 
 ## Product boundary
 
-Preserve the original canvas workspace UI, CSS, interaction and data behavior; do not redesign it. Include top tabs, project assets, text/sketch/clip/browser surfaces, previews, canvas APIs, JSON, files, artifact organization and delivery. Exclude chat product UI/runtime and a built-in personal/team asset platform. Agent execution, external asset libraries, browser hosts and authorization belong behind adapters. Unconfigured capabilities must report an explicit unsupported/unavailable result; never fake success.
+Preserve the original canvas workspace UI, CSS, interaction and data behavior; do not redesign it. Include top tabs, project assets, text/sketch/clip/browser surfaces, previews, canvas APIs, JSON, files, artifact organization and delivery. Include the original Canvas / Assets / Collect sidebar and a standalone local asset library with real folders, metadata, versions, management and canvas import/save operations. The user explicitly selected this built-in local library after the initial extraction. Exclude chat product UI/runtime and the original account/team platform. Reuse the original asset UI and injected-storage core; external asset libraries remain replaceable adapters. Agent execution, browser hosts and authorization belong behind adapters. Unconfigured capabilities must report an explicit unsupported/unavailable result; never fake success.
 
 ## Layout and commands
 

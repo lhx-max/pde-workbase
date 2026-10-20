@@ -19,10 +19,15 @@ import {registerMediaRoutes,type CapabilityAdapter} from './routes/media.js';
 import {registerWorkflowRoutes,type RegisterWorkflowRoutesDeps} from './routes/workflows.js';
 import {fileURLToPath} from 'node:url';
 import {registerAssetRoutes,type AssetAdapter} from './routes/assets.js';
+import { BrowserPreferencesService } from './services/browser-preferences.js';
+import { registerBrowserPreferenceRoutes } from './routes/browser-preferences.js';
+import {createLocalAssetLibrary,type AssetLibraryAdapter,type AssetLibraryOptions} from './asset-library/service.js';
+import {registerAssetLibraryRoutes} from './routes/asset-library.js';
+export type {AssetLibraryAdapter,AssetLibraryOptions,AssetLibraryAnalysisHook,AssetLibraryCatalogueHook} from './asset-library/service.js';
 export type {AssetAdapter} from './routes/assets.js';
 export interface CanvasServerOptions {
  dataRoot:string; host?:string; authToken?:string; allowedOrigins?:string[]; agent?:AgentAdapter; assets?:AssetAdapter;
- media?:MediaAdapter; capabilities?:CapabilityAdapter;
+ media?:MediaAdapter; capabilities?:CapabilityAdapter; assetLibrary?:AssetLibraryOptions;
  workflow?:Omit<RegisterWorkflowRoutesDeps,'db'|'registry'|'canvas'|'tasks'|'agent'|'authorize'>;
  authorize?:RequestHandler;
  authorizeProject?:(req:express.Request,res:Response,projectId:string,access:{mode:'read'|'write';capability?:string})=>boolean|Promise<boolean>;
@@ -30,18 +35,19 @@ export interface CanvasServerOptions {
 }
 export interface CanvasServer {
  app:express.Express;registry:ReturnType<typeof createProjectRegistry>;canvas:CanvasStateService;ledger:ProjectLedger;tasks:AgentTasks;media:MediaAdapterService;
- workflows:ReturnType<typeof registerWorkflowRoutes>;db:Database;ready:Promise<void>;close():Promise<void>;
+ workflows:ReturnType<typeof registerWorkflowRoutes>;assetLibrary:AssetLibraryAdapter;db:Database;ready:Promise<void>;close():Promise<void>;
 }
 export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
  if(!options.dataRoot||!path.isAbsolute(options.dataRoot))throw new Error('An explicit absolute dataRoot is required');
  const dataRoot=path.resolve(options.dataRoot);mkdirSync(dataRoot,{recursive:true});
  const registry=createProjectRegistry(dataRoot), ledger=new ProjectLedger(dataRoot);
  const canvas=new CanvasStateService(id=>registry.resolveProjectRoot(id));
- const tasks=new AgentTasks(registry,canvas,options.agent);
+ const tasks=new AgentTasks(registry,canvas,options.agent,fileURLToPath(new URL('../../../resources/skills/',import.meta.url)));
  const db=new Database(path.join(dataRoot,'workspace.sqlite'));
  db.exec('CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY)');
  for(const project of registry.list())db.prepare('INSERT OR IGNORE INTO projects(id) VALUES (?)').run(project.id);
  const media=new MediaAdapterService(db,registry,canvas,options.media);
+ const assetLibrary=options.assetLibrary?.adapter??createLocalAssetLibrary(dataRoot);
  const app=express();app.disable('x-powered-by');
  const sendApiError=(res:Response,status:number,code:string,message:string)=>{res.status(status).json({error:{code,message}});};
  const authorize:RequestHandler=(req,res,next)=>{
@@ -88,10 +94,12 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
  registerBrowserResourceRoutes(app,{registry,http:{requireLocalDaemonRequest:authorize},authorizeProjectRequest,...(options.browserResources?{desktopBrowserResources:options.browserResources}:{})});
  registerTaskRoutes(app,{tasks,registry,ledger,canvas,authorize});
  registerMediaRoutes(app,{media,registry,...(options.capabilities?{capabilities:options.capabilities}:{})});
- registerAssetRoutes(app,{registry,...(options.assets?{adapter:options.assets}:{})});
+ registerAssetRoutes(app,{registry,library:assetLibrary,...(options.assets?{adapter:options.assets}:{})});
+ registerAssetLibraryRoutes(app,{...options.assetLibrary,service:assetLibrary,registry,authorizeProject:authorizeProjectRequest});
+ registerBrowserPreferenceRoutes(app,new BrowserPreferencesService(db));
  app.use((error:unknown,_req:express.Request,res:Response,_next:express.NextFunction)=>{const value=error as {status?:number;code?:string;message?:string};sendApiError(res,value.status??500,value.code??'SERVER_ERROR',value.message??'Internal server error');});
  const ready=withProjectLedgerRecorder(input=>{ledger.record(input);},async()=>{await tasks.recoverDeliveries();await media.ready();if(options.media&&!options.workflow?.media){try{Object.assign(workflowMedia,await options.media.catalog());}catch(error){console.error('Media workflow catalog unavailable',error);}}});
- return {app,registry,canvas,ledger,tasks,media,workflows,db,ready,close:async()=>{await workflows.stop();await media.close();db.close();}};
+ return {app,registry,canvas,ledger,tasks,media,workflows,assetLibrary,db,ready,close:async()=>{await workflows.stop();await media.close();await assetLibrary.close?.();db.close();}};
 }
 /** Native grants remain in the desktop host; HTTP only forwards validated commands. */
 export function createBrowserHostAdapter(url:string,token:string):(command:BrowserResourceCommand)=>Promise<BrowserResourceResult>{

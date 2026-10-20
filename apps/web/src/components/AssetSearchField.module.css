@@ -1,0 +1,10 @@
+.root { display: flex; align-items: center; gap: 8px; height: 36px; min-width: 0; padding: 0 11px; border: 1px solid var(--border); border-radius: var(--radius-button, 8px); color: var(--text-muted); background: var(--bg-panel); transition: border-color 140ms ease, box-shadow 140ms ease; }
+.root input { border: 0; outline: 0; background: transparent; box-shadow: none; padding: 0; min-width: 0; flex: 1; height: 28px; font-size: 13px; }
+.root { height: 30px; }
+.root:hover { border-color: var(--border-strong); }
+.root:focus-within { border-color: var(--border-selected); box-shadow: 0 0 0 3px color-mix(in srgb, var(--text) 6%, transparent); }
+.root input:focus-visible { outline: 0; box-shadow: none; }
+.root input::-webkit-search-cancel-button { display: none; }
+.root button { width: 24px; height: 24px; }
+.root > svg, .root button { flex-shrink: 0; }
+@media (prefers-reduced-motion: reduce) { .root { transition: none; } }

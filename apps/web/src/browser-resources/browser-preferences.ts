@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react';
-import { DEFAULT_BROWSER_CAPTURE_PREFERENCES, normalizeBrowserCapturePreferences, type BrowserCapturePreferences, type BrowserBookmark, type BrowserReferencePreferences } from '@bezier/contracts';
+import { DEFAULT_BROWSER_CAPTURE_PREFERENCES, parseCanvasBrowserPreferences, type CanvasBrowserPreferences, type CanvasBrowserPreferencesSnapshot, type BrowserCapturePreferences, type BrowserBookmark, type BrowserReferencePreferences } from '@bezier/contracts';
+import { requestJson, WorkspaceApiError } from '../providers/registry';
 
 const LEGACY_BOOKMARK_KEY = 'bezier-design:browser-bookmarks:v1';
 const SYNC_KEY = 'bezier-design:browser-preferences-revision';
@@ -9,20 +10,14 @@ export const DEFAULT_BROWSER_BOOKMARKS: BrowserBookmark[] = [
   { title: 'ZCOOL', url: 'https://www.zcool.com.cn/' }, { title: 'Huaban', url: 'https://huaban.com/' },
 ];
 const EMPTY_REFERENCES: BrowserReferencePreferences = { customSites: [], hiddenUrls: [] };
-type LocalPreferences = { browserBookmarks?: BrowserBookmark[]; browserReferences?: BrowserReferencePreferences; browserCapture?: BrowserCapturePreferences };
+type LocalPreferences = CanvasBrowserPreferences;
+const PREFERENCES_ENDPOINT = '/api/browser-preferences';
+const PREVIOUS_LOCAL_KEY = 'canvas-workspace:browser-preferences:v1';
 
 /** Local persistence is untrusted too. Invalid data blocks edits rather than
  * becoming a successful empty catalogue that could overwrite stored bookmarks. */
 export function parseBrowserPreferences(raw: string | null): LocalPreferences {
-  const value: unknown = raw ? JSON.parse(raw) : {};
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid browser preferences');
-  const config = value as LocalPreferences;
-  const validSite = (site: BrowserBookmark) => site && typeof site.title === 'string' && typeof site.url === 'string' && !!browserHttpUrl(site.url);
-  if (config.browserBookmarks !== undefined && (!Array.isArray(config.browserBookmarks) || !config.browserBookmarks.every(validSite))) throw new Error('Invalid browser bookmarks');
-  const refs = config.browserReferences;
-  if (refs !== undefined && (!refs || !Array.isArray(refs.hiddenUrls) || !refs.hiddenUrls.every(url => typeof url === 'string' && !!browserHttpUrl(url)) || !Array.isArray(refs.customSites) || !refs.customSites.every(site => validSite(site) && typeof site.id === 'string' && typeof site.category === 'string' && typeof site.description === 'string'))) throw new Error('Invalid browser references');
-  if (config.browserCapture !== undefined && !normalizeBrowserCapturePreferences(config.browserCapture)) throw new Error('Invalid browser capture preferences');
-  return config;
+  return parseCanvasBrowserPreferences(raw ? JSON.parse(raw) : {});
 }
 
 /** User-entered links may be bare hosts, but may never execute code or include credentials. */
@@ -54,6 +49,21 @@ let state: State = { bookmarks: DEFAULT_BROWSER_BOOKMARKS, references: EMPTY_REF
 const listeners = new Set<() => void>();
 let loading: Promise<void> | null = null;
 let writes: Promise<unknown> = Promise.resolve();
+let revision = 0;
+function snapshot(value: CanvasBrowserPreferencesSnapshot): CanvasBrowserPreferencesSnapshot {
+  if (!value || !Number.isSafeInteger(value.revision) || value.revision < 0) throw new Error('Invalid browser preference revision');
+  return { revision: value.revision, preferences: parseCanvasBrowserPreferences(value.preferences) };
+}
+async function readRemote() { return snapshot(await requestJson<CanvasBrowserPreferencesSnapshot>(PREFERENCES_ENDPOINT, { cache: 'no-store' })); }
+async function writeRemote(expectedRevision: number, patch: CanvasBrowserPreferences) {
+  return snapshot(await requestJson<CanvasBrowserPreferencesSnapshot>(PREFERENCES_ENDPOINT, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revision: expectedRevision, patch: parseCanvasBrowserPreferences(patch) }) }));
+}
+function accept(saved: CanvasBrowserPreferencesSnapshot) {
+  revision = saved.revision;
+  publish({ bookmarks: saved.preferences.browserBookmarks ?? DEFAULT_BROWSER_BOOKMARKS,
+    references: saved.preferences.browserReferences ?? EMPTY_REFERENCES,
+    capture: saved.preferences.browserCapture ?? DEFAULT_BROWSER_CAPTURE_PREFERENCES, ready: true, error: false });
+}
 const getSnapshot = () => state;
 const subscribe = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
 const publish = (next: State) => { state = next; for (const listener of listeners) listener(); };
@@ -62,10 +72,21 @@ export async function reloadBrowserPreferences(): Promise<void> {
   if (loading) return loading;
   loading = (async () => {
     try {
-      const stored = localStorage.getItem('canvas-workspace:browser-preferences:v1');
-      const config = parseBrowserPreferences(stored);
-      publish({ bookmarks: config.browserBookmarks ?? legacyBookmarks(), references: config.browserReferences ?? EMPTY_REFERENCES,
-        capture: normalizeBrowserCapturePreferences(config.browserCapture) ?? DEFAULT_BROWSER_CAPTURE_PREFERENCES, ready: true, error: false });
+      let saved = await readRemote();
+      if (saved.revision === 0) {
+        let stored: string | null = null; let legacy: string | null = null;
+        try { stored = localStorage.getItem(PREVIOUS_LOCAL_KEY); legacy = localStorage.getItem(LEGACY_BOOKMARK_KEY); } catch { /* Storage access is not required for authoritative HTTP preferences. */ }
+        const migration = stored ? parseBrowserPreferences(stored) : legacy ? { browserBookmarks: legacyBookmarks() } : null;
+        if (migration) {
+          let migrated = false;
+          try { saved = await writeRemote(0, migration); migrated = true; }
+          catch (error) { if (error instanceof WorkspaceApiError && error.status === 409) saved = await readRemote(); else throw error; }
+          if (migrated) {
+            try { localStorage.removeItem(PREVIOUS_LOCAL_KEY); localStorage.removeItem(LEGACY_BOOKMARK_KEY); } catch { /* Successful durable persistence is authoritative. */ }
+          }
+        }
+      }
+      accept(saved);
     } catch {
       // Never turn a failed read into a successful empty catalogue or overwrite it.
       publish({ ...state, bookmarks: state.ready ? state.bookmarks : legacyBookmarks(), ready: true, error: true });
@@ -87,29 +108,20 @@ export function useBrowserPreferences() {
   return snapshot;
 }
 
-/** Serialize local consumers and re-read before editing; only patch the owned top-level key. */
+/** Serialize consumers, merge only the owned key, and retry optimistic conflicts after a fresh read. */
 function update<K extends 'browserBookmarks' | 'browserReferences' | 'browserCapture'>(key: K,
   change: (current: NonNullable<LocalPreferences[K]>) => NonNullable<LocalPreferences[K]>): Promise<void> {
   const task = writes.then(async () => {
-    await reloadBrowserPreferences();
-    if (state.error) throw new Error('Browser preferences unavailable');
-    const current = (key === 'browserBookmarks' ? state.bookmarks : key === 'browserReferences' ? state.references : state.capture) as NonNullable<LocalPreferences[K]>;
-    const next = change(current);
-    const config = { browserBookmarks: state.bookmarks, browserReferences: state.references, browserCapture: state.capture, [key]: next };
-    // A quota/security failure rejects the save; never pretend persistence succeeded.
-    localStorage.setItem('canvas-workspace:browser-preferences:v1', JSON.stringify(config));
-    if (key === 'browserCapture') {
-      const saved = normalizeBrowserCapturePreferences(config.browserCapture);
-      const expected = next as BrowserCapturePreferences;
-      if (!saved || saved.enabled !== expected.enabled || saved.text !== expected.text || saved.images !== expected.images) throw new Error('Browser did not save capture preferences');
-      publish({ ...state, capture: saved, error: false });
-    } else {
-      publish({ ...state, ...(key === 'browserBookmarks' ? { bookmarks: config.browserBookmarks! } : { references: config.browserReferences! }), error: false });
+    for (let attempt = 0; attempt < 4; attempt++) {
+      await reloadBrowserPreferences();
+      if (state.error) throw new Error('Browser preferences unavailable');
+      const current = (key === 'browserBookmarks' ? state.bookmarks : key === 'browserReferences' ? state.references : state.capture) as NonNullable<LocalPreferences[K]>;
+      const next = change(current);
+      try { accept(await writeRemote(revision, { [key]: next })); }
+      catch (error) { if (error instanceof WorkspaceApiError && error.status === 409 && attempt < 3) continue; throw error; }
+      try { localStorage.setItem(SYNC_KEY, `${Date.now()}:${Math.random()}`); } catch { /* Cross-window hints are optional; persistence already succeeded remotely. */ }
+      return;
     }
-    try {
-      if (key === 'browserBookmarks') localStorage.removeItem(LEGACY_BOOKMARK_KEY);
-      localStorage.setItem(SYNC_KEY, `${Date.now()}:${Math.random()}`);
-    } catch { /* Persistence already succeeded locally; cross-window hint is optional. */ }
   });
   writes = task.catch(() => undefined);
   return task;

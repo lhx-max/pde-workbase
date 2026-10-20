@@ -1,0 +1,27 @@
+{
+  "scope": "original Canvas / Assets / Collect restoration",
+  "upstreamBaseline": "319e5eee556a3641d2ee68a6111a36ddc7a1eff7",
+  "runtime": { "platform": "macOS arm64", "node": "24.21.0", "pnpm": "10.33.2", "next": "16.2.6", "react": "18.3.1", "electron": "41.3.0" },
+  "frozenInstall": { "passed": true, "workspaceManifests": 12 },
+  "guard": { "passed": true },
+  "typecheck": { "passed": true },
+  "packageTests": { "passedFiles": 162, "passedTests": 1647, "failedTests": 0 },
+  "httpCliIntegration": { "passedFiles": 2, "passedTests": 7, "failedTests": 0 },
+  "productionUi": { "webScenarios": 7, "electronScenarios": 2, "repeatEach": 2, "passedRuns": 18, "failedRuns": 0, "manualExtensionSkippedRuns": 2 },
+  "externalExtension": {
+    "extensionId": "filiogdhdejjikcnhfgdclfcnflecgpd",
+    "actualFreshProfileLoadPassed": true,
+    "actualSelectionCaptureWritePassedBeforeFinalFixes": true,
+    "exactTextAndSourceProjectAssertionsPassed": true,
+    "postSaveInspectorReturnedAfterWorkerFix": true,
+    "inspectorEditFailedBeforeCapabilityRefreshFix": true,
+    "workerAndLifecycleRegressionTestsPassed": true,
+    "finalCompleteNativeRecheckPassed": false,
+    "finalRecheckDisposition": "authorization wait timed out; user explicitly deferred further native consent verification",
+    "ordinaryBrowserProfileInstallationTested": false,
+    "realAccountOrCookieHandoffTested": false
+  },
+  "officeUiCoverage": "synthetic OOXML structured text previews and HTTP download-resource bytes; not Office layout, editing, formula evaluation or OS download dialogs",
+  "screenshots": { "count": 32, "source": "second repetition of final production UI batch", "retouching": false, "nativeEncodingNote": "Some inherited .png filenames contain original JPEG screencast bytes; encoding is not normalized." },
+  "diagnosticLogsProfilesAndAuthorizationTokensCommitted": false
+}

@@ -15,7 +15,26 @@ export interface CanvasArtifactGenerationBinding {
 export type CanvasTaskStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'interrupted';
 export type CanvasTaskDeliveryState = 'applied' | 'candidate_saved' | 'delivery_failed';
 
+/** Portable source evidence only: not chat identity, credentials or host authority. */
+export interface CanvasTaskExecutionContext {
+  skillIds?: string[];
+  sessionMode?: 'design';
+  visiblePrompt?: string;
+  context?: {
+    skillIds?: string[];
+    workspaceItems?: Array<{
+      id: string;
+      kind: 'browser';
+      label: string;
+      url: string;
+      title: string;
+      tabId?: string;
+    }>;
+  };
+}
+
 export interface CanvasTaskRequest {
+  executionContext?: CanvasTaskExecutionContext;
   requestId: string;
   prompt: string;
   designSystemId?: string;

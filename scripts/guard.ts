@@ -32,7 +32,9 @@ const rootManifest = manifests.find(item => item.file === 'package.json')!.value
 for (const name of ['dev', 'dev:all', 'start', 'preview', 'daemon', 'build', 'test']) {
   if (rootManifest.scripts?.[name]) errors.push(`package.json: root ${name} alias violates package/tool command ownership`);
 }
-const bannedApps = /(?:^|\/)(?:ChatPane|ChatComposer|ChatInput|AssistantMessage|SideChatTab|PersonalAssetLibrary|HomeDashboard)\.(?:tsx?|jsx?)$/;
+// The original asset-library renderer is allowed for the user-approved local source;
+// chat and the original team/account product are still outside this repository.
+const bannedApps = /(?:^|\/)(?:ChatPane|ChatComposer|ChatInput|AssistantMessage|SideChatTab|HomeDashboard|TeamWorkbench)\.(?:tsx?|jsx?)$/;
 const javascriptCompatibility = new Set(['packages/contracts/esbuild.config.mjs', 'packages/host/esbuild.config.mjs']);
 for (const file of files) {
   if (bannedApps.test(file)) errors.push(`${file}: excluded product runtime component`);

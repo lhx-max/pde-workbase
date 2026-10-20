@@ -1,0 +1,12 @@
+.panel { width: 300px; max-width: calc(100vw - 24px); padding: 12px; }
+.header { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:13px; }
+.hint { margin:4px 0 10px; color:var(--text-muted); font-size:12px; }
+.list { max-height:min(352px,var(--radix-popover-content-available-height,352px)); overflow-y:auto; }
+.row { display:flex; align-items:center; gap:4px; min-height:38px; }
+.row label { display:flex; flex:1; align-items:center; gap:10px; font-size:13px; cursor:pointer; }
+.row > button { width:28px; height:28px; min-width:28px; padding:0; }
+.dragHandle { cursor:grab; touch-action:none; color:var(--text-muted); }
+.dragHandle:active { cursor:grabbing; }
+.row { border-radius:6px; }
+.row[data-dragging='true'] { opacity:.5; background:var(--bg-subtle); }
+.row[data-drop-target='true'] { box-shadow:inset 0 2px var(--text-strong); background:var(--bg-subtle); }

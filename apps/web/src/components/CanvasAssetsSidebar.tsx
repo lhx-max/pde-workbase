@@ -1,6 +1,10 @@
 // Extracted original project-file sidebar; external library and collector are host-owned ports.
 import { isCollectedPath, isCanvasTextPath, PROJECT_FILE_DRAG_MIME, type ProjectFile, type ProjectFileKind } from '@bezier/contracts';
-import { Button, Input, Select, ConfirmDialog } from './ui';
+import { Button, Input, Select, ConfirmDialog, Tabs, TabsList, TabsTrigger } from './ui';
+import { AssetLibraryPanel, type AssetLibraryPanelProps } from './AssetLibraryPanel';
+import { BrowserCollectorPanel } from './BrowserCollectorPanel';
+import type { BrowserPageExtractionRequest } from './browser-page-extraction';
+import { saveProjectFileAsAsset } from '../providers/asset-library';
 import { Icon } from './Icon';
 import { createPortal } from 'react-dom';
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
@@ -13,7 +17,8 @@ import { SketchPreview } from './SketchPreview';
 import { CanvasArtifactThumbnail } from './workspace/CanvasArtifactThumbnail';
 import styles from './CanvasAssetsSidebar.module.css';
 function HtmlTemplateThumb({template}:{foreground?:boolean;template:{title:string;type:string;previewSrc:string}}) {return <CanvasArtifactThumbnail src={template.previewSrc} title={template.title} presentation={template.type==='Slides'} />;}
-interface Props {
+interface Props extends Pick<AssetLibraryPanelProps,'installedTemplates'|'designSystems'|'onUseTemplate'|'onOpenDesignSystem'|'onOpenAssetLibrary'|'onCancelSelection'|'openRequest'> {
+ onExtractPage?:(request:BrowserPageExtractionRequest)=>Promise<void>;extractPageDisabled?:boolean;
  active?:boolean; projectId:string;projectName?:string;rootDirName?:string;files:ProjectFile[];viewerOnly?:boolean;reloading?:boolean;
  onClose:()=>void;onRenameFile:(from:string,to:string)=>Promise<ProjectFile|null>|ProjectFile|null;onDeleteFile:(name:string)=>void;onDeleteFiles?:(names:string[])=>Promise<string[]>;
  onRefreshFiles:()=>Promise<void>|void;onUpload:()=>void;onWidthChange?:(width:number)=>void;width?:number;onLocateFile?:(name:string)=>void;onOpenFile?:(name:string)=>void;
@@ -124,7 +129,7 @@ function isCanvasSystemRecord(path: string): boolean {
     || (isCollectedPath(normalized) && normalized.endsWith('.source.json'));
 }
 
-export function CanvasAssetsSidebar({active=true,projectId,projectName,rootDirName,files:projectFiles,viewerOnly=false,reloading=false,onClose,onRenameFile,onDeleteFile,onDeleteFiles,onRefreshFiles,onUpload,onWidthChange,width=SIDEBAR_DEFAULT_WIDTH,onLocateFile,onOpenFile,onRevealInFinder,onSaveToLibrary}:Props) {
+export function CanvasAssetsSidebar({active=true,projectId,projectName,rootDirName,files:projectFiles,viewerOnly=false,reloading=false,onClose,onRenameFile,onDeleteFile,onDeleteFiles,onRefreshFiles,onUpload,onWidthChange,width=SIDEBAR_DEFAULT_WIDTH,onLocateFile,onOpenFile,onRevealInFinder,onSaveToLibrary,onExtractPage,extractPageDisabled,openRequest,onCancelSelection,onOpenAssetLibrary,installedTemplates,designSystems,onUseTemplate,onOpenDesignSystem}:Props) {
   const files = useMemo(() => projectFiles.filter(file => isVisibleProjectFilePath(file.name)&&!isCanvasSystemRecord(file.name)), [projectFiles]);
   const { locale, t } = useI18n();
   const fileKindLabel = (kind: ProjectFileKind) => {
@@ -156,7 +161,11 @@ export function CanvasAssetsSidebar({active=true,projectId,projectName,rootDirNa
     setSelectedFiles(current => current.filter(name => files.some(file => file.name === name)));
   }, [files]);
   const toggleSelectedFile = (name: string) => setSelectedFiles(current => current.includes(name) ? current.filter(item => item !== name) : [...current, name]);
-  const libraryTab = 'canvas';
+  const [libraryTab,setLibraryTab]=useState<LibraryTab>('canvas');
+  const [collectorVisited,setCollectorVisited]=useState(false);
+  useEffect(()=>{if(libraryTab==='collect')setCollectorVisited(true);},[libraryTab]);
+  useEffect(()=>{if(openRequest)setLibraryTab('assets');},[openRequest]);
+  const saveToSource=useCallback(async(file:ProjectFile)=>{if(onSaveToLibrary)await onSaveToLibrary(file);else await saveProjectFileAsAsset(projectId,file.name,workspaceContext);},[onSaveToLibrary,projectId,workspaceContext]);
   const [viewMode,setViewMode]=useState<ViewMode>('list');
   const [query,setQuery]=useState('');
   const contentRef=useRef<HTMLDivElement>(null);
@@ -452,6 +461,15 @@ export function CanvasAssetsSidebar({active=true,projectId,projectName,rootDirNa
           </Button>
         </div>
       </header>
+      <Tabs value={libraryTab} onValueChange={value=>{onCancelSelection?.();setLibraryTab(value as LibraryTab);}} className={styles.libraryTabs}>
+        <TabsList className={styles.libraryTabsList} aria-label={t('entry.canvasAssets.libraryViewsAria')}>
+          <TabsTrigger value="canvas" className={styles.libraryTabsTrigger} onClick={()=>{if(libraryTab!=='canvas')onCancelSelection?.();setLibraryTab('canvas');}}><Icon name="grid" size={14}/>{t('entry.canvasAssets.tab.canvas')}</TabsTrigger>
+          <TabsTrigger value="assets" className={styles.libraryTabsTrigger} onClick={()=>{if(libraryTab!=='assets')onCancelSelection?.();setLibraryTab('assets');}}><Icon name="image" size={14}/>{t('entry.canvasAssets.tab.assetsShort')}</TabsTrigger>
+          {!viewerOnly?<TabsTrigger value="collect" className={styles.libraryTabsTrigger} onClick={()=>{if(libraryTab!=='collect')onCancelSelection?.();setLibraryTab('collect');}}><Icon name="globe" size={14}/>{t('entry.canvasAssets.tab.collectShort')}</TabsTrigger>:null}
+        </TabsList>
+      </Tabs>
+      <div className={styles.collectorView} hidden={libraryTab!=='collect'}>{collectorVisited&&!viewerOnly?<BrowserCollectorPanel projectId={projectId} workspaceContext={workspaceContext} files={files} onRefreshFiles={onRefreshFiles} onExtractPage={onExtractPage} extractPageDisabled={extractPageDisabled} onSaveToAssetSource={saveToSource}/>:null}</div>
+      {libraryTab==='assets'?<AssetLibraryPanel projectId={projectId} viewerOnly={viewerOnly} openRequest={openRequest} onCancelSelection={onCancelSelection} onOpenAssetLibrary={onOpenAssetLibrary} installedTemplates={installedTemplates} designSystems={designSystems} onUseTemplate={onUseTemplate} onOpenDesignSystem={onOpenDesignSystem} onRefreshFiles={onRefreshFiles}/>:null}
       {libraryTab === 'canvas' ? <>
 
       <div className={styles.toolbar}>
@@ -658,7 +676,7 @@ export function CanvasAssetsSidebar({active=true,projectId,projectName,rootDirNa
                       <div className={styles.itemMenu} role="menu">
                         <Button type="button" role="menuitem" onClick={() => {
                           setActiveMenu(null); setNotice(t('entry.canvasAssets.notice.savingPersonal'));
-                          void (onSaveToLibrary ? onSaveToLibrary(file) : Promise.reject(new Error('External asset library is not configured'))).then(() => setNotice(t('entry.canvasAssets.notice.savedPersonal'))).catch(error => setNotice(error instanceof Error ? error.message : t('entry.canvasAssets.notice.saveFailed')));
+                          void saveToSource(file).then(() => setNotice(t('entry.canvasAssets.notice.savedPersonal'))).catch(error => setNotice(error instanceof Error ? error.message : t('entry.canvasAssets.notice.saveFailed')));
                         }}><Icon name="folder" size={13} />{t('entry.canvasAssets.saveAsPersonal')}</Button>
                         <Button type="button" role="menuitem" onClick={() => void renameFile(file)}>
                           <Icon name="pencil" size={13} />{t('entry.canvasAssets.rename')}

@@ -1,6 +1,17 @@
 import type { Dict } from "../types";
 
 export const zhCN: Dict = {
+  'assetLibrary.spaces.moveContents': '将资产移至其他空间',
+  'assetLibrary.spaces.moveDescription': '资产会保留，仅移除此空间。',
+  'assetLibrary.spaces.deleteDescription': '此空间内的所有资产和文件夹将被永久删除，此操作无法撤销。',
+  'assetLibrary.local': '本地资产库',
+  'assetLibrary.external': '外部来源',
+  'assetLibrary.externalUnavailable': '尚未配置外部资产来源。',
+  'assetLibrary.sources': '资产来源',
+  'assetLibrary.fullTitle': '资产库',
+  'assetLibrary.stagedReferences': '参考资料（{count}）',
+  'assetLibrary.removeReference': '移除参考资料 {name}',
+  'assetLibrary.clearReferences': '清空参考资料',
   'browserResources.title': '本页资源',
   'browserResources.sort': '资源排序',
   'browserResources.sort.resolution': '分辨率优先',
@@ -2380,8 +2391,8 @@ export const zhCN: Dict = {
   "designBrowser.status.openPageBeforeScreenshot": "请先打开页面再截图",
   "designBrowser.status.screenshotCopied": "截图已复制到剪贴板",
   "designBrowser.status.screenshotSaved": "截图已保存到项目",
-  "designBrowser.addImageToChatButton": "发送给 Agent",
-  "designBrowser.status.imageAddedToChat": "图片已提交给 Agent",
+  "designBrowser.addImageToChatButton": "加入引用",
+  "designBrowser.status.imageAddedToChat": "图片已暂存为下次任务的引用，尚未启动 Agent 任务",
   "designBrowser.status.screenshotFailed": "截图失败",
   "designBrowser.status.desktopDataUnavailable":
     "当前环境无法访问桌面浏览器数据",
