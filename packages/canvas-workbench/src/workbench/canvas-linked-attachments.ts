@@ -1,7 +1,5 @@
 import { canvasTextPath, PROJECT_LAYOUT, projectLayoutPath } from '@bezier/contracts';
 import { storyboardPlanToText, type StoryboardPlan } from './storyboard-card';
-import { clipCompositionKey } from './clip-editor-session';
-import type { CanvasClipTimeline } from './clip-timeline';
 import { cr } from '../locales/canvas-remainder';
 
 export type CanvasLinkedAttachment = {
@@ -21,13 +19,11 @@ export type CanvasLinkedAttachment = {
 
 type BasicArtifactSource = {
   id: string;
-  kind: 'text' | 'sketch' | 'page' | 'image' | 'artifact' | 'storyboard' | 'video' | 'clip' | (string & {});
+  kind: 'text' | 'sketch' | 'page' | 'image' | 'artifact' | 'storyboard' | 'video' | (string & {});
   title?: string;
   text?: string;
   storyboard?: StoryboardPlan;
   projectFilePath?: string;
-  clipTimeline?: CanvasClipTimeline;
-  clipExportKey?: string;
   generation?: {
     previewPath?: string;
   };
@@ -53,7 +49,6 @@ function baseName(path: string): string {
 }
 
 function defaultBasicPath(source: BasicArtifactSource): string | undefined {
-  if (source.kind === 'clip' && source.clipExportKey && source.clipTimeline && source.clipExportKey !== clipCompositionKey(source.clipTimeline)) return undefined;
   if (source.projectFilePath) return source.projectFilePath;
   // HTML/PPT generators know their durable output path before the run reaches
   // its terminal state. The live preview already reads this same file, so a

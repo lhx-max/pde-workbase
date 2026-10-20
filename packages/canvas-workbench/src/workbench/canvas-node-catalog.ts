@@ -1,5 +1,5 @@
 import { canvasNodeCopy } from '../locales/node-catalog';
-export type CanvasNodeCreationKind = 'image' | 'text' | 'sketch' | 'storyboard' | 'video' | 'clip' | 'page' | 'presentation';
+export type CanvasNodeCreationKind = 'image' | 'text' | 'sketch' | 'storyboard' | 'video' | 'page' | 'presentation';
 
 /** One-shot host request to create a real node through the canvas state path. */
 export type CanvasNodeCreationRequest = {
@@ -33,14 +33,13 @@ const NODE_ICONS = {
   sketch: 'edit',
   storyboard: 'gallery-horizontal',
   video: 'artifact-video',
-  clip: 'scissors',
   page: 'artifact-page',
   presentation: 'artifact-presentation',
 } as const satisfies Record<CanvasNodeCreationKind, CanvasNodeCreationOption['icon']>;
 
 export const CANVAS_NODE_MENU_GROUPS: readonly (readonly CanvasNodeCreationKind[])[] = [
   ['image', 'text', 'sketch'],
-  ['storyboard', 'video', 'clip'],
+  ['storyboard', 'video'],
   ['page', 'presentation'],
 ];
 

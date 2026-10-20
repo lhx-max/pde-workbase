@@ -19,7 +19,7 @@ export type CardRenderer = React.ComponentType<CardRenderProps>;
 
 const renderers = new Map<string, CardRenderer>();
 const KIND_PATTERN = /^card\.[a-z0-9-]+\.[a-z0-9-]+$/;
-const CORE_KINDS = new Set(['text', 'sketch', 'page', 'image', 'artifact', 'storyboard', 'video', 'clip']);
+const CORE_KINDS = new Set(['text', 'sketch', 'page', 'image', 'artifact', 'storyboard', 'video']);
 
 export function registerCardPack(pack: SdkCardPack): void {
   for (const card of pack.cards) {

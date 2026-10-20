@@ -26,7 +26,7 @@ export function registerCanvasStateRoutes(
       if (!deps.canvasState) throw new CanvasStateError(503, 'CANVAS_CAPABILITY_UNAVAILABLE', 'canvas state is unavailable');
       if (deps.authorizeProjectRequest && !await deps.authorizeProjectRequest(req, res, req.params.projectId, { mode: 'read' })) return;
       await deps.canvasState.revision(req.params.projectId);
-      res.json({ protocolVersion: 1, nodeKinds: CANVAS_CARD_KINDS, scope: 'ordinary card content operations require ungrouped cards; relations/layout supports organization groups; clip, workflow-owned cards and attached storyboard children require dedicated adapters',
+      res.json({ protocolVersion: 1, nodeKinds: CANVAS_CARD_KINDS, scope: 'ordinary card content operations require ungrouped cards; relations/layout supports organization groups; workflow-owned cards and attached storyboard children require dedicated adapters',
         operations: [...canvasOperationSchema.options.map(option => option.shape.type.value), ...listCardOps()],
         storyboard: {shots:['add','update','move','duplicate','delete','references'], maxShots:50, assetReferences:'existing storyboard-owned or unowned assets; kind and variant checked'},
         video: {formats:['mp4'],generate:`/api/projects/${encodeURIComponent(req.params.projectId)}/media/generate`,tasks:`/api/projects/${encodeURIComponent(req.params.projectId)}/media/tasks`,export:`/api/projects/${encodeURIComponent(req.params.projectId)}/files/:path`},

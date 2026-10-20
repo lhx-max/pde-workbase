@@ -17,8 +17,6 @@ export { focusCanvasObject, prepareCanvasObject, failCanvasObject, readCanvasObj
 export type { CanvasObjectReference } from './platform/object-bridge';
 export { readCanvasObjectPreview, subscribeCanvasObjectPreviews } from './platform/object-bridge';
 export type { CanvasObjectPreview } from './platform/object-bridge';
-export { clipEditorTabId, clipNodeIdFromTab } from './platform/clip-editor-host';
-export type { ClipEditorHost } from './platform/clip-editor-host';
 export type {
   CanvasNodeCreationKind,
   CanvasNodeCreationRequest,

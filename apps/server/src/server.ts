@@ -12,7 +12,6 @@ import { withProjectLedgerRecorder } from './project-ledger/active-recorder.js';
 import { registerCanvasStateRoutes } from './routes/canvas.js';
 import { registerAppCanvasRoutes } from './routes/app-canvas.js';
 import { registerProjectFileRoutes } from './routes/files.js';
-import { registerClipEditorRoutes } from './routes/clip-editor.js';
 import { registerBrowserResourceRoutes } from './routes/browser-resources.js';
 import {Database} from './storage/database.js';
 import {MediaAdapterService,type MediaAdapter} from './media/adapter-service.js';
@@ -95,7 +94,6 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
  registerCanvasStateRoutes(app,{canvasState:canvas,ledger,resolveProjectRoot:id=>registry.resolveProjectRoot(id),authorizeProjectRequest});
  registerAppCanvasRoutes(app,{canvasState:canvas,registry,authorizeProjectRequest});
  registerProjectFileRoutes(app,{registry,canvasFiles:canvas,authorize:authorizeProjectRequest});
- registerClipEditorRoutes(app,{registry,paths:{RUNTIME_DATA_DIR:dataRoot,PROJECTS_DIR:registry.projectsRoot},http:{sendApiError},authorizeProjectRequest});
  registerBrowserResourceRoutes(app,{registry,http:{requireLocalDaemonRequest:authorize},authorizeProjectRequest,...(options.browserResources?{desktopBrowserResources:options.browserResources}:{})});
  registerMediaRoutes(app,{media,registry,...(options.capabilities?{capabilities:options.capabilities}:{})});
  registerAssetRoutes(app,{registry,library:assetLibrary,...(options.assets?{adapter:options.assets}:{})});

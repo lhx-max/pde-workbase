@@ -28,8 +28,6 @@ export * from './api/canvas-embed.js';
 export * from './api/canvas-relations-layout.js';
 export * from './api/canvas-snapshots.js';
 export * from './api/mf-integration.js';
-export * from './api/clip-editor.js';
-export * from './api/clip-composition.js';
 export * from './api/community.js';
 export * from './api/context.js';
 export * from './api/connectors.js';

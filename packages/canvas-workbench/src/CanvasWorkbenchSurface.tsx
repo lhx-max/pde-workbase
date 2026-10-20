@@ -1,5 +1,4 @@
 'use client';
-import { ClipEditorHostContext } from './platform/clip-editor-host';
 
 /**
  * DA 与 OEM 产品的统一画布宿主。
@@ -49,7 +48,6 @@ import '@bezier/workbench-ui/styles.css';
 
 import { CanvasLocaleProvider } from './platform/canvas-locale';
 export type CanvasWorkbenchSurfaceProps = {
-  clipEditor?: import('./platform/clip-editor-host').ClipEditorHost;
   nodeCreationRequest?: CanvasNodeCreationRequest | null;
   onNodeCreationConsumed?: (nonce: string, nodeId: string) => void;
   projectId: string;
@@ -151,7 +149,6 @@ export function CanvasWorkbenchSurface({
   onNavigate,
   onOpenArtifact,
   onOpenTextDocument,
-  clipEditor,
   nodeCreationRequest,
   onNodeCreationConsumed,
   textDocumentChange,
@@ -201,7 +198,6 @@ export function CanvasWorkbenchSurface({
     <div className="canvas-workbench" data-testid="canvas-workbench-surface">
       <WorkflowApiProvider request={workflowRequest}>
       <CanvasLocaleProvider locale={locale}>
-      <ClipEditorHostContext.Provider value={clipEditor || {}}>
       <CanvasUiHostProvider value={uiHost}>
         <CanvasCompatProvider
           key={projectId}
@@ -230,7 +226,6 @@ export function CanvasWorkbenchSurface({
           />
         </CanvasCompatProvider>
       </CanvasUiHostProvider>
-      </ClipEditorHostContext.Provider>
       </CanvasLocaleProvider>
       </WorkflowApiProvider>
     </div>

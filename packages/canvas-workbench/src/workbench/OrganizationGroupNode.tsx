@@ -24,7 +24,7 @@ export type OrganizationGroupData = {
 export function OrganizationGroupNode({ data, selected }: NodeProps<Node<OrganizationGroupData>>) {
   const [error, setError] = useState('');
   return <CanvasGroupFrame selected={selected}>
-    <CanvasNodeSourceHandle level="group" onAddNode={kind => setError(data.onAddNode(kind) || '')} excludedKinds={['clip', 'video', 'storyboard', 'text']} />
+    <CanvasNodeSourceHandle level="group" onAddNode={kind => setError(data.onAddNode(kind) || '')} excludedKinds={['video', 'storyboard', 'text']} />
     {error && <div role="alert" className="image-group-operation-error">{error}</div>}
     <div className="image-group-chrome nopan">
       <div className="image-group-anchor">

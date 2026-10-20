@@ -27,8 +27,6 @@ import { commitGalleryPositions, layoutStoryboardGalleries, storyboardGroupChain
 import { useStoryboardRelations } from './workbench/useStoryboardRelations';
 import { selectedStoryboardShotImage, storyboardFrame, patchStoryboardFrame, storyboardVideoFrames } from './workbench/storyboard-shot-images';
 import { StoryboardRelationOverlay } from './workbench/StoryboardRelationOverlay';
-import { ClipEditorHostContext } from './platform/clip-editor-host';
-import { ClipCanvasNode } from './workbench/ClipCanvasNode';
 import type { BasicCanvasNodeData } from './workbench/BasicCanvasNode';
 import { Button, CanvasViewToolbar } from '@bezier/components';
 import type {
@@ -519,7 +517,6 @@ function FlowHome({
   const removeWorkflowResult = React.useCallback((resultId: string) => {
     history.run(() => setDismissedWorkflowResults(current => ({ ...current, [resultId]: true })));
   }, [history, setDismissedWorkflowResults]);
-  const clipEditorHost = React.useContext(ClipEditorHostContext);
   const renderPopover = requireCanvasPopoverRenderer(uiHost);
   const [sendingId, setSendingId] = React.useState('');
   const imageSubmissionLocksRef = React.useRef(new Set<string>());
@@ -1540,8 +1537,8 @@ function FlowHome({
       ...basicNodesRef.current.map(existing => ({
         x: existing.x,
         y: existing.y,
-        width: existing.width || (existing.kind === 'text' ? TEXT_CARD_DEFAULT_WIDTH : existing.kind === 'storyboard' ? STORYBOARD_CARD_DEFAULT_WIDTH : existing.kind === 'page' ? HTML_PAGE_CARD_SIZE.width : existing.kind === 'video' ? defaultVideoFrame.width : existing.kind === 'clip' ? 760 : 320),
-        height: existing.height || (existing.kind === 'text' ? TEXT_CARD_DEFAULT_HEIGHT : existing.kind === 'storyboard' ? STORYBOARD_CARD_DEFAULT_HEIGHT : existing.kind === 'page' ? HTML_PAGE_CARD_SIZE.height : existing.kind === 'video' ? defaultVideoFrame.height : existing.kind === 'clip' ? 156 : 220),
+        width: existing.width || (existing.kind === 'text' ? TEXT_CARD_DEFAULT_WIDTH : existing.kind === 'storyboard' ? STORYBOARD_CARD_DEFAULT_WIDTH : existing.kind === 'page' ? HTML_PAGE_CARD_SIZE.width : existing.kind === 'video' ? defaultVideoFrame.width : 320),
+        height: existing.height || (existing.kind === 'text' ? TEXT_CARD_DEFAULT_HEIGHT : existing.kind === 'storyboard' ? STORYBOARD_CARD_DEFAULT_HEIGHT : existing.kind === 'page' ? HTML_PAGE_CARD_SIZE.height : existing.kind === 'video' ? defaultVideoFrame.height : 220),
       })),
     ];
     return placeCardInViewport({
@@ -1633,15 +1630,15 @@ function FlowHome({
     const id = `basic-${kind}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
     const title = kind.startsWith('card.') ? kind.split('.').pop() ?? kind : canvasNodeDefaultTitle(canvasLocale, kind as CanvasNodeCreationKind | 'artifact', artifactFormat);
     const defaultVideoFrame = getVideoFrameSize();
-    const width = kind === 'sketch' ? 420 : kind === 'clip' ? 760 : kind === 'video' ? defaultVideoFrame.width : kind === 'text' ? TEXT_CARD_DEFAULT_WIDTH : kind === 'storyboard' ? STORYBOARD_CARD_DEFAULT_WIDTH : kind === 'page' ? HTML_PAGE_CARD_SIZE.width : 320;
-    const height = kind === 'sketch' ? 300 : kind === 'clip' ? 156 : kind === 'video' ? defaultVideoFrame.height : kind === 'text' ? TEXT_CARD_DEFAULT_HEIGHT : kind === 'storyboard' ? STORYBOARD_CARD_DEFAULT_HEIGHT : kind === 'page' ? HTML_PAGE_CARD_SIZE.height : 220;
+    const width = kind === 'sketch' ? 420 : kind === 'video' ? defaultVideoFrame.width : kind === 'text' ? TEXT_CARD_DEFAULT_WIDTH : kind === 'storyboard' ? STORYBOARD_CARD_DEFAULT_WIDTH : kind === 'page' ? HTML_PAGE_CARD_SIZE.width : 320;
+    const height = kind === 'sketch' ? 300 : kind === 'video' ? defaultVideoFrame.height : kind === 'text' ? TEXT_CARD_DEFAULT_HEIGHT : kind === 'storyboard' ? STORYBOARD_CARD_DEFAULT_HEIGHT : kind === 'page' ? HTML_PAGE_CARD_SIZE.height : 220;
     const visiblePlacement = requestedPosition ? null : currentViewportPlacement(width, height);
     let x = requestedPosition?.x ?? visiblePlacement?.x ?? world.x - width / 2;
     let y = requestedPosition?.y ?? visiblePlacement?.y ?? world.y - height / 2;
     for (let attempt = 0; requestedPosition && collisionDirection !== 'none' && attempt < 20; attempt += 1) {
       const overlaps = basicNodesRef.current.some(existing => {
-        const existingWidth = existing.width || (existing.kind === 'text' ? TEXT_CARD_DEFAULT_WIDTH : existing.kind === 'storyboard' ? STORYBOARD_CARD_DEFAULT_WIDTH : existing.kind === 'page' ? HTML_PAGE_CARD_SIZE.width : existing.kind === 'video' ? defaultVideoFrame.width : existing.kind === 'clip' ? 760 : 320);
-        const existingHeight = existing.height || (existing.kind === 'text' ? TEXT_CARD_DEFAULT_HEIGHT : existing.kind === 'storyboard' ? STORYBOARD_CARD_DEFAULT_HEIGHT : existing.kind === 'page' ? HTML_PAGE_CARD_SIZE.height : existing.kind === 'video' ? defaultVideoFrame.height : existing.kind === 'clip' ? 156 : 220);
+        const existingWidth = existing.width || (existing.kind === 'text' ? TEXT_CARD_DEFAULT_WIDTH : existing.kind === 'storyboard' ? STORYBOARD_CARD_DEFAULT_WIDTH : existing.kind === 'page' ? HTML_PAGE_CARD_SIZE.width : existing.kind === 'video' ? defaultVideoFrame.width : 320);
+        const existingHeight = existing.height || (existing.kind === 'text' ? TEXT_CARD_DEFAULT_HEIGHT : existing.kind === 'storyboard' ? STORYBOARD_CARD_DEFAULT_HEIGHT : existing.kind === 'page' ? HTML_PAGE_CARD_SIZE.height : existing.kind === 'video' ? defaultVideoFrame.height : 220);
         return x < existing.x + existingWidth + 48
           && x + width + 48 > existing.x
           && y < existing.y + existingHeight + 48
@@ -1679,9 +1676,7 @@ function FlowHome({
     const addBasic = (nodeKind: CanvasBasicNodeKind, format?: 'html' | 'presentation') =>
       addBasicNode(nodeKind, format, position, position ? 'none' : 'forward');
     if (kind === 'sketch') return addBasic('sketch');
-    const nodeId = kind === 'clip'
-      ? addBasic('clip')
-      : kind === 'video'
+    const nodeId = kind === 'video'
         ? addBasic('video')
         : kind === 'text'
           ? addBasic('text')
@@ -1745,8 +1740,8 @@ function FlowHome({
         .map(node => ({
           x: node.x,
           y: node.y,
-          width: node.width || (node.kind === 'text' ? TEXT_CARD_DEFAULT_WIDTH : node.kind === 'storyboard' ? STORYBOARD_CARD_DEFAULT_WIDTH : node.kind === 'page' ? HTML_PAGE_CARD_SIZE.width : node.kind === 'clip' ? 760 : 320),
-          height: node.height || (node.kind === 'text' ? TEXT_CARD_DEFAULT_HEIGHT : node.kind === 'storyboard' ? STORYBOARD_CARD_DEFAULT_HEIGHT : node.kind === 'page' ? HTML_PAGE_CARD_SIZE.height : node.kind === 'clip' ? 156 : 220),
+          width: node.width || (node.kind === 'text' ? TEXT_CARD_DEFAULT_WIDTH : node.kind === 'storyboard' ? STORYBOARD_CARD_DEFAULT_WIDTH : node.kind === 'page' ? HTML_PAGE_CARD_SIZE.width : 320),
+          height: node.height || (node.kind === 'text' ? TEXT_CARD_DEFAULT_HEIGHT : node.kind === 'storyboard' ? STORYBOARD_CARD_DEFAULT_HEIGHT : node.kind === 'page' ? HTML_PAGE_CARD_SIZE.height : 220),
         })),
     });
     patchBasicNode(targetId, { x: placement.target.x, y: placement.target.y });
@@ -1787,9 +1782,9 @@ function FlowHome({
     const targetY = owner ? owner.y : origin.y;
     let targetId = '';
 
-    if (kind === 'sketch' || kind === 'clip' || kind === 'video' || kind === 'text' || kind === 'storyboard' || kind === 'page' || kind === 'presentation') {
+    if (kind === 'sketch' || kind === 'video' || kind === 'text' || kind === 'storyboard' || kind === 'page' || kind === 'presentation') {
       targetId = addBasicNode(
-        kind === 'sketch' ? 'sketch' : kind === 'clip' ? 'clip' : kind === 'video' ? 'video' : kind === 'text' ? 'text' : kind === 'storyboard' ? 'storyboard' : 'page',
+        kind === 'sketch' ? 'sketch' : kind === 'video' ? 'video' : kind === 'text' ? 'text' : kind === 'storyboard' ? 'storyboard' : 'page',
         kind === 'presentation' ? 'presentation' : kind === 'page' ? 'html' : undefined,
         { x: targetX, y: targetY },
       );
@@ -4530,12 +4525,6 @@ function FlowHome({
   });
   React.useEffect(() => { placeNewReportResult(); }, [basicNodes, flowNodes, placeNewReportResult]);
 
-  if (clipEditorHost.nodeId) {
-    const editorNode = flowNodes.find(node => node.id === clipEditorHost.nodeId);
-    return editorNode && basicNodes.some(node => node.id === editorNode.id && node.kind === 'clip')
-      ? <ClipCanvasNode key={editorNode.id} data={editorNode.data as BasicCanvasNodeData} selected detailed />
-      : <div role="status" style={{ padding: 32 }}>{x.loadingClip}<Button onClick={clipEditorHost.onBack}>{x.backToCanvas}</Button></div>;
-  }
   const hiddenCaseNodeIds = new Set(instances.filter(instance => instance.kind === 'plan')
     .flatMap(instance => [instance.id, articleNodeId(instance.id)]));
   const visibleCaseEdge = (edge: CanvasEdge) => !hiddenCaseNodeIds.has(edge.source) && !hiddenCaseNodeIds.has(edge.target);

@@ -151,7 +151,7 @@ function semanticPayload(node: JsonRecord, summary: CanvasContextNodeSummary): J
     sourceNodeIds: summary.sourceNodeIds,
     taskIds: summary.taskIds,
     memberIds: node.memberIds ?? [],
-    ...Object.fromEntries(['storyboard', 'clipTimeline', 'sketch', 'textInstruction', 'textOptions', 'videoModel', 'videoMode', 'videoAspect', 'videoLength', 'videoResolution', 'activeVideoResultId', 'presentationOptions', 'webpageOptions', 'storyboardPrompt', 'storyboardRequirements', 'storyboardGenerationType'].map((key) => [key, compactAuditValue(node[key])])),
+    ...Object.fromEntries(['storyboard', 'sketch', 'textInstruction', 'textOptions', 'videoModel', 'videoMode', 'videoAspect', 'videoLength', 'videoResolution', 'activeVideoResultId', 'presentationOptions', 'webpageOptions', 'storyboardPrompt', 'storyboardRequirements', 'storyboardGenerationType'].map((key) => [key, compactAuditValue(node[key])])),
     ...Object.fromEntries(['x', 'y', 'width', 'height', 'parentId', 'groupId', 'rotation'].map((key) => [key, node[key] ?? null])),
     ...(text ? { textDigest: sha256(text), textExcerpt: text.slice(0, MAX_TEXT_EXCERPT) } : {}),
   };

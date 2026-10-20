@@ -52,8 +52,6 @@ export interface LauncherContext {
   createSketch?: () => void;
   /** Create a new Markdown document in the current Design Files directory. */
   createDocument?: () => void;
-  /** Create a clip node on the project canvas and open its detailed editor. */
-  createClip?: () => void;
 }
 
 interface LauncherActionBase {
@@ -157,17 +155,6 @@ export function buildLauncherActions(ctx: LauncherContext): LauncherAction[] {
       labelKey: 'designFiles.kindText',
       run: (runCtx) => {
         runCtx.createDocument?.();
-      },
-    });
-  }
-  if (ctx.createClip) {
-    actions.push({
-      id: 'new-clip',
-      iconName: 'scissors',
-      labelKey: 'designFiles.kindClip',
-      descriptionKey: 'designFiles.kindClipDescription',
-      run: (runCtx) => {
-        runCtx.createClip?.();
       },
     });
   }

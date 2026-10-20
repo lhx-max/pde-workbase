@@ -57,8 +57,6 @@ import {
   type StoryboardEntryMode,
 } from './StoryboardCanvasNode';
 import { VideoCanvasNode } from './VideoCanvasNode';
-import { ClipCanvasNode } from './ClipCanvasNode';
-import type { CanvasClipTimeline } from './clip-timeline';
 import { CanvasOutputFrame, CanvasOutputNode, CanvasOutputStatus } from './CanvasOutputNode';
 import { CanvasNodeStarter } from './CanvasNodeStarter';
 import { excludedCanvasDownstreamKinds } from './canvas-node-catalog';
@@ -79,7 +77,7 @@ import {
   type StoryboardPlan,
 } from './storyboard-card';
 
-export type CanvasBasicNodeKind = 'text' | 'sketch' | 'page' | 'image' | 'artifact' | 'storyboard' | 'video' | 'clip' | (string & {});
+export type CanvasBasicNodeKind = 'text' | 'sketch' | 'page' | 'image' | 'artifact' | 'storyboard' | 'video' | (string & {});
 
 export const TEXT_CARD_DEFAULT_WIDTH = 420;
 export const TEXT_CARD_DEFAULT_HEIGHT = 520;
@@ -153,9 +151,6 @@ export type CanvasBasicNode = {
   };
   videoResults?: CanvasVideoResult[];
   activeVideoResultId?: string;
-  clipTimeline?: CanvasClipTimeline;
-  /** Rendered composition identity; stale output must not flow downstream. */
-  clipExportKey?: string;
   /** Desired format while this is still a creation brief. */
   artifactFormat?: 'html' | 'presentation';
   presentationOptions?: ArtifactPresentationOptions & { length: NonNullable<ArtifactPresentationOptions['length']>; template: string };
@@ -1212,7 +1207,6 @@ function BasicCanvasNodeComponent({ data, selected }: NodeProps<Node<BasicCanvas
   }
   if (data.node.kind === 'sketch') return <SketchCanvasNode data={data} selected={selected} />;
   if (data.node.kind === 'video') return <VideoCanvasNode data={data} selected={selected} />;
-  if (data.node.kind === 'clip') return <ClipCanvasNode data={data} selected={selected} />;
   const item = data.node;
   const versions = selected ? <CanvasResultHistory
     history={item.resultHistory}
@@ -1295,7 +1289,6 @@ export function buildBasicCanvasNode(args: {
   const isHtmlPage = args.node.kind === 'page';
   const isStoryboard = args.node.kind === 'storyboard';
   const isVideo = args.node.kind === 'video';
-  const isClip = args.node.kind === 'clip';
   const storyboardHeight = isStoryboard && args.node.storyboard
     ? args.node.height || storyboardEditorHeight(args.node.storyboard.shots.length)
     : undefined;
@@ -1306,10 +1299,10 @@ export function buildBasicCanvasNode(args: {
     position: { x: args.node.x, y: args.node.y },
     width: args.node.kind === 'text' && (args.node.width === 350 || args.node.width === 440)
       ? TEXT_CARD_DEFAULT_WIDTH
-      : isHtmlPage ? Math.max(args.node.width || 0, HTML_PAGE_CARD_SIZE.width) : isStoryboard ? (args.node.storyboard ? ((args.node.width || 0) < STORYBOARD_EDITOR_MIN_WIDTH ? STORYBOARD_EDITOR_DEFAULT_WIDTH : args.node.width) : ((args.node.width === 480 || args.node.width === 680) ? STORYBOARD_CARD_DEFAULT_WIDTH : Math.max(args.node.width || 0, STORYBOARD_CARD_DEFAULT_WIDTH))) : isVideo ? videoFrame!.width : isClip ? Math.max(args.node.width || 0, 760) : args.node.width,
+      : isHtmlPage ? Math.max(args.node.width || 0, HTML_PAGE_CARD_SIZE.width) : isStoryboard ? (args.node.storyboard ? ((args.node.width || 0) < STORYBOARD_EDITOR_MIN_WIDTH ? STORYBOARD_EDITOR_DEFAULT_WIDTH : args.node.width) : ((args.node.width === 480 || args.node.width === 680) ? STORYBOARD_CARD_DEFAULT_WIDTH : Math.max(args.node.width || 0, STORYBOARD_CARD_DEFAULT_WIDTH))) : isVideo ? videoFrame!.width : args.node.width,
     height: args.node.kind === 'text' && (args.node.height === 360 || args.node.height === 500 || args.node.height === 620)
       ? TEXT_CARD_DEFAULT_HEIGHT
-      : isHtmlPage ? Math.max(args.node.height || 0, HTML_PAGE_CARD_SIZE.height) : isStoryboard ? (storyboardHeight ?? ((args.node.height === 420 || args.node.height === 560) ? STORYBOARD_CARD_DEFAULT_HEIGHT : Math.max(args.node.height || 0, 420))) : isVideo ? videoFrame!.height : isClip ? Math.max(args.node.height || 0, 146) : args.node.height,
+      : isHtmlPage ? Math.max(args.node.height || 0, HTML_PAGE_CARD_SIZE.height) : isStoryboard ? (storyboardHeight ?? ((args.node.height === 420 || args.node.height === 560) ? STORYBOARD_CARD_DEFAULT_HEIGHT : Math.max(args.node.height || 0, 420))) : isVideo ? videoFrame!.height : args.node.height,
     ...(args.selected === undefined ? {} : { selected: args.selected }),
     draggable: true,
     dragHandle: '.node-drag-surface',
