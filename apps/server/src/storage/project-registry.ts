@@ -110,8 +110,10 @@ export function createProjectRegistry(dataRoot: string) {
       requireProject(id);
       if (!Array.isArray(input.tabs) || !input.tabs.every(t => typeof t === 'string')) throw new Error('tabs must be string[]');
       if (input.browserTabs !== undefined && !Array.isArray(input.browserTabs)) throw new Error('browserTabs must be an array');
+      if (input.appTabs !== undefined && !Array.isArray(input.appTabs)) throw new Error('appTabs must be an array');
       const browserTabs = (input.browserTabs ?? []).map(normalizeBrowserWorkspaceTab).filter((tab): tab is ProjectBrowserWorkspaceTab => Boolean(tab));
-      const tabs: ProjectTabsState = { tabs: input.tabs.slice(), active: typeof input.active === 'string' ? input.active : null, ...(browserTabs.length ? { browserTabs } : {}), hasSavedState: true, updatedAt: Date.now() };
+      const appTabs = (input.appTabs ?? []).filter(tab => tab && typeof tab.id === 'string' && typeof tab.appId === 'string' && typeof tab.label === 'string');
+      const tabs: ProjectTabsState = { tabs: input.tabs.slice(), active: typeof input.active === 'string' ? input.active : null, ...(browserTabs.length ? { browserTabs } : {}), ...(appTabs.length ? { appTabs } : {}), hasSavedState: true, updatedAt: Date.now() };
       const state = load();
       Object.defineProperty(state.tabs, id, { value: tabs, enumerable: true, writable: true, configurable: true });
       save(state);

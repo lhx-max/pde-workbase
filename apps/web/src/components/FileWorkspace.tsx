@@ -34,6 +34,7 @@ import { DesignBrowserPanel } from './DesignBrowserPanel';
 import { CanvasWorkspace } from './workspace/CanvasWorkspace';
 import { TabLauncherMenu } from './workspace/TabLauncherMenu';
 import { buildLauncherActions, type LauncherContext } from './workspace/tab-launcher';
+import { AppTabSurface, createAppTab, type RegisteredAppEntry } from '../app-surfaces';
 import { SketchWorkspaceTab } from './workspace/SketchWorkspaceTab';
 import { CanvasSketchCard } from './workspace/CanvasSketchCard';
 import { SketchEnginePrewarm } from './SketchEnginePrewarm';
@@ -134,7 +135,7 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
     const browserInfoCallbacks=useMemo(()=>Object.fromEntries(tabs.tabs.map(id=>[id,(info:import('./DesignBrowserPanel').BrowserPageInfo)=>updateTabs(state=>updateBrowserTabInfo(state,id,info))])),[tabs.tabs,updateTabs]);
     const navigate=useCallback(async(change:()=>void,targetToSettle?:string)=>{const source=tabsRef.current.active||DESIGN_FILES_TAB;const sequence=++navigationSequence.current;const target=targetToSettle||source;if(retention.current.isProtected(target)){const settled=await retention.current.settle(target);syncProtection();if(!settled)return false;}if(sequence!==navigationSequence.current||(tabsRef.current.active||DESIGN_FILES_TAB)!==source)return false;change();return true;},[syncProtection]);
     const openFile=useCallback((name:string)=>{void navigate(()=>updateTabs(state=>({...state,tabs:name===DESIGN_FILES_TAB?state.tabs:state.tabs.includes(name)?state.tabs:[...state.tabs,name],active:name}))).catch(reportError);},[navigate,updateTabs,reportError]);
-    const closeTab=useCallback(async(name:string)=>{const source=tabsRef.current.active;const sequence=++navigationSequence.current;const settled=await retention.current.settle(name);syncProtection();if(!settled)return;const flush=flushers.current.get(name);if(flush&&!await flush())return;if(sequence!==navigationSequence.current||tabsRef.current.active!==source)return;updateTabs(state=>{const index=state.tabs.indexOf(name);const next=state.tabs.filter(id=>id!==name);return {...state,tabs:next,browserTabs:state.browserTabs?.filter(tab=>tab.id!==name),active:state.active===name?next[Math.min(index,next.length-1)]||DESIGN_FILES_TAB:state.active};});},[updateTabs,syncProtection]);
+    const closeTab=useCallback(async(name:string)=>{const source=tabsRef.current.active;const sequence=++navigationSequence.current;const settled=await retention.current.settle(name);syncProtection();if(!settled)return;const flush=flushers.current.get(name);if(flush&&!await flush())return;if(sequence!==navigationSequence.current||tabsRef.current.active!==source)return;updateTabs(state=>{const index=state.tabs.indexOf(name);const next=state.tabs.filter(id=>id!==name);return {...state,tabs:next,browserTabs:state.browserTabs?.filter(tab=>tab.id!==name),appTabs:state.appTabs?.filter(tab=>tab.id!==name),active:state.active===name?next[Math.min(index,next.length-1)]||DESIGN_FILES_TAB:state.active};});},[updateTabs,syncProtection]);
     const showAssetLibrary=useCallback((request:AssetLibraryRequest)=>{
         if(request.selection?.controller.signal.aborted)return;
         void navigate(()=>{if(assetRequestRef.current?.selection?.controller!==request.selection?.controller)assetRequestRef.current?.selection?.controller.abort();assetRequestRef.current=request;setAssetRequest(request);setFullLibraryOpen(Boolean(request.full));setFilesDrawerOpen(!request.full);updateTabs(state=>({...state,active:DESIGN_FILES_TAB}));}).then(accepted=>{if(!accepted)request.selection?.controller.abort();}).catch(cause=>{request.selection?.controller.abort();reportError(cause);});
@@ -192,7 +193,7 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
     } updateTabs(state => ({ ...state, tabs: state.tabs.filter(id => !deleted.includes(id)), active: deleted.includes(state.active || '') ? DESIGN_FILES_TAB : state.active })); await refreshFiles(); return deleted; }, [projectId, ports.workspaceContext, updateTabs, refreshFiles, reportError]);
     const createFile = useCallback(async (kind: 'text' | 'sketch') => { const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19); const base = `sketch-${stamp}.sketch.json`; const name = kind === 'sketch' ? (uploadDir ? `${uploadDir}/${base}` : base) : nextMarkdownDocumentPath(files, uploadDir); const file = await writeProjectTextFile(projectId, name, kind === 'sketch' ? serializeExcalidrawSketchScene(emptySketchScene(name), name) : initialMarkdownDocument(name, projectKind, t), undefined, ports.workspaceContext); if (!file)
         throw new Error(tRef.current('workspace.createMissingFile')); await refreshFiles(); openFile(file.name); }, [files, projectId, projectKind, uploadDir, ports.workspaceContext, refreshFiles, openFile, t]);
-    const [registeredApps, setRegisteredApps] = useState<{ appId: string; name: string; url: string }[]>([]);
+    const [registeredApps, setRegisteredApps] = useState<RegisteredAppEntry[]>([]);
     useEffect(() => {
         let cancelled = false;
         const load = async () => {
@@ -200,10 +201,8 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
                 const res = await fetch('/api/apps');
                 if (!res.ok) return;
                 const body = await res.json();
-                const apps = ((body?.data?.apps ?? []) as { appId: string; name: string; endpoint?: string; webUrl?: string; status?: string }[])
-                    .filter(app => app.appId !== 'canvas' && app.status !== 'disabled')
-                    .map(app => ({ appId: app.appId, name: app.name, url: app.webUrl || app.endpoint || '' }))
-                    .filter(app => app.url);
+                const apps = ((body?.data?.apps ?? []) as RegisteredAppEntry[])
+                    .filter(app => app.appId !== 'canvas' && app.status !== 'disabled' && app.endpoint);
                 if (!cancelled) setRegisteredApps(apps);
             } catch { /* registry unreachable → menu stays empty */ }
         };
@@ -211,7 +210,14 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
         const timer = setInterval(load, 15000);
         return () => { cancelled = true; clearInterval(timer); };
     }, []);
-    const launcherContext: LauncherContext = { projectId, openTab: openFile, apps: registeredApps, createBrowser: () => {void navigate(()=>{const id=`__browser__:${crypto.randomUUID()}`;updateTabs(state=>({...state,tabs:[...state.tabs,id],active:id,browserTabs:[...(state.browserTabs||[]),{id,label:t('workspace.newBrowser')}]}));}).catch(reportError);}, createSketch: () => void createFile('sketch').catch(reportError), createDocument: () => void createFile('text').catch(reportError), };
+    const openAppTab = useCallback((app: RegisteredAppEntry) => {
+        void (async () => {
+            const tab = await createAppTab(app);
+            await navigate(() => updateTabs(state => ({ ...state, tabs: state.tabs.includes(tab.id) ? state.tabs : [...state.tabs, tab.id], active: tab.id, appTabs: [...(state.appTabs ?? []).filter(item => item.id !== tab.id), tab] })));
+        })().catch(reportError);
+    }, [navigate, updateTabs, reportError]);
+    const appTabs = tabs.appTabs ?? [];
+    const launcherContext: LauncherContext = { projectId, openTab: openFile, apps: registeredApps, openAppTab, createBrowser: () => {void navigate(()=>{const id=`__browser__:${crypto.randomUUID()}`;updateTabs(state=>({...state,tabs:[...state.tabs,id],active:id,browserTabs:[...(state.browserTabs||[]),{id,label:t('workspace.newBrowser')}]}));}).catch(reportError);}, createSketch: () => void createFile('sketch').catch(reportError), createDocument: () => void createFile('text').catch(reportError), };
     const sketchCallbacks = useMemo(() => Object.fromEntries(tabs.tabs.map(name => [name, { onDirtyChange: (dirty: boolean) => setDirtyTabs(current => current[name] === dirty ? current : { ...current, [name]: dirty }), registerFlush: (flush: (() => Promise<boolean>) | null) => { if (flush)
                 flushers.current.set(name, flush);
             else
@@ -264,7 +270,7 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
    <div ref={tabBar} className="ws-tabs-bar" role="tablist" aria-label={t('workspace.pages')} onWheel={event => { if (event.currentTarget.scrollWidth > event.currentTarget.clientWidth && Math.abs(event.deltaY) > Math.abs(event.deltaX))
         event.currentTarget.scrollLeft += event.deltaY; }}>
     <Button type="button" className={`ws-tab design-files-tab ${active === DESIGN_FILES_TAB ? 'active' : ''}`} role="tab" aria-selected={active === DESIGN_FILES_TAB} data-testid="design-files-tab" onClick={() => openFile(DESIGN_FILES_TAB)}><span className="tab-icon" aria-hidden><Icon name="grid" size={14}/></span><span className="ws-tab-label">{projectName || t('workspace.designFiles')}</span></Button>
-    {tabs.tabs.map(name => { const browser = browserTabs.find(tab => tab.id === name); const file = files.find(file => file.name === name); return <Tab key={name} label={`${browser?.title || browser?.label || name}${dirtyTabs[name] ? ' •' : ''}`} title={browser?.url || name} kind={browser ? 'browser' : file?.kind}  active={active === name} onActivate={() => openFile(name)} onClose={() => void closeTab(name).catch(reportError)} draggable dragging={draggedTab === name} dragOverEdge={dragOver?.id === name ? dragOver.edge : null} onDragStart={event => { setDraggedTab(name); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', name); }} onDragOver={event => { event.preventDefault(); setDragOver({ id: name, edge: event.clientX > event.currentTarget.getBoundingClientRect().left + event.currentTarget.clientWidth / 2 ? 'after' : 'before' }); }} onDrop={event => { event.preventDefault(); if (draggedTab)
+    {tabs.tabs.map(name => { const browser = browserTabs.find(tab => tab.id === name); const appTab = appTabs.find(tab => tab.id === name); const file = files.find(file => file.name === name); return <Tab key={name} label={`${appTab?.label || browser?.title || browser?.label || name}${dirtyTabs[name] ? ' •' : ''}`} title={appTab ? `${appTab.appId} · ${appTab.target ?? ''}` : browser?.url || name} kind={browser ? 'browser' : file?.kind}  active={active === name} onActivate={() => openFile(name)} onClose={() => void closeTab(name).catch(reportError)} draggable dragging={draggedTab === name} dragOverEdge={dragOver?.id === name ? dragOver.edge : null} onDragStart={event => { setDraggedTab(name); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', name); }} onDragOver={event => { event.preventDefault(); setDragOver({ id: name, edge: event.clientX > event.currentTarget.getBoundingClientRect().left + event.currentTarget.clientWidth / 2 ? 'after' : 'before' }); }} onDrop={event => { event.preventDefault(); if (draggedTab)
         updateTabs(state => ({ ...state, tabs: moveWorkspaceTab(state.tabs, draggedTab, name, dragOver?.edge === 'after') })); setDraggedTab(null); setDragOver(null); }} onDragEnd={() => { setDraggedTab(null); setDragOver(null); }}/>; })}
    </div>
    <div className="ws-add-tab"><TabLauncherMenu open={launcherOpen} onOpenChange={setLauncherOpen} trigger={<Button type="button" className="icon-only ws-tab-add bezier-tooltip" data-testid="workspace-add-tab" aria-label={t('workspace.newTab')} title={t('workspace.newTab')}><Icon name="plus" size={15}/></Button>} actions={buildLauncherActions(launcherContext)} launcherContext={launcherContext}/></div>
@@ -274,6 +280,7 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
    <div className="ws-body">
    {error && <div className="df-upload-banner" data-testid="upload-error-banner" role="alert"><span>{error}</span><Button onClick={() => setError('')} aria-label={t('entry.canvasAssets.close')}><Icon name="close" size={14}/></Button></div>}
    {browserTabs.filter(browser => browser.id === active || mountedBrowserTabs.includes(browser.id)).map(browser => <div key={browser.id} className={`ws-browser-panel ${active === browser.id ? 'active' : ''}`} aria-hidden={active !== browser.id || undefined}><DesignBrowserPanel {...ports.previewAnnotations} workspaceContext={ports.workspaceContext} onExtractPage={extractPage} onSendBoardCommentAttachments={sendComments} onAddImageToChat={sendImageReference} projectId={projectId} browserTabId={browser.id} initialUrl={browser.url} initialTitle={browser.title} initialIconUrl={browser.iconUrl} onOpenFile={openFile} onBezierFiles={() => openFile(DESIGN_FILES_TAB)} onRefreshFiles={refreshFiles} onPageInfoChange={browserInfoCallbacks[browser.id]}/></div>)}
+   {appTabs.filter(tab => tab.id === active).map(tab => <div key={tab.id} className="ws-app-panel" style={{ display: active === tab.id ? undefined : 'none', height: '100%', overflow: 'auto' }}><AppTabSurface tab={tab} app={registeredApps.find(app => app.appId === tab.appId)}/></div>)}
    <div className="design-files-shell" data-testid="design-files-shell" style={{ display: active === DESIGN_FILES_TAB ? undefined : 'none' }}>
     <div className={`design-files-panel${filesDrawerOpen ? ' is-open' : ''}`} data-resizable-file-panel="true" style={{ ['--design-files-panel-width' as string]: `${filesDrawerWidth}px` }} role="region" aria-label={t('workspace.designFiles')} data-testid="design-files-panel" aria-hidden={!filesDrawerOpen || undefined}>
      <div className="design-files-panel-body"><CanvasAssetsSidebar {...ports.assetCatalogue} openRequest={assetRequest} onCancelSelection={cancelAssetSelection} onOpenAssetLibrary={showAssetLibrary} onExtractPage={extractPage} projectId={projectId} projectName={projectName} active={filesDrawerOpen} files={visibleFiles} onClose={closeAssetLibrary} width={filesDrawerWidth} onWidthChange={width => { setFilesDrawerWidth(width); try {

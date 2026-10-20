@@ -52,9 +52,11 @@ export interface LauncherContext {
   createSketch?: () => void;
   /** Create a new Markdown document in the current Design Files directory. */
   createDocument?: () => void;
-  /** Registered external Apps — each entry opens the App's own page
-   * (`webUrl`, falling back to its protocol `endpoint`). */
-  apps?: { appId: string; name: string; url: string }[];
+  /** Registered external Apps — the "+" menu lists them and each opens as an
+   * in-workspace tab mounting the App's TSX surface. */
+  apps?: { appId: string; name: string; endpoint: string; webUrl?: string }[];
+  /** Create + focus a workspace tab backed by the App's surface component. */
+  openAppTab?: (app: { appId: string; name: string; endpoint: string }) => void;
 }
 
 interface LauncherActionBase {
@@ -100,15 +102,14 @@ export const ENABLE_BLANK_PAGE_WORKSPACE_ENTRYPOINT = false;
  * same way, gated on context.
  */
 export function buildLauncherActions(ctx: LauncherContext): LauncherAction[] {
-  // Registered Apps only: the "+" launcher opens each App's own page — the
-  // App decides what to show (documents list, browser surface, …). Creating
-  // canvas *cards* happens through the canvas add-node menus, not here.
+  // Registered Apps only: the "+" launcher opens each App as a workspace tab
+  // mounting its own TSX surface — never a URL redirect. Creating canvas
+  // *cards* happens through the canvas add-node menus, not here.
   return (ctx.apps ?? []).map(app => ({
     id: `app:${app.appId}`,
     iconName: 'globe',
     label: app.name,
-    description: app.url,
-    run: () => { window.open(app.url, '_blank', 'noopener'); },
+    run: () => { ctx.openAppTab?.(app); },
   }));
 }
 

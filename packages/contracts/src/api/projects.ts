@@ -289,10 +289,22 @@ export interface ProjectBrowserWorkspaceTab {
   iconUrl?: string;
 }
 
+/** A workspace tab backed by an external App's TSX surface (not a project
+ * file and not an embedded browser). The App mounts its own component; the
+ * canvas only persists which App and which App-scoped target to open. */
+export interface ProjectAppWorkspaceTab {
+  id: string;
+  appId: string;
+  /** App-scoped target the surface opens — doc id for doc, url for browser… */
+  target?: string;
+  label: string;
+}
+
 export interface ProjectTabsState {
   tabs: string[];
   active: string | null;
   browserTabs?: ProjectBrowserWorkspaceTab[];
+  appTabs?: ProjectAppWorkspaceTab[];
   hasSavedState?: boolean;
   updatedAt?: number;
 }

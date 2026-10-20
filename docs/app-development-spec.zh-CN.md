@@ -169,7 +169,8 @@ App 自己领域的接口（doc 的 `/api/documents` 列表/读写/导出）。�
 - **画布上的「+」加卡菜单**（卡柄、底栏、空白画布）：卡的种类必须出现在画布 manifest `nodeKinds` 里，且——
   - **原生卡**（text / image / video / storyboard）：始终显示，画布自己就能编辑；
   - **App 支撑卡**（sketch / page / presentation，及 manifest `editorApps` 里登记的任何 kind）：**对应 App 已注册且 active 才显示**。App 一上线卡就出现，一下线/未装就消失——不是灰掉，是隐藏。
-- **页签栏「+」**：列出已注册的外部 App（画布自己除外），点击打开 App 的 `webUrl` 页面——**它只负责「打开 App」，不负责「建卡」**。建卡永远走画布上的「+」。
+- **页签栏「+」**：列出已注册的外部 App（画布自己除外），点击**在工作区新开一个页签、挂载 App 的 TSX 组件**（不是 URL 跳转）——页签 id `app:<appId>:<target>`，存进持久化页签状态。它只负责「打开 App 页签」，不负责「建卡」；建卡永远走画布上的「+」。
+- **App 页签的挂载方式**：宿主安装 App 的 surface npm 包（如 `@doc/surface`），按 appId 找到对应组件渲染；组件通过 App 的 `endpoint`（协议面地址）读写数据，**不走 iframe**。App 的 API 必须允许宿主页面跨源调用（本地开发可放开，生产环境白名单宿主来源）。
 - 所以 App 想让自己的卡在画布上可建：① 注册自己（P2）② manifest `editorKinds` 声明你编辑什么 kind ③ 宿主 manifest `editorApps` 里有 kind→appId 映射（卡包注册时写入）。
 
 ## 五、能力清单 manifest
