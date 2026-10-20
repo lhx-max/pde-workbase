@@ -5,7 +5,7 @@ import {getActiveAssetLibraryAdapter,getAssetLibrarySourceId} from '../providers
 export interface ProjectFolderGroup {id:string;name:string;createdAt:number}
 export const PROJECT_FOLDERS_CHANGED_EVENT='bezier:project-folders-changed';
 export const DEFAULT_PROJECT_FOLDER_ID='default-project';
-export const DEFAULT_PROJECT_FOLDER_NAME='Default space';
+export const DEFAULT_PROJECT_FOLDER_NAME='默认空间';
 export const DEFAULT_PROJECT_FOLDER:ProjectFolderGroup={id:DEFAULT_PROJECT_FOLDER_ID,name:DEFAULT_PROJECT_FOLDER_NAME,createdAt:0};
 type Change={upsert:ProjectFolderGroup[];remove:string[]};
 const syncing=new Map<string,Promise<void>>();

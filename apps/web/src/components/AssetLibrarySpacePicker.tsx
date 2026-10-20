@@ -46,7 +46,8 @@ export function AssetLibrarySpacePicker({ scope, value, spaces, onChange, onRefr
     window.addEventListener(PERSONAL_ASSET_CHANGED_EVENT, changed);
     return () => { mounted.current = false; generation.current++; window.removeEventListener(PERSONAL_ASSET_CHANGED_EVENT, changed); };
   }, []);
-  const current = rows.find(space => space.id === value);
+  const displayRows = rows.map(space => space.id === DEFAULT_PROJECT_FOLDER_ID ? { ...space, name: copy.defaultName } : space);
+  const current = displayRows.find(space => space.id === value);
   const protectedSpace = !current || current.id === DEFAULT_PROJECT_FOLDER_ID || current.id === 'all';
   function open(next: Action) {
     if (viewerOnly || saving.current) return;
@@ -121,7 +122,7 @@ export function AssetLibrarySpacePicker({ scope, value, spaces, onChange, onRefr
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className={styles.spaceMenu}>
           <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
-            {rows.map(space => <DropdownMenuRadioItem key={space.id} value={space.id} textValue={space.name}><span className={styles.spaceOptionLabel} title={space.name}>{space.name}</span></DropdownMenuRadioItem>)}
+            {displayRows.map(space => <DropdownMenuRadioItem key={space.id} value={space.id} textValue={space.name}><span className={styles.spaceOptionLabel} title={space.name}>{space.name}</span></DropdownMenuRadioItem>)}
           </DropdownMenuRadioGroup>
           {!viewerOnly && <>
             <DropdownMenuItem onSelect={() => open({ kind: 'create', id: crypto.randomUUID(), createdAt: Date.now() })}>＋ {copy.createTitle}</DropdownMenuItem>
@@ -133,7 +134,7 @@ export function AssetLibrarySpacePicker({ scope, value, spaces, onChange, onRefr
     </div>
     {error && !action && <p role="alert">{error}</p>}
     <WorkspaceSpaceEditorDialogs copy={editing ? { ...copy, createTitle: t('entry.space.renameNamedAria', { item: copy.item, name: editing.name }) } : copy}
-      spaces={rows} creating={action?.kind === 'create' || action?.kind === 'rename'} editingId={editing?.id ?? (action?.kind === 'create' ? action.id : undefined)} submitLabel={editing ? t('common.save') : undefined}
+      spaces={displayRows} creating={action?.kind === 'create' || action?.kind === 'rename'} editingId={editing?.id ?? (action?.kind === 'create' ? action.id : undefined)} submitLabel={editing ? t('common.save') : undefined}
       name={name} onNameChange={setName} onCreate={() => void submit()} onCancelCreate={() => { if (!saving.current) setAction(null); }}
       deleting={action?.kind === 'delete' ? action.space : null} moveContents={moveContents} onMoveContentsChange={setMoveContents}
       targetId={targetId} onTargetIdChange={setTargetId} chooseMoveTarget busy={busy} error={error}

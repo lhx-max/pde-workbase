@@ -68,7 +68,7 @@ export function AssetLibraryPanel({projectId,compact=true,viewerOnly=false,openR
    refresh();window.addEventListener(PERSONAL_ASSET_CHANGED_EVENT,refresh);window.addEventListener(PROJECT_FOLDERS_CHANGED_EVENT,spaces);window.addEventListener('focus',refresh);
    return()=>{alive=false;window.removeEventListener(PERSONAL_ASSET_CHANGED_EVENT,refresh);window.removeEventListener(PROJECT_FOLDERS_CHANGED_EVENT,spaces);window.removeEventListener('focus',refresh);};
  },[]);
- const spaceOptions=useMemo(()=>readProjectFolders('local'),[spaceRevision,sourceId]);
+ const spaceOptions=useMemo(()=>readProjectFolders('local').map(space=>space.id===DEFAULT_PROJECT_FOLDER_ID?{...space,name:t('entry.space.defaultName')}:space),[spaceRevision,sourceId,t]);
  const activeSpace=spaceOptions.find(space=>space.id===spaceId)??spaceOptions[0]!;
  const labels:Record<string,string>={text:t('entry.canvasAssets.assetType.text'),script:t('entry.canvasAssets.assetType.script'),audio:t('entry.canvasAssets.assetType.audio'),Image:t('entry.personalAssets.kind.image'),Slides:t('entry.personalAssets.kind.slides'),Prototype:t('entry.personalAssets.kind.webpage'),HyperFrames:t('entry.personalAssets.kind.motion'),'design-systems':t('entry.canvasAssets.assetType.designSystems')};
  const allAssetTypeItems=ASSET_TYPE_IDS.map(id=>({id,label:labels[id]??id}));

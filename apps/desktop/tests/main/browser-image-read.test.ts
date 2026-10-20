@@ -95,7 +95,7 @@ describe('native embedded image reads', () => {
     await expect(f.reader.read(7, imageUrl)).resolves.toHaveProperty('url', imageUrl);
     f.document.images = [Object.assign({ src: '', currentSrc: '' }, { srcset: `${imageUrl} 2x` })];
     f.fetch.mockClear();
-    await expect(f.reader.read(7, imageUrl)).rejects.toThrow('not in the current document');
+    await expect(f.reader.read(7, imageUrl)).rejects.toThrow('图片不在当前页面中。');
     expect(f.fetch).not.toHaveBeenCalled();
   });
 
@@ -112,7 +112,7 @@ describe('native embedded image reads', () => {
     const evidence = deferred<unknown>();
     f.execute.mockReturnValueOnce(evidence.promise);
     const result = f.reader.read(7, imageUrl);
-    const rejected = expect(result).rejects.toThrow('document changed');
+    const rejected = expect(result).rejects.toThrow('图片来源页面已改变。');
     f.events.emit('did-start-navigation', { url: pageUrl, isInPlace: false, isMainFrame: true });
     evidence.resolve({ present: true, pageUrl, documentTime: 123 });
     await rejected;
@@ -175,7 +175,7 @@ describe('native embedded image reads', () => {
     const cancelBody = vi.fn();
     if (stage === 'body') f.fetch.mockResolvedValue(new Response(new ReadableStream({ cancel: cancelBody }), { headers: { 'content-type': 'image/png' } }));
     const result = f.reader.read(7, imageUrl);
-    const rejected = expect(result).rejects.toThrow('timed out');
+    const rejected = expect(result).rejects.toThrow('读取图片超时。');
     await vi.advanceTimersByTimeAsync(BROWSER_IMAGE_READ_TIMEOUT_MS - 1);
     expect(f.events.listenerCount('destroyed')).toBe(1);
     await vi.advanceTimersByTimeAsync(1);
@@ -195,7 +195,7 @@ describe('native embedded image reads', () => {
       cancel() { canceled.resolve(); },
     }, { highWaterMark: 0 }), { headers: { 'content-type': 'image/png' } }));
     const result = f.reader.read(7, imageUrl);
-    const rejected = expect(result).rejects.toThrow('document changed');
+    const rejected = expect(result).rejects.toThrow('图片来源页面已改变。');
     await reading.promise;
     f.events.emit('did-start-navigation', { url: pageUrl, isInPlace: false, isMainFrame: true });
     await rejected;
@@ -212,7 +212,7 @@ describe('native embedded image reads', () => {
   it('rejects failed HTTP and empty response bodies', async () => {
     const f = fixture();
     f.fetch.mockResolvedValueOnce(new Response('', { status: 403 }));
-    await expect(f.reader.read(7, imageUrl)).rejects.toThrow('unavailable');
+    await expect(f.reader.read(7, imageUrl)).rejects.toThrow('图片响应不可用。');
     f.fetch.mockResolvedValueOnce(new Response('', { headers: { 'content-type': 'image/png' } }));
     await expect(f.reader.read(7, imageUrl)).rejects.toThrow();
   });

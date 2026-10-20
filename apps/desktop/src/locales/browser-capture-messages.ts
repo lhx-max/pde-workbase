@@ -1,7 +1,7 @@
-export function captureMessages(locale = "en") {
-  const zh = locale.toLowerCase().startsWith("zh");
+export function captureMessages(locale = "zh-CN") {
+  const zh = !/^en(?:-|_|$)/i.test(locale.trim());
   const s = (cn: string, en: string) => (zh ? cn : en);
-  const product = "Canvas Workspace";
+  const product = "画布工作区";
   return {
     invalid: s("资产操作无效", "That asset action is not valid"),
     expired: s(`资产连接已过期，请回到 ${product} 查看已保存资产`, `The asset connection expired. Open ${product} to see the saved asset.`),

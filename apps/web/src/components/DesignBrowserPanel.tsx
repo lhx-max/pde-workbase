@@ -26,7 +26,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from 'react';
-import { createPortal } from 'react-dom';
+import { createPortal, flushSync } from 'react-dom';
 import {
   clearHostBrowserData,
   getBezierHost,
@@ -253,8 +253,8 @@ const EMPTY_PREVIEW_COMMENTS: PreviewComment[] = [];
 const WARMED_ORIGIN_LIMIT = 32;
 const warmedOrigins = new Map<string, HTMLLinkElement[]>();
 
-function browserHomeNavigationEntry(): BrowserNavigationEntry {
-  return { title: 'Reference Board', url: EMPTY_URL };
+function browserHomeNavigationEntry(t: ReturnType<typeof useT>): BrowserNavigationEntry {
+  return { title: t('designBrowser.reference.title'), url: EMPTY_URL };
 }
 
 function referenceGroupTitleKey(group: ReferenceGroup): keyof Dict {
@@ -279,7 +279,7 @@ function localizedReferenceSiteDetail(
   return t && !site.customId ? t(referenceSiteDetailKey(site)) : site.detail;
 }
 
-function initialBrowserState(initialUrl?: string, initialTitle?: string): {
+function initialBrowserState(t: ReturnType<typeof useT>, initialUrl?: string, initialTitle?: string): {
   addressValue: string;
   navigationIndex: number;
   navigationStack: BrowserNavigationEntry[];
@@ -292,7 +292,7 @@ function initialBrowserState(initialUrl?: string, initialTitle?: string): {
     return {
       addressValue: '',
       navigationIndex: 0,
-      navigationStack: [browserHomeNavigationEntry()],
+      navigationStack: [browserHomeNavigationEntry(t)],
       url,
     };
   }
@@ -667,7 +667,7 @@ export function DesignBrowserPanel({
   const extractionBusyRef = useRef(false);
   const [extractingPage, setExtractingPage] = useState(false);
   const desktopHostAvailable = isBezierHostAvailable();
-  const initialState = initialBrowserState(initialUrl, initialTitle);
+  const initialState = initialBrowserState(t, initialUrl, initialTitle);
   // `loadUrl` is the navigation target bound to the <webview>/<iframe> `src`.
   // It changes ONLY on user-initiated navigation. `currentUrl` is the committed
   // location shown in the address bar and recorded in history, synced from the
@@ -714,15 +714,12 @@ export function DesignBrowserPanel({
   const addressInputRef = useRef<HTMLInputElement | null>(null);
   const addressEditingRef = useRef(false);
   const addressBlurTimerRef = useRef<number | null>(null);
-  const addressSelectFrameRef = useRef<number | null>(null);
   const cancelAddressCallbacks = useCallback(() => {
     if (addressBlurTimerRef.current !== null) window.clearTimeout(addressBlurTimerRef.current);
-    if (addressSelectFrameRef.current !== null) window.cancelAnimationFrame(addressSelectFrameRef.current);
     addressBlurTimerRef.current = null;
-    addressSelectFrameRef.current = null;
   }, []);
   // The current edit owns its draft immediately, including native callbacks that
-  // arrive before React's next effect. A previous blur/select cannot end it.
+  // arrive before React's next effect. A previous blur cannot end it.
   const setAddressEditing = useCallback((editing: boolean) => {
     cancelAddressCallbacks();
     addressEditingRef.current = editing;
@@ -790,7 +787,7 @@ export function DesignBrowserPanel({
   useEffect(() => {
     setViewportState(loadBrowserViewport(projectId));
     setHistory(loadHistory(projectId));
-    const nextInitialState = initialBrowserState(initialUrl, initialTitle);
+    const nextInitialState = initialBrowserState(t, initialUrl, initialTitle);
     setLoadUrl(nextInitialState.url);
     setCurrentUrl(nextInitialState.url);
     setAddressValue(nextInitialState.addressValue);
@@ -923,7 +920,7 @@ export function DesignBrowserPanel({
     const stack = navigationStackRef.current;
     const index = navigationIndexRef.current;
     const nextTitle = url === EMPTY_URL
-      ? browserHomeNavigationEntry().title
+      ? browserHomeNavigationEntry(t).title
       : title && title.trim()
         ? title.trim()
         : labelFromUrl(url);
@@ -966,7 +963,7 @@ export function DesignBrowserPanel({
     const nextStack = [...base, nextEntry].slice(-HISTORY_LIMIT);
     setNavigationState(nextStack, nextStack.length - 1);
     if (options?.replacePendingTarget) pendingLoadTargetRef.current = null;
-  }, [setNavigationState]);
+  }, [setNavigationState, t]);
 
   const updateCurrentNavigationTitle = useCallback((title?: string) => {
     const trimmedTitle = title?.trim();
@@ -978,7 +975,7 @@ export function DesignBrowserPanel({
     const nextStack = stack.slice();
     nextStack[index] = { ...currentEntry, title: trimmedTitle };
     setNavigationState(nextStack, index);
-  }, [setNavigationState]);
+  }, [setNavigationState, t]);
 
   const loadWebviewUrl = useCallback((url: string) => {
     if (!webviewNode) {
@@ -1755,7 +1752,7 @@ export function DesignBrowserPanel({
       setCurrentUrl(EMPTY_URL);
       setAddressValue('');
       setAddressEditing(false);
-      setNavigationState([browserHomeNavigationEntry()], 0);
+      setNavigationState([browserHomeNavigationEntry(t)], 0);
       pendingLoadTargetRef.current = null;
       saveHistory(projectId, []);
     }
@@ -2322,16 +2319,23 @@ export function DesignBrowserPanel({
                 setAddressValue(event.target.value);
                 setSuggestionsOpen(true);
               }}
+              onMouseDown={(event) => {
+                if (event.button !== 0 || document.activeElement === event.currentTarget) return;
+                // First click selects the address; later clicks retain native caret positioning.
+                event.preventDefault();
+                event.currentTarget.focus();
+              }}
               onFocus={(event) => {
-                const resumingDraft = addressEditingRef.current;
-                setAddressEditing(true);
-                if (!resumingDraft) setAddressValue(isBlank ? '' : currentUrl);
-                setSuggestionsOpen(true);
                 const input = event.currentTarget;
-                addressSelectFrameRef.current = window.requestAnimationFrame(() => {
-                  addressSelectFrameRef.current = null;
-                  if (input.isConnected && document.activeElement === input && addressEditingRef.current) input.select();
+                const resumingDraft = addressEditingRef.current;
+                // Revealing the controlled value and selecting it are one focus operation.
+                // Deferring selection lets native insertion append after the restored URL.
+                flushSync(() => {
+                  setAddressEditing(true);
+                  if (!resumingDraft) setAddressValue(isBlank ? '' : currentUrl);
+                  setSuggestionsOpen(true);
                 });
+                input.select();
               }}
               onBlur={(event) => {
                 cancelAddressCallbacks();
@@ -2632,7 +2636,7 @@ function BrowserCommentMarkers({
         const snapshot = liveTargets.get(`comment:${comment.id}`) ?? browserSnapshotFromComment(comment, comment.filePath);
         const bounds = browserOverlayBounds(snapshot);
         const active = comment.id === activeCommentId;
-        const label = comment.label || comment.elementId || 'Browser comment';
+        const label = comment.label || comment.elementId || t('designBrowser.comments.fallback');
         return (
           <Button
             key={comment.id}
@@ -2956,7 +2960,7 @@ function browserOverlayBounds(snapshot: BrowserElementSnapshot) {
   };
 }
 
-function browserCommentsToAttachments(comments: PreviewComment[]): ChatCommentAttachment[] {
+function browserCommentsToAttachments(comments: PreviewComment[], t: ReturnType<typeof useT>): ChatCommentAttachment[] {
   return comments.map((comment, index) => ({
     id: comment.id,
     order: index + 1,
@@ -2964,7 +2968,7 @@ function browserCommentsToAttachments(comments: PreviewComment[]): ChatCommentAt
     elementId: comment.elementId,
     selector: comment.selector,
     label: comment.label,
-    comment: comment.note.trim() || 'Saved browser comment',
+    comment: comment.note.trim() || t('designBrowser.comments.savedFallback'),
     currentText: comment.text.trim().slice(0, 500),
     pagePosition: comment.position,
     htmlHint: comment.htmlHint.trim().slice(0, 500),
@@ -3196,7 +3200,7 @@ export function DesignBrowserStart({
             </section>)}
           </div>}
         </div>
-        <footer className={homeStyles.footer}><span>{t('designBrowser.reference.footer')}</span><span aria-hidden="true">LOOM / DESIGN BROWSER</span></footer>
+        <footer className={homeStyles.footer}><span>{t('designBrowser.reference.footer')}</span><span aria-hidden="true">{t('designBrowser.reference.kicker')}</span></footer>
       </div>
       {adding ? <BrowserSiteDialog heading={t('browserLibrary.addReference')}
         initial={{ category: activeCategory === REFERENCE_ALL_CATEGORY ? 'inspiration' : activeCategory }}

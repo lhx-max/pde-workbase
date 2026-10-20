@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import type { PreviewCommentSnapshot } from '../comments';
 import type { Dict } from '../i18n/types';
+import { useT } from '../i18n';
 import type { PreviewComment, PreviewCommentMember } from '../types';
 import { isImeComposing } from '../utils/imeComposing';
 
@@ -58,17 +59,17 @@ const POPOVER_EXPANDED_ESTIMATED_HEIGHT = 320;
 const POPOVER_COLLAPSED_ESTIMATED_HEIGHT = 112;
 const POPOVER_MIN_VISIBLE_HEIGHT = 120;
 
-function annotationStyleRows(target: PreviewCommentSnapshot): AnnotationStyleRow[] {
+function annotationStyleRows(target: PreviewCommentSnapshot, t: TranslateFn): AnnotationStyleRow[] {
   const rows: AnnotationStyleRow[] = [];
   const width = Math.round(target.position.width);
   const height = Math.round(target.position.height);
   if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
-    rows.push({ label: 'Size', value: `${width}x${height}` });
+    rows.push({ label: t('annotation.size'), value: `${width}x${height}` });
   }
   const color = cssColorToHex(target.style?.color);
-  if (color) rows.push({ label: 'Color', value: color, swatch: color });
+  if (color) rows.push({ label: t('asset.filter.color'), value: color, swatch: color });
   const background = cssColorToHex(target.style?.backgroundColor);
-  if (background) rows.push({ label: 'Bg', value: background, swatch: background });
+  if (background) rows.push({ label: t('inspect.background'), value: background, swatch: background });
 
   const fontParts = [
     target.style?.fontSize,
@@ -76,9 +77,9 @@ function annotationStyleRows(target: PreviewCommentSnapshot): AnnotationStyleRow
     compactFontFamily(target.style?.fontFamily),
   ].filter((part): part is string => Boolean(part));
   if (fontParts.length > 0) {
-    rows.push({ label: 'Font', value: fontParts.join(' ') });
+    rows.push({ label: t('manualEdit.fontFamily'), value: fontParts.join(' ') });
   }
-  if (target.style?.lineHeight) rows.push({ label: 'Line', value: target.style.lineHeight });
+  if (target.style?.lineHeight) rows.push({ label: t('manualEdit.lineHeight'), value: target.style.lineHeight });
   return rows;
 }
 
@@ -277,7 +278,8 @@ export function AnnotationStyleSummary({
   target: PreviewCommentSnapshot;
   testId?: string;
 }) {
-  const rows = annotationStyleRows(target);
+  const t = useT();
+  const rows = annotationStyleRows(target, t);
   if (rows.length === 0) return null;
   return (
     <div className="annotation-style-summary" data-testid={testId}>
@@ -648,7 +650,7 @@ export function BoardComposerPopover({
       data-testid="comment-popover"
       role="dialog"
       aria-modal="false"
-      aria-label={onSaveComment ? 'Annotation' : t('fileViewer.pointToEdit')}
+      aria-label={onSaveComment ? t('annotation.title') : t('fileViewer.pointToEdit')}
       style={popoverStyle}
       onKeyDown={(event) => {
         if (event.key === 'Escape') {
@@ -662,8 +664,8 @@ export function BoardComposerPopover({
           <Button
             type="button"
             className="comment-popover-drag-handle"
-            aria-label={onSaveComment ? 'Move comment box' : 'Move editing box'}
-            title={onSaveComment ? 'Move comment box' : 'Move editing box'}
+            aria-label={onSaveComment ? t('annotation.moveComment') : t('annotation.moveEditor')}
+            title={onSaveComment ? t('annotation.moveComment') : t('annotation.moveEditor')}
             onPointerDown={startPopoverDrag}
           >
             <span aria-hidden />

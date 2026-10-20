@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render as renderDom, screen } from '@testing-library/react';
+import type { ReactElement, ReactNode } from 'react';
+import { I18nProvider } from '../../src/i18n';
+// These original content-language fixtures intentionally exercise English UI.
+function EnglishFixture({ children }: { children: ReactNode }) { return <I18nProvider initial="en">{children}</I18nProvider>; }
+function render(ui: ReactElement) { return renderDom(ui, { wrapper: EnglishFixture }); }
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QuestionFormView, parseSubmittedAnswers } from '../../src/components/QuestionForm';
 import type { QuestionForm } from '../../src/artifacts/question-form';

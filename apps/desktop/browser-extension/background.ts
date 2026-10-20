@@ -455,7 +455,7 @@ async function postCapture(contentType: string, body: BodyInit, timeoutMs: numbe
   } catch { /* A successful HTTP status alone never confirms a saved capture. */ }
   const message = typeof parsed.message === 'string' ? parsed.message : undefined;
   badge('');
-  if (response.status === 202) return { ok: false, message: message ?? eu().deliveredUnconfirmed };
+  if (response.status === 202) return { ok: false, message: localizeBridgeError(message ?? "", eu().deliveredUnconfirmed) };
   const assetData = parsed.assetData as BrowserAssetInspectorData | undefined;
   const validAssetData = assetData === undefined || (assetData !== null && typeof assetData === 'object'
     && !Array.isArray(assetData) && assetData.asset !== null && typeof assetData.asset === 'object'
@@ -466,12 +466,12 @@ async function postCapture(contentType: string, body: BodyInit, timeoutMs: numbe
     badge('✓');
     // Preserve the host's result until onMessage replaces the private session
     // with an opaque, sender-tab-bound inspector handle. Never forward raw JSON.
-    return { ok: true, message: message ?? eu().savedToLibrary,
+    return { ok: true, message: localizeBridgeError(message ?? "", eu().savedToLibrary),
       ...(assetData === undefined ? {} : { assetData }),
       ...(typeof sessionId === 'string' ? { sessionId } : {}),
     };
   }
-  return { ok: false, message: message ?? (response.ok ? eu().badResponse : eu().sendCheckApp) };
+  return { ok: false, message: localizeBridgeError(message ?? "", response.ok ? eu().badResponse : eu().sendCheckApp) };
 }
 
 async function saveCapture(message: Record<string, unknown>): Promise<InspectorReply> {
@@ -656,7 +656,7 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
       const value = message.value as { name: string; description: string; tags: string[]; style: string; usage: string };
       reply({ ok: true, yaml: assetMetadataYaml(value) });
     } catch (error) {
-      reply({ ok: false, message: error instanceof Error ? error.message : eu().yamlFailed });
+      reply({ ok: false, message: localizeBridgeError(error instanceof Error ? error.message : "", eu().yamlFailed) });
     }
     return true;
   }
@@ -664,7 +664,7 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
     try {
       reply({ ok: true, value: parseAssetMetadataYaml(String(message.yaml ?? '')) });
     } catch (error) {
-      reply({ ok: false, message: error instanceof Error ? error.message : eu().yamlInvalid });
+      reply({ ok: false, message: localizeBridgeError(error instanceof Error ? error.message : "", eu().yamlInvalid) });
     }
     return true;
   }

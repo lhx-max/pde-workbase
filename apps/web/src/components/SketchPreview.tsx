@@ -5,6 +5,7 @@ import type { WorkspaceCollabContext } from '@bezier/contracts';
 import { workspaceIdentityCacheKey } from '../collab/workspace-identity';
 import { fetchProjectFileText } from '../providers/registry';
 import type { ProjectFile } from '../types';
+import { useT } from '../i18n';
 import {
   clampSketchNumber,
   clampSketchSize,
@@ -66,6 +67,7 @@ export function SketchPreview({
   /** Live editor draft; file-backed callers can omit this. */
   sourceText?: string;
 }) {
+  const t = useT();
   const workspaceIdentity = workspaceIdentityCacheKey(workspaceContext);
   const cacheKey = isRenderableSketchJson(file)
     ? sketchPreviewCacheKey(projectId, file.name, file.mtime, workspaceIdentity)
@@ -125,7 +127,7 @@ export function SketchPreview({
         <div
           className="sketch-preview-svg-inner"
           role="img"
-          aria-label="Sketch preview"
+          aria-label={t('sketch.preview')}
           dangerouslySetInnerHTML={{ __html: preview.svgMarkup }}
         />
       ) : (
@@ -135,7 +137,7 @@ export function SketchPreview({
           width={DEFAULT_WIDTH}
           height={DEFAULT_HEIGHT}
           role="img"
-          aria-label="Sketch preview"
+          aria-label={t('sketch.preview')}
         >
           <defs>
             <pattern id="sketch-preview-grid" width="16" height="16" patternUnits="userSpaceOnUse">

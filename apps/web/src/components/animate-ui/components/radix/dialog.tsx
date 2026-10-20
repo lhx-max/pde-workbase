@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useT } from '@/src/i18n';
 import { XIcon } from 'lucide-react';
 
 import {
@@ -86,6 +87,7 @@ const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(funct
   layoutId,
   ...props
 }, ref) {
+  const t = useT();
   return (
     <DialogPortalPrimitive>
       <DialogOverlay className={overlayClassName} style={{ ...overlayStyle, ...(disableAnimation ? { animation: 'none', transition: 'none' } : {}) }} unstyled={overlayUnstyled}
@@ -106,7 +108,7 @@ const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(funct
         {showCloseButton && (
           <DialogClosePrimitive className="ring-offset-background focus-visible:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4">
             <XIcon />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">{t('common.close')}</span>
           </DialogClosePrimitive>
         )}
       </DialogContentPrimitive>

@@ -2,7 +2,7 @@ import { writeFile } from 'node:fs/promises';
 import { test, expect } from '@/playwright/suite';
 import { api, createProject } from '@/api';
 import { createBrowserFixture, pngBytes } from '@/tools-dev/browser-fixture';
-import { expectIndependentWorkspace, openLauncher, screenshot, useEnglish } from '@/playwright/workspace';
+import { expectIndependentWorkspace, openLauncher, screenshot, useChinese } from '@/playwright/workspace';
 import { T } from '@/timeouts';
 
 type NativeView = HTMLElement & { getURL(): string; getWebContentsId(): number; executeJavaScript<T>(code: string): Promise<T>; loadURL(url: string): Promise<void> };
@@ -19,39 +19,39 @@ test('[P0] native browser navigation, project capture, resource grants and safe 
   page.on('console', onConsole);
   page.on('pageerror', onPageError);
   try {
-    const id = await createProject(runtime, 'Native capture verification');
-    const otherId = await createProject(runtime, 'Grant isolation target');
-    await useEnglish(page);
+    const id = await createProject(runtime, '原生浏览器采集验证');
+    const otherId = await createProject(runtime, '授权隔离目标');
+    await useChinese(page);
     await page.goto(`${runtime.webUrl}/?projectId=${id}`);
     await expectIndependentWorkspace(page);
     await openLauncher(page);
-    await page.getByRole('menuitem', { name: 'New Browser', exact: true }).click();
+    await page.getByRole('menuitem', { name: '新建浏览器', exact: true }).click();
     await expect(page.getByTestId('design-browser-home')).toBeVisible();
     await screenshot(page, testInfo, '13-native-browser-home');
-    await page.getByRole('textbox', { name: 'Browser address', exact: true }).fill(fixture.url);
-    await page.getByRole('textbox', { name: 'Browser address', exact: true }).press('Enter');
+    await page.getByRole('textbox', { name: '浏览器地址', exact: true }).fill(fixture.url);
+    await page.getByRole('textbox', { name: '浏览器地址', exact: true }).press('Enter');
     const view = page.locator('webview:visible');
     await expect(view).toBeVisible();
     await expect.poll(() => view.evaluate(node => (node as NativeView).getURL())).toBe(`${fixture.url}/`);
-    await expect.poll(() => view.evaluate(node => (node as NativeView).executeJavaScript<string>('document.querySelector("#headline")?.textContent'))).toBe('Capture references into this project.');
+    await expect.poll(() => view.evaluate(node => (node as NativeView).executeJavaScript<string>('document.querySelector("#headline")?.textContent'))).toBe('将参考资料采集到当前项目。');
     expect(await view.evaluate(node => (node as NativeView).executeJavaScript<string>('typeof globalThis.__bezier__'))).toBe('undefined');
     await screenshot(page, testInfo, '14-native-browser-page');
     // Refocus as soon as the label view appears. A pending blur callback must
     // not clobber this next draft or send the previous URL on Enter.
-    await expect(page.getByRole('textbox', { name: 'Browser address', exact: true })).toHaveValue('');
-    await page.getByRole('textbox', { name: 'Browser address', exact: true }).fill(`${fixture.url}/second`);
-    await expect(page.getByRole('textbox', { name: 'Browser address', exact: true })).toHaveValue(`${fixture.url}/second`);
-    await page.getByRole('textbox', { name: 'Browser address', exact: true }).press('Enter');
-    await expect.poll(() => view.evaluate(node => (node as NativeView).executeJavaScript<string>('document.querySelector("#page-marker")?.textContent'))).toBe('Second page');
-    await page.getByRole('button', { name: 'Go Back', exact: true }).click();
+    await expect(page.getByRole('textbox', { name: '浏览器地址', exact: true })).toHaveValue('');
+    await page.getByRole('textbox', { name: '浏览器地址', exact: true }).fill(`${fixture.url}/second`);
+    await expect(page.getByRole('textbox', { name: '浏览器地址', exact: true })).toHaveValue(`${fixture.url}/second`);
+    await page.getByRole('textbox', { name: '浏览器地址', exact: true }).press('Enter');
+    await expect.poll(() => view.evaluate(node => (node as NativeView).executeJavaScript<string>('document.querySelector("#page-marker")?.textContent'))).toBe('第二页');
+    await page.getByRole('button', { name: '后退', exact: true }).click();
     await expect.poll(() => view.evaluate(node => (node as NativeView).getURL())).toBe(`${fixture.url}/`);
-    await page.getByRole('button', { name: 'Go Forward', exact: true }).click();
+    await page.getByRole('button', { name: '前进', exact: true }).click();
     await expect.poll(() => view.evaluate(node => (node as NativeView).getURL())).toBe(`${fixture.url}/second`);
-    await page.getByRole('button', { name: 'Go Back', exact: true }).click();
-    await expect.poll(() => view.evaluate(node => (node as NativeView).executeJavaScript<string>('document.querySelector("#page-marker")?.textContent'))).toBe('First page');
+    await page.getByRole('button', { name: '后退', exact: true }).click();
+    await expect.poll(() => view.evaluate(node => (node as NativeView).executeJavaScript<string>('document.querySelector("#page-marker")?.textContent'))).toBe('第一页');
 
     const start = page.waitForResponse(response => response.url().endsWith(`/api/projects/${id}/browser-resources/start`) && response.request().method() === 'POST');
-    await page.getByRole('button', { name: 'Page resources', exact: true }).click();
+    await page.getByRole('button', { name: '本页资源', exact: true }).click();
     const started = await start;
     expect(started.ok()).toBe(true);
     const snapshot = await started.json() as Snapshot;
@@ -62,15 +62,15 @@ test('[P0] native browser navigation, project capture, resource grants and safe 
     expect(snapshot.items.every(item => !item.url.includes('private='))).toBe(true);
     const raster = snapshot.items.find(item => item.name === 'image.png');
     expect(raster?.readable).toBe(true);
-    await expect(page.getByRole('checkbox', { name: 'Select image.png', exact: true })).toBeVisible();
-    await page.getByRole('checkbox', { name: 'Select image.png', exact: true }).check();
+    await expect(page.getByRole('checkbox', { name: '选择 image.png', exact: true })).toBeVisible();
+    await page.getByRole('checkbox', { name: '选择 image.png', exact: true }).check();
     await screenshot(page, testInfo, '15-native-resources');
     const crossed = await fetch(`${runtime.serverUrl}/api/projects/${otherId}/browser-resources/snapshot`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-browser-resource-token': accessToken! }, body: JSON.stringify({ sessionId: snapshot.sessionId }) });
     expect(crossed.status).toBe(403);
 
-    await page.getByRole('button', { name: 'Save selected…', exact: true }).click();
+    await page.getByRole('button', { name: '保存所选…', exact: true }).click();
     const saveImage = page.waitForResponse(response => response.url().endsWith('/api/asset-library/upload') && response.request().method() === 'POST');
-    await page.getByRole('button', { name: 'Confirm and save', exact: true }).click();
+    await page.getByRole('button', { name: '确认并保存', exact: true }).click();
     const imageSaved = await saveImage;
     expect(imageSaved.ok()).toBe(true);
     const imageAsset = (await imageSaved.json() as { asset: { id: string; name: string; source: { projectId?: string } } }).asset;
@@ -78,18 +78,18 @@ test('[P0] native browser navigation, project capture, resource grants and safe 
     const imageFile = imageAsset.name;
     const savedBytes = Buffer.from(await (await fetch(`${runtime.serverUrl}/api/asset-library/${encodeURIComponent(imageAsset.id)}/content`)).arrayBuffer());
     expect(savedBytes.equals(pngBytes)).toBe(true);
-    await expect(page.getByText('1 saved · 0 failed', { exact: true })).toBeVisible();
+    await expect(page.getByText('已保存 1 项 · 失败 0 项', { exact: true })).toBeVisible();
     await screenshot(page, testInfo, '16-native-library-resource-saved');
 
-    await page.getByRole('button', { name: 'Close resource capture', exact: true }).click();
+    await page.getByRole('button', { name: '关闭资源采集', exact: true }).click();
     let revokedStatus = 0;
     await expect.poll(async () => {
       const revoked = await fetch(`${runtime.serverUrl}/api/projects/${id}/browser-resources/snapshot`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-browser-resource-token': accessToken! }, body: JSON.stringify({ sessionId: snapshot.sessionId }) });
       revokedStatus = revoked.status; return revokedStatus;
     }).toBe(403);
-    await page.getByRole('button', { name: 'Browser menu', exact: true }).click();
+    await page.getByRole('button', { name: '浏览器菜单', exact: true }).click();
     const saveScreenshot = page.waitForResponse(response => response.url().endsWith(`/api/projects/${id}/files`) && response.request().method() === 'POST' && String(response.request().postDataJSON()?.name).includes('browser-capture'), { timeout: T.long });
-    await page.getByRole('menuitem', { name: 'Copy Screenshot', exact: true }).click();
+    await page.getByRole('menuitem', { name: '复制截图', exact: true }).click();
     const screenshotSaved = await saveScreenshot;
     expect(screenshotSaved.ok()).toBe(true);
     const captureFile = (await screenshotSaved.json() as { file: { name: string } }).file.name;
@@ -100,9 +100,9 @@ test('[P0] native browser navigation, project capture, resource grants and safe 
     await writeFile(capturedPath, captured);
     await testInfo.attach('native-captured-project-image', { path: capturedPath, contentType: 'image/png' });
 
-    await page.getByRole('button', { name: 'Browser menu', exact: true }).click();
+    await page.getByRole('button', { name: '浏览器菜单', exact: true }).click();
     const saveArchive = page.waitForResponse(response => response.url().endsWith(`/api/projects/${id}/files`) && response.request().method() === 'POST' && String(response.request().postDataJSON()?.name).endsWith('/manifest.json'), { timeout: T.long });
-    await page.getByRole('menuitem', { name: 'Download Page', exact: true }).click();
+    await page.getByRole('menuitem', { name: '下载页面', exact: true }).click();
     expect((await saveArchive).ok()).toBe(true);
     const files = await api<{ files: Array<{ name: string }> }>(runtime, `/api/projects/${id}/files?scope=all`);
     expect(files.files.some(file => file.name.endsWith('/page.html'))).toBe(true);

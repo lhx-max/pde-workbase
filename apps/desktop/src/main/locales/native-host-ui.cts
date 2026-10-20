@@ -2,11 +2,11 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 // Chrome starts these hosts as their own CommonJS processes. They cannot import
-// the ESM desktop locale module. A missing file follows LANG; an empty file stays Chinese.
+// the ESM desktop locale module. A missing or empty locale file uses Chinese, independently of OS language.
 // DEFAULT_PRODUCT_NAME matches the default manifest display name. A locale file's
 // second line overrides it for OEM builds.
 
-const DEFAULT_PRODUCT_NAME = "Loom";
+const DEFAULT_PRODUCT_NAME = "画布工作区";
 let localeDir: string | null = null;
 
 export function bindNativeHostLocaleDir(directory: string | null | undefined): void {
@@ -17,8 +17,8 @@ export function bindNativeHostLocaleDir(directory: string | null | undefined): v
 function localeFromTag(raw: string | undefined): "zh-CN" | "en" | null {
   const value = (raw ?? "").trim().toLowerCase().split(".")[0]?.replace(/_/g, "-") ?? "";
   if (!value || value === "c" || value === "posix") return null;
-  if (value === "zh" || value.startsWith("zh-")) return "zh-CN";
-  return "en";
+  if (value === "en" || value.startsWith("en-")) return "en";
+  return "zh-CN";
 }
 
 function readLocaleFile(): { locale: string; productName: string } | null {
@@ -40,8 +40,7 @@ function active(): { locale: "zh-CN" | "en"; productName: string } {
       productName: file.productName || DEFAULT_PRODUCT_NAME,
     };
   }
-  const fromEnv = localeFromTag(process.env.LC_ALL) ?? localeFromTag(process.env.LANG);
-  return { locale: fromEnv ?? "zh-CN", productName: DEFAULT_PRODUCT_NAME };
+  return { locale: "zh-CN", productName: DEFAULT_PRODUCT_NAME };
 }
 
 export function nhu() {

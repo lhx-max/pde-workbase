@@ -2,6 +2,7 @@
 import type { ProjectFileCanvasAddOptions } from '@bezier/contracts';
 import { isCollectedPath } from '@bezier/contracts';
 import { tActive } from '../i18n';
+import { localizeApiMessage } from '../i18n/api-errors';
 import { requestSaveAsset } from '../state/save-asset';
 import { workspaceProjectHeaders } from '../collab/workspace-identity';
 import { requestJson } from './registry';
@@ -25,7 +26,7 @@ import { projectFileUrl,fetchProjectFiles,writeProjectBase64File } from './regis
 
 
 export class PersonalAssetRequestError extends Error {
-  constructor(message: string, readonly status: number) { super(message); }
+  constructor(readonly diagnosticMessage: string, readonly status: number) { super(localizeApiMessage(diagnosticMessage, tActive('asset.error.unavailable'), { status })); }
 }
 export function isTemporaryAssetRequestError(error: unknown): boolean {
   return error instanceof PersonalAssetRequestError ? [502, 503, 504].includes(error.status) : error instanceof TypeError;

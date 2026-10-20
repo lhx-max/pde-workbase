@@ -33,7 +33,7 @@ describe('neutral question reference adapters', () => {
   it('queries the provided host and preserves original radio card UI', async () => {
     const query = vi.fn(async () => [asset]);
     render(<QuestionFormView form={form} interactive referenceAdapter={{ query }} onSubmit={vi.fn()} />);
-    await screen.findByRole('button', { name: 'Preview Reference' });
+    await screen.findByRole('button', { name: '预览 Reference' });
     expect(query).toHaveBeenCalledTimes(1);
     expect(query.mock.calls[0]).toBeDefined();
     expect((screen.getByRole('radio', { name: 'Reference' }) as HTMLButtonElement).disabled).toBe(false);

@@ -1,3 +1,6 @@
+import type { Locale } from '../i18n/types';
+import { visualStyleCatalogZh, visualStyleContextZh } from './visual-style-catalog.zh-CN';
+
 export type VisualStyleContext = 'deck' | 'prototype' | 'document' | 'image' | 'video';
 export type VisualStyleCategory = 'business' | 'editorial' | 'creative' | 'minimal';
 
@@ -736,18 +739,24 @@ const STYLE_CATALOGS: Readonly<Record<VisualStyleContext, VisualStyleCatalogEntr
   video: VIDEO_STYLE_CATALOG,
 };
 
-export function visualStyleCardsForContext(context: VisualStyleContext): VisualStyleCard[] {
+/** Locale changes copy only; stable values and remote preview URLs remain unchanged. */
+export function visualStyleCardsForContext(context: VisualStyleContext, locale: Locale = 'en'): VisualStyleCard[] {
   const catalog = STYLE_CATALOGS[context];
-  return catalog.map((style) => ({
-    value: `${context}-${style.slug}`,
-    title: style.title,
-    description: style.description,
-    variant: style.variant,
-    category: style.category,
-    preview: {
-      src: `${STYLE_CATALOG_ASSET_BASE_URL}/${context}-${style.slug}-v1.webp`,
-      alt: `${style.title} ${context} style preview.`,
-    },
-    recommended: style.recommended,
-  }));
+  return catalog.map((style) => {
+    const value = `${context}-${style.slug}`;
+    const localized = locale === 'zh-CN' ? visualStyleCatalogZh[value] : undefined;
+    const title = localized?.[0] ?? style.title;
+    return {
+      value,
+      title,
+      description: localized?.[1] ?? style.description,
+      variant: style.variant,
+      category: style.category,
+      preview: {
+        src: `${STYLE_CATALOG_ASSET_BASE_URL}/${value}-v1.webp`,
+        alt: localized ? `${title} · ${visualStyleContextZh[context]}风格预览` : `${style.title} ${context} style preview.`,
+      },
+      recommended: style.recommended,
+    };
+  });
 }

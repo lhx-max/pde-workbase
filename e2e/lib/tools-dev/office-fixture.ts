@@ -16,18 +16,18 @@ const slide = (title: string, body: string) => `<p:sld xmlns:p="http://schemas.o
 // Only the OOXML parts consumed by the structured TEXT preview are included.
 const parts: Record<OfficeFixtureKind, Record<string, string>> = {
   docx: {
-    'word/document.xml': `<w:document xmlns:w="${wordNs}"><w:body><w:p><w:r><w:t>Canvas research</w:t></w:r><w:r><w:t>&amp; review</w:t></w:r></w:p><w:p><w:r><w:t>Second paragraph: text-only preview.</w:t></w:r></w:p></w:body></w:document>`,
+    'word/document.xml': `<w:document xmlns:w="${wordNs}"><w:body><w:p><w:r><w:t>画布研究</w:t></w:r><w:r><w:t>&amp; 评审</w:t></w:r></w:p><w:p><w:r><w:t>第二段：仅预览文本。</w:t></w:r></w:p></w:body></w:document>`,
   },
   pptx: {
-    'ppt/slides/slide2.xml': slide('Delivery checklist', 'Download keeps the original bytes.'),
-    'ppt/slides/slide1.xml': slide('Canvas &amp; references', 'First slide: text-only preview.'),
+    'ppt/slides/slide2.xml': slide('交付清单', '下载保留原始字节。'),
+    'ppt/slides/slide1.xml': slide('画布 &amp; 参考资料', '第一张幻灯片：仅预览文本。'),
   },
   xlsx: {
-    'xl/workbook.xml': `<workbook xmlns="${sheetNs}" xmlns:r="${relNs}"><sheets><sheet name="Research &amp; costs" sheetId="1" r:id="rId1"/><sheet name="Summary" sheetId="2" r:id="rId2"/></sheets></workbook>`,
+    'xl/workbook.xml': `<workbook xmlns="${sheetNs}" xmlns:r="${relNs}"><sheets><sheet name="研究 &amp; 成本" sheetId="1" r:id="rId1"/><sheet name="汇总" sheetId="2" r:id="rId2"/></sheets></workbook>`,
     'xl/_rels/workbook.xml.rels': `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${relNs}/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId2" Type="${relNs}/worksheet" Target="worksheets/sheet1.xml"/></Relationships>`,
-    'xl/sharedStrings.xml': `<sst xmlns="${sheetNs}" count="2" uniqueCount="2"><si><t>Item &amp; source</t></si><si><t>Canvas sample</t></si></sst>`,
-    'xl/worksheets/sheet2.xml': `<worksheet xmlns="${sheetNs}"><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="inlineStr"><is><t>Cost</t></is></c></row><row r="2"><c r="A2" t="s"><v>1</v></c><c r="B2"><v>42</v></c></row></sheetData></worksheet>`,
-    'xl/worksheets/sheet1.xml': `<worksheet xmlns="${sheetNs}"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>Text-only totals</t></is></c><c r="B1"><v>42</v></c></row></sheetData></worksheet>`,
+    'xl/sharedStrings.xml': `<sst xmlns="${sheetNs}" count="2" uniqueCount="2"><si><t>项目 &amp; 来源</t></si><si><t>画布示例</t></si></sst>`,
+    'xl/worksheets/sheet2.xml': `<worksheet xmlns="${sheetNs}"><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="inlineStr"><is><t>成本</t></is></c></row><row r="2"><c r="A2" t="s"><v>1</v></c><c r="B2"><v>42</v></c></row></sheetData></worksheet>`,
+    'xl/worksheets/sheet1.xml': `<worksheet xmlns="${sheetNs}"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>纯文本合计</t></is></c><c r="B1"><v>42</v></c></row></sheetData></worksheet>`,
   },
 };
 
@@ -45,7 +45,7 @@ export async function createOfficeTextFixture(runtime: Pick<ToolsDevRuntime, 'ro
     await chmod(file, 0o644);
     await utimes(file, timestamp, timestamp);
   }
-  const name = `Text-preview.${kind}`;
+  const name = `纯文本预览.${kind}`;
   const archive = path.join(root, name);
   // Sorted entries, fixed timestamps/modes, no extra attributes and no compression:
   // repeat invocations produce identical bytes, independent of the temporary path.

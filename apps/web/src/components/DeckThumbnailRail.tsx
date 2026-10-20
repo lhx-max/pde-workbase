@@ -343,7 +343,7 @@ export const DeckThumbnailRail = memo(function DeckThumbnailRail({
   const mounted = useMemo(() => new Set(mountedOrder), [mountedOrder]);
 
   return (
-    <aside className="deck-thumbnail-rail" aria-label="Slides">
+    <aside className="deck-thumbnail-rail" aria-label={t('fileViewer.slides')}>
       <div className="deck-thumbnail-list" ref={listRef} onKeyDown={(event) => {
         if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
         const item = (event.target as HTMLElement).closest<HTMLElement>('[data-slide-index]');

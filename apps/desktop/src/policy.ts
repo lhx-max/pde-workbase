@@ -1,3 +1,4 @@
+import { nativeMessage } from './main/locales/native-messages.js';
 import { timingSafeEqual } from 'node:crypto';
 
 export const DESIGN_BROWSER_PARTITION = 'persist:bezier-design-browser';
@@ -67,10 +68,10 @@ export function authenticates(header: string | undefined, token: string): boolea
 }
 export function captureClip(value: unknown, bounds: { width: number; height: number }) {
   if (value === undefined) return undefined;
-  if (!value || typeof value !== 'object') throw new Error('Invalid capture clip');
+  if (!value || typeof value !== 'object') throw new Error(nativeMessage('Invalid capture clip'));
   const c = value as Record<string, unknown>;
-  if (![c.x, c.y, c.width, c.height].every(n => typeof n === 'number' && Number.isFinite(n))) throw new Error('Invalid capture clip');
+  if (![c.x, c.y, c.width, c.height].every(n => typeof n === 'number' && Number.isFinite(n))) throw new Error(nativeMessage('Invalid capture clip'));
   const x = Math.floor(c.x as number), y = Math.floor(c.y as number), width = Math.floor(c.width as number), height = Math.floor(c.height as number);
-  if (x < 0 || y < 0 || width <= 0 || height <= 0 || x + width > bounds.width || y + height > bounds.height) throw new Error('Capture clip is outside the window');
+  if (x < 0 || y < 0 || width <= 0 || height <= 0 || x + width > bounds.width || y + height > bounds.height) throw new Error(nativeMessage('Capture clip is outside the window'));
   return { x, y, width, height };
 }

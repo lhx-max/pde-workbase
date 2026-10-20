@@ -1,4 +1,4 @@
-const PRODUCT_NAME = "Canvas Workspace";
+const PRODUCT_NAME = "画布工作区";
 
 export type ExtensionUiLocale = "zh-CN" | "en";
 
@@ -8,8 +8,8 @@ let active: ExtensionUiLocale = "zh-CN";
 
 export function extensionUiLocale(locale: string | null | undefined): ExtensionUiLocale {
   const value = (locale ?? "").trim().toLowerCase().replace(/_/g, "-");
-  if (value === "zh" || value.startsWith("zh-")) return "zh-CN";
-  return "en";
+  if (value === "en" || value.startsWith("en-")) return "en";
+  return "zh-CN";
 }
 
 export function bindExtensionLocale(locale: string | null | undefined): void {
@@ -26,11 +26,9 @@ export function extensionLocaleStorageKey(): string {
   return STORAGE_KEY;
 }
 
-/** Browser UI language when the app has not told the extension which language to use. */
+/** Fresh installs use Chinese; a saved or app-provided locale can explicitly select English. */
 export function detectExtensionLocale(): ExtensionUiLocale {
-  const chromeUi = (globalThis as { chrome?: { i18n?: { getUILanguage?: () => string } } }).chrome?.i18n?.getUILanguage?.();
-  const nav = globalThis.navigator?.language;
-  return extensionUiLocale(chromeUi || nav || "en");
+  return "zh-CN";
 }
 
 function text(zh: string, en: string): string {
@@ -177,7 +175,7 @@ export function eu() {
     connectFailed: text(`连接 ${PRODUCT_NAME} 失败，请重试`, `Could not reach ${PRODUCT_NAME}. Try again.`),
     yamlInvalidShort: text("YAML 无效", "The YAML is not valid"),
     yamlBuildFailed: text("YAML 生成失败", "Could not build the YAML"),
-    promptPlaceholder: text("提取后将在这里显示创作 Prompt。", "The extracted prompt will appear here."),
+    promptPlaceholder: text("提取后将在这里显示创作提示词。", "The extracted prompt will appear here."),
     promptQueued: text("排队中，等待 AI 提取…", "Queued for extraction…"),
     promptExtracting: text("正在提取，完成后自动保存…", "Extracting. It will be saved when finished…"),
     promptFailed: text("提取失败，请重试。", "Extraction failed. Try again."),
@@ -186,7 +184,7 @@ export function eu() {
     extracting: text("提取中…", "Extracting…"),
     analyzing: text("分析中…", "Analyzing…"),
     extractAgain: text("重新提取", "Extract again"),
-    extractPrompt: text("提取 Prompt", "Extract prompt"),
+    extractPrompt: text("提取提示词", "Extract prompt"),
     analyzeAgain: text("重新分析", "Analyze again"),
     analysisFailed: text("信息分析失败，请重新分析", "Analysis failed. Try again."),
     saveEdits: text("保存修改", "Save changes"),
@@ -194,11 +192,11 @@ export function eu() {
     readFailed: text("读取失败", "Could not read"),
     savedUpdateApp: text(`资产已保存，请回到 ${PRODUCT_NAME} 查看，或更新 ${PRODUCT_NAME} 桌面端后重试。`, `The asset was saved. Open ${PRODUCT_NAME}, or update the desktop app and try again.`),
     saveFailedRetry: text("保存失败，请重试", "Could not save. Try again."),
-    savedNeedUpdate: text(`资产已保存。请更新 ${PRODUCT_NAME} 桌面端后使用 Prompt 提取。`, `The asset was saved. Update the ${PRODUCT_NAME} desktop app to extract a prompt.`),
+    savedNeedUpdate: text(`资产已保存。请更新 ${PRODUCT_NAME} 桌面端后使用提示词提取。`, `The asset was saved. Update the ${PRODUCT_NAME} desktop app to extract a prompt.`),
     savedToAssets: text(`已保存到 ${PRODUCT_NAME} 资产`, `Saved to ${PRODUCT_NAME} assets`),
     actionFailed: text("操作失败，请重试", "The action failed. Try again."),
     panelOpened: text("已打开采集面板", "The capture panel is open"),
-    creationPrompt: text("创作 Prompt", "Prompt"),
+    creationPrompt: text("创作提示词", "Prompt"),
     copy: text("复制", "Copy"),
     saveAndExtract: text("保存并提取", "Save and extract"),
     assetYaml: text("资产 YAML", "Asset YAML"),
@@ -222,7 +220,8 @@ export function localizeBridgeError(raw: string, fallback: string): string {
   if (/请先在 (?:DA|Loom) 中发起登录连接|Start the sign-in connection/i.test(raw)) return copy.startSignInFirst;
   if (/连接暂不可用|connection expired|连接已过期/i.test(raw)) return copy.nativeUnavailable;
   // Preserve an unknown diagnostic only when it is readable in the selected UI locale.
-  const hasChinese = /[\u3400-\u9fff]/u.test(raw);
+  // The product display name is Chinese even when the surrounding UI is English.
+  const hasChinese = /[\u3400-\u9fff]/u.test(raw.replaceAll(PRODUCT_NAME, ""));
   const matchesLocale = currentExtensionLocale() === "en" ? !hasChinese : hasChinese;
-  return matchesLocale ? raw : fallback;
+  return raw.trim() && matchesLocale ? raw : fallback;
 }

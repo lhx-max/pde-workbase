@@ -1,3 +1,4 @@
+import type { useT } from '../i18n';
 import type { CanvasTaskExecutionContext } from '@bezier/contracts';
 import type { BrandBrowserPageSnapshotResult } from '../browser-resources/brand-browser-bridge';
 
@@ -18,12 +19,12 @@ export function canExtractBrowserPage(url: string): boolean {
 }
 
 /** Portable task evidence; skill resources and execution capabilities are adapter-owned. */
-export function browserPageExtractionTurn(source: BrowserPageExtractionRequest, visiblePrompt: string): {
+export function browserPageExtractionTurn(source: BrowserPageExtractionRequest, visiblePrompt: string, t?: ReturnType<typeof useT>): {
   prompt: string;
   meta: CanvasTaskExecutionContext;
   inputPaths?: string[];
 } {
-  if (!canExtractBrowserPage(source.url)) throw new Error('Unsupported webpage URL');
+  if (!canExtractBrowserPage(source.url)) throw new Error(t?.('designBrowser.unsupportedUrl') ?? 'Unsupported webpage URL');
   const snapshot = source.snapshot?.ok ? source.snapshot : undefined;
   return {
     prompt: [

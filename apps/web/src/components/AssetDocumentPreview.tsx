@@ -31,7 +31,7 @@ export function AssetDocumentPreview({ text, url, kind, compact = false }: { tex
     setLoaded({url});
     const timeout = window.setTimeout(() => controller.abort(), 30_000);
     let cancelled = false;
-    readAssetDocument(url, controller.signal)
+    readAssetDocument(url, controller.signal, t)
       .then(value => { if (!controller.signal.aborted) setLoaded({url, text:value}); })
       .catch(e => { if (!cancelled) setLoaded({url, error: controller.signal.aborted ? t('entry.documentPreview.loadTimeout') : e.message}); })
       .finally(() => window.clearTimeout(timeout));

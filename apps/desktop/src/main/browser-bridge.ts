@@ -1,3 +1,4 @@
+import { nativeMessage, nativeFailure } from './locales/native-messages.js';
 import { captureMessages } from '../locales/browser-capture-messages.js';
 import { BROWSER_EXTENSION_ID, BROWSER_BRIDGE_DISCOVERY_PORTS } from './browser-extension-identity.js';
 import { du } from "./locales/desktop-ui.js";
@@ -91,7 +92,7 @@ export async function startBrowserCaptureBridge(options: {
         parsed = isImage ? parseImageBody(Buffer.concat(chunks)) : parseJsonBody(Buffer.concat(chunks));
       } catch (error) {
         const code = error instanceof BrowserCaptureValidationError ? error.code : 'INVALID_ENVELOPE';
-        reply(400, { code, message: error instanceof Error ? error.message : du().badContentFormat });
+        reply(400, { code, message: nativeFailure(error, du().badContentFormat) });
         return;
       }
       const result = await options.accept(parsed);
@@ -108,7 +109,7 @@ export async function startBrowserCaptureBridge(options: {
   try { await new Promise<void>((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); }); }
   catch (error) { close(); throw error; }
   const address = server.address();
-  if (!address || typeof address === 'string') throw new Error('Local browser capture bridge unavailable');
+  if (!address || typeof address === 'string') throw new Error(nativeMessage('Local browser capture bridge unavailable'));
   return {
     close,
     claim: {

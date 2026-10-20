@@ -18,14 +18,14 @@ export function AssetInspectorViews({ view, onViewChange, info, prompt, yaml, ac
   error?: ReactNode;
   navigationDisabled?: boolean;
 }) {
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
   const copy = assetInspectorCopy(locale);
   const hasPrompt = prompt != null;
   const activeView = view === 'prompt' && !hasPrompt ? 'info' : view;
   return <Tabs value={activeView} onValueChange={value => onViewChange(value as AssetInspectorView)} className={styles.root}>
     <AssetDetailInspector toolbar={<TabsList className={styles.tabs} aria-label={copy.views}>
       <TabsTrigger value="info" disabled={navigationDisabled && activeView !== 'info'} className={styles.tab}>{copy.infoTab}</TabsTrigger>
-      {hasPrompt && <TabsTrigger value="prompt" disabled={navigationDisabled && activeView !== 'prompt'} className={styles.tab}>PROMPT</TabsTrigger>}
+      {hasPrompt && <TabsTrigger value="prompt" disabled={navigationDisabled && activeView !== 'prompt'} className={styles.tab}>{t('asset.detail.promptTab')}</TabsTrigger>}
       <TabsTrigger value="analysis" disabled={navigationDisabled && activeView !== 'analysis'} className={styles.tab}>YAML</TabsTrigger>
     </TabsList>} actions={actions}>
       <TabsContent value="info" className={styles.panel}>{info}</TabsContent>

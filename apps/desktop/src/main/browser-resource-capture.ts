@@ -1,3 +1,4 @@
+import { nativeMessage } from './locales/native-messages.js';
 // Extracted from upstream browser-resource-capture.ts; see docs/browser-host.md.
 import { randomBytes, randomUUID } from 'node:crypto';
 import { observeBrowserRequests } from './browser-request-policy.js';
@@ -138,7 +139,7 @@ function deactivate(grant: Grant): void {
 function clear(grant: Grant): void {
   grant.generation++;
   grant.entries.clear(); grant.urls.clear(); grant.limitReached = false;
-  for (const operation of grant.operations) operation.abort(new BrowserResourceError('stale-document', 'Resource capture changed'));
+  for (const operation of grant.operations) operation.abort(new BrowserResourceError('stale-document', nativeMessage('Resource capture changed')));
   const hub = hubs.get(grant.session);
   if (hub) for (const [id, request] of hub.pending) if (request.grant === grant) hub.pending.delete(id);
 }
@@ -156,7 +157,7 @@ export function isTrustedResourceOwnerUrl(value: string, trustedUrl: string | nu
 export function requireResourceCaptureFrame(event: { sender: unknown; senderFrame: unknown }, owner: { mainFrame: { url: string }; getURL(): string }, trustedUrl: string | null): void {
   if (event.sender !== owner || !event.senderFrame || event.senderFrame !== owner.mainFrame
     || !isTrustedResourceOwnerUrl(owner.mainFrame.url, trustedUrl) || !isTrustedResourceOwnerUrl(owner.getURL(), trustedUrl)) {
-    fail('unauthorized', 'Resource grants require the trusted main window frame');
+    fail('unauthorized', nativeMessage('Resource grants require the trusted main window frame'));
   }
 }
 export function createBrowserResourceCapture(options: { getGuest: (id: number) => WebContents | undefined; ownerAlive: () => boolean }) {
@@ -170,9 +171,9 @@ export function createBrowserResourceCapture(options: { getGuest: (id: number) =
   }
   function authorized(command: BrowserResourceCommand): Grant {
     const grant = grants.get(command.sessionId);
-    if (!grant || grant.accessToken !== command.accessToken || grant.projectId !== command.projectId) fail('unauthorized', 'Resource grant is unavailable');
+    if (!grant || grant.accessToken !== command.accessToken || grant.projectId !== command.projectId) fail('unauthorized', nativeMessage('Resource grant is unavailable'));
     if (!options.ownerAlive() || grant.guest.isDestroyed() || options.getGuest(grant.guestId) !== grant.guest || Date.now() >= grant.expiresAt) {
-      revoke(grant); fail('unauthorized', 'Resource grant expired or closed');
+      revoke(grant); fail('unauthorized', nativeMessage('Resource grant expired or closed'));
     }
     return grant;
   }
@@ -180,16 +181,16 @@ export function createBrowserResourceCapture(options: { getGuest: (id: number) =
     return { sessionId: grant.sessionId, projectId: grant.projectId, tabId: grant.tabId, pageUrl: safeResourceUrl(grant.guest.getURL()), title: grant.guest.getTitle().slice(0, 512), navigationId: grant.navigationId, enabled: grant.enabled, items: [...grant.entries.values()].map(e => ({ ...e.item })), limitReached: grant.limitReached };
   }
   async function operation<T>(grant: Grant, work: (signal: AbortSignal, check: () => void) => Promise<T>): Promise<T> {
-    if (grant.operations.size >= 4) fail('unavailable', 'Too many resource operations');
+    if (grant.operations.size >= 4) fail('unavailable', nativeMessage('Too many resource operations'));
     const controller = new AbortController(); grant.operations.add(controller);
     const generation = grant.generation;
     const pageUrl = grant.guest.getURL();
     const check = () => {
       if (controller.signal.aborted) throw controller.signal.reason;
       authorized({ ...grant, action: 'snapshot' });
-      if (!grant.enabled || generation !== grant.generation || grant.guest.getURL() !== pageUrl || grant.guest.isLoadingMainFrame()) fail('stale-document', 'Resource document changed');
+      if (!grant.enabled || generation !== grant.generation || grant.guest.getURL() !== pageUrl || grant.guest.isLoadingMainFrame()) fail('stale-document', nativeMessage('Resource document changed'));
     };
-    const timeout = setTimeout(() => controller.abort(new BrowserResourceError('timeout', 'Resource operation timed out')), LIMITS.readTimeoutMs);
+    const timeout = setTimeout(() => controller.abort(new BrowserResourceError('timeout', nativeMessage('Resource operation timed out'))), LIMITS.readTimeoutMs);
     let onAbort: (() => void) | undefined;
     const aborted = new Promise<never>((_, reject) => {
       onAbort = () => reject(controller.signal.reason);
@@ -198,7 +199,7 @@ export function createBrowserResourceCapture(options: { getGuest: (id: number) =
     try { check(); return await Promise.race([work(controller.signal, check), aborted]); }
     catch (error) {
       if (error instanceof BrowserResourceError) throw error;
-      return fail('read-failed', 'Resource operation failed'); // Never export URLs/headers from native errors.
+      return fail('read-failed', nativeMessage('Resource operation failed')); // Never export URLs/headers from native errors.
     } finally {
       clearTimeout(timeout); if (onAbort) controller.signal.removeEventListener('abort', onAbort);
       controller.abort(); grant.operations.delete(controller);
@@ -217,11 +218,11 @@ export function createBrowserResourceCapture(options: { getGuest: (id: number) =
   }
   return {
     open(guestId: number, projectId: string, tabId: string): BrowserResourceGrant {
-      if (!Number.isSafeInteger(guestId) || guestId <= 0 || typeof projectId !== 'string' || !projectId.trim() || projectId.length > 256 || typeof tabId !== 'string' || !tabId.trim() || tabId.length > 256 || /[\x00-\x1f]/.test(projectId + tabId)) fail('invalid-request', 'Invalid resource grant');
+      if (!Number.isSafeInteger(guestId) || guestId <= 0 || typeof projectId !== 'string' || !projectId.trim() || projectId.length > 256 || typeof tabId !== 'string' || !tabId.trim() || tabId.length > 256 || /[\x00-\x1f]/.test(projectId + tabId)) fail('invalid-request', nativeMessage('Invalid resource grant'));
       const guest = options.getGuest(guestId);
-      if (disposed || !options.ownerAlive() || !guest || guest.isDestroyed()) fail('unauthorized', 'Browser guest is not owned by this window');
+      if (disposed || !options.ownerAlive() || !guest || guest.isDestroyed()) fail('unauthorized', nativeMessage('Browser guest is not owned by this window'));
       const previous = byGuest.get(guestId); if (previous) revoke(previous);
-      if (grants.size >= MAX_GRANTS) fail('unavailable', 'Resource grant limit reached');
+      if (grants.size >= MAX_GRANTS) fail('unavailable', nativeMessage('Resource grant limit reached'));
       // Native WebContents getters throw once `destroyed` fires. Cleanup must
       // use these stable values captured while the guest is still alive.
       const grant: Grant = { sessionId: randomUUID(), accessToken: randomBytes(32).toString('base64url'), projectId, tabId, guest, guestId, session: guest.session, enabled: false, navigationId: 0, generation: 0, expiresAt: Date.now() + LIMITS.grantLifetimeMs, expiry: undefined!, entries: new Map(), urls: new Map(), limitReached: false, operations: new Set(), detach: () => {} };
@@ -240,7 +241,7 @@ export function createBrowserResourceCapture(options: { getGuest: (id: number) =
     close(sessionId: string, accessToken: string): void {
       const grant = grants.get(sessionId);
       if (!grant) return;
-      if (grant.accessToken !== accessToken) fail('unauthorized', 'Resource grant is unavailable');
+      if (grant.accessToken !== accessToken) fail('unauthorized', nativeMessage('Resource grant is unavailable'));
       revoke(grant);
     },
     revokeAll(): void { for (const grant of [...grants.values()]) revoke(grant); },
@@ -260,13 +261,13 @@ export function createBrowserResourceCapture(options: { getGuest: (id: number) =
           throw error;
         }
       }
-      if (!grant.enabled) fail('unavailable', 'Resource capture is disabled');
+      if (!grant.enabled) fail('unavailable', nativeMessage('Resource capture is disabled'));
       if (command.action === 'scan') { await scan(grant); return snapshot(grant); }
-      if (command.action !== 'read') return fail('invalid-request', 'Invalid resource command');
-      if (command.navigationId !== grant.navigationId) fail('stale-document', 'Resource document changed');
+      if (command.action !== 'read') return fail('invalid-request', nativeMessage('Invalid resource command'));
+      if (command.navigationId !== grant.navigationId) fail('stale-document', nativeMessage('Resource document changed'));
       const entry = grant.entries.get(command.resourceId);
-      if (!entry) fail('stale-document', 'Resource is no longer observed');
-      if (!entry.item.readable) fail(entry.item.unavailableReason === 'too-large' ? 'too-large' : 'unsupported-resource', 'Resource is metadata-only');
+      if (!entry) fail('stale-document', nativeMessage('Resource is no longer observed'));
+      if (!entry.item.readable) fail(entry.item.unavailableReason === 'too-large' ? 'too-large' : 'unsupported-resource', nativeMessage('Resource is metadata-only'));
       return operation(grant, async (signal, check) => {
         check();
         const response = await grant.session.fetch(entry.originalUrl, { method: 'GET', credentials: 'include', referrer: entry.referrer, redirect: 'error', signal });
@@ -276,12 +277,12 @@ export function createBrowserResourceCapture(options: { getGuest: (id: number) =
         try {
           check();
           // This API imports whole files, not ranged/segmented stream assembly.
-          if (response.status !== 200 || response.redirected || response.headers.has('content-range')) fail('read-failed', 'Resource response unavailable');
+          if (response.status !== 200 || response.redirected || response.headers.has('content-range')) fail('read-failed', nativeMessage('Resource response unavailable'));
           const mime = normalizedResourceMime(response.headers.get('content-type') ?? undefined);
-          if (!mime || resourceKind(entry.originalUrl, mime) !== entry.item.kind) fail('unsupported-resource', 'Resource MIME does not match');
+          if (!mime || resourceKind(entry.originalUrl, mime) !== entry.item.kind) fail('unsupported-resource', nativeMessage('Resource MIME does not match'));
           const length = response.headers.get('content-length');
-          if (length && Number(length) > LIMITS.bytes) fail('too-large', 'Resource exceeds 25 MiB');
-          if (!response.body) fail('read-failed', 'Resource body unavailable');
+          if (length && Number(length) > LIMITS.bytes) fail('too-large', nativeMessage('Resource exceeds 25 MiB'));
+          if (!response.body) fail('read-failed', nativeMessage('Resource body unavailable'));
           reader = response.body.getReader();
           let total = 0; const chunks: Buffer[] = [];
           while (true) {
@@ -289,13 +290,13 @@ export function createBrowserResourceCapture(options: { getGuest: (id: number) =
             const part = await reader.read(); check();
             if (part.done) break;
             total += part.value.byteLength;
-            if (total > LIMITS.bytes) fail('too-large', 'Resource exceeds 25 MiB');
+            if (total > LIMITS.bytes) fail('too-large', nativeMessage('Resource exceeds 25 MiB'));
             chunks.push(Buffer.from(part.value));
           }
           const bytes = Buffer.concat(chunks, total);
-          if (!verifyResourceBytes(bytes, mime)) fail('unsupported-resource', 'Resource signature is unsupported');
+          if (!verifyResourceBytes(bytes, mime)) fail('unsupported-resource', nativeMessage('Resource signature is unsupported'));
           check();
-          if (grant.entries.get(command.resourceId) !== entry) fail('stale-document', 'Resource is no longer observed');
+          if (grant.entries.get(command.resourceId) !== entry) fail('stale-document', nativeMessage('Resource is no longer observed'));
           return { resourceId: command.resourceId, navigationId: command.navigationId, pageUrl: safeResourceUrl(grant.guest.getURL()), name: readResourceName(entry.originalUrl, mime), mime, base64: bytes.toString('base64') };
         } finally {
           signal.removeEventListener('abort', cancel);

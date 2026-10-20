@@ -23,6 +23,23 @@ describe('external capture owner lifecycle', () => {
     f.consent.mockResolvedValue(true); expect(await f.host.install()).toEqual({ ok: true, message: 'Exported, not installed.' });
     expect(f.host.status().connected).toBe(false); f.discovery().onExtensionSeen?.(); expect(f.host.status().connected).toBe(true); f.host.stop();
   });
+  it('reports Chinese disabled, waiting, connected and native cancellation states', async () => {
+    const f = fixture();
+    expect(f.host.status()).toMatchObject({ connected: false, message: '外部浏览器采集已停用，请通过“安装扩展”启用。' });
+    f.consent.mockResolvedValueOnce(false);
+    await expect(f.host.start()).resolves.toEqual({ ok: false, reason: '已取消。' });
+    expect(f.startDiscovery).not.toHaveBeenCalled();
+    await f.host.start();
+    expect(f.host.status()).toMatchObject({ connected: false, message: '请在 Chrome 或 Edge 中加载 画布工作区 网页采集扩展。' });
+    f.discovery().onExtensionSeen?.();
+    expect(f.host.status()).toMatchObject({ connected: true, message: '采集扩展已连接。' });
+    f.host.stop();
+  });
+  it('does not expose raw English discovery errors or claim that a failed start succeeded', async () => {
+    const f = fixture(); f.startDiscovery.mockRejectedValueOnce(new Error('listen EADDRINUSE 127.0.0.1'));
+    await expect(f.host.start()).resolves.toEqual({ ok: false, reason: '扩展发现服务不可用。' });
+    expect(f.host.status().connected).toBe(false); f.host.stop();
+  });
   it('uses one replaceable receiver, preserves captures and grants only saved asset inspector scope', async () => {
     const f = fixture(); await f.host.start();
     await f.discovery().mintClaim(); await f.discovery().mintClaim(); expect(f.closeReceiver).toHaveBeenCalledOnce();

@@ -45,6 +45,21 @@ export interface ProjectFile {
   traceObjectReason?: 'new' | 'modified' | 'recovered';
 }
 
+/** Structured document preview; generated notices are distinct from user text. */
+export interface ProjectDocumentPreview {
+  kind?: 'pdf' | 'document' | 'presentation' | 'spreadsheet';
+  title: string;
+  sections: ProjectDocumentPreviewSection[];
+}
+export interface ProjectDocumentPreviewSection {
+  title: string;
+  lines: string[];
+  /** Existing diagnostic lines remain on the wire; UIs localize this code only. */
+  notice?: 'no-readable-text' | 'no-readable-slides' | 'no-readable-sheets' | 'no-readable-cells' | 'pdf-unavailable';
+  /** Only unnamed/fallback worksheets use a generated title, never user names. */
+  generatedTitle?: 'sheet';
+}
+
 /** Internal browser drag payload for moving an existing project file onto a canvas. */
 export const PROJECT_FILE_DRAG_MIME = 'application/x-bezier-project-file';
 /** UI-only alternative to dropping the same saved file on the active canvas. */

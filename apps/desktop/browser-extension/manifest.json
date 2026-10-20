@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "default_locale": "en",
-  "name": "Canvas Workspace Capture",
+  "default_locale": "zh_CN",
+  "name": "__MSG_extName__",
   "version": "0.3.0",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAksbEJwxpxbS//4f/omVgqIUIw7HL54lNvlSGtQL6mAfeT4cYgH70hE9MO5u4Q8WGLCMBVlmS4NBbFgg8LQbchk9dVl32q4QyetsceGzkYQdEvSMwtk++fwidcB3rTnvvbTksXrGRhp6zPtiMS1I7siUCuEMyQyb2eRugDgKtqozW9URn3tlw2oknlFpRQ2pV1VNsUjpPxdGOemGJEE32qeQ3qWQPzYlvGXKOGouzOt12bapE7k8HMd5OMoFSYtZeWtm8ZC1hWsXuM4yqLSkMZrXl2dtW8m1J+LDOLIdD2/84x06bzlM858+2hQhKdOThWq604qYF6PxAaTDL7IXQ8QIDAQAB",
   "description": "__MSG_extDescription__",

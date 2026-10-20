@@ -1,10 +1,12 @@
 import type { ProjectFile, ProjectFolder, WorkspaceCollabContext, ProjectFileTextPreviewResponse, ProjectFileVersion, RenameProjectFileResponse } from '@bezier/contracts';
 import { openHostExternalUrl, isBezierHostAvailable } from '@bezier/host';
 import { workspaceProjectHeaders, workspaceResourceUrl } from '../collab/workspace-identity';
+import { localizeApiMessage } from '../i18n/api-errors';
+import { tActive } from '../i18n';
 type Context = WorkspaceCollabContext | null | undefined;
 const root = (id: string) => `/api/projects/${encodeURIComponent(id)}`;
 export class WorkspaceApiError extends Error {
-    constructor(message: string, public status: number, public code?: string) { super(message); }
+    constructor(public readonly diagnosticMessage: string, public status: number, public code?: string) { super(localizeApiMessage(diagnosticMessage, tActive('api.error.generic'), { status, code })); }
 }
 export async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
     const response = await fetch(url, init);
@@ -58,13 +60,7 @@ export async function fetchProjectFileTextPreview(id: string, name: string, opti
 }): Promise<ProjectFileTextPreviewResponse | null> {
     return requestJson(`${root(id)}/text-preview/${name.split('/').map(encodeURIComponent).join('/')}?limit=${options?.limit || 2400}&v=${options?.cacheBustKey || 0}`, { headers: headers(options?.workspaceContext) });
 }
-export type ProjectFilePreview = {
-    title: string;
-    sections: {
-        title: string;
-        lines: string[];
-    }[];
-};
+export type ProjectFilePreview = import('@bezier/contracts').ProjectDocumentPreview;
 export async function fetchProjectFilePreview(id: string, name: string, context?: Context): Promise<ProjectFilePreview | null> { return requestJson(`${root(id)}/files/${encodeURIComponent(name)}/preview`, { headers: headers(context) }); }
 type WriteOptions = {
     artifactManifest?: ProjectFile['artifactManifest'];

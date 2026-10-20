@@ -1,14 +1,14 @@
-const PRODUCT_NAME = "Canvas Workspace";
+const PRODUCT_NAME = "画布工作区";
 
 export type DesktopUiLocale = "zh-CN" | "en";
 
 let active: DesktopUiLocale = "zh-CN";
 
-/** Chinese UI, including zh-TW, stays zh-CN. Every other tag uses English. */
+/** Only an explicit English selection opts out of the simplified Chinese default. */
 export function desktopUiLocale(locale: string | null | undefined): DesktopUiLocale {
   const value = (locale ?? "").trim().toLowerCase().replace(/_/g, "-");
-  if (value === "zh" || value.startsWith("zh-")) return "zh-CN";
-  return "en";
+  if (value === "en" || value.startsWith("en-")) return "en";
+  return "zh-CN";
 }
 
 /** Empty input leaves the current locale alone so a missing host value cannot flip the UI. */
@@ -22,9 +22,9 @@ export function currentDesktopLocale(): DesktopUiLocale {
   return active;
 }
 
-/** Line 1 is the locale. Line 2 is the English product name. Hosts read this on each error. */
+/** Line 1 is the locale. Line 2 is the product display name. Hosts read this on each error. */
 export function nativeHostLocaleFileBody(): string {
-  const name = PRODUCT_NAME.replace(/[\r\n]/g, " ").trim() || "Loom";
+  const name = PRODUCT_NAME.replace(/[\r\n]/g, " ").trim() || "画布工作区";
   return `${currentDesktopLocale()}\n${name}\n`;
 }
 
@@ -33,16 +33,38 @@ function text(zh: string, en: string): string {
 }
 
 /** On-disk package name. Both languages show this filename because that is the file the user drags. */
-export const EXTENSION_PACKAGE_NAME = "Loom网页采集.zip";
+export const EXTENSION_PACKAGE_NAME = "画布工作区网页采集.zip";
 
 export function du() {
   return {
     cancel: text("取消", "Cancel"),
+    enable: text("启用", "Enable"),
+    save: text("保存", "Save"),
+    downloadFilename: text("下载文件", "download"),
+    captureTitle: text(`${PRODUCT_NAME} 网页采集`, `${PRODUCT_NAME} Capture`),
+    enableCapture: text("启用外部浏览器采集扩展？", "Enable the external browser capture extension?"),
+    enableCaptureDetail: text(
+      "此独立标识的扩展只能将你明确保存的文字和图片发送到本机资产库。仅限本机回环地址的接收服务将保持运行，直到应用关闭。它不能读取浏览器 Cookie 或任意本地文件。",
+      "The independently identified extension can send text and images you explicitly save into this local asset library. A loopback-only receiver remains active until this app closes. It cannot read browser cookies or arbitrary local files.",
+    ),
+    exportCapture: text(`导出 ${PRODUCT_NAME} 网页采集扩展`, `Export ${PRODUCT_NAME} Capture extension`),
+    extensionPackage: text("扩展压缩包", "Extension package"),
+    capturePackageExported: text(
+      "扩展压缩包已导出。请解压，打开 chrome://extensions 或 edge://extensions，启用开发者模式并选择“加载解压缩的扩展”。应用不会自动安装扩展或修改浏览器配置。",
+      "Package exported. Extract it, open chrome://extensions or edge://extensions, enable Developer mode, and choose Load unpacked. The app does not install or modify your browser profile automatically.",
+    ),
+    capturePackageUnavailable: text("扩展压缩包不可用，请先构建独立桌面端浏览器扩展。", "Extension package unavailable. Build the independent desktop extension first."),
+    externalCaptureDisabled: text("外部浏览器采集已停用，请通过“安装扩展”启用。", "External capture is disabled. Enable it using Install extension."),
+    externalCaptureConnected: text("采集扩展已连接。", "Capture extension connected."),
+    loadCaptureExtension: text(`请在 Chrome 或 Edge 中加载 ${PRODUCT_NAME} 网页采集扩展。`, `Load the ${PRODUCT_NAME} Capture extension in Chrome or Edge.`),
+    downloadSource(resourceOrigin: string, pageOrigin: string): string {
+      return text(`从 ${pageOrigin} 页面下载 ${resourceOrigin} 的文件`, `Download from ${resourceOrigin} in ${pageOrigin}`);
+    },
     firstInstall: text("首次安装", "First-time install"),
     alreadyInstalledContinue: text("已安装，继续", "Already installed, continue"),
     later: text("稍后再说", "Not now"),
     alreadyInstalledConnect: text("已安装，继续连接", "Already installed, keep connecting"),
-    stayInApp: text("留在 DA", `Stay in ${PRODUCT_NAME}`),
+    stayInApp: text("留在 画布工作区", `Stay in ${PRODUCT_NAME}`),
     openOriginalSite: text("打开原网站", "Open the original site"),
     saved: text("已保存", "Saved"),
     notSaved: text("未保存", "Not saved"),
@@ -54,7 +76,7 @@ export function du() {
     signInAlreadyRunning: text("已有登录连接进行中，请先完成或取消", "A sign-in connection is already in progress. Finish or cancel it first."),
     defaultBrowserCannotContinue: text("默认浏览器暂不支持登录接续", "The default browser cannot continue this sign-in yet."),
     pinterestOpenDetail: text(
-      "可以在默认浏览器打开 Pinterest，但登录状态不会自动返回 DA。不会替你切换到 Chrome，也不会读取浏览器配置。",
+      "可以在默认浏览器打开 Pinterest，但登录状态不会自动返回 画布工作区。不会替你切换到 Chrome，也不会读取浏览器配置。",
       `You can open Pinterest in the default browser, but the sign-in state will not return to ${PRODUCT_NAME}. This will not switch you to Chrome or read the browser profile.`,
     ),
     connectorFolderFailed: text("连接器文件夹无法打开", "Could not open the connector folder."),
@@ -67,31 +89,31 @@ export function du() {
     ),
     signInTimedOut: text("登录连接已超时，请重新发起；原有浏览数据不受影响", "The sign-in connection timed out. Start it again. Existing browsing data is unchanged."),
     defaultBrowserStartFailed: text(
-      "默认浏览器连接启动失败，请检查默认浏览器和 DA 连接器后重试。",
+      "默认浏览器连接启动失败，请检查默认浏览器和 画布工作区 连接器后重试。",
       `Could not start the default-browser connection. Check the default browser and the ${PRODUCT_NAME} connector, then try again.`,
     ),
     unknownSignInSite: text("无法确认发起登录的网站，请返回原网站后重新点击 Google 登录。", "Could not tell which site started sign-in. Return to that site and click Google sign-in again."),
     connectionDidNotStart: text("连接未启动", "The connection did not start."),
     continueSignInTitle: text("在默认浏览器继续登录", "Continue sign-in in the default browser"),
     siteCannotReturnDetail: text(
-      "此网站尚未适配登录状态返回 DA。可以在默认浏览器重新发起登录；DA 保留当前采集页，不会读取该网站的登录凭证，也不会显示已接续。",
+      "此网站尚未适配登录状态返回 画布工作区。可以在默认浏览器重新发起登录；画布工作区 保留当前采集页，不会读取该网站的登录凭证，也不会显示已接续。",
       `This site cannot return sign-in state to ${PRODUCT_NAME} yet. You can start sign-in again in the default browser. ${PRODUCT_NAME} keeps the current capture page, does not read that site's credentials, and will not show the session as connected.`,
     ),
-    openedOriginalSite: text("已打开原网站；此站点暂不支持登录状态返回 DA。", `Opened the original site. This site cannot return sign-in state to ${PRODUCT_NAME} yet.`),
+    openedOriginalSite: text("已打开原网站；此站点暂不支持登录状态返回 画布工作区。", `Opened the original site. This site cannot return sign-in state to ${PRODUCT_NAME} yet.`),
     sourceChangedNoLogin: text("来源页面已改变，未打开登录。请在当前页面重新发起。", "The source page changed, so sign-in was not opened. Start again on the current page."),
-    stayedInApp: text("已留在 DA；此站点暂不支持登录状态接回，可继续浏览公开素材。", `Stayed in ${PRODUCT_NAME}. This site cannot return sign-in state yet. You can keep browsing public material.`),
+    stayedInApp: text("已留在 画布工作区；此站点暂不支持登录状态接回，可继续浏览公开素材。", `Stayed in ${PRODUCT_NAME}. This site cannot return sign-in state yet. You can keep browsing public material.`),
     couldNotOpenSignIn: text("无法打开登录，请稍后重试。", "Could not open sign-in. Try again later."),
     captureBrowserClosed: text("采集浏览器已关闭", "The capture browser is closed."),
     webImageOnly: text("仅支持网页图片资源", "Only web image resources are supported."),
     imageNotOnPage: text("图片不在当前网页中，请重新拖动或右键", "That image is not on the current page. Drag it again or use the context menu."),
     resourceSaveFailed: text("资源保存失败", "Could not save the resource."),
-    extensionTalking: text("插件正在与本机 DA 通信", `The extension is talking to ${PRODUCT_NAME} on this computer.`),
+    extensionTalking: text("插件正在与本机 画布工作区 通信", `The extension is talking to ${PRODUCT_NAME} on this computer.`),
     extensionMissing: text(
-      "未检测到插件。装在 Chrome / Edge / Brave 任一浏览器都会自动连上本机 DA",
+      "未检测到插件。装在 Chrome / Edge / Brave 任一浏览器都会自动连上本机 画布工作区",
       `No extension detected. Install it in Chrome, Edge, or Brave and it will connect to ${PRODUCT_NAME} on this computer.`,
     ),
-    windowClosed: text("DA 窗口已关闭", `The ${PRODUCT_NAME} window is closed.`),
-    deliveredWaiting: text("已送达 DA，正在等待写入结果", `Delivered to ${PRODUCT_NAME}. Waiting for the save result.`),
+    windowClosed: text("画布工作区 窗口已关闭", `The ${PRODUCT_NAME} window is closed.`),
+    deliveredWaiting: text("已送达 画布工作区，正在等待写入结果", `Delivered to ${PRODUCT_NAME}. Waiting for the save result.`),
     discoveryUnavailable: text("浏览器插件发现服务暂不可用，正在自动重试", "Extension discovery is unavailable. Retrying automatically."),
     noSupportedBrowser: text(
       "未检测到支持的浏览器（Chrome / Edge / Chromium / Brave），无法注册连接",
@@ -107,17 +129,17 @@ export function du() {
     payloadTooLarge: text("内容超过单次采集上限", "The content is over the capture limit."),
     connectionExpired: text("连接已过期", "This connection has expired."),
     badContentFormat: text("内容格式错误", "The content format is invalid."),
-    receiveFailed: text("接收失败，请回到 DA 重新发送", `Could not receive it. Return to ${PRODUCT_NAME} and send it again.`),
+    receiveFailed: text("接收失败，请回到 画布工作区 重新发送", `Could not receive it. Return to ${PRODUCT_NAME} and send it again.`),
     imageNotInJson: text("图片不要放进 JSON，请发送原图字节", "Do not put the image in JSON. Send the original image bytes."),
     imageChannelOnly: text("原图通道只接受 image 采集", "The original-image channel only accepts image captures."),
     discoveryPortBusy: text("无法占用本机发现端口", "Could not bind the local discovery port."),
     localExtensionOnly: text("只接受本机浏览器插件", "Only a browser extension on this computer is accepted."),
     connectionUnavailable: text("连接暂不可用，请重试", "The connection is unavailable. Try again."),
     unknownRequest: text("未知请求", "Unknown request."),
-    captureStopped: text("DA 已停止浏览器采集", `${PRODUCT_NAME} stopped browser capture.`),
+    captureStopped: text("画布工作区 已停止浏览器采集", `${PRODUCT_NAME} stopped browser capture.`),
     invalidRequest: text("请求无效", "The request is invalid."),
     connectorInstallDetail: text(
-      "扩展管理页和连接器文件夹已打开。请启用开发者模式，选择“加载解压缩的扩展”，选中该文件夹。已有旧版请点“重新加载”。安装完成后继续；DA 会验证实际连接，不会把点击继续当作安装成功。正式版需商店发布后才能提供商店安装。",
+      "扩展管理页和连接器文件夹已打开。请启用开发者模式，选择“加载解压缩的扩展”，选中该文件夹。已有旧版请点“重新加载”。安装完成后继续；画布工作区 会验证实际连接，不会把点击继续当作安装成功。正式版需商店发布后才能提供商店安装。",
       `The extensions page and the connector folder are open. Turn on developer mode, choose “Load unpacked”, and select that folder. If an older copy is installed, click “Reload”. Continue after installation. ${PRODUCT_NAME} checks the real connection and does not treat clicking continue as success. A store install is available only after a store release.`,
     ),
     extensionDirMissing: text("还没有打出插件目录，请先构建浏览器插件", "The extension directory has not been built. Build the browser extension first."),
@@ -128,10 +150,10 @@ export function du() {
     importRestored: text("导入失败，原有登录数据已恢复", "Import failed. The previous sign-in data was restored."),
     importRestoreFailed: text("导入失败，部分登录数据恢复失败，请重新登录 Pinterest", "Import failed, and some sign-in data could not be restored. Sign in to Pinterest again."),
     badConnectionCode: text("连接无效或已使用，请重新生成连接码", "This connection is invalid or already used. Generate a new connection code."),
-    sessionReceived: text("会话已接收。请回到 DA 刷新 Pinterest，检查是否登录成功。", `Session received. Return to ${PRODUCT_NAME}, refresh Pinterest, and check that you are signed in.`),
+    sessionReceived: text("会话已接收。请回到 画布工作区 刷新 Pinterest，检查是否登录成功。", `Session received. Return to ${PRODUCT_NAME}, refresh Pinterest, and check that you are signed in.`),
     sessionNotConnected: text("已取消，未接入会话", "Canceled. The session was not connected."),
-    connectFailedReturn: text("接入失败，请回到 DA 查看提示并重新连接", `Could not connect. Return to ${PRODUCT_NAME}, read the message, and connect again.`),
-    connectionClaimed: text("连接已被领取，请在 DA 重新发起", `This connection was already claimed. Start it again in ${PRODUCT_NAME}.`),
+    connectFailedReturn: text("接入失败，请回到 画布工作区 查看提示并重新连接", `Could not connect. Return to ${PRODUCT_NAME}, read the message, and connect again.`),
+    connectionClaimed: text("连接已被领取，请在 画布工作区 重新发起", `This connection was already claimed. Start it again in ${PRODUCT_NAME}.`),
     defaultBrowserUnsupported(name: string): string {
       return text(
         `当前默认浏览器是 ${name}，现有实验连接器尚不支持它。`,
@@ -142,14 +164,14 @@ export function du() {
       return text(`在 ${name} 打开 Pinterest`, `Open Pinterest in ${name}`);
     },
     browserCannotContinueSession(name: string): string {
-      return text(`${name} 暂不支持会话接续；DA 登录尚未完成`, `${name} cannot continue this session yet. Sign-in to ${PRODUCT_NAME} is not finished.`);
+      return text(`${name} 暂不支持会话接续；画布工作区 登录尚未完成`, `${name} cannot continue this session yet. Sign-in to ${PRODUCT_NAME} is not finished.`);
     },
     finishSignInIn(name: string): string {
-      return text(`在 ${name} 完成登录，回 DA 继续采集`, `Finish signing in with ${name}, then return to ${PRODUCT_NAME} to keep collecting.`);
+      return text(`在 ${name} 完成登录，回 画布工作区 继续采集`, `Finish signing in with ${name}, then return to ${PRODUCT_NAME} to keep collecting.`);
     },
     continueMaySwitchAccount(detail: string): string {
       return text(
-        `${detail}\n确认接续可能切换 DA 的 Pinterest 账号；平台许可与完整登录验证尚未完成。`,
+        `${detail}\n确认接续可能切换 画布工作区 的 Pinterest 账号；平台许可与完整登录验证尚未完成。`,
         `${detail}\nContinuing may switch the Pinterest account in ${PRODUCT_NAME}. Platform permission and full sign-in checks are not finished.`,
       );
     },
@@ -158,7 +180,7 @@ export function du() {
     },
     waitingForConnector(name: string): string {
       return text(
-        `已请求 ${name} 打开连接器，等待连接。首次需在该浏览器安装或重新加载 DA 扩展；当前尚未完成登录。`,
+        `已请求 ${name} 打开连接器，等待连接。首次需在该浏览器安装或重新加载 画布工作区 扩展；当前尚未完成登录。`,
         `Asked ${name} to open the connector and am waiting for it. The first time, install or reload the ${PRODUCT_NAME} extension in that browser. Sign-in is not finished yet.`,
       );
     },
@@ -185,7 +207,7 @@ export function du() {
     },
     firstConnectorInstall(name: string): string {
       return text(
-        `首次使用需要在 ${name} 安装 DA 连接器，并由你确认站点权限。连接器只接续已适配网站的登录，不读取 Google 密码或 Google Cookie。当前是开发实验版，尚未上架扩展商店。`,
+        `首次使用需要在 ${name} 安装 画布工作区 连接器，并由你确认站点权限。连接器只接续已适配网站的登录，不读取 Google 密码或 Google Cookie。当前是开发实验版，尚未上架扩展商店。`,
         `The first time, install the ${PRODUCT_NAME} connector in ${name} and confirm the site permission yourself. The connector only continues sign-in for sites that already support it. It does not read your Google password or Google cookies. This is a development experiment and is not in the extension store yet.`,
       );
     },

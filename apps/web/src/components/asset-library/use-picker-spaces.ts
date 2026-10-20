@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { WorkspaceCollabContext } from '@bezier/contracts';
 import { readProjectFolders, readSelectedProjectFolderId, PROJECT_FOLDERS_CHANGED_EVENT, DEFAULT_PROJECT_FOLDER_ID } from '../../state/project-folders';
 import { personalAssets } from '../../providers/asset-library';
+import { useT } from '../../i18n';
 
 /** Compatibility projection; no installed design-system product is loaded. */
 export function designSystemSpace(system: { projectId?: string }, projectSpaces: Readonly<Record<string, string>>): string {
@@ -10,6 +11,7 @@ export function designSystemSpace(system: { projectId?: string }, projectSpaces:
 
 /** Local spaces retain the original picker shape without account/team directory state. */
 export function usePickerSpaces(_context: WorkspaceCollabContext | null | undefined, enabled = true) {
+  const t = useT();
   const scope = 'local';
   const [space, setSpace] = useState(() => readSelectedProjectFolderId(scope) ?? DEFAULT_PROJECT_FOLDER_ID);
   const [revision, setRevision] = useState(0);
@@ -33,10 +35,10 @@ export function usePickerSpaces(_context: WorkspaceCollabContext | null | undefi
     };
   }, [enabled]);
   const folders = useMemo(() => {
-    const cached = readProjectFolders(scope);
+    const cached = readProjectFolders(scope).map(folder => folder.id === DEFAULT_PROJECT_FOLDER_ID ? { ...folder, name: t('entry.space.defaultName') } : folder);
     if (!remote) return cached;
     return [cached.find(folder => folder.id === DEFAULT_PROJECT_FOLDER_ID)!, ...remote.filter(folder => folder.id !== DEFAULT_PROJECT_FOLDER_ID)];
-  }, [remote, revision]);
+  }, [remote, revision, t]);
   const projectSpaces: Record<string, string> = {};
   return { space: folders.some(folder => folder.id === space) ? space : DEFAULT_PROJECT_FOLDER_ID, setSpace, folders, projectSpaces, projectsReady: enabled };
 }

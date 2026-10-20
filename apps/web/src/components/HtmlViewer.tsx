@@ -2434,7 +2434,7 @@ function FileVersionManagerModal({
             aria-labelledby={versionImageExportTitleId}
           >
             <div className="modal-head">
-              <div className="kicker">IMAGE</div>
+              <div className="kicker">{t('fileViewer.imageLabel')}</div>
               <h2 id={versionImageExportTitleId}>{t('fileViewer.exportImage')}</h2>
               <p className="subtitle">{t('fileViewer.exportImageModalSubtitle')}</p>
             </div>
@@ -2672,12 +2672,12 @@ function InspectPanel({
             i
           </div>
           <div className="inspect-ancestor-notice-text">
-            You clicked <strong>{target.clickedDescendant.label}</strong>
+            {t('inspect.clicked')}<strong>{target.clickedDescendant.label}</strong>
             {target.clickedDescendant.text
               ? ` ("${target.clickedDescendant.text.slice(0, 40)}${target.clickedDescendant.text.length > 40 ? '...' : ''}")`
               : ''}
-            , but it has no <code>data-bezier-id</code> annotation. Editing{' '}
-            <strong>{target.label || target.elementId}</strong> instead, the nearest annotated ancestor.
+            {t('inspect.missingAnnotation', { attribute: 'data-bezier-id' })}
+            <strong>{target.label || target.elementId}</strong>{t('inspect.nearestAncestor')}
           </div>
         </div>
       ) : null}
@@ -2753,15 +2753,15 @@ function InspectPanel({
             value={textAlign}
             onChange={(e) => setVal('text-align', e.target.value)}
           >
-            {['left', 'center', 'right', 'justify'].map((a) => (
-              <option key={a} value={a}>{a}</option>
+            {(['left', 'center', 'right', 'justify'] as const).map((a) => (
+              <option key={a} value={a}>{t(({ left: 'doc.word.alignLeft', center: 'doc.word.alignCenter', right: 'doc.word.alignRight', justify: 'doc.word.alignJustify' } as const)[a])}</option>
             ))}
           </Select>
         </div>
       </section>
 
       <section className="inspect-section">
-        <div className="inspect-section-label">Spacing &amp; Shape</div>
+        <div className="inspect-section-label">{t('inspect.spacingShape')}</div>
         <div className="inspect-row">
           <label htmlFor="ip-pad">{t('inspect.padding')}</label>
           <input
@@ -2808,7 +2808,7 @@ function InspectPanel({
           disabled={saving}
           onClick={onSaveToSource}
         >
-          {saving ? 'Saving…' : justSaved ? 'Saved ✓' : 'Save to source'}
+          {saving ? t('fileViewer.markdownSaving') : justSaved ? `${t('fileViewer.markdownSaved')} ✓` : t('inspect.saveToSource')}
         </Button>
       </footer>
       {error ? <div className="inspect-panel-error">{error}</div> : null}
@@ -2960,7 +2960,7 @@ function buildPodSnapshot(input: {
   filePath: string;
   strokePoints: StrokePoint[];
   liveTargets: Map<string, PreviewCommentSnapshot>;
-}): PreviewCommentSnapshot | null {
+}, t: TranslateFn): PreviewCommentSnapshot | null {
   if (input.strokePoints.length < 2) return null;
   const closedLoop = isClosedLoop(input.strokePoints);
   const intersected = Array.from(input.liveTargets.values()).filter((snapshot) =>
@@ -3017,7 +3017,7 @@ function buildPodSnapshot(input: {
     filePath: input.filePath,
     elementId: `pod-${Date.now()}`,
     selector: combinedSelector || 'body *',
-    label: summary || `Pod of ${intersected.length} items`,
+    label: summary || t('annotation.groupCount', { count: intersected.length }),
     text: intersected
       .slice(0, 4)
       .map((snapshot) => snapshot.text)
@@ -7350,7 +7350,7 @@ function HtmlViewerInner({
           filePath: file.name,
           strokePoints: points,
           liveTargets: liveCommentTargetsRef.current,
-        });
+        }, t);
         if (!nextTarget) {
           setStrokePoints([]);
           return;
@@ -7365,7 +7365,7 @@ function HtmlViewerInner({
     }
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [activeCommentTarget, boardMode, boardTool, cancelHoverCardDismiss, file.name, isOurPreviewIframeSource, scheduleHoverCardDismiss, workspaceActive]);
+  }, [activeCommentTarget, boardMode, boardTool, cancelHoverCardDismiss, file.name, isOurPreviewIframeSource, scheduleHoverCardDismiss, workspaceActive, t]);
 
   useEffect(() => {
     if (!workspaceActive || !boardMode || !activeCommentTarget || activeCommentTarget.selectionKind === 'pod') return;
@@ -7488,7 +7488,7 @@ function HtmlViewerInner({
           id: sessionId,
           kind: 'set-text',
           value: String(data.value),
-        }, 'Edit text');
+        }, t('manualEdit.history.editText'));
         manualEditTextCommitInFlightRef.current = commit;
         const record: NonNullable<typeof manualEditTextLatestCommitRef.current> = {
           promise: commit,
@@ -7546,7 +7546,7 @@ function HtmlViewerInner({
         const transform = String(data.transform || '');
         const dragStyles: Partial<ManualEditStyles> = { transform };
         if (typeof data.display === 'string' && data.display) dragStyles.display = data.display;
-        void handleManualEditStyleChange(id, dragStyles, 'Move element');
+        void handleManualEditStyleChange(id, dragStyles, t('manualEdit.history.moveElement'));
         if (selectedManualEditTargetIdRef.current === id) {
           setManualEditDraft((current) => ({ ...current, styles: { ...current.styles, ...dragStyles } }));
           setManualEditDraftDirty(true);
@@ -7556,7 +7556,7 @@ function HtmlViewerInner({
     }
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [isRetainedPreviewIframeSource, manualEditMode, source, workspaceActive]);
+  }, [isRetainedPreviewIframeSource, manualEditMode, source, workspaceActive, t]);
 
   // The selected element can leave focus in the host-side inspector. Key
   // events in an iframe do not bubble to its parent document, so this mirrors
@@ -7609,7 +7609,7 @@ function HtmlViewerInner({
     savedSource: string,
   ) {
     if (id !== '__body__' && !readManualEditOuterHtml(savedSource, id)) {
-      setManualEditError('The selected target no longer exists in the saved source. Refreshing the preview.');
+      setManualEditError(t('manualEdit.error.targetGone'));
       setSelectedManualEditTarget(null);
       setManualEditFrozenSource(null);
       setReloadKey((key) => key + 1);
@@ -7633,7 +7633,7 @@ function HtmlViewerInner({
       ...current,
       styles: { ...current.styles, ...repairStyles },
     }));
-    setManualEditError('Saved styles differed from the active preview. Reconciled the selected target from source.');
+    setManualEditError(t('manualEdit.error.stylesReconciled'));
   }
 
   function clearManualEditStyleTimer() {
@@ -8008,7 +8008,7 @@ function HtmlViewerInner({
     if (snapshot.outerHtml && currentOuterHtml && snapshot.outerHtml !== currentOuterHtml) {
       const ok = await applyManualEdit(
         { id: selectedManualEditTarget.id, kind: 'set-outer-html', html: snapshot.outerHtml },
-        'Reset element',
+        t('manualEdit.history.resetElement'),
       );
       if (!ok) return;
     }
@@ -8041,14 +8041,14 @@ function HtmlViewerInner({
     setManualEditError(null);
     try {
       const baseSource = sourceRef.current;
-      const result = applyManualEditPatch(baseSource, patch);
+      const result = applyManualEditPatch(baseSource, patch, t);
       if (!result.ok) {
-        setManualEditError(result.error ?? 'Could not apply edit.');
+        setManualEditError(result.error ?? t('manualEdit.error.apply'));
         return false;
       }
       if (!(await confirmManualEditHistorySource(
         baseSource,
-        'The file changed outside manual edit mode. Refreshing before applying manual edits.',
+        t('manualEdit.error.changedBeforeApply'),
       ))) return false;
       const parentVersionId = await resolveManualEditParentVersionId(baseSource);
       const saved = await writeProjectTextFileDetailed(projectId, file.name, result.source, {
@@ -8060,9 +8060,9 @@ function HtmlViewerInner({
       if (!saved.ok) {
         const status = 'status' in saved ? saved.status : undefined;
         const code = 'code' in saved ? saved.code : undefined;
-        const message = 'message' in saved ? saved.message : 'Unknown save error';
+        const message = 'message' in saved ? saved.message : t('manualEdit.error.unknownSave');
         setManualEditError(
-          `Could not save the edited file${status ? ` (${status}${code ? ` ${code}` : ''})` : ''}: ${message}`,
+          t('manualEdit.error.save', { status: status ? ` (${status}${code ? ` ${code}` : ''})` : '', message }),
         );
         return false;
       }
@@ -8180,17 +8180,17 @@ function HtmlViewerInner({
     try {
       if (!(await confirmManualEditHistorySource(
         latest.afterSource,
-        'The file changed outside manual edit mode. History was cleared to avoid overwriting newer content.',
+        t('manualEdit.error.changedHistory'),
       ))) return;
       const parentVersionId = await resolveManualEditParentVersionId(latest.afterSource);
       const saved = await writeProjectTextFileDetailed(projectId, file.name, latest.beforeSource, {
         artifactManifest: file.artifactManifest,
         versionSource: 'manual',
-        versionLabel: `Undo ${latest.label}`,
+        versionLabel: t('manualEdit.history.undo', { label: latest.label }),
         ...(parentVersionId ? { parentVersionId } : {}),
       }, workspaceContext);
       if (!saved.ok) {
-        setManualEditError(describeManualEditSaveFailure('Could not save the undo result', saved));
+        setManualEditError(describeManualEditSaveFailure(t('manualEdit.error.undoSave'), saved));
         return;
       }
       // Same srcDoc rebuild as a committed patch — keep the scroll position
@@ -8219,17 +8219,17 @@ function HtmlViewerInner({
     try {
       if (!(await confirmManualEditHistorySource(
         latest.beforeSource,
-        'The file changed outside manual edit mode. History was cleared to avoid overwriting newer content.',
+        t('manualEdit.error.changedHistory'),
       ))) return;
       const parentVersionId = await resolveManualEditParentVersionId(latest.beforeSource);
       const saved = await writeProjectTextFileDetailed(projectId, file.name, latest.afterSource, {
         artifactManifest: file.artifactManifest,
         versionSource: 'manual',
-        versionLabel: `Redo ${latest.label}`,
+        versionLabel: t('manualEdit.history.redo', { label: latest.label }),
         ...(parentVersionId ? { parentVersionId } : {}),
       }, workspaceContext);
       if (!saved.ok) {
-        setManualEditError(describeManualEditSaveFailure('Could not save the redo result', saved));
+        setManualEditError(describeManualEditSaveFailure(t('manualEdit.error.redoSave'), saved));
         return;
       }
       // Same srcDoc rebuild as a committed patch — keep the scroll position
@@ -8519,13 +8519,13 @@ function HtmlViewerInner({
         versionLabel: t('fileViewer.edit'),
       }, workspaceContext);
       if (!saved.ok) {
-        throw new Error(saved.message || `Save failed (${saved.status ?? ''})`);
+        throw new Error(saved.message || `${t('fileViewer.markdownSaveFailed')} (${saved.status ?? ''})`);
       }
       setSource(next);
       setInspectSavedAt(Date.now());
       setReloadKey((k) => k + 1);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Save failed';
+      const msg = err instanceof Error ? err.message : t('fileViewer.markdownSaveFailed');
       setInspectError(msg);
       // The error banner inside the inspect panel is easy to miss when the
       // user is focused on the iframe preview — surface failures in the
@@ -10517,7 +10517,7 @@ function HtmlViewerInner({
               active one is legible at a glance. A single toggle that flips its
               own label reads as "what am I looking at now?" and forces the user
               to click to find out. */}
-          <div className="viewer-tabs viewer-mode-tabs" role="tablist" aria-label="View mode">
+          <div className="viewer-tabs viewer-mode-tabs" role="tablist" aria-label={t('fileViewer.viewMode')}>
             {([
               ['preview', t('fileViewer.preview'), 'eye-line'],
               ['source', t('fileViewer.source'), 'code-s-slash-line'],
@@ -11693,7 +11693,7 @@ function HtmlViewerInner({
                 </div>
               ) : null}
               {showDeckFloatingNav ? (
-                <div className="deck-floating-nav" aria-label="Deck navigation">
+                <div className="deck-floating-nav" aria-label={t('fileViewer.slideNavAria')}>
                   <Button
                     type="button"
                     className="deck-floating-button bezier-tooltip"
@@ -11805,8 +11805,8 @@ function HtmlViewerInner({
                   )}
                   <Button
                     type="button"
-                    title="Close Inspect Hint"
-                    aria-label="Close Inspect Hint"
+                    title={t('inspect.closeHint')}
+                    aria-label={t('inspect.closeHint')}
                     onClick={() => setOpenHintBox(false)}
                     className="orbit-artifact-ghost"
                   >
@@ -11868,14 +11868,14 @@ function HtmlViewerInner({
         >
           {effectiveDeck || !useUrlLoadPreview ? (
             <iframe
-              title="present"
+              title={t('fileViewer.present')}
               sandbox="allow-scripts allow-downloads"
               data-bezier-render-mode="srcdoc"
               srcDoc={effectiveDeck ? presentationSrcDoc : srcDoc}
             />
           ) : (
             <iframe
-              title="present"
+              title={t('fileViewer.present')}
               sandbox="allow-scripts allow-downloads"
               data-bezier-render-mode="url-load"
               src={activePreviewSrcUrl}
@@ -12017,7 +12017,7 @@ function HtmlViewerInner({
             aria-labelledby={imageExportTitleId}
           >
             <div className="modal-head">
-              <div className="kicker">IMAGE</div>
+              <div className="kicker">{t('fileViewer.imageLabel')}</div>
               <h2 id={imageExportTitleId}>{t('fileViewer.exportImage')}</h2>
               <p className="subtitle">{t('fileViewer.exportImageModalSubtitle')}</p>
             </div>
@@ -12083,7 +12083,7 @@ function HtmlViewerInner({
         <div className="modal-backdrop viewer-modal-backdrop" role="presentation">
           <div className="modal deploy-modal" role="dialog" aria-modal="true">
             <div className="modal-head">
-              <div className="kicker">TEMPLATE</div>
+              <div className="kicker">{t('fileViewer.templateLabel')}</div>
               <h2>{t('fileViewer.saveAsTemplate')}</h2>
               <p className="subtitle">{t('fileViewer.templateDescPrompt')}</p>
             </div>

@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useT } from '@/src/i18n';
 
 import {
   Sheet as SheetPrimitive,
@@ -64,6 +65,7 @@ function SheetContent({
   showCloseButton = true,
   ...props
 }: SheetContentProps) {
+  const t = useT();
   return (
     <SheetPortalPrimitive>
       <SheetOverlay />
@@ -83,7 +85,7 @@ function SheetContent({
         {showCloseButton && (
           <SheetClose className="ring-offset-background focus-visible:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
             <XIcon className="size-4" />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">{t('common.close')}</span>
           </SheetClose>
         )}
       </SheetContentPrimitive>

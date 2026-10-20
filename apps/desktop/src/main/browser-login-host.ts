@@ -1,3 +1,4 @@
+import { nativeFailure } from './locales/native-messages.js';
 import type { App, BrowserWindow, Session, WebContents } from 'electron';
 import { stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
@@ -60,10 +61,10 @@ export function createBrowserLoginHost(options: {
         prompt: async (detail, buttons) => (await options.dialog.showMessageBox(options.window, { type: 'info', title: du().connectBrowser,
           message: du().finishSignInIn(target.name), detail: du().continueMaySwitchAccount(detail), buttons, defaultId: 0, cancelId: 0 })).response,
         openInstall: async () => {
-          if (!valid()) throw new Error('Source changed');
+          if (!valid()) throw new Error(du().sourceChanged);
           const directory = fileURLToPath(new URL('../pinterest-auth-extension/', import.meta.url));
           await stat(join(directory, 'manifest.json'));
-          if (!valid()) throw new Error('Source changed');
+          if (!valid()) throw new Error(du().sourceChanged);
           await exec('/usr/bin/open', ['-a', target.path, basename(target.path).startsWith('Microsoft Edge') ? 'edge://extensions/' : 'chrome://extensions/']);
           if (await options.shell.openPath(directory)) throw new Error(du().connectorFolderFailed);
         },
@@ -78,7 +79,7 @@ export function createBrowserLoginHost(options: {
         if (!valid() || active?.id !== guestId || abort.signal.aborted || signal.aborted) return false;
         status(guestId, du().connectingPinterest, true); importing = true;
         try { await importPinterestCookies(options.session, cookies, AbortSignal.any([signal, abort.signal])); }
-        catch (error) { status(guestId, error instanceof Error ? error.message : du().sessionConnectFailed); stop(); throw error; }
+        catch (error) { status(guestId, nativeFailure(error, du().sessionConnectFailed)); stop(); throw error; }
         finally { importing = false; }
         active?.cleanup(); active = undefined; relay?.close(); relay = undefined; clearTimeout(timeout); clearTimeout(connectorTimeout);
         if (!guest.isDestroyed() && pinterestUrl(guest.getURL())) {

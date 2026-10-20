@@ -1,4 +1,4 @@
-import { bindExtensionLocale, currentExtensionLocale, detectExtensionLocale, eu, extensionLocaleStorageKey } from "./locales/extension-ui.js";
+import { bindExtensionLocale, currentExtensionLocale, detectExtensionLocale, eu, extensionLocaleStorageKey, localizeBridgeError } from "./locales/extension-ui.js";
 /**
  * Official popup: connection card + the two capture surfaces.
  * Howto / privacy copy stays out — the in-page UI is the product.
@@ -58,7 +58,8 @@ function applyPopupChrome(): void {
 }
 
 function render(state: WorkerState): void {
-  statusEl.textContent = state.message;
+  statusEl.textContent = localizeBridgeError(state.message, state.phase === 'ready' || state.phase === 'done'
+    ? eu().connectedPlain : state.phase === 'sending' ? eu().checking : eu().cannotOpenApp);
   labelEl.textContent = phaseLabel(state.phase);
   cardEl.classList.toggle('ok', state.phase === 'ready' || state.phase === 'done');
   cardEl.classList.toggle('bad', state.phase === 'error' || state.phase === 'idle');

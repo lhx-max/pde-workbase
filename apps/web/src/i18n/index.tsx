@@ -28,11 +28,9 @@ const DICTS: Partial<Record<Locale, Dict>> = {
 };
 
 const LS_KEY = 'bezier:locale';
-// Marker that says "the value in LS_KEY came from a deliberate user
-// action through setLocale, not from some auto-detection path". Only
-// values tagged this way win over the desktop host's injected OS
-// locale, so a stale auto-detected pick can't pin the app forever once
-// the user changes their system language.
+// Only a deliberate language choice overrides the independent product's
+// Chinese default. Legacy automatic browser/OS choices are not user intent.
+export const DEFAULT_LOCALE: Locale = 'zh-CN';
 const LS_SOURCE_KEY = 'bezier:locale-source';
 const MANUAL_LOCALE_SOURCE = 'manual';
 
@@ -95,29 +93,11 @@ export function tForLanguageTag(
   };
 }
 
-// Read the OS locale the desktop host attached to its client descriptor.
-// Packaged desktop builds need this because Chromium otherwise reports
-// en-US through navigator.language regardless of the OS setting. We go
-// through `getBezierHost` rather than reading the bridge global by
-// name so the web/preload boundary stays single-source (see the
-// `host bridge boundary` guard test).
-function readDesktopHostOsLocale(): string | undefined {
-  if (typeof window === 'undefined') return undefined;
-  const host = getBezierHost();
-  const value = host?.client?.osLocale;
-  return typeof value === 'string' && value.length > 0 ? value : undefined;
-}
-
-// First-run defaults to the user's OS / browser language when possible.
-// Priority: explicit user pick saved to localStorage (only when tagged
-// as manual) > OS locale that the desktop host injected (packaged
-// Electron) > navigator.languages > 'en'. The source tag matters
-// because untagged localStorage values are treated as legacy /
-// auto-detected — they don't override a fresh OS locale read.
-// Exported so tests can pin the priority chain without spinning up the
-// full I18nProvider.
+// Simplified Chinese is the standalone product default, including SSR and
+// storage-denied browsers. Preserve explicit supported user choices, but do
+// not let the test browser's or operating system's English locale change it.
 export function detectInitialLocale(): Locale {
-  if (typeof window === 'undefined') return 'en';
+  if (typeof window === 'undefined') return DEFAULT_LOCALE;
   let storedLocale: string | null = null;
   let storedSource: string | null = null;
   try {
@@ -133,15 +113,15 @@ export function detectInitialLocale(): Locale {
   ) {
     return storedLocale as Locale;
   }
-  const hostOsLocale = readDesktopHostOsLocale();
-  if (hostOsLocale) {
-    const fromHost = resolveSystemLocale([hostOsLocale]);
-    if (fromHost) return fromHost;
-  }
-  const detected = resolveSystemLocale(
-    navigator.languages?.length ? navigator.languages : [navigator.language],
-  );
-  return detected ?? 'en';
+  return DEFAULT_LOCALE;
+}
+
+// Non-React services follow the mounted application's language, just like the
+// document and native host. Tokens prevent stale cleanup from clearing another
+// owner. Registration occurs only in effects, never during server rendering.
+const applicationLocales = new Map<symbol, Locale>();
+export function getActiveLocale(): Locale {
+  return Array.from(applicationLocales.values()).at(-1) ?? detectInitialLocale();
 }
 
 interface I18nContextValue {
@@ -152,7 +132,7 @@ interface I18nContextValue {
 
 const I18nContext = createContext<I18nContextValue | null>(null);
 
-// Stand-alone English translator used when no provider is mounted (e.g. an
+// Stand-alone active translator used when no provider is mounted (e.g. an
 // isolated test). It MUST be a module-level singleton, not rebuilt per render:
 // components legitimately list `t` in effect dependency arrays, and inside the
 // provider `t` is identity-stable (useCallback on [locale]). A fresh closure
@@ -160,12 +140,9 @@ const I18nContext = createContext<I18nContextValue | null>(null);
 // such effect into an infinite render loop that spins instead of failing —
 // which reads as a hung test suite rather than a bug.
 const FALLBACK_I18N: I18nContextValue = {
-  locale: 'en',
+  get locale() { return getActiveLocale(); },
   setLocale: () => { },
-  t: (key, vars) => {
-    const raw = en[key] ?? key;
-    return renderTranslation(raw, vars);
-  },
+  t: tActive,
 };
 
 interface ProviderProps {
@@ -177,6 +154,12 @@ const RTL_LOCALES: Locale[] = [];
 
 export function I18nProvider({ initial, children }: ProviderProps) {
   const [locale, setLocaleState] = useState<Locale>(() => initial ?? detectInitialLocale());
+
+  useEffect(() => {
+    const owner = Symbol('application-locale');
+    applicationLocales.set(owner, locale);
+    return () => { applicationLocales.delete(owner); };
+  }, [locale]);
 
   // Keep <html lang="…" dir="…"> in sync so screen readers and CSS hooks
   // pick the right language token and direction without each component
@@ -221,7 +204,7 @@ export function I18nProvider({ initial, children }: ProviderProps) {
 }
 
 export function tActive(key: DictKey, vars?: Record<string, string | number>): string {
-  const locale = detectInitialLocale();
+  const locale = getActiveLocale();
   const dict = DICTS[locale] ?? en;
   const raw = dict[key] ?? en[key] ?? key;
   return renderTranslation(raw, vars);

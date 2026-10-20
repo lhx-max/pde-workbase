@@ -1,3 +1,4 @@
+import type { useT } from '../i18n';
 export interface SketchPoint {
   x: number;
   y: number;
@@ -109,14 +110,14 @@ export function parseSketchWorkspaceDocument(
 }
 
 /** Editable documents must never turn a failed read into a writable empty scene. */
-export function readSketchWorkspaceDocument(text: string | null): ParsedSketchWorkspaceDocument {
-  if (!text?.trim()) throw new Error('Sketch content is unavailable');
+export function readSketchWorkspaceDocument(text: string | null, t?: ReturnType<typeof useT>): ParsedSketchWorkspaceDocument {
+  if (!text?.trim()) throw new Error(t?.('sketch.document.unavailable') ?? 'Sketch content is unavailable');
   const value: unknown = JSON.parse(text);
   if (!isSketchRecord(value) || (!Array.isArray(value.elements) && !Array.isArray(value.items))) {
-    throw new Error('Unsupported sketch document');
+    throw new Error(t?.('sketch.document.unsupported') ?? 'Unsupported sketch document');
   }
   if (Array.isArray(value.elements) && value.version !== undefined && value.version !== 2) {
-    throw new Error('Unsupported sketch version');
+    throw new Error(t?.('sketch.document.unsupportedVersion') ?? 'Unsupported sketch version');
   }
   return parseSketchWorkspaceDocument(text);
 }

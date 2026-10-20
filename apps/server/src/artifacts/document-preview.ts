@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import JSZip from 'jszip';
+import type { ProjectDocumentPreview, ProjectDocumentPreviewSection } from '@bezier/contracts';
 import { kindFor } from '../projects.js';
 
 const execFileP = promisify(execFile);
@@ -10,13 +11,13 @@ const MAX_COMPRESSED_PREVIEW_BYTES = 10 * 1024 * 1024;
 const MAX_UNCOMPRESSED_PREVIEW_BYTES = 50 * 1024 * 1024;
 const MAX_XML_ENTRY_BYTES = 5 * 1024 * 1024;
 const MAX_PDF_PREVIEW_CONCURRENCY = 2;
-const pdfPreviewQueue = createLimiter(MAX_PDF_PREVIEW_CONCURRENCY);
+const pdfPreviewQueue = createLimiter<PreviewSection[]>(MAX_PDF_PREVIEW_CONCURRENCY);
 
 type PreviewKind = 'pdf' | 'document' | 'presentation' | 'spreadsheet';
-type PreviewSection = { title: string; lines: string[] };
+type PreviewSection = ProjectDocumentPreviewSection;
 type PreviewFile = { name: string; buffer: Buffer };
 type XmlAttrs = Record<string, string>;
-type WorkbookSheet = { name: string; path: string };
+type WorkbookSheet = { name: string; path: string; generatedTitle?: 'sheet' };
 type ZipEntryWithSize = JSZip.JSZipObject & {
   _data?: { uncompressedSize?: number };
 };
@@ -28,7 +29,7 @@ class PreviewHttpError extends Error {
   }
 }
 
-export async function buildDocumentPreview(file: PreviewFile, dataRoot: string) {
+export async function buildDocumentPreview(file: PreviewFile, dataRoot: string): Promise<ProjectDocumentPreview> {
   const kind = kindFor(file.name);
   if (!['pdf', 'document', 'presentation', 'spreadsheet'].includes(kind)) {
     throw new PreviewHttpError('unsupported preview type', 415);
@@ -87,6 +88,7 @@ async function previewPdf(buffer: Buffer, dataRoot: string): Promise<PreviewSect
       {
         title: 'PDF',
         lines: lines.length > 0 ? lines : ['No readable text found.'],
+        ...(lines.length ? {} : { notice: 'no-readable-text' as const }),
       },
     ];
   } catch {
@@ -94,6 +96,7 @@ async function previewPdf(buffer: Buffer, dataRoot: string): Promise<PreviewSect
       {
         title: 'PDF',
         lines: ['Text preview is unavailable. Use Open or Download to inspect the PDF.'],
+        notice: 'pdf-unavailable',
       },
     ];
   } finally {
@@ -108,6 +111,7 @@ async function previewDocx(zip: JSZip): Promise<PreviewSection[]> {
     {
       title: 'Document',
       lines: paragraphs.length > 0 ? paragraphs : ['No readable text found.'],
+      ...(paragraphs.length ? {} : { notice: 'no-readable-text' as const }),
     },
   ];
 }
@@ -123,11 +127,12 @@ async function previewPptx(zip: JSZip): Promise<PreviewSection[]> {
     sections.push({
       title: `Slide ${i + 1}`,
       lines: lines.length > 0 ? lines : ['No readable text found.'],
+        ...(lines.length ? {} : { notice: 'no-readable-text' as const }),
     });
   }
   return sections.length > 0
     ? sections
-    : [{ title: 'Presentation', lines: ['No readable slides found.'] }];
+    : [{ title: 'Presentation', lines: ['No readable slides found.'], notice: 'no-readable-slides' }];
 }
 
 async function previewXlsx(zip: JSZip): Promise<PreviewSection[]> {
@@ -140,11 +145,13 @@ async function previewXlsx(zip: JSZip): Promise<PreviewSection[]> {
     sections.push({
       title: sheet.name,
       lines: lines.length > 0 ? lines : ['No readable cell values found.'],
+      ...(lines.length ? {} : { notice: 'no-readable-cells' as const }),
+      ...(sheet.generatedTitle ? { generatedTitle: sheet.generatedTitle } : {}),
     });
   }
   return sections.length > 0
     ? sections
-    : [{ title: 'Spreadsheet', lines: ['No readable sheets found.'] }];
+    : [{ title: 'Spreadsheet', lines: ['No readable sheets found.'], notice: 'no-readable-sheets' }];
 }
 
 async function readSharedStrings(zip: JSZip): Promise<string[]> {
@@ -171,6 +178,7 @@ async function readWorkbook(zip: JSZip): Promise<WorkbookSheet[]> {
     if (!target) continue;
     sheets.push({
       name: attrs.name || `Sheet ${sheets.length + 1}`,
+      ...(!attrs.name ? { generatedTitle: 'sheet' as const } : {}),
       path: `xl/${target.replace(/^\/?xl\//, '')}`,
     });
   }
@@ -178,7 +186,7 @@ async function readWorkbook(zip: JSZip): Promise<WorkbookSheet[]> {
   return Object.keys(zip.files)
     .filter((name) => /^xl\/worksheets\/sheet\d+\.xml$/i.test(name))
     .sort(numericPathSort)
-    .map((name, i) => ({ name: `Sheet ${i + 1}`, path: name }));
+    .map((name, i) => ({ name: `Sheet ${i + 1}`, path: name, generatedTitle: 'sheet' as const }));
 }
 
 function extractWorksheetRows(xml: string, sharedStrings: string[]): string[] {

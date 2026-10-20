@@ -24,7 +24,8 @@ import {
   Switch,
   Textarea,
 } from '@/src/components/ui';
-import { tForLanguageTag, useT } from '../i18n';
+import { tForLanguageTag, useI18n, useT } from '../i18n';
+import type { Dict, Locale } from '../i18n/types';
 import type { DirectionCard, FormOption, QuestionForm } from '../artifacts/question-form';
 import { formatFormAnswers, formOptionValueForLabel } from '../artifacts/question-form';
 import {
@@ -153,7 +154,7 @@ export const QuestionFormView = forwardRef<QuestionFormHandle, QuestionFormProps
   })) }), [suppliedForm, addedOptions]);
   const selectionRequest = useRef<AbortController | null>(null);
   useEffect(() => () => selectionRequest.current?.abort(), [suppliedForm.id, interactive]);
-  const uiT = useT();
+  const { t: uiT, locale } = useI18n();
   // Host strings inside the card follow the form's declared content language
   // (`form.lang`, set by the model alongside the localized labels) so a
   // Chinese form in an English UI doesn't mix scripts; without a resolvable
@@ -383,7 +384,7 @@ export const QuestionFormView = forwardRef<QuestionFormHandle, QuestionFormProps
     if (!onSubmit || submissionPending.current || override?.signal.aborted) return false;
     const targetForm = override?.form ?? form;
     const submittedAnswers = answersWithSkippedQuestions(targetForm, override?.answers ?? answers, skippedIds);
-    const submissionForm = formWithVisualStyleOptions(targetForm, visualStyleContext);
+    const submissionForm = formWithVisualStyleOptions(targetForm, visualStyleContext, locale);
     const files = collectFileSubmissions(form, fileAnswers, skippedIds);
     if (hasAssetChoices) {
       submissionPending.current = true;
@@ -450,7 +451,7 @@ export const QuestionFormView = forwardRef<QuestionFormHandle, QuestionFormProps
   function handleSkipAll() {
     if (locked || !onSubmit || hasAssetChoices) return;
     const empty: Record<string, string | string[]> = {};
-    onSubmit(formatFormAnswers(formWithVisualStyleOptions(form, visualStyleContext), empty), empty, 'skip');
+    onSubmit(formatFormAnswers(formWithVisualStyleOptions(form, visualStyleContext, locale), empty), empty, 'skip');
   }
 
   function handleSkipCurrent() {
@@ -604,7 +605,7 @@ export const QuestionFormView = forwardRef<QuestionFormHandle, QuestionFormProps
             q.id === 'tone' &&
             (q.type === 'checkbox' || q.type === 'radio') &&
             q.options
-              ? visualStyleCardsForContext(visualStyleContext)
+              ? visualStyleCardsForContext(visualStyleContext, locale)
               : null;
           return (
             <div
@@ -1146,13 +1147,13 @@ const VISUAL_STYLE_PAGE_SIZE = 4;
 type VisualStyleGalleryCategory = 'all' | VisualStyleCategory;
 const VISUAL_STYLE_GALLERY_CATEGORIES: Array<{
   value: VisualStyleGalleryCategory;
-  label: string;
+  label: keyof Dict;
 }> = [
-  { value: 'all', label: 'All' },
-  { value: 'business', label: 'Business' },
-  { value: 'editorial', label: 'Editorial' },
-  { value: 'creative', label: 'Creative' },
-  { value: 'minimal', label: 'Minimal' },
+  { value: 'all', label: 'questionForm.styleCategory.all' },
+  { value: 'business', label: 'questionForm.styleCategory.business' },
+  { value: 'editorial', label: 'questionForm.styleCategory.editorial' },
+  { value: 'creative', label: 'questionForm.styleCategory.creative' },
+  { value: 'minimal', label: 'questionForm.styleCategory.minimal' },
 ];
 
 function VisualStylePicker({
@@ -1351,7 +1352,7 @@ function VisualStylePicker({
                   ariaLabel={`${title} categories`}
                   items={VISUAL_STYLE_GALLERY_CATEGORIES.map((category) => ({
                     id: category.value,
-                    label: category.label,
+                    label: t(category.label),
                   }))}
                   value={galleryCategory}
                   onValueChange={(id) => {
@@ -1711,6 +1712,7 @@ function emptyQuestionValue(q: QuestionForm['questions'][number]): string | stri
 function formWithVisualStyleOptions(
   form: QuestionForm,
   visualStyleContext: VisualStyleContext | undefined,
+  locale: Locale,
 ): QuestionForm {
   if (!visualStyleContext) return form;
   let expanded = false;
@@ -1726,7 +1728,7 @@ function formWithVisualStyleOptions(
     expanded = true;
     return {
       ...question,
-      options: visualStyleCardsForContext(visualStyleContext).map((card) => ({
+      options: visualStyleCardsForContext(visualStyleContext, locale).map((card) => ({
         label: card.title,
         value: card.value,
         description: card.description,
@@ -1800,7 +1802,7 @@ export function normalizeVisualStyleQuestionValue(
 
   const cards = visualStyleCardsForContext(visualStyleContext);
   const normalized = optionValue.trim().toLocaleLowerCase();
-  const directMatch = cards.find(
+  const directMatch = [...cards, ...visualStyleCardsForContext(visualStyleContext, 'zh-CN')].find(
     (card) =>
       card.value.toLocaleLowerCase() === normalized ||
       card.title.toLocaleLowerCase() === normalized,

@@ -1,5 +1,7 @@
 import { EventEmitter } from 'node:events';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { bindDesktopLocale } from '../../src/main/locales/desktop-ui.js';
+afterEach(() => bindDesktopLocale('zh-CN'));
 import type { DownloadItem, Session, WebContents } from 'electron';
 import { attachBrowserDownloads } from '../../src/main/browser-downloads.js';
 
@@ -28,8 +30,16 @@ function fixture() {
 describe('native user-confirmed downloads', () => {
   it('uses the original Save As lifecycle and only writes the explicitly chosen path', () => {
     const f = fixture(); const { item, event } = f.download();
-    expect(f.choosePath).toHaveBeenCalledWith(expect.objectContaining({ title: 'Save As', defaultPath: 'image.png', message: expect.stringContaining('https://site.test') }));
+    expect(f.choosePath).toHaveBeenCalledWith(expect.objectContaining({ title: '另存为', buttonLabel: '保存', defaultPath: 'image.png', message: '从 https://site.test 页面下载 https://site.test 的文件',
+      filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'webp'] }, { name: '所有文件', extensions: ['*'] }] }));
     expect(item.setSavePath).toHaveBeenCalledWith('/user/chosen/image.png'); expect(event.preventDefault).not.toHaveBeenCalled();
+  });
+  it('retains explicit English native download labels', () => {
+    bindDesktopLocale('en');
+    const f = fixture(); f.download();
+    expect(f.choosePath).toHaveBeenCalledWith(expect.objectContaining({ title: 'Save As',
+      message: 'Download from https://site.test in https://site.test' }));
+    f.dispose();
   });
   it('allows a guest-owned blob but never borrows another origin', () => {
     const f = fixture(); expect(f.download('blob:https://site.test/id').item.setSavePath).toHaveBeenCalled();

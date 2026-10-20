@@ -1,3 +1,4 @@
+import { nativeMessage, nativeFailure } from './locales/native-messages.js';
 import type { WebContents } from 'electron';
 import type { BezierHostBrowserImage } from '@bezier/host';
 import { readBrowserImage } from './browser-resource.js';
@@ -12,10 +13,12 @@ type ImageGuest = Pick<WebContents, 'isDestroyed' | 'isLoadingMainFrame' | 'getU
 export type BrowserImageCollector = { guest: ImageGuest; enabled: boolean };
 
 function webUrl(value: unknown): string {
-  if (typeof value !== 'string' || value.length > 8192 || !/^https?:\/\//i.test(value)) throw new Error('Only HTTP(S) image URLs are supported');
-  const url = new URL(value);
+  if (typeof value !== 'string' || value.length > 8192 || !/^https?:\/\//i.test(value)) throw new Error(nativeMessage('Only HTTP(S) image URLs are supported'));
+  let url: URL;
+  try { url = new URL(value); }
+  catch { throw new Error(nativeMessage('Only HTTP(S) image URLs are supported')); }
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || /^https?:\/\/[^/]*@/i.test(value)) {
-    throw new Error('Only HTTP(S) URLs without credentials are supported');
+    throw new Error(nativeMessage('Only HTTP(S) URLs without credentials are supported'));
   }
   return url.href;
 }
@@ -30,14 +33,14 @@ export function createBrowserImageReader(options: {
 }) {
   const pending = new Map<number, Set<AbortController>>();
   const cancelGuest = (guestId: number) => {
-    for (const abort of pending.get(guestId) ?? []) abort.abort(new Error('Image source is no longer available'));
+    for (const abort of pending.get(guestId) ?? []) abort.abort(new Error(nativeMessage('Image source is no longer available')));
   };
 
   const read = async (guestId: number, input: string): Promise<BezierHostBrowserImage> => {
-    if (!Number.isSafeInteger(guestId) || guestId <= 0) throw new Error('Invalid browser guest');
+    if (!Number.isSafeInteger(guestId) || guestId <= 0) throw new Error(nativeMessage('Invalid browser guest'));
     const url = webUrl(input);
     const entry = options.getCollector(guestId);
-    if (!options.ownerAlive() || !entry?.enabled || entry.guest.isDestroyed()) throw new Error('Image collector is unavailable');
+    if (!options.ownerAlive() || !entry?.enabled || entry.guest.isDestroyed()) throw new Error(nativeMessage('Image collector is unavailable'));
     const guest = entry.guest;
     // Snapshot BEFORE the first await, not after a possibly delayed DOM query.
     const pageUrl = webUrl(guest.getURL());
@@ -46,19 +49,19 @@ export function createBrowserImageReader(options: {
     const requests = pending.get(guestId) ?? new Set<AbortController>();
     pending.set(guestId, requests);
     requests.add(abort);
-    const invalidate = () => abort.abort(new Error('Image source document changed'));
+    const invalidate = () => abort.abort(new Error(nativeMessage('Image source document changed')));
     const navigating = (details: { isMainFrame: boolean }) => {
       if (details.isMainFrame) invalidate();
     };
     guest.on('did-start-navigation', navigating);
     guest.on('destroyed', invalidate);
     guest.on('render-process-gone', invalidate);
-    const timeout = setTimeout(() => abort.abort(new Error('Image read timed out')), BROWSER_IMAGE_READ_TIMEOUT_MS);
+    const timeout = setTimeout(() => abort.abort(new Error(nativeMessage('Image read timed out'))), BROWSER_IMAGE_READ_TIMEOUT_MS);
     const assertCurrent = () => {
       abort.signal.throwIfAborted();
       if (!options.ownerAlive() || options.getCollector(guestId) !== entry || !entry.enabled
         || guest.isDestroyed() || guest.isLoadingMainFrame() || guest.getURL() !== pageUrl) {
-        throw new Error('Image source document changed');
+        throw new Error(nativeMessage('Image source document changed'));
       }
     };
     const attest = async (): Promise<number> => {
@@ -72,7 +75,7 @@ export function createBrowserImageReader(options: {
       const evidence = result as { pageUrl?: unknown; documentTime?: unknown; present?: unknown } | null;
       if (!evidence || evidence.pageUrl !== pageUrl || evidence.present !== true
         || typeof evidence.documentTime !== 'number' || !Number.isFinite(evidence.documentTime)) {
-        throw new Error('Image is not in the current document');
+        throw new Error(nativeMessage('Image is not in the current document'));
       }
       return evidence.documentTime;
     };
@@ -99,10 +102,12 @@ export function createBrowserImageReader(options: {
         ), { status: response.status, headers: response.headers }) : response;
         const image = await readBrowserImage(readable);
         assertCurrent();
-        if (await attest() !== documentTime) throw new Error('Image source document changed');
+        if (await attest() !== documentTime) throw new Error(nativeMessage('Image source document changed'));
         assertCurrent();
         return { url, pageUrl, title, ...image };
       })()]);
+    } catch (error) {
+      throw new Error(nativeFailure(error, nativeMessage('Image response is unavailable')));
     } finally {
       clearTimeout(timeout);
       abort.signal.removeEventListener('abort', onAbort);

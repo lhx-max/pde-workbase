@@ -1,4 +1,5 @@
 // Original FileViewer sections extracted without chat, deployment, public-sharing or library product UI.
+import { documentPreviewSectionLines, documentPreviewSectionTitle } from './document-preview-labels';
 import { useCallback,useEffect,useMemo,useRef,useState,type ClipboardEvent as ReactClipboardEvent,type DragEvent as ReactDragEvent,type MouseEvent as ReactMouseEvent } from 'react';
 import type { ProjectFile, WorkspaceCollabContext } from '@bezier/contracts';
 import { Button, Textarea } from './ui';
@@ -413,8 +414,8 @@ function DocumentPreviewViewer({
             <h2>{preview.title}</h2>
             {preview.sections.map((section, idx) => (
               <section key={`${section.title}-${idx}`}>
-                <h3>{section.title}</h3>
-                {section.lines.map((line, lineIdx) => (
+                <h3>{documentPreviewSectionTitle(file.kind, section.title, idx, t, section)}</h3>
+                {documentPreviewSectionLines(section, t).map((line, lineIdx) => (
                   <p key={`${lineIdx}-${line}`}>{line}</p>
                 ))}
               </section>

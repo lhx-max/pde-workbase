@@ -5,7 +5,7 @@ import { collectImageUrls } from './image-candidates.js';
 import { IMAGE_HOVER_PAD, inImageHoverZone, pointInRect } from './image-hover.js';
 import { matchTagOptions } from './tag-options.js';
 import { DEFAULT_CAPTURE_PREFS, parseCapturePrefs, type CapturePrefs } from './capture-prefs.js';
-import { bindExtensionLocale, detectExtensionLocale, eu } from './locales/extension-ui.js';
+import { bindExtensionLocale, currentExtensionLocale, detectExtensionLocale, eu, localizeBridgeError } from './locales/extension-ui.js';
 bindExtensionLocale(detectExtensionLocale());
 /**
  * Loom 网页采集 — content script (all sites).
@@ -541,6 +541,7 @@ function setupAssetForm(
   const statusEl = q('.status');
   const statusTextEl = q('.statusText');
   const setStatus = (text: string, tone: 'idle' | 'ok' | 'bad'): void => {
+    text = localizeBridgeError(text, tone === 'ok' ? eu().connectedPlain : eu().waitingForApp);
     statusTextEl.textContent = text;
     statusEl.className = tone === 'idle' ? 'status' : `status ${tone}`;
     statusEl.title = text;
@@ -548,7 +549,7 @@ function setupAssetForm(
   const errorEl = q('.error');
   const saveBtn = q<HTMLButtonElement>('.save');
   function setError(message: string): void {
-    errorEl.textContent = message;
+    errorEl.textContent = message ? localizeBridgeError(message, eu().actionFailed) : "";
     errorEl.classList.toggle('hidden', !message);
   }
 
@@ -635,7 +636,7 @@ function setupAssetForm(
     q('.promptText').textContent = prompt || eu().promptPlaceholder;
     q('.promptText').classList.toggle('empty', !prompt);
     q<HTMLButtonElement>('.copyPrompt').disabled = !prompt;
-    q('.promptStatus').textContent = active(data.promptStatus) ? (data.promptStatus?.status === 'queued' ? eu().promptQueued : eu().promptExtracting) : data.promptStatus?.status === 'failed' ? (data.promptStatus.error || eu().promptFailed) : prompt ? eu().promptSaved : eu().promptHint;
+    q('.promptStatus').textContent = active(data.promptStatus) ? (data.promptStatus?.status === 'queued' ? eu().promptQueued : eu().promptExtracting) : data.promptStatus?.status === 'failed' ? localizeBridgeError(data.promptStatus.error || "", eu().promptFailed) : prompt ? eu().promptSaved : eu().promptHint;
     q('.promptStatus').classList.toggle('failed', data.promptStatus?.status === 'failed');
     for (const button of actionButtons) {
       const isPrompt = button.dataset.action === 'prompt';
@@ -671,7 +672,7 @@ function setupAssetForm(
       }
     } catch (error) {
       if (opts.isClosed()) return;
-      q('.promptStatus').textContent = error instanceof Error ? error.message : eu().readFailed;
+      q('.promptStatus').textContent = localizeBridgeError(error instanceof Error ? error.message : '', eu().readFailed);
       if (++readFailures <= 15) scheduleRead();
       else q('.retryRead').classList.remove('hidden');
     }
@@ -946,7 +947,7 @@ function fillFileInfo(panel: HTMLElement, preview: ImageFilePreview | undefined,
   }
   const sizeValue = info.querySelector('.sizeValue') as HTMLElement;
   sizeValue.textContent = `${((preview?.size || 0) / 1024 / 1024).toFixed(2)} MB`;
-  (info.querySelector('.addedValue') as HTMLElement).textContent = new Date().toLocaleDateString();
+  (info.querySelector('.addedValue') as HTMLElement).textContent = new Date().toLocaleDateString(currentExtensionLocale());
   const swatches = info.querySelector('.swatches') as HTMLElement;
   swatches.replaceChildren();
   for (const color of preview?.colors ?? []) {
@@ -1287,7 +1288,7 @@ function isExtensionContextError(error: unknown): boolean {
 
 function captureFailureMessage(error: unknown): string {
   if (isExtensionContextError(error) || !extensionContextAlive()) return eu().refreshPage;
-  return error instanceof Error ? eu().originalFailedDetail(error.message) : eu().originalFailed;
+  return error instanceof Error ? eu().originalFailedDetail(localizeBridgeError(error.message, eu().cannotDownloadImage)) : eu().originalFailed;
 }
 
 function ask<T>(message: unknown, timeoutMs = 2500): Promise<T | null> {
@@ -1315,7 +1316,7 @@ function toast(message: string): void {
   const node = document.createElement('div');
   node.className = 'toast';
   node.innerHTML = `${LOGO}<span></span>`;
-  (node.querySelector('span') as HTMLSpanElement).textContent = message;
+  (node.querySelector('span') as HTMLSpanElement).textContent = localizeBridgeError(message, eu().actionFailed);
   shadow.append(node);
   window.setTimeout(() => node.classList.add('out'), 2200);
   window.setTimeout(() => node.remove(), 2600);

@@ -1,40 +1,41 @@
-# Independent native browser host
+# 独立原生浏览器宿主
 
-## Scope
+## 范围
 
-`@canvas/desktop` hosts the original workspace browser and Collect sidebar. It does not substitute a new browser UI or start the Web/API services itself. Navigation, history, bookmarks, reference sites, resource capture, project screenshots, page archives, asset saves, downloads, extension capture and conditional login handoff are included. The original chat, account/team, sidecar and updater platforms are not.
+`@canvas/desktop` 承载原工作区浏览器与采集侧栏，不另造浏览器界面，也不自行启动 Web/API 服务。范围包含导航、历史、书签、参考站点、资源采集、项目截图、页面归档、资产保存、下载、扩展采集和受条件限制的登录交接，不包含原聊天、账号／团队、sidecar 或更新平台。
 
-Source provenance and boundaries are recorded in [agent guidance](<../AGENTS.md>) and [NOTICE](<../NOTICE>). The independent native bridge reuses the original resource engine, image attestation, capture extension, inspector and login connector code, with isolated application identity and storage.
+来源与边界见 [工程约束](<../AGENTS.md>) 和 [NOTICE](<../NOTICE>)。独立原生桥复用原资源引擎、图片校验、采集扩展、检查器及登录连接器，使用独立应用身份与存储。
 
-## Launch and ownership
+## 启动与所有权
 
-Build with `pnpm --filter @canvas/desktop build`, then use `pnpm tools-dev run desktop --data-dir "$CANVAS_DATA_DIR" --production`. Data-root rules are centralized in [agent guidance](<../AGENTS.md#safety-and-data>). The launcher resolves Electron from the desktop package, supplies the absolute compiled entry, and owns all child processes. Do not run the Electron entry with plain Node or set `ELECTRON_RUN_AS_NODE`.
+先运行 `pnpm --filter @canvas/desktop build`，再使用 `pnpm tools-dev run desktop --data-dir "$CANVAS_DATA_DIR" --production`。数据根规则只以 [工程约束](<../AGENTS.md#safety-and-data>) 为准。启动器从桌面包解析 Electron，传入已编译入口的绝对路径并管理子进程。不要用普通 Node 执行 Electron 入口，也不要设置 `ELECTRON_RUN_AS_NODE`。
 
-| Environment | Contract |
+| 环境变量 | 约定 |
 | --- | --- |
-| `CANVAS_WEB_URL` | Exact loopback application origin reported by the Web lifecycle; no credentials/query/fragment. SPA query/hash navigation remains allowed. |
-| `CANVAS_SERVER_URL` | Explicit backend origin, denied to remote guests. |
-| `CANVAS_BROWSER_HOST_PORT` | Explicit reserved native **resource transport** port. |
-| `CANVAS_DESKTOP_AUTH_TOKEN` | Per-instance random base64url secret shared only with the server. Never renderer configuration, logs, metadata or URLs. |
-| `CANVAS_DESKTOP_USER_DATA` | Explicit absolute, separate Electron profile for this instance. Never the original application's or the user's ordinary browser profile. |
+| `CANVAS_WEB_URL` | Web 生命周期报告的精确回环应用来源，不含凭据／查询／片段；应用内 SPA 查询和哈希导航仍可使用。 |
+| `CANVAS_SERVER_URL` | 明确的后端来源，远程页面不可访问。 |
+| `CANVAS_BROWSER_HOST_PORT` | 预留的原生资源传输端口。 |
+| `CANVAS_DESKTOP_AUTH_TOKEN` | 每实例随机 base64url 密钥，仅与服务器共享，不进入渲染器配置、日志、元数据或 URL。 |
+| `CANVAS_DESKTOP_USER_DATA` | 当前实例明确指定的独立 Electron profile 绝对路径，不使用原应用或日常浏览器 profile。 |
 
-A secret-free readiness line reports `{ "app": "canvas-desktop", "ready": true, "nativePort": 12345 }`. Closing the application revokes grants, cancels reads and pending native work, closes listeners, and quits. Concurrent instances require distinct data roots, profiles and transport ports.
+无密钥就绪记录格式为 `{ "app": "canvas-desktop", "ready": true, "nativePort": 12345 }`。应用关闭会撤销授权、取消读取及待处理原生操作、关闭监听器并退出。并发实例必须使用不同的数据根、profile 和传输端口。
 
-## UI and persistence
+## 中文界面与持久化
 
-- The original browser lives in a workspace tab; **Canvas → asset sidebar → Collect** opens the original compact collector and its project-file tray. Expansion creates a full browser tab without navigating the project away.
-- The sandboxed application preload exposes the original version-2 host contract only to its trusted main document. App code uses `getBezierHost()` from `@bezier/host`.
-- Project screenshots and collected images retain source metadata. The tray can add them to the canvas or open the canonical asset save dialog.
-- Page-resource batches and browser asset captures save actual bytes to the selected local asset space/folder. Opening or canceling the save dialog is not a write. Idempotent capture IDs protect retries.
-- Bookmarks, reference sites and capture switches persist through `/api/browser-preferences`; only a one-time, revision-zero migration reads the old localStorage values. Failed server writes do not pretend to have succeeded.
-- Browser images added as references are staged. They enter an Agent request only after a subsequent explicit user submission.
-- Page archive means HTML, CSS and a manifest, not a complete website/runtime clone. Page extraction forwards bounded context, archive inputs and the installed page-recreation instructions to an optional Agent adapter. No Agent adapter means an explicit unavailable response.
+- 应用自有界面默认简体中文，不因浏览器或系统的英文环境自动切换。仍保留明确选择的英文语言偏好。
+- 原浏览器可作为工作区标签打开；**画布 → 底部资产侧栏 → 采集** 打开原紧凑采集器和项目文件托盘。展开会创建浏览器标签，不离开当前项目。
+- 沙箱预加载桥仅向可信应用主文档暴露原 version-2 宿主协议。应用通过 `@bezier/host` 的 `getBezierHost()` 使用它。
+- 项目截图和采集图片保留来源元数据；托盘可以加入画布，或打开唯一的原资产保存对话框。
+- 页面资源批次与浏览器资产采集将真实字节写入选定的资产空间／文件夹。打开或取消保存对话框不写入；幂等采集 ID 保护重试。
+- 书签、参考站点和采集开关通过 `/api/browser-preferences` 持久化；只有一次性的 revision-zero 迁移读取旧 localStorage，服务器写入失败不会显示成功。
+- 浏览器“加入引用”仅暂存图片；用户后续明确提交任务后，才进入 Agent 请求。
+- 页面归档包含 HTML、CSS 和清单，并不等于复制整个网站及运行环境。页面提取把受限上下文、归档输入和已安装的页面重建说明交给可选 Agent 适配器；未配置时明确返回不可用。
 
-Pure Web mode retains the original fallback/home UI but cannot provide Electron DOM/resource capture. Its Collect and extension settings explain the native requirement.
+纯 Web 模式保留原回退／首页界面，但不能提供 Electron DOM／资源采集，采集和扩展设置会说明桌面要求。外部网页、用户自有标题与内容不自动翻译；系统文件选择器和 Chrome／Edge 自己管理的权限／扩展页面仍由对应系统语言控制。
 
-## Resource transport and CLI
+## 资源传输与 CLI
 
-The native resource listener binds only `127.0.0.1:${CANVAS_BROWSER_HOST_PORT}`. The server sends:
+原生资源监听器仅绑定 `127.0.0.1:${CANVAS_BROWSER_HOST_PORT}`。服务器发送：
 
 ```http
 POST /command
@@ -44,42 +45,42 @@ Content-Type: application/json
 {"sessionId":"…","accessToken":"…","projectId":"…","action":"start"}
 ```
 
-The fixed command union is `start`, `snapshot`, `scan`, `stop`, or `read`; reads also require opaque resource/navigation IDs. Requests are bounded to 64 KiB. Results use `{ok:true,result}` or structured `{ok:false,error:{code,message}}`. Browser-origin requests are denied. This is not a generic URL-fetch, filesystem, evaluation or native-invoke endpoint.
+固定命令为 `start`、`snapshot`、`scan`、`stop` 或 `read`；读取还需要不透明的资源／导航 ID。请求上限 64 KiB；返回 `{ok:true,result}` 或结构化 `{ok:false,error:{code,message}}`。拒绝浏览器来源请求，不提供通用 URL 读取、文件系统、代码求值或任意原生调用入口。
 
-The UI and `canvas-server browser resources …` use the same project-authorized server APIs. A resource grant does not replace project authorization. The resource engine reads bytes; the project or asset-library service owns acknowledged persistence.
+UI 与 `canvas-server browser resources …` 使用相同的、经项目授权的服务端 API。资源授权不能代替项目权限。资源引擎只负责读取字节，项目或资产库服务负责已确认的持久化。
 
-## Downloads and login consent
+## 下载与登录同意
 
-- Native downloads belong to an owned WebContents, pass URL/redirect checks, and always require the system Save As dialog. Canceling, navigation or owner loss cancels pending work. Owned same-origin blob downloads are supported.
-- Electron's DownloadItem API does **not** expose a trustworthy initiating-frame identity. The implementation does not claim frame-level download attribution; owned-WebContents checks, protected-origin guards and native Save As remain the boundary.
-- Google login buttons/popups hand off the confirmed source site's ordinary login page; OAuth state/authorization URLs are not forwarded as a generic external-opening channel.
-- Pinterest retains the original **macOS + unpackaged development** condition. Explicit onboarding precedes any connector registration/profile change. Its independent native host is `com.canvas_workspace.pinterest_auth`. Cookie scope, rollback and navigation cancellation remain enforced. Actual account authentication requires the user's browser and consent; automated tests use temporary synthetic inputs, not real accounts.
+- 原生下载必须属于受管理的 WebContents，通过 URL／重定向检查，并始终要求系统“另存为”确认。取消、导航或所有者丢失会取消待处理操作；支持同源且属于当前页面的 blob 下载。
+- Electron DownloadItem API **没有可信的发起 frame 身份**，实现不宣称具备 frame 级下载归属；边界仍是 WebContents 所有权、受保护来源限制与系统“另存为”。
+- Google 登录按钮／弹窗交接经过确认的来源站点普通登录页，不把 OAuth state／授权 URL 当作任意外部打开通道。
+- Pinterest 保留原 **macOS + 未打包开发模式** 限制。注册连接器或修改 profile 前必须明确引导并获同意；独立原生宿主为 `com.canvas_workspace.pinterest_auth`，继续执行 cookie 范围、回滚和导航取消检查。真实账号认证需要用户自己的浏览器及同意；自动化只使用临时合成输入。
 
-## Independent capture extension
+## 独立采集扩展
 
-**Browser menu → Browser extension** opens the original settings section. Installation first requests native confirmation and a Save As destination for the built ZIP. The user unpacks and loads it manually in a compatible browser; the application does not silently modify an ordinary browser profile.
+**浏览器菜单 → 浏览器扩展** 打开原设置区。安装先请求原生确认，再让用户选择构建 ZIP 的保存位置。用户手动解压并在兼容浏览器加载，应用不会静默修改日常 profile。
 
-- Extension identity: `filiogdhdejjikcnhfgdclfcnflecgpd`.
-- Normal discovery: loopback ports **18373–18382**, separate from both the original application and the resource transport above.
-- Consent enables capture for the current owned desktop session, not permanently. After restarting, use Install extension again to enable reception. Canceling the subsequent ZIP export does not undo an already granted Enable confirmation; it merely skips exporting the package.
-- Receivers are bounded, short-lived and one-use. Exact Host/origin/header validation, project context revocation and limited saved-asset inspector scopes are retained. The worker keeps the private inspector session internal and exposes only a tab-bound opaque handle to content scripts.
-- A same-source asset refresh retains previously verified capabilities while refreshing; new sources and failed refreshes fail closed. Capture/inspector persistence holds one adapter across asynchronous writes and follow-up reads.
-- The original optional Native Messaging fallback was renamed to `com.canvas_workspace.browser_bridge`, but this installer does **not** register a relay for it. Normal capture uses HTTP discovery; do not depend on or claim validation of that fallback.
-- Build packaging requires system `zip` (macOS/Linux baseline); Windows-native packaging is unverified.
+- 扩展身份：`filiogdhdejjikcnhfgdclfcnflecgpd`。
+- 正常发现使用回环端口 **18373–18382**，与原应用及上述资源传输隔离。
+- 同意只为当前受管理的桌面会话启用接收，不永久生效。重启后再次使用“安装扩展”启用；在确认“启用”之后取消 ZIP 导出只是不保存包，不撤销已同意的会话接收。
+- 接收授权有范围、短时效且只能使用一次；继续严格检查 Host／Origin／请求头、项目上下文撤销及保存后检查器范围。worker 保留内部会话密钥，只向内容脚本暴露绑定标签页的不透明句柄。
+- 同来源资产刷新会在请求期间保留先前已确认的能力；切换来源或刷新失败则关闭能力。异步保存和后续读取持有同一个适配器，不跨来源。
+- 可选 Native Messaging 回退已改名为 `com.canvas_workspace.browser_bridge`，但安装器**不注册**对应中继。正常采集使用 HTTP 发现，不依赖或宣称该回退已验收。
+- 打包需要系统 `zip`（macOS/Linux 基线），Windows 原生打包未验证。
 
-See the [extension guide](<../apps/desktop/browser-extension/README.md>) and [Pinterest connector guide](<../apps/desktop/experiments/pinterest-auth/README.md>).
+另见 [扩展指南](<../apps/desktop/browser-extension/README.md>) 与 [Pinterest 连接器指南](<../apps/desktop/experiments/pinterest-auth/README.md>)。
 
-## Security invariants
+## 安全不变量
 
-- Sandboxing, context isolation and web security remain enabled; guests get no Node integration, privileged preload or nested webviews.
-- Preload and every privileged IPC require the exact owned application main frame. Guests, subframes and same-origin API/preview paths cannot invoke them.
-- Guest navigation, redirects and popups allow credential-free HTTP(S) or `about:blank`, excluding privileged app/API/native origins and their loopback aliases. Programmatic `loadURL` is covered by request policy; capture observers cannot replace that policy.
-- Remote guest permissions remain denied. Clipboard reads and arbitrary custom protocols are not granted. Native installation/download/login consent cannot be bypassed through the resource CLI.
-- Grants are random, bounded, expiring, project/guest/navigation-owned and initially disabled. Reads use observed opaque IDs, attest the image document before and after retrieval, and verify raster MIME/signature. Active SVG and segmented media stay metadata-only.
-- Resource bounds remain 500 entries, 25 MiB/read, 30 seconds/operation and 30 minutes/grant. Navigation, reload, crash, close, grant replacement and owner loss invalidate epochs and cancel reads. Snapshots do not export cookies, secret queries or raw native errors.
+- 继续启用沙箱、上下文隔离和 Web 安全；远程页面没有 Node 集成、特权预加载或嵌套 webview。
+- 预加载与每个特权 IPC 只接受精确归属的应用主 frame；远程页面、子 frame 和同源 API／预览路径不能调用。
+- 导航、重定向和弹窗只允许无凭据 HTTP(S) 或 `about:blank`，排除特权应用／API／原生来源及其回环别名；请求策略也约束程序调用的 `loadURL`，采集观察器不能替代它。
+- 远程页面权限默认拒绝，不授予剪贴板读取或任意自定义协议。资源 CLI 不能绕过安装、下载或登录的原生同意。
+- 授权随机、有范围和有效期，绑定项目／页面／导航，默认关闭。读取使用已观察的不透明 ID，前后验证图片文档，并检查栅格 MIME／签名；活动 SVG 和分段媒体仅保留元数据。
+- 资源限制为 500 项、每次读取 25 MiB、每操作 30 秒、每授权 30 分钟。导航、重载、崩溃、关闭、授权替换和所有者丢失使代次失效并取消读取；快照不导出 cookie、秘密查询或原始原生错误。
 
-## Verification boundary
+## 验证边界
 
-Unit coverage includes original resource/epoch/image tests, ownership/preload/transport guards, extension receiver/inspector protocols, native-download lifecycle and conditional login cancellation. Real UI tests exercise the owned production Web/API/Electron lifecycle, not a replacement server.
+单元覆盖包含原资源／代次／图片校验、所有权／预加载／传输、扩展接收和检查器协议、原生下载生命周期及受条件限制的登录取消。真实 UI 使用受管理的生产 Web/API/Electron 生命周期，不另开替代服务。
 
-Current counts, screenshots and unresolved/manual checks belong in [runtime verification](<runtime-verification.md>) and [feature parity](<feature-parity.md>). Compilation is not GUI acceptance. No automated check should be described as real-account login, ordinary-profile installation or manual OS-dialog acceptance when it used mocks or temporary profiles. Native PDF printing, project-directory pickers and updater methods remain explicitly unsupported compatibility stubs; they are not browser-download implementations.
+次数、截图和未完成／人工项见 [运行记录](<runtime-verification.md>) 与 [功能对照](<feature-parity.md>)。用户已暂缓外部扩展修复后的完整原生复验，中文化不会改变这一状态。编译、模拟数据或临时 profile 结果不等于真实账号登录、普通 profile 安装或完整系统弹窗验收。原生 PDF 打印、项目目录选择器和更新器方法仍是明确不支持的兼容占位，不是浏览器下载实现。

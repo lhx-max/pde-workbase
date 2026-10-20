@@ -83,7 +83,7 @@ describe('persistBrowserCapture', () => {
     const result = await persistBrowserCapture('project-1', selectionCapture);
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain('source metadata failed');
+    expect(result.message).toBe('选区已保存，但来源记录保存失败');
   });
 
   it('uploads original image bytes as a file, not a json wrapper', async () => {

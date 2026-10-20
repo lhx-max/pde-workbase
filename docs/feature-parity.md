@@ -8,6 +8,7 @@
 
 | 范围 | 保留的能力 | 证据与当前边界 |
 |---|---|---|
+| 默认中文 | 画布／资产／采集、编辑器、浏览器、应用自有原生弹窗和扩展浮层；不随英语系统自动切换，显式英文仍兼容 | [真实默认语言测试](<../e2e/ui/default-locale.test.ts>)和 [中文截图](<../e2e/evidence/zh-CN/22-original-local-asset-cards-and-space.png>)；用户内容、文件名、格式标识和系统／浏览器管理页面不强制翻译 |
 | 画布文档 | 原 JSON、节点、图片、分组、连线、草稿、视口状态、修订及撤销重做 | [画布接口测试](<../apps/server/tests/canvas-routes.test.ts>)、[画布包测试](<../packages/canvas-workbench/tests/>)；真实画布渲染与生产样式已有验证，不声称逐像素覆盖所有状态 |
 | 节点 | 图片、文本、草图、分镜、视频、剪辑、网页、演示文稿及原连接逻辑 | 原实现与包级回归保留；[工作区真实 UI 测试](<../e2e/ui/workspace.test.ts>)覆盖文本／草图／剪辑／HTML/PPT，不等于全部节点与供应商组合测试 |
 | 顶部工作区 | 原标签、添加菜单、打开／切换／关闭、恢复、快捷键及 QuickSwitcher | [工作区真实 UI 测试](<../e2e/ui/workspace.test.ts>)已有创建、编辑、保存与重开成功运行 |

@@ -1,3 +1,5 @@
+import { nativeMessage } from './main/locales/native-messages.js';
+import { du } from './main/locales/desktop-ui.js';
 import { app, BrowserWindow, dialog, ipcMain, session, shell, type WebContents } from 'electron';
 import { fileURLToPath } from 'node:url';
 import { isAbsolute } from 'node:path';
@@ -22,14 +24,14 @@ const port = Number(process.env.CANVAS_BROWSER_HOST_PORT);
 const userData = process.env.CANVAS_DESKTOP_USER_DATA;
 if (!userData || !isAbsolute(userData)) throw new Error('CANVAS_DESKTOP_USER_DATA must be an explicit absolute instance directory');
 app.setPath('userData', userData);
-app.setName('Canvas Workspace');
+app.setName('画布工作区');
 // Electron waits for an ESM entry to finish evaluating before emitting ready.
 // Do not top-level-await whenReady: that creates a circular startup wait.
 async function startDesktop() {
 await app.whenReady();
 const window = new BrowserWindow({
   width: 1440, height: 940, minWidth: 800, minHeight: 600,
-  title: 'Canvas Workspace', show: false,
+  title: '画布工作区', show: false,
   webPreferences: {
     preload: fileURLToPath(new URL('./preload.cjs', import.meta.url)),
     additionalArguments: [`--canvas-web-url=${encodeURIComponent(webUrl.href)}`],
@@ -54,17 +56,17 @@ const protectReceiver = (name: string, origin: string | null) => {
 const extensionHost = createBrowserExtensionHost({
   alive: ownerAlive, send: (channel, payload) => owner.send(channel, payload),
   receiverOrigin: origin => protectReceiver('capture', origin),
-  confirmEnable: async () => (await dialog.showMessageBox(window, { type: 'question', buttons: ['Cancel', 'Enable'], defaultId: 0, cancelId: 0,
-    title: 'Canvas Workspace Capture', message: 'Enable the external browser capture extension?',
-    detail: 'The independently identified extension can send text and images you explicitly save into this local asset library. A loopback-only receiver remains active until this app closes. It cannot read browser cookies or arbitrary local files.' })).response === 1,
+  confirmEnable: async () => (await dialog.showMessageBox(window, { type: 'question', buttons: [du().cancel, du().enable], defaultId: 0, cancelId: 0,
+    title: du().captureTitle, message: du().enableCapture,
+    detail: du().enableCaptureDetail })).response === 1,
   install: async () => {
-    const result = await dialog.showSaveDialog(window, { title: 'Export Canvas Workspace Capture extension', defaultPath: 'Canvas Workspace Capture.zip', filters: [{ name: 'Extension package', extensions: ['zip'] }] });
-    if (result.canceled || !result.filePath || !ownerAlive()) return { ok: false, reason: 'Cancelled.' };
+    const result = await dialog.showSaveDialog(window, { title: du().exportCapture, buttonLabel: du().save, defaultPath: '画布工作区网页采集.zip', filters: [{ name: du().extensionPackage, extensions: ['zip'] }] });
+    if (result.canceled || !result.filePath || !ownerAlive()) return { ok: false, reason: nativeMessage('Cancelled.') };
     try {
       await copyFile(fileURLToPath(new URL('./browser-extension.zip', import.meta.url)), result.filePath);
       shell.showItemInFolder(result.filePath);
-      return { ok: true, message: 'Package exported. Extract it, open chrome://extensions or edge://extensions, enable Developer mode, and choose Load unpacked. The app does not install or modify your browser profile automatically.' };
-    } catch { return { ok: false, reason: 'Extension package unavailable. Build the independent desktop extension first.' }; }
+      return { ok: true, message: du().capturePackageExported };
+    } catch { return { ok: false, reason: du().capturePackageUnavailable }; }
   },
 });
 const loginHost = createBrowserLoginHost({ app, window, session: browserSession, platform: process.platform, executable: process.execPath,
@@ -134,7 +136,7 @@ function handle(channel: string, operation: (...args: any[]) => unknown) {
   channels.push(channel);
   ipcMain.handle(channel, (event, ...args) => {
     requireResourceCaptureFrame(event, owner, webUrl.href);
-    if (!ownerAlive()) throw new Error('The trusted application document is unavailable');
+    if (!ownerAlive()) throw new Error(nativeMessage('The trusted application document is unavailable'));
     return operation(...args);
   });
 }
@@ -151,13 +153,13 @@ handle('browser:open-resource-capture', (guestId: number, projectId: string, tab
 handle('browser:close-resource-capture', (sessionId: string, accessToken: string) => capture.close(sessionId, accessToken));
 handle('browser:set-collector', (guestId: number, enabled: boolean) => {
   const entry = guests.get(guestId);
-  if (!entry || entry.guest.isDestroyed() || typeof enabled !== 'boolean') throw new Error('Owned browser guest required');
+  if (!entry || entry.guest.isDestroyed() || typeof enabled !== 'boolean') throw new Error(nativeMessage('Owned browser guest required'));
   entry.enabled = enabled; if (!enabled) imageReader.cancelGuest(guestId);
 });
 handle('browser:read-image', (guestId: number, url: string) => imageReader.read(guestId, url));
 handle('browser:collect-image', async (guestId: number, url: string) => {
   const image = await imageReader.read(guestId, url);
-  if (!ownerAlive()) throw new Error('Application document changed');
+  if (!ownerAlive()) throw new Error(nativeMessage('Application document changed'));
   // The renderer's project-file adapter persists this event. No personal library.
   owner.send('browser:collected-resource', { guestId, ...image });
 });
@@ -171,14 +173,14 @@ handle('browser:clear-data', async (options?: { cookies?: boolean; storage?: boo
   return { ok: true };
 });
 handle('shell:open-external', async (url: unknown) => {
-  if (typeof url !== 'string' || url === 'about:blank' || !allowedBrowserUrl(url)) throw new Error('Only HTTP(S) external URLs are supported');
+  if (typeof url !== 'string' || url === 'about:blank' || !allowedBrowserUrl(url)) throw new Error(nativeMessage('Only HTTP(S) external URLs are supported'));
   await shell.openExternal(url); return { ok: true };
 });
 handle('bezier:capture-page', async (options?: { clip?: unknown }) => {
   const generation = ownerGeneration;
   const clip = captureClip(options?.clip, window.getContentBounds());
   const image = await owner.capturePage(clip);
-  if (generation !== ownerGeneration || !ownerAlive() || image.isEmpty()) return { ok: false, reason: 'Capture document changed or image is empty' };
+  if (generation !== ownerGeneration || !ownerAlive() || image.isEmpty()) return { ok: false, reason: nativeMessage('Capture document changed or image is empty') };
   const size = image.getSize(); return { ok: true, dataUrl: image.toDataURL(), w: size.width, h: size.height };
 });
 const transport = await startCommandTransport({ port, token, execute: command => capture.execute(command) });

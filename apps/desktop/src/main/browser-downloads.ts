@@ -1,3 +1,4 @@
+import { du } from './locales/desktop-ui.js';
 import { basename, isAbsolute } from 'node:path';
 import type { DownloadItem, SaveDialogOptions, Session, WebContents } from 'electron';
 import { allowedBrowserUrl, trustedDocument } from '../policy.js';
@@ -79,13 +80,13 @@ export function attachBrowserDownloads(options: {
     try {
       // Synchronous native dialog assigns no destination until consent and lets
       // Electron retain the initiating download, rather than re-fetch credentials.
-      const name = basename(item.getFilename().replace(/\\/g, '/')).replace(/[\x00-\x1f\x7f]/g, '').replace(/^\.+/, '').slice(0, 180) || 'download';
+      const name = basename(item.getFilename().replace(/\\/g, '/')).replace(/[\x00-\x1f\x7f]/g, '').replace(/^\.+/, '').slice(0, 180) || du().downloadFilename;
       const extension = name.split('.').at(-1)?.toLowerCase();
       const filters = ['png', 'jpg', 'jpeg', 'webp'].includes(extension ?? '')
-        ? [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] }, { name: 'All Files', extensions: ['*'] }]
-        : [{ name: 'All Files', extensions: ['*'] }];
-      const path = options.choosePath({ title: 'Save As', defaultPath: name, filters,
-        message: `Download from ${new URL(item.getURL()).origin} in ${new URL(initialUrl).origin}`, properties: ['dontAddToRecent'] });
+        ? [{ name: du().images, extensions: ['png', 'jpg', 'jpeg', 'webp'] }, { name: du().allFiles, extensions: ['*'] }]
+        : [{ name: du().allFiles, extensions: ['*'] }];
+      const path = options.choosePath({ title: du().saveAs, buttonLabel: du().save, defaultPath: name, filters,
+        message: du().downloadSource(new URL(item.getURL()).origin, new URL(initialUrl).origin), properties: ['dontAddToRecent'] });
       if (!path || !isAbsolute(path) || canceled || !validSource()) {
         event.preventDefault(); cancel(); return;
       }

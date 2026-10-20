@@ -14,7 +14,7 @@ describe('browser asset inspector capabilities', () => {
     expect(() => sessions.resolve({schema, sessionId, action: 'update', patch: {name: 'new'}})).toThrow();
     expect(sessions.resolve({schema, sessionId, action: 'update', patch: {revision: 1, name: 'new'}})).toMatchObject({assetId: 'saved-asset', patch: {revision: 1, name: 'new'}});
     now += 30 * 60_000;
-    expect(() => sessions.resolve({schema, sessionId, action: 'read'})).toThrow(/expired/);
+    expect(() => sessions.resolve({schema, sessionId, action: 'read'})).toThrow(/已过期/);
   });
 
   it('uses the authenticated one-use bridge and returns the renderer result', async () => {

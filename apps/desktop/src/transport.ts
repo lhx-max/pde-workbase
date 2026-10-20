@@ -1,3 +1,4 @@
+import { nativeFailure, nativeMessage } from './main/locales/native-messages.js';
 import { createServer, type Server } from 'node:http';
 import { BrowserResourceError, parseBrowserResourceCommand, type BrowserResourceExecutor } from '@bezier/contracts';
 import { authenticates, requireHostToken } from './policy.js';
@@ -10,15 +11,15 @@ export async function startCommandTransport(options: { port: number; token: stri
     res.setHeader('Content-Type', 'application/json'); res.setHeader('Cache-Control', 'no-store');
     const failure = (status: number, code: string, message: string) => { res.writeHead(status); res.end(JSON.stringify({ ok: false, error: { code, message } })); };
     if (req.headers.origin || req.headers['sec-fetch-site'] || !authenticates(req.headers.authorization, token)) {
-      failure(401, 'unauthorized', 'Native host authorization required'); req.resume(); return;
+      failure(401, 'unauthorized', nativeMessage('Native host authorization required')); req.resume(); return;
     }
-    if (req.method !== 'POST' || req.url !== '/command') { failure(404, 'invalid-request', 'Unknown native command'); req.resume(); return; }
-    if (req.headers['content-type']?.split(';')[0] !== 'application/json') { failure(400, 'invalid-request', 'JSON command required'); req.resume(); return; }
+    if (req.method !== 'POST' || req.url !== '/command') { failure(404, 'invalid-request', nativeMessage('Unknown native command')); req.resume(); return; }
+    if (req.headers['content-type']?.split(';')[0] !== 'application/json') { failure(400, 'invalid-request', nativeMessage('JSON command required')); req.resume(); return; }
     try {
       const chunks: Buffer[] = []; let size = 0;
       for await (const chunk of req) {
         size += chunk.length;
-        if (size > 64 * 1024) { failure(413, 'too-large', 'Native command exceeds limit'); req.resume(); return; }
+        if (size > 64 * 1024) { failure(413, 'too-large', nativeMessage('Native command exceeds limit')); req.resume(); return; }
         chunks.push(Buffer.from(chunk));
       }
       const command = parseBrowserResourceCommand(JSON.parse(Buffer.concat(chunks).toString('utf8')));
@@ -27,8 +28,8 @@ export async function startCommandTransport(options: { port: number; token: stri
     } catch (error) {
       if (res.destroyed || res.writableEnded) return;
       if (error instanceof BrowserResourceError) {
-        failure(error.code === 'unauthorized' ? 401 : error.code === 'stale-document' ? 409 : error.code === 'too-large' ? 413 : error.code === 'invalid-request' ? 400 : 503, error.code, error.message);
-      } else failure(400, 'invalid-request', 'Native resource command failed');
+        failure(error.code === 'unauthorized' ? 401 : error.code === 'stale-document' ? 409 : error.code === 'too-large' ? 413 : error.code === 'invalid-request' ? 400 : 503, error.code, nativeFailure(error, nativeMessage('Native resource command failed')));
+      } else failure(400, 'invalid-request', nativeMessage('Native resource command failed'));
     }
   });
   server.requestTimeout = 10_000;

@@ -208,7 +208,7 @@ describe('native resource capture', () => {
     f.fetch.mockResolvedValueOnce(new Response('<svg onload="alert(1)"></svg>', { headers: { 'content-type': 'image/png' } }));
     await expect(f.read(state)).rejects.toMatchObject({ code: 'unsupported-resource' });
     f.fetch.mockRejectedValueOnce(new Error('https://host/private?token=secret'));
-    await expect(f.read(state)).rejects.toMatchObject({ message: 'Resource operation failed' });
+    await expect(f.read(state)).rejects.toMatchObject({ code: 'read-failed', message: '资源操作失败。' });
   });
   it('does not save an unsolicited partial-content response as a complete file', async () => {
     const f = fixture(); const state = await f.command('start');

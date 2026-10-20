@@ -13,7 +13,7 @@ function render(s:{phase:string;message:string}){
  const waiting=phase==='waiting'||phase==='sending';
  document.querySelector<HTMLElement>('.consent')!.hidden=phase!=='ready';
  submit.hidden=waiting||phase==='done';submit.disabled=busy||(phase==='ready'&&!consent.checked);
- submit.textContent=phase==='ready'?'连接 Pinterest':'重新连接 DA';
+ submit.textContent=phase==='ready'?'连接 Pinterest':'重新连接 画布工作区';
  retry.hidden=phase!=='waiting';stop.hidden=!waiting;
  document.querySelector<HTMLElement>('#state-label')!.textContent=({ready:'已连接',waiting:'等待登录',sending:'正在接续',done:'已接续',idle:'待连接',error:'连接中断'} as Record<string,string>)[phase]??'待连接';
 }

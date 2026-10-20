@@ -1,4 +1,4 @@
-import { detectInitialLocale, tActive } from './index';
+import { getActiveLocale, tActive } from './index';
 import {
   AGENT_SIGN_IN_ERROR_ZH,
   EXACT_API_ERROR_KEYS,
@@ -31,6 +31,8 @@ const ERROR_KEYS_BY_CODE: Readonly<Record<string, keyof Dict>> = {
   AGENT_UNAVAILABLE: 'api.error.unavailable',
   UPSTREAM_UNAVAILABLE: 'api.error.unavailable',
   INTERNAL_ERROR: 'api.error.generic',
+  NO_SPACE: 'api.error.storageFull',
+  ENOSPC: 'api.error.storageFull',
 };
 
 function errorKeyForStatus(status: number | undefined): keyof Dict | undefined {
@@ -39,6 +41,7 @@ function errorKeyForStatus(status: number | undefined): keyof Dict | undefined {
   if (status === 404) return 'api.error.notFound';
   if (status === 409) return 'api.error.conflict';
   if (status === 429) return 'api.error.rateLimited';
+  if (status === 507) return 'api.error.storageFull';
   if (status === 502 || status === 503 || status === 504) return 'api.error.unavailable';
   return undefined;
 }
@@ -55,7 +58,7 @@ export function localizeApiMessage(
 ): string {
   const raw = message?.trim();
   if (!raw) return fallback;
-  const locale = options.locale ?? detectInitialLocale();
+  const locale = options.locale ?? getActiveLocale();
   const t = options.t ?? tActive;
   if (locale === 'zh-CN' && HAN.test(raw)) return raw;
   const known = EXACT_API_ERROR_KEYS[raw]
@@ -95,7 +98,7 @@ export function localizeApiProgress(
 ): string {
   const raw = line.trim();
   if (!raw) return '';
-  const locale = options.locale ?? detectInitialLocale();
+  const locale = options.locale ?? getActiveLocale();
   const t = options.t ?? tActive;
   if (raw === MEDIA_RUNNING_ZH) return t('api.progress.mediaRunning');
   const queued = MEDIA_QUEUED_ZH.exec(raw);

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Button, Checkbox, Dialog, DialogTitle, DialogBody, DialogFooter, Input, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuItem } from '@/src/components/ui';
 import { useI18n } from '../i18n';
 import { Icon } from './Icon';
-import type { ProjectFolderGroup } from '../state/project-folders';
+import { DEFAULT_PROJECT_FOLDER_ID, type ProjectFolderGroup } from '../state/project-folders';
 import styles from './WorkspaceSpacePicker.module.css';
 
 export const DEFAULT_WORKSPACE_SPACE_COPY = {
@@ -77,7 +77,8 @@ export function WorkspaceSpaceEditorDialogs({
 }) {
   const { t } = useI18n();
   const duplicate = spaces.some((space) => space.id !== editingId && space.name === name.trim());
-  const targets = spaces.filter((space) => space.id !== 'all' && space.id !== deleting?.id);
+  const targets = spaces.filter((space) => space.id !== 'all' && space.id !== deleting?.id)
+    .map(space => space.id === DEFAULT_PROJECT_FOLDER_ID ? { ...space, name: copy.defaultName } : space);
   const needsTarget = chooseMoveTarget && moveContents;
   return (
     <>

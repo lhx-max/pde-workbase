@@ -66,6 +66,8 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
     ports?: WorkspacePorts;
 }) {
     const t = useT();
+    const tRef = useRef(t);
+    tRef.current = t;
     const [files, setFiles] = useState<ProjectFile[]>([]);
     const visibleFiles=useMemo(()=>visibleProjectFiles(files),[files]);
     const [tabs, setTabs] = useState<OpenTabsState>({ tabs: [], active: DESIGN_FILES_TAB });
@@ -140,12 +142,12 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
     useEffect(()=>{const receive=(event:Event)=>{const request=(event as CustomEvent<AssetLibraryRequest>).detail;if(request&&(!request.projectId||request.projectId===projectId))showAssetLibrary(request);};window.addEventListener(OPEN_ASSET_LIBRARY_EVENT,receive);return()=>window.removeEventListener(OPEN_ASSET_LIBRARY_EVENT,receive);},[projectId,showAssetLibrary]);
     useEffect(()=>{const receive=(event:Event)=>{const detail=(event as CustomEvent<{projectId:string;url:string}>).detail;if(detail?.projectId!==projectId)return;let url:URL;try{url=new URL(detail.url);if(!['http:','https:'].includes(url.protocol)||url.username||url.password)return;}catch{return;}void navigate(()=>updateTabs(state=>{const existing=state.browserTabs?.find(tab=>tab.url===url.href);if(existing)return {...state,active:existing.id};const id=`__browser__:${crypto.randomUUID()}`;return {...state,tabs:[...state.tabs,id],active:id,browserTabs:[...(state.browserTabs||[]),{id,label:t('workspace.newBrowser'),url:url.href}]};})).catch(reportError);};window.addEventListener(OPEN_COLLECTOR_TAB_EVENT,receive);return()=>window.removeEventListener(OPEN_COLLECTOR_TAB_EVENT,receive);},[projectId,navigate,updateTabs,reportError,t]);
     const [taskBridge,setTaskBridge]=useState<ReturnType<typeof createCanvasTaskSubmitter>|null>(null);
-    useEffect(()=>{const client=createCanvasTaskSubmitter({context:{projectId,workspaceContext:ports.workspaceContext,transport:ports.transport},onTask:task=>{if(task.status==='failed'||task.status==='interrupted'||task.deliveryState==='delivery_failed')reportError(new Error(task.error||`Task ${task.id} did not complete`));},onTextResult:result=>{setTextResults(current=>[...current.filter(item=>item.binding.nodeId!==result.binding.nodeId),result]);void refreshFiles().catch(reportError);},onArtifactResult:result=>{setArtifactResults(current=>[...current.filter(item=>item.binding.nodeId!==result.binding.nodeId),result]);void refreshFiles().catch(reportError);},onError:reportError});setTaskBridge(client);return()=>client.dispose();},[projectId,ports.workspaceContext,ports.transport,refreshFiles,reportError]);
+    useEffect(()=>{const client=createCanvasTaskSubmitter({context:{projectId,workspaceContext:ports.workspaceContext,transport:ports.transport},onTask:task=>{if(task.status==='failed'||task.status==='interrupted'||task.deliveryState==='delivery_failed')reportError(new Error(task.error||tRef.current('workspace.taskIncomplete', { id: task.id })));},onTextResult:result=>{setTextResults(current=>[...current.filter(item=>item.binding.nodeId!==result.binding.nodeId),result]);void refreshFiles().catch(reportError);},onArtifactResult:result=>{setArtifactResults(current=>[...current.filter(item=>item.binding.nodeId!==result.binding.nodeId),result]);void refreshFiles().catch(reportError);},onError:reportError});setTaskBridge(client);return()=>client.dispose();},[projectId,ports.workspaceContext,ports.transport,refreshFiles,reportError]);
     const submitAgentTask=useCallback<AgentTaskSubmitter>(async(text,display,attachments)=>{
         const staged=stagedReferences;
         const nextDisplay=staged.length?{...(display??{kind:'instruction-card' as const,title:text.split('\n')[0]!.slice(0,120)}),inputPaths:[...new Set([...(display?.inputPaths??[]),...staged.map(item=>item.path)])]}:display;
         if(ports.onSubmitAgentTask)await ports.onSubmitAgentTask(text,nextDisplay,attachments);
-        else {if(!taskBridge)throw new Error('Agent task client is not ready');await taskBridge.submit(text,nextDisplay,attachments);}
+        else {if(!taskBridge)throw new Error(tRef.current('workspace.taskClientNotReady'));await taskBridge.submit(text,nextDisplay,attachments);}
         if(staged.length)setStagedReferences(current=>current.filter(item=>!staged.includes(item)));
     },[ports.onSubmitAgentTask,taskBridge,stagedReferences]);
     const sendComments = useCallback(async (attachments: ChatCommentAttachment[], images: File[] = []): Promise<CommentSendResult> => { await submitAgentTask(messageContentWithCommentAttachments('', attachments), undefined, images); return { status: 'accepted', commentIds: attachments.map(item => item.id) }; }, [submitAgentTask]);
@@ -155,20 +157,20 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
         setStagedReferences(current=>[...current.filter(item=>item.path!==attachment.path),attachment]);
     }, [ports.onStageReference,renderScope,t]);
     const saveToLibrary=useCallback(async(file:ProjectFile)=>{if(ports.saveToLibrary)await ports.saveToLibrary(file);else await saveProjectFileAsAsset(projectId,file.name,ports.workspaceContext);},[ports.saveToLibrary,projectId,ports.workspaceContext]);
-    const extractPage=useCallback(async(request:import('./browser-page-extraction').BrowserPageExtractionRequest)=>{const turn=browserPageExtractionTurn(request,t('designBrowser.extractPage'));await submitAgentTask(turn.prompt,{kind:'instruction-card',title:t('designBrowser.extractPage'),visiblePrompt:turn.meta.visiblePrompt,executionContext:turn.meta,inputPaths:turn.inputPaths});},[submitAgentTask,t]);
+    const extractPage=useCallback(async(request:import('./browser-page-extraction').BrowserPageExtractionRequest)=>{const turn=browserPageExtractionTurn(request,t('designBrowser.extractPage'),t);await submitAgentTask(turn.prompt,{kind:'instruction-card',title:t('designBrowser.extractPage'),visiblePrompt:turn.meta.visiblePrompt,executionContext:turn.meta,inputPaths:turn.inputPaths});},[submitAgentTask,t]);
     useEffect(() => { if (ports.onSubmitAgentTask||!taskBridge)
         return; let active = true; const controller = new AbortController(); const transport = ports.transport; const endpoint = `${transport?.baseUrl?.replace(/\/$/, '') || ''}/api/projects/${encodeURIComponent(projectId)}/agent/tasks`; void (transport?.fetch || fetch)(endpoint, { signal: controller.signal, headers: { ...(ports.workspaceContext ? workspaceProjectHeaders(ports.workspaceContext) : {}), ...transport?.headers?.() } }).then(async (response) => { if (!response.ok)
-        throw new Error(`Task recovery failed (${response.status})`); const body = await response.json() as CanvasTaskListResponse; if (!Array.isArray(body.tasks))
-        throw new Error('Invalid task recovery response'); for (const task of body.tasks) {
+        throw new Error(tRef.current('workspace.taskRecoveryFailed', { status: response.status })); const body = await response.json() as CanvasTaskListResponse; if (!Array.isArray(body.tasks))
+        throw new Error(tRef.current('workspace.taskRecoveryInvalid')); for (const task of body.tasks) {
         if (!active)
             break;
         if (task.projectId !== projectId)
-            throw new Error('Recovered task belongs to another project');
+            throw new Error(tRef.current('workspace.taskRecoveryWrongProject'));
         if (!task.request.canvasTextGeneration && !task.request.canvasArtifactGeneration) {
             if(task.status==='queued'||task.status==='running')await taskBridge.recover(task.id);
             continue;
         }
-        await taskBridge.recover(task.id, { kind: 'instruction-card', title: 'Recovered canvas task', canvasTextGeneration: task.request.canvasTextGeneration, canvasArtifactGeneration: task.request.canvasArtifactGeneration });
+        await taskBridge.recover(task.id, { kind: 'instruction-card', title: tRef.current('workspace.recoveredTask'), canvasTextGeneration: task.request.canvasTextGeneration, canvasArtifactGeneration: task.request.canvasArtifactGeneration });
     } }).catch(cause => { if (active)
         reportError(cause); }); return () => { active = false; controller.abort(); }; }, [projectId, ports.onSubmitAgentTask, ports.workspaceContext, ports.transport, taskBridge, reportError]);
     useEffect(() => { if (typeof EventSource === 'undefined')
@@ -182,7 +184,7 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
             return null;
         const result = await renameProjectFile(projectId, from, to, ports.workspaceContext);
         if (!result.file)
-            throw new Error('Rename response did not include the saved file');
+            throw new Error(tRef.current('workspace.renameMissingFile'));
         const canonical = result.file.name;
         updateTabs(state => ({ ...state, tabs: state.tabs.map(id => id === from ? canonical : id), active: state.active === from ? canonical : state.active }));
         await refreshFiles();
@@ -203,7 +205,7 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
         }
     } updateTabs(state => ({ ...state, tabs: state.tabs.filter(id => !deleted.includes(id)), active: deleted.includes(state.active || '') ? DESIGN_FILES_TAB : state.active })); await refreshFiles(); return deleted; }, [projectId, ports.workspaceContext, updateTabs, refreshFiles, reportError]);
     const createFile = useCallback(async (kind: 'text' | 'sketch') => { const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19); const base = `sketch-${stamp}.sketch.json`; const name = kind === 'sketch' ? (uploadDir ? `${uploadDir}/${base}` : base) : nextMarkdownDocumentPath(files, uploadDir); const file = await writeProjectTextFile(projectId, name, kind === 'sketch' ? serializeExcalidrawSketchScene(emptySketchScene(name), name) : initialMarkdownDocument(name, projectKind, t), undefined, ports.workspaceContext); if (!file)
-        throw new Error('File creation did not return a saved file'); await refreshFiles(); openFile(file.name); }, [files, projectId, projectKind, uploadDir, ports.workspaceContext, refreshFiles, openFile, t]);
+        throw new Error(tRef.current('workspace.createMissingFile')); await refreshFiles(); openFile(file.name); }, [files, projectId, projectKind, uploadDir, ports.workspaceContext, refreshFiles, openFile, t]);
     const launcherContext: LauncherContext = { projectId, openTab: openFile, createBrowser: () => {void navigate(()=>{const id=`__browser__:${crypto.randomUUID()}`;updateTabs(state=>({...state,tabs:[...state.tabs,id],active:id,browserTabs:[...(state.browserTabs||[]),{id,label:t('workspace.newBrowser')}]}));}).catch(reportError);}, createSketch: () => void createFile('sketch').catch(reportError), createDocument: () => void createFile('text').catch(reportError), createClip: () => {void navigate(()=>{updateTabs(state=>({...state,active:DESIGN_FILES_TAB}));setNodeCreationRequest({nonce:crypto.randomUUID(),kind:'clip'});}).catch(reportError);} };
     const sketchCallbacks = useMemo(() => Object.fromEntries(tabs.tabs.map(name => [name, { onDirtyChange: (dirty: boolean) => setDirtyTabs(current => current[name] === dirty ? current : { ...current, [name]: dirty }), registerFlush: (flush: (() => Promise<boolean>) | null) => { if (flush)
                 flushers.current.set(name, flush);
@@ -275,7 +277,7 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
         void removeFiles([name]).catch(reportError); }} onUpload={() => fileInput.current?.click()} onLocateFile={name => window.dispatchEvent(new CustomEvent('bezier-design:locate-project-file', { detail: { projectId, fileName: name } }))} onSaveToLibrary={saveToLibrary} onRevealInFinder={ports.revealFile}/></div>
     </div>
     <div className="design-files-canvas-wrap"><div className="design-files-canvas-slot"><CanvasWorkspace referenceAdapter={ports.referenceAdapter} projectId={projectId} workspaceContext={ports.workspaceContext} transport={ports.transport} onSubmitAgentTask={submitAgentTask} textGenerationResults={textResults} artifactGenerationResults={artifactResults} textDocumentChange={textDocumentChange} clipEditor={{ nodeId: clipNodeIdFromTab(active), onOpen: id => openFile(clipEditorTabId(id)), onBack: () => openFile(DESIGN_FILES_TAB) }} nodeCreationRequest={nodeCreationRequest} onNodeCreationConsumed={(nonce, id) => { setNodeCreationRequest(current => current?.nonce === nonce ? null : current); openFile(clipEditorTabId(id)); }} onOpenArtifact={async (resource) => { if (resource.kind !== 'project-file')
-        throw new Error('This artifact requires an external artifact host'); await refreshFiles(); openFile(resource.path); }} onOpenTextDocument={async (request) => { let content: string | null = null; try {
+        throw new Error(tRef.current('workspace.externalArtifactRequired')); await refreshFiles(); openFile(resource.path); }} onOpenTextDocument={async (request) => { let content: string | null = null; try {
         content = await fetchProjectFileText(projectId, request.path, { workspaceContext: ports.workspaceContext });
     }
     catch (cause) {
@@ -286,7 +288,7 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
         content = request.content;
     } setTextDocumentChange({ path: request.path, content, revision: Date.now() }); await refreshFiles(); openFile(request.path); return { content }; }} uiHost={{ ...ports.uiHost, renderSketch: ({ path, selected, pending, onCreated }) => <CanvasSketchCard path={path} projectId={projectId} selected={selected} file={files.find(file => file.name === path)} onOpen={async (path) => { try {
             const content = await fetchProjectFileText(projectId, path, { workspaceContext: ports.workspaceContext });
-            readSketchWorkspaceDocument(content);
+            readSketchWorkspaceDocument(content, tRef.current);
         }
         catch (cause) {
             if (!(pending && cause instanceof WorkspaceApiError && cause.status === 404))
@@ -294,7 +296,7 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
             await writeProjectTextFile(projectId, path, serializeExcalidrawSketchScene(emptySketchScene(path), path), undefined, ports.workspaceContext);
         } await refreshFiles(); await onCreated(); openFile(path); }}/>, duplicateSketch: async (source, destination, pending) => { let content: string | null = null; try {
             content = await fetchProjectFileText(projectId, source, { workspaceContext: ports.workspaceContext });
-            readSketchWorkspaceDocument(content);
+            readSketchWorkspaceDocument(content, tRef.current);
         }
         catch (cause) {
             if (pending && cause instanceof WorkspaceApiError && cause.status === 404)

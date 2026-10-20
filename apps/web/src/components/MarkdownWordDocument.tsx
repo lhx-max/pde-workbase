@@ -141,7 +141,7 @@ export function MarkdownWordDocument({
     editorProps: {
       attributes: {
         class: 'markdown-rendered markdown-word-editor',
-        'aria-label': 'Document',
+        'aria-label': t('doc.word.editor'),
         role: 'textbox',
         spellcheck: editable ? 'true' : 'false',
         'data-placeholder': t('doc.word.emptyHint'),
@@ -257,9 +257,9 @@ export function MarkdownWordDocument({
   }, [editable, editor, linkValue]);
 
   return (
-    <section className={`markdown-word-pane${inline ? ' markdown-word-inline' : ''}`} aria-label="Document editor">
+    <section className={`markdown-word-pane${inline ? ' markdown-word-inline' : ''}`} aria-label={t('doc.word.editor')}>
       {editable && inline ? renderToolbar(
-        <div className="markdown-word-floating-toolbar" role="toolbar" aria-label="Document formatting"
+        <div className="markdown-word-floating-toolbar" role="toolbar" aria-label={t('doc.word.formatting')}
           onPointerDown={event => event.stopPropagation()} onDoubleClick={event => event.stopPropagation()} onWheel={event => event.stopPropagation()}>
           {([1, 2, 3] as const).map(level => <WordToolButton key={level} label={t('doc.word.heading', { level })} active={editor?.isActive('heading', { level })} onClick={() => run(() => editor?.chain().focus().toggleHeading({ level }).run() ?? false)}><Icon name={`heading-${level}`} size={18} /></WordToolButton>)}
           <WordToolButton label={t('doc.word.body')} active={editor?.isActive('paragraph')} onClick={() => run(() => editor?.chain().focus().setParagraph().run() ?? false)}><Icon name="paragraph" size={18} /></WordToolButton>
@@ -274,13 +274,13 @@ export function MarkdownWordDocument({
           <WordToolButton label={t('doc.word.detail')} onClick={() => onOpenDetail?.()}><Icon name="maximize" size={19} /></WordToolButton>
         </div>
       ) : editable ? (
-        <div className="markdown-word-toolbar" role="toolbar" aria-label="Document formatting">
+        <div className="markdown-word-toolbar" role="toolbar" aria-label={t('doc.word.formatting')}>
           {onOpenDetail && <Button type="button" variant="ghost" onClick={onOpenDetail}>{t('doc.word.detail')}</Button>}
           <div className="markdown-word-tool-group markdown-word-tool-group-style">
             <label className="markdown-word-style-select">
-              <span className="sr-only">Paragraph style</span>
+              <span className="sr-only">{t('doc.word.paragraphStyle')}</span>
               <Select
-                aria-label="Paragraph style"
+                aria-label={t('doc.word.paragraphStyle')}
                 value={blockStyle}
                 onChange={(event) => {
                   const value = event.currentTarget.value as WordBlockStyle;

@@ -1,3 +1,6 @@
+import type { Dict } from '../i18n/types';
+
+type PatchTranslator = (key: keyof Dict, vars?: Record<string, string | number>) => string;
 import { emptyManualEditStyles, MANUAL_EDIT_STYLE_PROPS, type ManualEditFields, type ManualEditPatch, type ManualEditStyles } from './types';
 
 const MANUAL_EDIT_RUNTIME_OVERRIDES_ID = 'bezier-manual-edit-runtime-overrides';
@@ -106,17 +109,17 @@ export interface ManualEditPatchResult {
   error?: string;
 }
 
-export function applyManualEditPatch(source: string, patch: ManualEditPatch): ManualEditPatchResult {
+export function applyManualEditPatch(source: string, patch: ManualEditPatch, t?: PatchTranslator): ManualEditPatchResult {
   if (patch.kind === 'set-full-source') return { ok: true, source: patch.source };
 
   const doc = parseSource(source);
-  if (!doc) return { ok: false, source, error: 'Could not parse source.' };
+  if (!doc) return { ok: false, source, error: t?.('manualEdit.error.parseSource') ?? 'Could not parse source.' };
 
   if (patch.kind === 'set-token') {
     const changed = setCssToken(doc, patch.token, patch.value);
     return changed
       ? { ok: true, source: serializeSource(doc, source) }
-      : { ok: false, source, error: `Token not found: ${patch.token}` };
+      : { ok: false, source, error: t?.('manualEdit.error.tokenMissing', { token: patch.token }) ?? `Token not found: ${patch.token}` };
   }
 
   const el = findEditableElement(doc, patch.id);
@@ -124,14 +127,14 @@ export function applyManualEditPatch(source: string, patch: ManualEditPatch): Ma
     const dynamic = applyDynamicBrandKitPatch(doc, patch);
     return dynamic.ok
       ? { ok: true, source: serializeSource(doc, source) }
-      : { ok: false, source, error: `Target not found: ${patch.id}` };
+      : { ok: false, source, error: t?.('manualEdit.error.targetMissing', { id: patch.id }) ?? `Target not found: ${patch.id}` };
   }
 
   if (patch.kind === 'set-text') {
     if (hasElementChildren(el)) {
       const soleText = findSoleMeaningfulTextNode(el);
       if (!soleText) {
-        return { ok: false, source, error: 'This element contains nested markup. Use the HTML tab instead.' };
+        return { ok: false, source, error: t?.('manualEdit.error.nestedElement') ?? 'This element contains nested markup. Use the HTML tab instead.' };
       }
       soleText.nodeValue = patch.value;
     } else {
@@ -147,7 +150,7 @@ export function applyManualEditPatch(source: string, patch: ManualEditPatch): Ma
         // outright — see findSoleMeaningfulTextNode for the safety bound.
         const soleText = findSoleMeaningfulTextNode(el);
         if (!soleText) {
-          return { ok: false, source, error: 'This link contains nested markup. Use the HTML tab to change its label.' };
+          return { ok: false, source, error: t?.('manualEdit.error.nestedLink') ?? 'This link contains nested markup. Use the HTML tab to change its label.' };
         }
         soleText.nodeValue = patch.text;
       }
@@ -163,20 +166,20 @@ export function applyManualEditPatch(source: string, patch: ManualEditPatch): Ma
   } else if (patch.kind === 'set-attributes') {
     setAttributes(el, patch.attributes);
   } else if (patch.kind === 'set-outer-html') {
-    const replaced = replaceOuterHtml(doc, el, patch.html);
+    const replaced = replaceOuterHtml(doc, el, patch.html, t);
     if (!replaced.ok) {
       return {
         ok: false,
         source,
-        error: 'error' in replaced ? replaced.error : 'Could not replace element HTML.',
+        error: 'error' in replaced ? replaced.error : t?.('manualEdit.error.replaceHtml') ?? 'Could not replace element HTML.',
       };
     }
   } else if (patch.kind === 'remove-element') {
     if (!el.parentElement) {
-      return { ok: false, source, error: 'Cannot remove the root element.' };
+      return { ok: false, source, error: t?.('manualEdit.error.removeRoot') ?? 'Cannot remove the root element.' };
     }
     if (el.parentElement === doc.body && isLastRenderableBodyChild(doc, el)) {
-      return { ok: false, source, error: 'Cannot remove the last rendered element in the document.' };
+      return { ok: false, source, error: t?.('manualEdit.error.removeLast') ?? 'Cannot remove the last rendered element in the document.' };
     }
     el.remove();
   }
@@ -671,11 +674,11 @@ function setAttributes(el: Element, attributes: Record<string, string>): void {
   }
 }
 
-function replaceOuterHtml(doc: Document, el: Element, html: string): { ok: true } | { ok: false; error: string } {
+function replaceOuterHtml(doc: Document, el: Element, html: string, t?: PatchTranslator): { ok: true } | { ok: false; error: string } {
   const template = doc.createElement('template');
   template.innerHTML = html.trim();
   const elements = Array.from(template.content.children);
-  if (elements.length !== 1) return { ok: false, error: 'Replacement HTML must contain exactly one root element.' };
+  if (elements.length !== 1) return { ok: false, error: t?.('manualEdit.error.replacementRoot') ?? 'Replacement HTML must contain exactly one root element.' };
   const next = elements[0]!;
   if (el.getAttribute('data-bezier-id') && !next.getAttribute('data-bezier-id')) {
     next.setAttribute('data-bezier-id', el.getAttribute('data-bezier-id') ?? '');

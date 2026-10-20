@@ -38,7 +38,7 @@ export async function preparePinterestNativeRelay(options: {
     const launcher = join(options.runtimeDir, 'pinterest-native-host.sh');
     await writeFile(launcher, `#!/bin/sh\nELECTRON_RUN_AS_NODE=1 exec ${quote(options.executable)} ${quote(options.hostScript)} ${quote(socket)} "$@"\n`, { mode: 0o700 });
     await chmod(launcher, 0o700);
-    await writeFile(join(options.registryDir, `${PINTEREST_NATIVE_HOST}.json`), JSON.stringify({ name: PINTEREST_NATIVE_HOST, description: 'DA local Pinterest pairing experiment', path: launcher, type: 'stdio', allowed_origins: [`chrome-extension://${PINTEREST_CONNECTOR_ID}/`] }), { mode: 0o600 });
+    await writeFile(join(options.registryDir, `${PINTEREST_NATIVE_HOST}.json`), JSON.stringify({ name: PINTEREST_NATIVE_HOST, description: '画布工作区本机 Pinterest 配对实验', path: launcher, type: 'stdio', allowed_origins: [`chrome-extension://${PINTEREST_CONNECTOR_ID}/`] }), { mode: 0o600 });
     return { close };
   } catch (error) { close(); throw error; }
 }

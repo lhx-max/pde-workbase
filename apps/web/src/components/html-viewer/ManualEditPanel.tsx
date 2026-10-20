@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { Button, Input, Select, Textarea, anchoredOverlaySurfaceClassName } from '@/src/components/ui';
 import type { ProjectDesignTokenSuggestion, ProjectDesignTokenSuggestionProp } from '@bezier/contracts';
-import { useT } from '../../i18n';
+import { tForLanguageTag, useT } from '../../i18n';
 import { emptyManualEditStyles, type ManualEditHistoryEntry, type ManualEditPatch, type ManualEditStyles, type ManualEditTarget } from '../../edit-mode/types';
 import { Icon } from '../Icon';
 
@@ -97,7 +97,7 @@ export function ManualEditPanel({
   const selectedTargetRef = useRef<ManualEditTarget | null>(selectedTarget);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const targetForInspector = selectedTarget;
-  const panelTitle = targetForInspector ? readableManualEditTargetName(targetForInspector) : t('manualEdit.fallbackTitle');
+  const panelTitle = targetForInspector ? readableManualEditTargetName(targetForInspector, t) : t('manualEdit.fallbackTitle');
   useEffect(() => {
     selectedTargetRef.current = selectedTarget;
   }, [selectedTarget]);
@@ -108,23 +108,23 @@ export function ManualEditPanel({
     if (!targetForInspector) return;
     const normalized = normalizeManualEditStyles({ [key]: value }, {
       layoutEnabled: targetForInspector.isLayoutContainer,
-    });
+    }, t);
     if (!normalized.ok) {
-      onError('error' in normalized ? normalized.error : 'Invalid style value.');
+      onError('error' in normalized ? normalized.error : t('manualEdit.invalidStyle'));
       onInvalidStyle?.(targetForInspector.id, [key]);
       return;
     }
     onError('');
-    onStyleChange?.(targetForInspector.id, normalized.styles, `Style: ${targetForInspector.label}`);
+    onStyleChange?.(targetForInspector.id, normalized.styles, t('manualEdit.history.style', { label: targetForInspector.label }));
   };
 
   const applyTargetStyles = (styles: Partial<ManualEditStyles>, label: string) => {
     if (!targetForInspector) return;
     const normalized = normalizeManualEditStyles(styles, {
       layoutEnabled: targetForInspector.isLayoutContainer,
-    });
+    }, t);
     if (!normalized.ok) {
-      onError('error' in normalized ? normalized.error : 'Invalid style value.');
+      onError('error' in normalized ? normalized.error : t('manualEdit.invalidStyle'));
       onInvalidStyle?.(targetForInspector.id, Object.keys(styles) as Array<keyof ManualEditStyles>);
       return;
     }
@@ -232,7 +232,7 @@ export function ManualEditPanel({
                 target={targetForInspector}
                 styles={draft.styles}
                 onChange={changeTargetStyle}
-                onApply={(styles) => applyTargetStyles(styles, `Style: ${targetForInspector.label}`)}
+                onApply={(styles) => applyTargetStyles(styles, t('manualEdit.history.style', { label: targetForInspector.label }))}
                 tokenSuggestions={tokenSuggestions}
                 tokenSuggestionsLoading={tokenSuggestionsLoading}
                 onApplyTokenSuggestion={onApplyTokenSuggestion}
@@ -243,14 +243,14 @@ export function ManualEditPanel({
             <PageInspector
               enabled={pageStylesEnabled}
               onStyleChange={(styles) => {
-                const normalized = normalizeManualEditStyles(styles, { layoutEnabled: true });
+                const normalized = normalizeManualEditStyles(styles, { layoutEnabled: true }, t);
                 if (!normalized.ok) {
-                  onError('error' in normalized ? normalized.error : 'Invalid style value.');
+                  onError('error' in normalized ? normalized.error : t('manualEdit.invalidStyle'));
                   onInvalidStyle?.('__body__', Object.keys(styles) as Array<keyof ManualEditStyles>);
                   return;
                 }
                 onError('');
-                onStyleChange?.('__body__', normalized.styles, 'Page styles');
+                onStyleChange?.('__body__', normalized.styles, t('manualEdit.history.pageStyles'));
               }}
             />
           ) : null}
@@ -429,7 +429,7 @@ function ContentInspector({
   );
 }
 
-function readableManualEditTargetName(target: ManualEditTarget): string {
+function readableManualEditTargetName(target: ManualEditTarget, t: ManualEditTranslator): string {
   const explicit = firstReadableText(
     target.attributes['data-bezier-label'],
     target.attributes['aria-label'],
@@ -459,10 +459,10 @@ function readableManualEditTargetName(target: ManualEditTarget): string {
   const labelName = readableContentName(target.label);
   if (labelName && !looksCodeLikeLabel(labelName)) return labelName;
 
-  if (target.kind === 'container') return 'Container';
-  if (target.kind === 'image') return 'Image';
-  if (target.kind === 'link') return 'Link';
-  return 'Text';
+  if (target.kind === 'container') return t('manualEdit.container');
+  if (target.kind === 'image') return t('manualEdit.sectionImage');
+  if (target.kind === 'link') return t('manualEdit.href');
+  return t('manualEdit.text');
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -624,6 +624,7 @@ const LAYOUT_STYLE_PROPS = new Set<keyof ManualEditStyles>(['gap', 'flexDirectio
 export function normalizeManualEditStyles(
   styles: Partial<ManualEditStyles>,
   { layoutEnabled }: { layoutEnabled: boolean },
+  t: ManualEditTranslator = tForLanguageTag('en')!,
 ): NormalizeResult {
   const normalized: Partial<ManualEditStyles> = {};
   for (const [rawKey, rawValue] of Object.entries(styles) as Array<[keyof ManualEditStyles, string]>) {
@@ -635,31 +636,31 @@ export function normalizeManualEditStyles(
     }
     if (PX_STYLE_PROPS.has(rawKey)) {
       const px = normalizeLengthValue(value, rawKey);
-      if (!px) return { ok: false, error: `${styleLabel(rawKey)} must be a number, px, %, or supported auto value.` };
+      if (!px) return { ok: false, error: t('manualEdit.invalidLength') };
       normalized[rawKey] = px;
       continue;
     }
     if (COLOR_STYLE_PROPS.has(rawKey)) {
       const color = normalizeHexColor(value);
-      if (!color) return { ok: false, error: `${styleLabel(rawKey)} must be a hex color.` };
+      if (!color) return { ok: false, error: t('manualEdit.invalidColor') };
       normalized[rawKey] = color;
       continue;
     }
     if (rawKey === 'opacity') {
       const n = Number(value);
-      if (!Number.isFinite(n)) return { ok: false, error: 'Opacity must be a number.' };
+      if (!Number.isFinite(n)) return { ok: false, error: t('manualEdit.invalidOpacity') };
       normalized.opacity = String(Math.max(0, Math.min(1, n)));
       continue;
     }
     if (rawKey === 'lineHeight') {
       const lineHeight = normalizeLineHeightValue(value);
-      if (!lineHeight) return { ok: false, error: 'Line height must be a positive number or px value.' };
+      if (!lineHeight) return { ok: false, error: t('manualEdit.invalidLineHeight') };
       normalized.lineHeight = lineHeight;
       continue;
     }
     const options = SELECT_STYLE_OPTIONS[rawKey];
     if (options) {
-      if (!options.includes(value)) return { ok: false, error: `${styleLabel(rawKey)} has an unsupported value.` };
+      if (!options.includes(value)) return { ok: false, error: t('manualEdit.unsupportedValue') };
       normalized[rawKey] = value;
       continue;
     }
@@ -696,10 +697,6 @@ function normalizeHexColor(value: string): string | null {
     return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
   }
   return null;
-}
-
-function styleLabel(key: keyof ManualEditStyles): string {
-  return key.replace(/[A-Z]/g, (match) => ` ${match.toLowerCase()}`);
 }
 
 // Which style keys have project-token reference values, and the suggestion prop
@@ -968,6 +965,7 @@ function UnitRow({ label, value, onChange, unit, autoUnit, disabled, placeholder
   label: string; value: string; onChange: (v: string) => void;
   unit: string; autoUnit?: boolean; disabled?: boolean; placeholder?: string; onFocus?: () => void;
 }) {
+  const t = useT();
   const display = unit === 'px' ? stripPxUnit(value) : value;
   const step = unit === 'px' ? 1 : 0.1;
   const canStep = !disabled && isNumericInput(display);
@@ -990,9 +988,9 @@ function UnitRow({ label, value, onChange, unit, autoUnit, disabled, placeholder
     <label className="cc-row">
       <span className="cc-label">{label}</span>
       <span className="cc-value">
-        <Button type="button" className="cc-step" disabled={!canStep} aria-label={`${label} decrease`} onClick={() => stepBy(-1)}>−</Button>
+        <Button type="button" className="cc-step" disabled={!canStep} aria-label={t('manualEdit.decrease', { label })} onClick={() => stepBy(-1)}>−</Button>
         <Input value={display} placeholder={placeholder ? stripPxUnit(placeholder) : ''} disabled={disabled} onFocus={onFocus} onChange={(e) => onChange(valueFromDisplay(e.currentTarget.value))} onBlur={(e) => handle(e.currentTarget.value)} />
-        <Button type="button" className="cc-step" disabled={!canStep} aria-label={`${label} increase`} onClick={() => stepBy(1)}>+</Button>
+        <Button type="button" className="cc-step" disabled={!canStep} aria-label={t('manualEdit.increase', { label })} onClick={() => stepBy(1)}>+</Button>
         {/* px is implied for length fields — the unit is stored internally but
             not shown as a trailing label. Any non-px unit still renders. */}
         {unit && unit !== 'px' ? <em className="cc-unit">{unit}</em> : null}
@@ -1039,6 +1037,7 @@ function FontRow({ label, value, placeholder, onChange, onFocus }: {
   onChange: (v: string) => void;
   onFocus?: () => void;
 }) {
+  const t = useT();
   const normalizedValue = normalizeFontFamilyForSelect(value);
   const customValue = normalizedValue === value ? value : '';
   return (
@@ -1051,7 +1050,7 @@ function FontRow({ label, value, placeholder, onChange, onFocus }: {
             <option value={customValue}>{fontFamilyLabel(customValue)}</option>
           ) : null}
           {FONT_OPTS.map((option) => (
-            <option key={option.label} value={option.value}>{option.label}</option>
+            <option key={option.label} value={option.value}>{option.label === 'inherit' ? t('manualEdit.inherit') : option.label === 'monospace' ? t('manualEdit.monospace') : option.label}</option>
           ))}
         </Select>
         <em className="cc-chevron">▾</em>
@@ -1089,6 +1088,7 @@ function parseFontFamilies(value: string): string[] {
 function ColorRow({ label, value, placeholder, onChange, compact, onFocus }: {
   label: string; value: string; placeholder?: string; onChange: (v: string) => void; compact?: boolean; onFocus?: () => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement | null>(null);
   useEffect(() => {
@@ -1106,7 +1106,7 @@ function ColorRow({ label, value, placeholder, onChange, compact, onFocus }: {
       {compact ? null : <span className="cc-label">{label}</span>}
       <span className={`cc-value cc-color ${compact ? 'cc-color-compact' : ''}`} ref={ref}>
         <Button type="button" className="cc-swatch" style={{ background: value || 'transparent' }}
-          onClick={() => setOpen((v) => !v)} aria-label={`Pick ${label}`} />
+          onClick={() => setOpen((v) => !v)} aria-label={t('manualEdit.pickColor', { label })} />
         <Input value={value} placeholder={placeholder || '#000000'}
           onChange={(e) => onChange(e.currentTarget.value)} onFocus={() => { setOpen(true); onFocus?.(); }} />
         {open ? (
@@ -1132,6 +1132,7 @@ function QuadRow({ label, axes, values, onChange, onFocus }: {
   onChange: (side: 't' | 'r' | 'b' | 'l', value: string) => void;
   onFocus?: () => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(true);
   const allEqualValue = (() => {
     const v = values.t;
@@ -1146,10 +1147,10 @@ function QuadRow({ label, axes, values, onChange, onFocus }: {
       </Button>
       {open ? (
         <div className="cc-quad-grid">
-          <QuadCell axis={axes?.t ?? 'T'} value={values.t} onChange={(v) => onChange('t', v)} />
-          <QuadCell axis={axes?.r ?? 'R'} value={values.r} onChange={(v) => onChange('r', v)} />
-          <QuadCell axis={axes?.b ?? 'B'} value={values.b} onChange={(v) => onChange('b', v)} />
-          <QuadCell axis={axes?.l ?? 'L'} value={values.l} onChange={(v) => onChange('l', v)} />
+          <QuadCell axis={axes?.t ?? t('manualEdit.sideTop')} value={values.t} onChange={(v) => onChange('t', v)} />
+          <QuadCell axis={axes?.r ?? t('manualEdit.sideRight')} value={values.r} onChange={(v) => onChange('r', v)} />
+          <QuadCell axis={axes?.b ?? t('manualEdit.sideBottom')} value={values.b} onChange={(v) => onChange('b', v)} />
+          <QuadCell axis={axes?.l ?? t('manualEdit.sideLeft')} value={values.l} onChange={(v) => onChange('l', v)} />
         </div>
       ) : null}
     </div>
@@ -1157,6 +1158,7 @@ function QuadRow({ label, axes, values, onChange, onFocus }: {
 }
 
 function QuadCell({ axis, value, onChange }: { axis: string; value: string; onChange: (v: string) => void }) {
+  const t = useT();
   const display = stripPxUnit(value);
   const canStep = isNumericInput(display);
   const stepBy = (direction: -1 | 1) => {
@@ -1166,7 +1168,7 @@ function QuadCell({ axis, value, onChange }: { axis: string; value: string; onCh
   return (
     <span className="cc-quad-cell">
       <em className="cc-quad-axis">{axis}</em>
-      <Button type="button" className="cc-step cc-step-quad" disabled={!canStep} aria-label={`${axis} decrease`} onClick={() => stepBy(-1)}>−</Button>
+      <Button type="button" className="cc-step cc-step-quad" disabled={!canStep} aria-label={t('manualEdit.decrease', { label: axis })} onClick={() => stepBy(-1)}>−</Button>
       <Input value={display} placeholder="0"
         onChange={(e) => {
           const raw = e.currentTarget.value.trim();
@@ -1180,7 +1182,7 @@ function QuadCell({ axis, value, onChange }: { axis: string; value: string; onCh
           const next = v && isNumericInput(v) ? `${v}px` : e.currentTarget.value;
           if (next !== value) onChange(next);
         }} />
-      <Button type="button" className="cc-step cc-step-quad" disabled={!canStep} aria-label={`${axis} increase`} onClick={() => stepBy(1)}>+</Button>
+      <Button type="button" className="cc-step cc-step-quad" disabled={!canStep} aria-label={t('manualEdit.increase', { label: axis })} onClick={() => stepBy(1)}>+</Button>
     </span>
   );
 }

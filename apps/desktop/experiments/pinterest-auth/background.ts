@@ -7,14 +7,14 @@ declare const chrome: {
  tabs:{create(o:{url:string}):Promise<unknown>;remove(id:number):Promise<void>};
  cookies:{getAll(o:{domain:string}):Promise<Array<{name:string;value:string;domain:string;partitionKey?:unknown}>>;onChanged:{addListener(fn:(i:{cookie:{domain:string}})=>void):void}};
 };
-const idle: State = {phase:'idle',message:'先在 DA 点击 Google 登录，再回到这里接续。'};
+const idle: State = {phase:'idle',message:'先在 画布工作区 点击 Google 登录，再回到这里接续。'};
 const domains=['pinterest.com','.pinterest.com','www.pinterest.com'];
 let queue=Promise.resolve();
 function serial<T>(fn:()=>Promise<T>):Promise<T>{const next=queue.then(fn);queue=next.then(()=>undefined,()=>undefined);return next;}
 async function save(state:State){await chrome.storage.session.set({connection:state});await chrome.action.setBadgeText({text:state.phase==='waiting'?'…':state.phase==='done'?'✓':''}).catch(()=>undefined);return state;}
 async function read():Promise<State>{
  const s=(await chrome.storage.session.get('connection')).connection??idle;
- if(s.code&&(s.expires??0)<=Date.now())return save({phase:'error',message:'连接已过期，请从 DA 重新发起。'});
+ if(s.code&&(s.expires??0)<=Date.now())return save({phase:'error',message:'连接已过期，请从 画布工作区 重新发起。'});
  return s;
 }
 async function pair(){
@@ -23,8 +23,8 @@ async function pair(){
   const result=await chrome.runtime.sendNativeMessage('com.canvas_workspace.pinterest_auth',{type:'claim'});
   const url=new URL(result.code??'');
   if(url.protocol!=='http:'||url.hostname!=='127.0.0.1'||!url.port||url.pathname!=='/'||url.username||url.password||url.search||!/^#[a-f0-9]{64}$/.test(url.hash))throw new Error();
-  return save({phase:'ready',message:'已连接 DA，可以接续当前 Pinterest 账号。',code:url.href,expires:Date.now()+290000});
- }catch{return s.phase==='done'?s:save({...idle,message:'尚未连接 DA，请从 DA 的 Google 按钮发起。'});}
+  return save({phase:'ready',message:'已连接 画布工作区，可以接续当前 Pinterest 账号。',code:url.href,expires:Date.now()+290000});
+ }catch{return s.phase==='done'?s:save({...idle,message:'尚未连接 画布工作区，请从 画布工作区 的 Google 按钮发起。'});}
 }
 async function transfer(manual=false){
  const s=await read();if(s.phase!=='waiting'||!s.code)return s;
@@ -33,11 +33,11 @@ async function transfer(manual=false){
   const cookies=(await chrome.cookies.getAll({domain:'pinterest.com'})).filter(c=>domains.includes(c.domain));
   if(!cookies.some(c=>c.name==='_pinterest_sess'&&c.value)||(!manual&&!cookies.some(c=>c.name==='_auth'&&c.value==='1')))return s;
   if(cookies.some(c=>c.partitionKey))return save({phase:'error',message:'暂不支持此分区会话，未发送数据。'});
-  await save({...s,phase:'sending',message:'正在接续到 DA…'});
+  await save({...s,phase:'sending',message:'正在接续到 画布工作区…'});
   const url=new URL(s.code),token=url.hash.slice(1);url.hash='';url.pathname='/connect';
   const response=await fetch(url.href,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(cookies),credentials:'omit',redirect:'error',cache:'no-store',signal:AbortSignal.timeout(20000)});
-  return save(response.ok?{phase:'done',message:'会话已接回 DA，请确认页面账号和采集正常。'}:{phase:'error',message:'接续未完成，请从 DA 重新发起。'});
- }catch{return save({phase:'error',message:'连接中断，请回 DA 检查并重试。'});}
+  return save(response.ok?{phase:'done',message:'会话已接回 画布工作区，请确认页面账号和采集正常。'}:{phase:'error',message:'接续未完成，请从 画布工作区 重新发起。'});
+ }catch{return save({phase:'error',message:'连接中断，请回 画布工作区 检查并重试。'});}
 }
 async function handle(type:string|undefined){
  if(type==='pair')return pair();
