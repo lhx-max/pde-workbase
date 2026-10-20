@@ -217,3 +217,158 @@ import { DocumentEditorPane } from '@doc/surface';
 | 无 `/events`（P11，二期） | 如实标注即可 |
 | 文件写无版本冲突控制（一期放宽，需写明） | 标注 |
 | open-editor 会话存内存，重启即丢 | 标注 |
+
+---
+
+## 附录 A：API 格式参考（实测样例，可直接抄）
+
+以下全部是 2026-10-20 在 canvas `17462` + doc `19000` 上真实跑过的调用。
+
+### A.1 自注册（P2）
+
+App 启动时：
+
+```bash
+curl -X POST http://<画布>/api/apps/register \
+  -H 'content-type: application/json' \
+  -d '{"appId":"doc","name":"文档编辑器","endpoint":"http://127.0.0.1:19000","description":"Document editor App"}'
+```
+
+之后 `GET <画布>/api/apps` 返回：
+
+```json
+{ "requestId": "req_...", "data": { "apps": [
+  { "appId": "doc", "name": "文档编辑器", "endpoint": "http://127.0.0.1:19000",
+    "description": "...", "status": "active", "registeredAt": "2026-10-20T09:11:54.070Z" }
+] } }
+```
+
+### A.2 能力清单（P1）
+
+```bash
+curl http://127.0.0.1:19000/api/apps/doc
+```
+
+```json
+{
+  "appId": "doc", "name": "文档编辑器", "version": "0.1.0",
+  "editorKinds": ["text"],
+  "actions": [
+    { "actionId": "doc.list",  "mode": "app",      "async": false },
+    { "actionId": "doc.read",  "mode": "instance", "async": false },
+    { "actionId": "doc.write", "mode": "instance", "async": false },
+    { "actionId": "doc.open",  "mode": "instance", "async": false }
+  ]
+}
+```
+
+### A.3 卡 → App 解析（画布侧）
+
+```bash
+curl -X POST "http://<画布>/api/apps/canvas/instances/<instanceId>/open-editor" \
+  -H 'content-type: application/json' -d '{"nodeId":"t1"}'
+```
+
+```json
+{ "requestId": "req_...", "data": {
+  "appId": "doc", "endpoint": "http://127.0.0.1:19000",
+  "nodeId": "t1", "kind": "text",
+  "filePath": "sources/text/t1-op-61249b73c0ff4c20.md" } }
+```
+
+App 未装时：`404 { "error": { "code": "APP_NOT_INSTALLED", ... } }`，不静默失败。
+
+### A.4 App 侧收打开请求（P3）
+
+```bash
+curl -X POST http://127.0.0.1:19000/api/apps/doc/open-editor \
+  -H 'content-type: application/json' \
+  -d '{"nodeId":"t1","filePath":"sources/text/t1.md","canvasId":"canvas-xxx"}'
+```
+
+```json
+{ "data": { "appId": "doc", "nodeId": "t1",
+  "filePath": "sources/text/t1.md", "canvasId": "canvas-xxx",
+  "openUrl": "http://127.0.0.1:19001/?nodeId=t1&filePath=sources%2Ftext%2Ft1.md&canvasId=canvas-xxx" } }
+```
+
+### A.5 文件通道（P5 / P9）
+
+写（经 App 后端转发，也可以直连画布同形端点）：
+
+```bash
+curl -X PUT "http://127.0.0.1:19000/api/apps/doc/canvas/<instanceId>/files?path=sources/text/t1.md" \
+  -H 'content-type: application/json' -d '{"content":"# 标题\n\n正文"}'
+```
+
+```json
+{ "requestId": "req_...", "data": { "path": "sources/text/t1.md", "status": "written" } }
+```
+
+读：
+
+```bash
+curl "http://<画布>/api/apps/canvas/instances/<instanceId>/files?path=sources/text/t1.md"
+```
+
+```json
+{ "requestId": "req_...", "data": { "content": "# 标题\n\n正文" } }
+```
+
+### A.6 实例状态（P4）
+
+```bash
+curl http://127.0.0.1:19000/api/apps/doc/instances/<docId>/state
+```
+
+```json
+{ "data": { "instanceId": "d-abc123", "meta": { "id": "d-abc123", "name": "...",
+  "path": "documents/d-abc123.md", "size": 128, "updatedAt": "..." }, "content": "# ..." } }
+```
+
+### A.7 统一动作（P7，画布形状照此做）
+
+```bash
+curl -X POST "http://<host>/api/apps/<appId>/instances/<id>/actions/<actionId>" \
+  -H 'content-type: application/json' -H 'idempotency-key: op-<uuid>' \
+  -d '{"input":{ ...动作的参数字段... }, "expectedRevision": 1792492885801}'
+```
+
+```json
+{ "requestId": "req_...", "data": {
+  "receiptId": "op-<uuid>", "status": "succeeded",
+  "result": { ... }, "revision": 1792493393642, "replayed": false,
+  "eventCursor": "1792493393642" } }
+```
+
+`expectedRevision` 冲突回 `409`；带同一 `idempotency-key` 重发返回原结果 `replayed:true`。
+
+### A.8 错误包
+
+```json
+{ "error": { "code": "DOC_INVALID_PATH", "message": "Expected a .md or .mdx path",
+  "retryable": false }, "requestId": "req_..." }
+```
+
+权限未接入（P10 的诚实桩）：
+
+```json
+HTTP 501
+{ "available": false, "provider": "wangyihan", "configured": false,
+  "reason": "团队权限 API 地址与返回格式尚未提供，权限接线保留未启用" }
+```
+
+### A.9 变化订阅（事件流形状，P11 照此做）
+
+```
+GET /api/apps/canvas/instances/<id>/events?after=<eventCursor>
+
+event: ready
+data: {"instanceId":"canvas-xxx","cursor":"0","resync":false}
+
+event: card.created
+data: {"type":"card.created","instanceId":"canvas-xxx","nodeId":"t2",
+       "kind":"text","title":"...","revision":1792493393642,"cursor":"1792493393642"}
+```
+
+`resync:true` = 游标掉出缓冲，先重读 state 再连。
