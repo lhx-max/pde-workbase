@@ -1,0 +1,203 @@
+.scrollRegion {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  /* Reserve classic-scrollbar width before masonry measures natural heights.
+     Otherwise overflow can alternately narrow and widen portrait cards. */
+  scrollbar-gutter: stable;
+  padding: 6px 2px 14px;
+  scrollbar-color: color-mix(in srgb, var(--text-strong) 28%, transparent) transparent;
+  scrollbar-width: thin;
+}
+.card .previewAction {
+  bottom: clamp(12px, 10%, 24px);
+  max-width: calc(100% - 32px);
+}
+
+.previewButton {
+  min-width: 72px;
+}
+
+.mediaArea {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+}
+
+.card .cardMeta {
+  top: 12px;
+  left: 12px;
+  right: 40px;
+}
+
+/* Picker density matches the template grid; natural packing is shared. */
+.templateGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
+  align-items: start;
+  gap: 16px;
+}
+
+
+.masonry .card {
+  margin: 0;
+}
+
+.card {
+  display: inline-flex;
+  width: 100%;
+  margin: 0 0 14px;
+  break-inside: avoid;
+  flex-direction: column;
+  overflow: hidden;
+  vertical-align: top;
+  border: 0;
+}
+
+.item {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: inherit;
+  background: var(--bg-subtle);
+  text-align: left;
+}
+
+.item:hover,
+.item:active {
+  border-color: transparent;
+  background: var(--bg-subtle);
+}
+
+.media {
+  position: relative;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  border: 0;
+  border-radius: inherit;
+  background: var(--bg-subtle);
+}
+
+.card:not(.landscape) .media[data-loaded='true'] {
+  aspect-ratio: auto;
+}
+
+.landscape .media,
+.media[data-card-media-layout='landscape'] {
+  aspect-ratio: 16 / 9;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: auto;
+  opacity: 0;
+  transition:
+    opacity var(--duration-fast) var(--curve-easy-ease),
+    transform var(--duration-normal) var(--curve-easy-ease);
+}
+
+.image[data-loaded='true'] {
+  opacity: 1;
+}
+
+.landscape .image {
+  height: 100%;
+  object-fit: contain;
+}
+
+.card:hover .image,
+.card:focus-within .image {
+  transform: scale(1.015);
+}
+
+.placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-faint);
+}
+
+.placeholder svg {
+  width: 32px;
+  height: 32px;
+}
+
+.check {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--text-strong);
+  color: var(--bg);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.meta {
+  display: block;
+  overflow: hidden;
+  color: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.caption { display:grid; gap:4px; padding:10px 2px 4px; min-width:0; }
+.caption strong, .caption span { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.caption strong { font-size:13px; font-weight:500; color:var(--text-strong); }
+.caption span { font-size:12px; color:var(--text-muted); }
+
+.templateGrid .card {
+  display: flex;
+  width: 100%;
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .templateGrid {
+    grid-template-columns: repeat(auto-fill, minmax(min(170px, 100%), 1fr));
+    column-gap: 12px;
+  }
+
+  .item {
+    min-width: 0;
+  }
+
+  .card {
+    margin-bottom: 12px;
+  }
+
+  .templateGrid {
+    row-gap: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .media,
+  .image {
+    transition-duration: 0.001ms;
+  }
+}
+
+/* Touch users have no Hover; keep the independent preview action discoverable. */
+@media (hover: none) {
+  .card .previewAction {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(-50%);
+  }
+}

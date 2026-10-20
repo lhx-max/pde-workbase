@@ -7,8 +7,8 @@ import { getWebProductName } from './product-runtime';
 import { ProjectCollabProvider } from './collab/collab-context';
 import { requestJson } from './providers/registry';
 import { Button } from './components/ui';
-import './index.css';
-export default function App({projectId,ports}:{projectId?:string;ports?:WorkspacePorts}) {return <I18nProvider><ProjectCollabProvider workspaceContext={ports?.workspaceContext}><WorkspaceApp projectId={projectId} ports={ports}/></ProjectCollabProvider></I18nProvider>;}
+import { TooltipLayer } from './components/TooltipLayer';
+export default function App({projectId,ports}:{projectId?:string;ports?:WorkspacePorts}) {return <I18nProvider><ProjectCollabProvider workspaceContext={ports?.workspaceContext}><WorkspaceApp projectId={projectId} ports={ports}/><TooltipLayer/></ProjectCollabProvider></I18nProvider>;}
 function WorkspaceApp({projectId:injected,ports}:{projectId?:string;ports?:WorkspacePorts}) {
  const t=useT();const [project,setProject]=useState<{id:string;name?:string}|null>(null);const [error,setError]=useState('');const [attempt,setAttempt]=useState(0);
  useEffect(()=>{let alive=true;const load=async()=>{const id=injected||new URLSearchParams(location.search).get('projectId');if(id){const response=await requestJson<{project?:{id:string;name?:string};id?:string;name?:string}>(`/api/projects/${encodeURIComponent(id)}`);if(alive)setProject(response.project||{id,name:response.name});return;}

@@ -35,3 +35,6 @@ html, body { height: 100%; margin: 0; }
 }
 .standalone-file-panel { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; min-width: 0; overflow: hidden; }
 .standalone-file-panel[hidden] { display: none; }
+/* The neutral host adapter exposes a labelled action rather than the product's
+   editor icon. Do not inherit its 32px icon-only width and clip this label. */
+.standalone-workspace-root .handoff-trigger--solo { width: auto; }

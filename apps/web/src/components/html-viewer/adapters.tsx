@@ -32,7 +32,7 @@ export interface HtmlViewerAdapters {
  saveProjectAsset?: (input:{projectId:string;filename:string;workspaceContext?:Scope})=>Promise<void>;
  handoff?: (input:HandoffRequest)=>Promise<void>;
 }
-import { resolveHtmlViewerAdapters } from './capabilities';
+import { HtmlViewerCapabilityUnavailable, resolveHtmlViewerAdapters } from './capabilities';
 export { HtmlViewerCapabilityUnavailable, resolveHtmlViewerAdapters } from './capabilities';
 const Context=createContext<HtmlViewerAdapters>({});
 export function HtmlViewerAdapterProvider({adapters={},children}:{adapters?:HtmlViewerAdapters;children:ReactNode}) {return <Context.Provider value={adapters}>{children}</Context.Provider>;}
@@ -52,7 +52,7 @@ export function HandoffButton(props:HandoffRequest){
  const adapters=useContext(Context);const t=useT();const [error,setError]=useState('');const [busy,setBusy]=useState(false);
  const label=t('handoff.chooseTargetAria');
  return <div className="handoff-wrap handoff-wrap--solo" data-testid="handoff-wrap">
-  <Button type="button" className="handoff-trigger handoff-trigger--solo bezier-tooltip" title={error||label} data-tooltip={error||label} data-tooltip-placement="bottom" disabled={busy} onClick={async()=>{setError('');setBusy(true);try{await resolveHtmlViewerAdapters(adapters).handoff(props);}catch(e){setError(e instanceof Error?e.message:String(e));}finally{setBusy(false);}}}>
+  <Button type="button" className="handoff-trigger handoff-trigger--solo bezier-tooltip" title={error||label} data-tooltip={error||label} data-tooltip-placement="bottom" disabled={busy} onClick={async()=>{setError('');setBusy(true);try{await resolveHtmlViewerAdapters(adapters).handoff(props);}catch(e){setError(e instanceof HtmlViewerCapabilityUnavailable?t('handoff.notConfigured'):e instanceof Error?e.message:String(e));}finally{setBusy(false);}}}>
    <Icon name={busy?'spinner':'folder'} size={20}/><span className="handoff-trigger-label">{label}</span>
   </Button>{error?<div className="handoff-menu-error" role="alert" data-testid="handoff-fallback-error">{error}</div>:null}
  </div>;

@@ -8,6 +8,7 @@ import { personalAssets } from '../providers/asset-library';
 import styles from './PersonalAssetLibrary.module.css';
 import { personalAssetTemplate } from './personal-asset-template';
 import { AssetDocumentPreview } from './AssetDocumentPreview';
+import './asset-library/AssetCardShared.css';
 
 /** Shared original-file cover for the library and read-only attachment picker. */
 export function PersonalAssetFileCover({ name, label, icon = 'file-text', title }: { name: string; label: string; icon?: IconName; title?: string }) {

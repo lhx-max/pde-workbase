@@ -29,7 +29,7 @@ export function ImageGenerationOptionControls({
   onResolutionChange, onAnyOpen,
   renderPopover,
   renderMenu,
-  testIdPrefix, count, onCountChange, onTemplateClick, templateLabel = 'Template',
+  testIdPrefix, count, onCountChange, onTemplateClick, templateLabel = cr().template,
 }: {
   count?: number;
   onCountChange?: (count: number) => void;
@@ -117,7 +117,7 @@ export function ImageGenerationOptionControls({
       })}
       {count !== undefined && onCountChange && <>
         <span className="minimax-image-divider" aria-hidden="true"/>
-        {menuRenderer({ open: countOpen, onOpenChange: open => { setCountOpen(open); if (open) { setModelOpen(false); setParamsOpen(false); onAnyOpen?.(); } }, ariaLabel: 'Number to generate', label: 'Number to generate', contentClassName: 'is-count-menu', side: 'top', selectedValue: String(count), onSelectedValueChange: value => onCountChange(Number(value)), trigger: <Button variant="ghost" className="minimax-image-chip is-count">× {count}</Button>, items: IMAGE_GENERATION_COUNTS.map(value => ({ id: String(value), value: String(value), content: `× ${value}` })) })}
+        {menuRenderer({ open: countOpen, onOpenChange: open => { setCountOpen(open); if (open) { setModelOpen(false); setParamsOpen(false); onAnyOpen?.(); } }, ariaLabel: cr().generateCount, label: cr().generateCount, contentClassName: 'is-count-menu', side: 'top', selectedValue: String(count), onSelectedValueChange: value => onCountChange(Number(value)), trigger: <Button variant="ghost" className="minimax-image-chip is-count">× {count}</Button>, items: IMAGE_GENERATION_COUNTS.map(value => ({ id: String(value), value: String(value), content: `× ${value}` })) })}
       </>}
       {onTemplateClick && <><span className="minimax-image-divider" aria-hidden="true"/><Button variant="ghost" className="minimax-image-chip" aria-label={cr().chooseImageTemplate} aria-haspopup="dialog" onClick={() => { setCountOpen(false); setModelOpen(false); setParamsOpen(false); onTemplateClick(); }}><Icon name="layers" size={15}/><span>{templateLabel}</span></Button></>}
     </div>

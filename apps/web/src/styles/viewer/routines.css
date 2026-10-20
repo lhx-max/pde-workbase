@@ -2636,7 +2636,7 @@
   color: var(--text-soft);
 }
 /* -- Hand-off button in ChatPane header (paseo-style open-in-editor) -- */
-.app .handoff-wrap {
+:is(.app, [data-project-chrome]) .handoff-wrap {
   position: relative;
   display: inline-flex;
 }
@@ -2655,7 +2655,7 @@
 .app .handoff-split:hover {
   background: color-mix(in srgb, var(--text-muted) 6%, transparent);
 }
-.app .handoff-trigger {
+:is(.app, [data-project-chrome]) .handoff-trigger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2672,14 +2672,14 @@
   cursor: pointer;
   transition: background 200ms cubic-bezier(0.23, 1, 0.32, 1);
 }
-.app .handoff-trigger:hover {
+:is(.app, [data-project-chrome]) .handoff-trigger:hover {
   background: color-mix(in srgb, var(--text-muted) 8%, transparent);
 }
-.app .handoff-trigger:disabled {
+:is(.app, [data-project-chrome]) .handoff-trigger:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
-.app .handoff-trigger--solo {
+:is(.app, [data-project-chrome]) .handoff-trigger--solo {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -2692,10 +2692,10 @@
   font-size: 12px;
   cursor: pointer;
 }
-.app .handoff-trigger--solo:hover {
+:is(.app, [data-project-chrome]) .handoff-trigger--solo:hover {
   background: color-mix(in srgb, var(--text-muted) 6%, transparent);
 }
-.app .handoff-trigger-label {
+:is(.app, [data-project-chrome]) .handoff-trigger-label {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3071,7 +3071,7 @@
   color: var(--text-muted);
   padding: 4px 10px;
 }
-.app .handoff-menu-error {
+:is(.app, [data-project-chrome]) .handoff-menu-error {
   font-size: 12px;
   color: var(--text-danger, #c0392b);
   padding: 4px 10px 6px;

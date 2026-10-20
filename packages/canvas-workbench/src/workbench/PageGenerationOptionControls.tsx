@@ -32,8 +32,8 @@ export function PageGenerationOptionControls({ isPresentation, presentationOptio
   ];
   const selectedLength = presentationLengths.find(option => option.value === presentationOptions.length) ?? presentationLengths[1]!;
   const selectedTemplateTitle = presentationOptions.template !== 'smart' ? presentationOptions.templateTitle || copy.template : copy.template;
-  const selectedWebTemplateTitle = webpageOptions.templateTitle || 'Template';
-  const selectedDesignSystemTitle = webpageOptions.designSystemTitle || 'Design system';
+  const selectedWebTemplateTitle = webpageOptions.templateTitle || copy.template;
+  const selectedDesignSystemTitle = webpageOptions.designSystemTitle || copy.designSystem;
   return <>
             {isPresentation ? <div className="basic-output-options">
               <CanvasLengthMenu open={lengthOpen} onOpenChange={setLengthOpen} value={selectedLength.value} triggerLabel={selectedLength.label}

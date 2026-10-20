@@ -1248,6 +1248,7 @@ export const en: Dict = {
   "handoff.action": "Hand off",
   "handoff.fallbackTitle": "No editors found on $PATH - opens in {target}",
   "handoff.chooseTargetAria": "Choose hand-off target",
+  "handoff.notConfigured": "The host has not configured a hand-off destination.",
   "handoff.optionsAria": "Handoff options",
   "handoff.editorSection": "Open with editor",
   "handoff.cliSection": "Copy for CLI",

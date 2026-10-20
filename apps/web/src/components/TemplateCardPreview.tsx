@@ -24,6 +24,7 @@ import {
 import { loadAssetThumbnailDocument } from '../runtime/asset-thumbnail-document';
 import { useI18n } from '../i18n';
 import styles from './TemplateCardPreview.module.css';
+import './asset-library/AssetCardShared.css';
 
 const TEMPLATE_THUMBNAIL_ROOT_MARGIN = '160px';
 export const TEMPLATE_THUMBNAIL_RETRY_DELAY_MS = 1_000;

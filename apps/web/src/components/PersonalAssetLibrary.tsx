@@ -53,6 +53,7 @@ import {
   readPersonalAssetUrl,
   usePersonalAssetInProject,
 } from "../providers/asset-library";
+import './asset-library/AssetCardShared.css';
 import styles from "./PersonalAssetLibrary.module.css";
 
 import { assetKindLabel } from './AssetMetadataReadOnly';

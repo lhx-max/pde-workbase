@@ -1129,6 +1129,7 @@ export const zhCN: Dict = {
   "handoff.action": "交付",
   "handoff.fallbackTitle": "未找到编辑器 - 使用 {target} 打开",
   "handoff.chooseTargetAria": "选择交付目标",
+  "handoff.notConfigured": "当前宿主未配置交付目标。",
   "handoff.optionsAria": "交付选项",
   "handoff.editorSection": "通过编辑器打开",
   "handoff.cliSection": "复制给 CLI",

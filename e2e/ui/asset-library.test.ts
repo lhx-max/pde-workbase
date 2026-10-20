@@ -32,6 +32,8 @@ test('[P0] original three tabs, local space CRUD, asset creation, favorite and c
   await sidebar.getByRole('button', { name: '文本', exact: true }).click();
   await sidebar.getByRole('button', { name: '新建', exact: true }).click();
   const create = page.getByRole('dialog', { name: '新建个人资产', exact: true });
+  await expect(create).toBeVisible();
+  expect.soft((await create.boundingBox())!.width).toBeCloseTo(640, 0);
   await create.getByRole('textbox', { name: '名称', exact: true }).fill('可复用研究笔记');
   await create.getByRole('textbox', { name: '内容', exact: true }).fill('# 浏览器调研\n\n保存在本地、可重复使用的参考资料。');
   const assetSaved = page.waitForResponse(r => new URL(r.url()).pathname === '/api/asset-library' && r.request().method() === 'POST');
@@ -74,6 +76,8 @@ test('[P0] original three tabs, local space CRUD, asset creation, favorite and c
   const deletion = page.getByRole('dialog');
   await expect(deletion.getByRole('checkbox', { name: '转移', exact: true })).toBeChecked();
   await screenshot(page, testInfo, '24-space-removal-preserves-assets-by-default');
+  expect.soft((await deletion.boundingBox())!.width).toBeCloseTo(560, 0);
+  expect.soft(await deletion.evaluate(element => getComputedStyle(element).padding)).toBe('24px');
   const removed = page.waitForResponse(r => new URL(r.url()).pathname === '/api/asset-library/spaces' && r.request().method() === 'POST');
   await deletion.getByRole('button', { name: '删除', exact: true }).click();
   expect((await removed).ok()).toBe(true);
@@ -95,6 +99,13 @@ test('[P0] browser preferences persist through HTTP and extension settings remai
   await openLauncher(page);
   await page.getByRole('menuitem', { name: '新建浏览器', exact: true }).click();
   await expect(page.getByTestId('design-browser-home')).toBeVisible();
+  await page.getByRole('button', { name: '添加站点', exact: true }).click();
+  const site = page.getByRole('dialog', { name: '添加站点', exact: true });
+  await expect(site).toBeVisible();
+  await screenshot(page, testInfo, 'browser-site-dialog');
+  expect.soft((await site.boundingBox())!.width).toBeCloseTo(440, 0);
+  expect.soft(await site.evaluate(element => getComputedStyle(element).padding)).toBe('24px');
+  await site.getByRole('button', { name: '取消', exact: true }).click();
   await page.getByRole('button', { name: '采集浮层', exact: true }).click();
   const enabled = page.getByRole('switch', { name: '显示采集浮层', exact: true });
   await expect(enabled).toBeEnabled();

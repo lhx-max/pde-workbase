@@ -1,0 +1,813 @@
+{
+  "frozenUpstream": "319e5eee556a3641d2ee68a6111a36ddc7a1eff7",
+  "capturedAt": "2026-10-09T16:01:57.451Z",
+  "node": "v24.21.0",
+  "nextBuildId": "QEJO9dQQrWu3B960anwib",
+  "scope": "Retained independent UI; no chat/account/team platform. Unit adapter tests are not external-provider acceptance.",
+  "validation": {
+    "webUnitTests": 380,
+    "canvasUnitTests": 182,
+    "fullUi": {
+      "passed": 54,
+      "skipped": 2,
+      "repeatEach": 2
+    },
+    "supplementalPickerPreview": {
+      "passed": 2,
+      "repeatEach": 2
+    },
+    "stableMenuCaptures": {
+      "passed": 6,
+      "repeatEach": 2
+    },
+    "extension": "User deferred confirmation; not attempted",
+    "guardTypecheckWebBuildSummary": [
+      "Guard passed: 1436 files, 12 package manifests; no upstream runtime or excluded product imports.",
+      " Test Files  51 passed (51)",
+      "      Tests  380 passed (380)",
+      "✓ Compiled successfully in 4.6s",
+      "  Finished TypeScript in 10.6s ..."
+    ],
+    "canvasUnitSummary": [
+      " Test Files  14 passed (14)",
+      "      Tests  182 passed (182)"
+    ],
+    "fullUiTranscript": "\nRunning 56 tests using 1 worker\n\n(node:59934) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:59934) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n  ✓   1 [web] › ui/asset-library.test.ts:5:1 › [P0] original three tabs, local space CRUD, asset creation, favorite and canvas import (6.0s)\n  ✓   2 [web] › ui/asset-library.test.ts:94:1 › [P0] browser preferences persist through HTTP and extension settings remain reachable on Web (4.3s)\n  ✓   3 [web] › ui/canvas-generation-style.test.ts:6:1 › [P0] image ratio and resolution popover shows every option without clipping (5.5s)\n  ✓   4 [web] › ui/canvas-node-visual-audit.test.ts:97:3 › [P0] video unconfigured-catalog boundary at 1440px (2.1s)\n  ✓   5 [web] › ui/canvas-node-visual-audit.test.ts:97:3 › [P0] video unconfigured-catalog boundary at 840px (2.3s)\n  ✓   6 [web] › ui/canvas-node-visual-audit.test.ts:113:1 › [P0] uploaded image has real crop, grading and annotation surfaces (3.5s)\n  ✓   7 [web] › ui/canvas-node-visual-audit.test.ts:160:1 › [P0] freely edited storyboard fields, frame upload and preview are reachable (8.0s)\n  ✓   8 [web] › ui/canvas-node-visual-audit.test.ts:213:1 › [P0] clip detail accepts local media and opens export and inspector menus (3.3s)\n  ✓   9 [web] › ui/canvas-node-visual-audit.test.ts:264:3 › [P0] 文本 node selection and real template entry are reachable (1.9s)\n  ✓  10 [web] › ui/canvas-node-visual-audit.test.ts:264:3 › [P0] 网页 node selection and real template entry are reachable (2.0s)\n  ✓  11 [web] › ui/canvas-node-visual-audit.test.ts:264:3 › [P0] PPT node selection and real template entry are reachable (1.7s)\n  ✓  12 [web] › ui/canvas-overlay-style.test.ts:5:1 › [P0] original canvas mode popover stays compact and switches pointer/hand (6.9s)\n  ✓  13 [web] › ui/canvas-picker-style.test.ts:7:1 › [P0] original unified image picker exposes all sources and applies a real local asset (1.9s)\n  ✓  14 [web] › ui/default-locale.test.ts:7:1 › [P0] 英语浏览器全新配置默认简体中文，仍尊重手动英语偏好 (2.5s)\n  ✓  15 [web] › ui/office-previews.test.ts:37:3 › [P0] DOCX sidebar discovery, Quick Switcher structured text-only preview and exact download bytes (1.6s)\n  ✓  16 [web] › ui/office-previews.test.ts:37:3 › [P0] PPTX sidebar discovery, Quick Switcher structured text-only preview and exact download bytes (1.6s)\n  ✓  17 [web] › ui/office-previews.test.ts:37:3 › [P0] XLSX sidebar discovery, Quick Switcher structured text-only preview and exact download bytes (2.3s)\n  ✓  18 [web] › ui/viewer-visual-audit.test.ts:6:1 › [P0] viewer shared tooltip and handoff layout retain the original host contract (1.4s)\n  ✓  19 [web] › ui/viewer-visual-audit.test.ts:31:1 › [P0] original presentation portal fills the viewport in tab and fullscreen modes (1.4s)\n  ✓  20 [web] › ui/viewer-visual-audit.test.ts:59:1 › [P0] full asset library keeps the non-image grid and HTML preview geometry (3.2s)\n  ✓  21 [web] › ui/workspace-style.test.ts:7:1 › [P0] original image export dialog keeps its full-screen scrim and centered frame (3.2s)\n  ✓  22 [web] › ui/workspace.test.ts:7:1 › [P0] original workspace launcher, project assets, text, sketch and clip persist (4.7s)\n  ✓  23 [web] › ui/workspace.test.ts:80:1 › [P0] HTML and presentation previews, source, manual edit and version history roundtrip (2.8s)\n(node:63008) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:63008) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n  ✓  24 [web] › ui/asset-library.test.ts:5:1 › [P0] original three tabs, local space CRUD, asset creation, favorite and canvas import (4.8s)\n  ✓  25 [web] › ui/asset-library.test.ts:94:1 › [P0] browser preferences persist through HTTP and extension settings remain reachable on Web (4.9s)\n  ✓  26 [web] › ui/canvas-generation-style.test.ts:6:1 › [P0] image ratio and resolution popover shows every option without clipping (5.7s)\n  ✓  27 [web] › ui/canvas-node-visual-audit.test.ts:97:3 › [P0] video unconfigured-catalog boundary at 1440px (1.6s)\n  ✓  28 [web] › ui/canvas-node-visual-audit.test.ts:97:3 › [P0] video unconfigured-catalog boundary at 840px (2.7s)\n  ✓  29 [web] › ui/canvas-node-visual-audit.test.ts:113:1 › [P0] uploaded image has real crop, grading and annotation surfaces (4.6s)\n  ✓  30 [web] › ui/canvas-node-visual-audit.test.ts:160:1 › [P0] freely edited storyboard fields, frame upload and preview are reachable (8.3s)\n  ✓  31 [web] › ui/canvas-node-visual-audit.test.ts:213:1 › [P0] clip detail accepts local media and opens export and inspector menus (3.6s)\n  ✓  32 [web] › ui/canvas-node-visual-audit.test.ts:264:3 › [P0] 文本 node selection and real template entry are reachable (2.1s)\n  ✓  33 [web] › ui/canvas-node-visual-audit.test.ts:264:3 › [P0] 网页 node selection and real template entry are reachable (2.4s)\n  ✓  34 [web] › ui/canvas-node-visual-audit.test.ts:264:3 › [P0] PPT node selection and real template entry are reachable (2.0s)\n  ✓  35 [web] › ui/canvas-overlay-style.test.ts:5:1 › [P0] original canvas mode popover stays compact and switches pointer/hand (6.7s)\n  ✓  36 [web] › ui/canvas-picker-style.test.ts:7:1 › [P0] original unified image picker exposes all sources and applies a real local asset (2.1s)\n  ✓  37 [web] › ui/default-locale.test.ts:7:1 › [P0] 英语浏览器全新配置默认简体中文，仍尊重手动英语偏好 (3.8s)\n  ✓  38 [web] › ui/office-previews.test.ts:37:3 › [P0] DOCX sidebar discovery, Quick Switcher structured text-only preview and exact download bytes (2.7s)\n  ✓  39 [web] › ui/office-previews.test.ts:37:3 › [P0] PPTX sidebar discovery, Quick Switcher structured text-only preview and exact download bytes (2.1s)\n  ✓  40 [web] › ui/office-previews.test.ts:37:3 › [P0] XLSX sidebar discovery, Quick Switcher structured text-only preview and exact download bytes (1.5s)\n  ✓  41 [web] › ui/viewer-visual-audit.test.ts:6:1 › [P0] viewer shared tooltip and handoff layout retain the original host contract (1.4s)\n  ✓  42 [web] › ui/viewer-visual-audit.test.ts:31:1 › [P0] original presentation portal fills the viewport in tab and fullscreen modes (1.5s)\n  ✓  43 [web] › ui/viewer-visual-audit.test.ts:59:1 › [P0] full asset library keeps the non-image grid and HTML preview geometry (2.9s)\n  ✓  44 [web] › ui/workspace-style.test.ts:7:1 › [P0] original image export dialog keeps its full-screen scrim and centered frame (3.2s)\n  ✓  45 [web] › ui/workspace.test.ts:7:1 › [P0] original workspace launcher, project assets, text, sketch and clip persist (5.7s)\n  ✓  46 [web] › ui/workspace.test.ts:80:1 › [P0] HTML and presentation previews, source, manual edit and version history roundtrip (3.0s)\n(node:66118) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:66118) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n  ✓  47 [desktop] › ui/native-browser.test.ts:11:1 › [P0] native browser navigation, project capture, resource grants and safe URL denial (3.6s)\n  ✓  48 [desktop] › ui/native-collector.test.ts:8:1 › [P0] original native Collect tab navigates, captures, retains state and saves to the real library (2.4s)\n  -  49 [desktop] › ui/native-extension.test.ts:12:1 › [manual] actual external extension selection, original save dialog and inspector reach the local library\n  ✓  50 [desktop] › ui/workspace-native-style.test.ts:10:3 › [P0] original workspace chrome and sketch layout under light OS preference (1.7s)\n  ✓  51 [desktop] › ui/workspace-native-style.test.ts:10:3 › [P0] original workspace chrome and sketch layout under dark OS preference (1.6s)\n(node:66665) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:66665) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n  ✓  52 [desktop] › ui/native-browser.test.ts:11:1 › [P0] native browser navigation, project capture, resource grants and safe URL denial (3.4s)\n  ✓  53 [desktop] › ui/native-collector.test.ts:8:1 › [P0] original native Collect tab navigates, captures, retains state and saves to the real library (2.8s)\n  -  54 [desktop] › ui/native-extension.test.ts:12:1 › [manual] actual external extension selection, original save dialog and inspector reach the local library\n  ✓  55 [desktop] › ui/workspace-native-style.test.ts:10:3 › [P0] original workspace chrome and sketch layout under light OS preference (1.6s)\n  ✓  56 [desktop] › ui/workspace-native-style.test.ts:10:3 › [P0] original workspace chrome and sketch layout under dark OS preference (1.6s)\n\n  2 skipped\n  54 passed (3.1m)\n",
+    "supplementalTranscript": "\nRunning 2 tests using 1 worker\n\n(node:70669) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:70669) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n  ✓  1 [web] › ui/canvas-picker-style.test.ts:7:1 › [P0] original unified image picker exposes all sources and applies a real local asset (2.4s)\n(node:71019) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:71019) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n  ✓  2 [web] › ui/canvas-picker-style.test.ts:7:1 › [P0] original unified image picker exposes all sources and applies a real local asset (2.2s)\n\n  2 passed (9.3s)\n",
+    "stableMenuTranscript": "\nRunning 6 tests using 1 worker\n\n(node:97697) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:97697) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n  ✓  1 [web] › ui/canvas-node-visual-audit.test.ts:264:3 › [P0] 文本 node selection and real template entry are reachable (2.4s)\n  ✓  2 [web] › ui/canvas-node-visual-audit.test.ts:264:3 › [P0] 网页 node selection and real template entry are reachable (2.3s)\n  ✓  3 [web] › ui/canvas-node-visual-audit.test.ts:264:3 › [P0] PPT node selection and real template entry are reachable (2.6s)\n(node:98101) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:98101) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n  ✓  4 [web] › ui/canvas-node-visual-audit.test.ts:264:3 › [P0] 文本 node selection and real template entry are reachable (2.3s)\n  ✓  5 [web] › ui/canvas-node-visual-audit.test.ts:264:3 › [P0] 网页 node selection and real template entry are reachable (2.8s)\n  ✓  6 [web] › ui/canvas-node-visual-audit.test.ts:264:3 › [P0] PPT node selection and real template entry are reachable (2.0s)\n\n  6 passed (20.5s)\n",
+    "stableConfirmation": {
+      "passed": 2,
+      "repeatEach": 2,
+      "transcript": "\nRunning 2 tests using 1 worker\n\n(node:14038) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:14038) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n  ✓  1 [web] › ui/viewer-visual-audit.test.ts:59:1 › [P0] full asset library keeps the non-image grid and HTML preview geometry (4.0s)\n(node:14354) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:14354) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n  ✓  2 [web] › ui/viewer-visual-audit.test.ts:59:1 › [P0] full asset library keeps the non-image grid and HTML preview geometry (3.1s)\n\n  2 passed (12.3s)\n"
+    }
+  },
+  "preview": {
+    "url": "http://127.0.0.1:17673",
+    "webStatus": 200,
+    "servedCssChunks": 9,
+    "confirmationCssPresent": true,
+    "unifiedPickerCssPresentInDeferredClientChunk": true,
+    "userSketchSha256": "fb15a495fcc49ab19d3e64be599fb759150259be703ff3013df843de2892a1f1",
+    "matchesBefore": true
+  },
+  "notes": [
+    "PNG files are original captures, not composites or pixel-diff goldens.",
+    "Only the first successful repeat is copied; the second full run remains in the local test output.",
+    "Before captures are actual red runs of the same production paths; no DOM/store/API replacement.",
+    "Node inventory files describe observed DOM/viewport/zoom, not claimed registration coverage.",
+    "Busy/long-running external-generation states and all configured external adapters are not visually accepted."
+  ],
+  "files": [
+    {
+      "path": "after/asset-library--P0-original-fdf9d--favorite-and-canvas-import-web/20-three-original-sidebar-tabs.png",
+      "source": ".tmp/e2e-results/full-ui-verified/asset-library--P0-original-fdf9d--favorite-and-canvas-import-web/20-three-original-sidebar-tabs.png",
+      "sha256": "ed0b175b1a0c89bc3809a116f5e52f3f58ff6291aa65ff75d003db617742d75b",
+      "bytes": 50335
+    },
+    {
+      "path": "after/asset-library--P0-original-fdf9d--favorite-and-canvas-import-web/21-web-collector-native-capability-boundary.png",
+      "source": ".tmp/e2e-results/full-ui-verified/asset-library--P0-original-fdf9d--favorite-and-canvas-import-web/21-web-collector-native-capability-boundary.png",
+      "sha256": "d7681a02eb1cf8bbab39808c424c7eedbeab610f257e1d367fe976d694da14a8",
+      "bytes": 51982
+    },
+    {
+      "path": "after/asset-library--P0-original-fdf9d--favorite-and-canvas-import-web/22-original-local-asset-cards-and-space.png",
+      "source": ".tmp/e2e-results/full-ui-verified/asset-library--P0-original-fdf9d--favorite-and-canvas-import-web/22-original-local-asset-cards-and-space.png",
+      "sha256": "ac8776d308833d8f2cfd2e8374ecca52696614d1cd90a20f38131aa2f472781c",
+      "bytes": 72223
+    },
+    {
+      "path": "after/asset-library--P0-original-fdf9d--favorite-and-canvas-import-web/23-original-expanded-asset-library.png",
+      "source": ".tmp/e2e-results/full-ui-verified/asset-library--P0-original-fdf9d--favorite-and-canvas-import-web/23-original-expanded-asset-library.png",
+      "sha256": "ef71850de3aa91bf099561cc64b68746ea8117da467e360986df3042c1aa6727",
+      "bytes": 48262
+    },
+    {
+      "path": "after/asset-library--P0-original-fdf9d--favorite-and-canvas-import-web/24-space-removal-preserves-assets-by-default.png",
+      "source": ".tmp/e2e-results/full-ui-verified/asset-library--P0-original-fdf9d--favorite-and-canvas-import-web/24-space-removal-preserves-assets-by-default.png",
+      "sha256": "bc320cd4cd2fa9242981573e94503c7e3ef31f5fc60dc91fa3e7ec2533933fd2",
+      "bytes": 110836
+    },
+    {
+      "path": "after/asset-library--P0-browser--84cbc-ngs-remain-reachable-on-Web-web/browser-site-dialog.png",
+      "source": ".tmp/e2e-results/full-ui-verified/asset-library--P0-browser--84cbc-ngs-remain-reachable-on-Web-web/browser-site-dialog.png",
+      "sha256": "115c7da76acf19cd986090925dd7a7bd82b35205c1fb34c37343326be45bdbdb",
+      "bytes": 141836
+    },
+    {
+      "path": "after/asset-library--P0-browser--84cbc-ngs-remain-reachable-on-Web-web/25-browser-capture-preferences.png",
+      "source": ".tmp/e2e-results/full-ui-verified/asset-library--P0-browser--84cbc-ngs-remain-reachable-on-Web-web/25-browser-capture-preferences.png",
+      "sha256": "b0e96347d007c264e6d811b48d8e042d7cc57cb4bed8bb8de26b94cf114abcb2",
+      "bytes": 129127
+    },
+    {
+      "path": "after/asset-library--P0-browser--84cbc-ngs-remain-reachable-on-Web-web/26-browser-extension-settings-web-boundary.png",
+      "source": ".tmp/e2e-results/full-ui-verified/asset-library--P0-browser--84cbc-ngs-remain-reachable-on-Web-web/26-browser-extension-settings-web-boundary.png",
+      "sha256": "ee2067f3cc57c4358ead834f2ea7124af101ece60dda9c1caf7c2512a45de0fa",
+      "bytes": 139933
+    },
+    {
+      "path": "after/canvas-generation-style--P-e6388-ery-option-without-clipping-web/image-count-1440.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-generation-style--P-e6388-ery-option-without-clipping-web/image-count-1440.png",
+      "sha256": "6408a91e36de553c236abc53b84456d4001ec3ede4aff6f819ba1e3505c2f4bc",
+      "bytes": 45238
+    },
+    {
+      "path": "after/canvas-generation-style--P-e6388-ery-option-without-clipping-web/image-params-1440.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-generation-style--P-e6388-ery-option-without-clipping-web/image-params-1440.png",
+      "sha256": "69cace558962c0b3dc07b0553ec3252046bbf350446ada387f2c38567e755ca5",
+      "bytes": 48094
+    },
+    {
+      "path": "after/canvas-generation-style--P-e6388-ery-option-without-clipping-web/image-count-840.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-generation-style--P-e6388-ery-option-without-clipping-web/image-count-840.png",
+      "sha256": "69aea2bd4996e5d84969cbafb21d4f845be026b610c12a3eb5d8d4690ba84895",
+      "bytes": 39202
+    },
+    {
+      "path": "after/canvas-generation-style--P-e6388-ery-option-without-clipping-web/image-params-840.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-generation-style--P-e6388-ery-option-without-clipping-web/image-params-840.png",
+      "sha256": "0f285f3850707c5cea9bf562c528e5dd4dccdde0255bc5b05b95bfe81f227016",
+      "bytes": 41711
+    },
+    {
+      "path": "after/canvas-node-visual-audit---eef2a--catalog-boundary-at-1440px-web/video-unconfigured-1440.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---eef2a--catalog-boundary-at-1440px-web/video-unconfigured-1440.png",
+      "sha256": "0209e14cf90f2d92a0a0458960d1b0da44df6c7a8261367535c2cfa59ba4186f",
+      "bytes": 36006
+    },
+    {
+      "path": "after/canvas-node-visual-audit---eef2a--catalog-boundary-at-1440px-web/video-unconfigured-1440-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---eef2a--catalog-boundary-at-1440px-web/video-unconfigured-1440-inventory.json",
+      "sha256": "6424f7c2e54dd88e63abef1b2bb59e3149a6aab6975b0f57f6cbf0401d1d826b",
+      "bytes": 484
+    },
+    {
+      "path": "after/canvas-node-visual-audit---19ae0-d-catalog-boundary-at-840px-web/video-unconfigured-840.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---19ae0-d-catalog-boundary-at-840px-web/video-unconfigured-840.png",
+      "sha256": "0ba321d435cd6d39ab4144dcdcb4023f428551f86a40ceafb47242056d2523c4",
+      "bytes": 24642
+    },
+    {
+      "path": "after/canvas-node-visual-audit---19ae0-d-catalog-boundary-at-840px-web/video-unconfigured-840-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---19ae0-d-catalog-boundary-at-840px-web/video-unconfigured-840-inventory.json",
+      "sha256": "92787236c83c5a30197a11fb373ad9ef8710403971c1f5988c338da73eca9268",
+      "bytes": 479
+    },
+    {
+      "path": "after/canvas-node-visual-audit---76f85-ing-and-annotation-surfaces-web/image-uploaded-selected.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---76f85-ing-and-annotation-surfaces-web/image-uploaded-selected.png",
+      "sha256": "4e530a6d7928ac53b5a1d3f75a7e311e0eaf52990304c782670a815cb1425a26",
+      "bytes": 104770
+    },
+    {
+      "path": "after/canvas-node-visual-audit---76f85-ing-and-annotation-surfaces-web/image-uploaded-selected-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---76f85-ing-and-annotation-surfaces-web/image-uploaded-selected-inventory.json",
+      "sha256": "ce0d794d4ce03ea12fe01d24cb2f79241937545000d2ebf2007058edd2e04931",
+      "bytes": 474
+    },
+    {
+      "path": "after/canvas-node-visual-audit---76f85-ing-and-annotation-surfaces-web/image-crop-square.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---76f85-ing-and-annotation-surfaces-web/image-crop-square.png",
+      "sha256": "e21c21f1e629251d553dd7758719cfd65b81703fe7af0e866dad5d78c79ca4f5",
+      "bytes": 86525
+    },
+    {
+      "path": "after/canvas-node-visual-audit---76f85-ing-and-annotation-surfaces-web/image-crop-square-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---76f85-ing-and-annotation-surfaces-web/image-crop-square-inventory.json",
+      "sha256": "d32151bcd0954608accc02fef0eec2fad93f67c0e629b141ca164ea688752412",
+      "bytes": 821
+    },
+    {
+      "path": "after/canvas-node-visual-audit---76f85-ing-and-annotation-surfaces-web/image-color-grade.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---76f85-ing-and-annotation-surfaces-web/image-color-grade.png",
+      "sha256": "4be4eba84426537d54b1ba646968e2300b3bae81762419b8282d03ad83e1d994",
+      "bytes": 147286
+    },
+    {
+      "path": "after/canvas-node-visual-audit---76f85-ing-and-annotation-surfaces-web/image-color-grade-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---76f85-ing-and-annotation-surfaces-web/image-color-grade-inventory.json",
+      "sha256": "05691f2bf8965b6d494b5a9feb5e3bf3e3cc2d00bafd9e2eb2cc066e440fd3aa",
+      "bytes": 804
+    },
+    {
+      "path": "after/canvas-node-visual-audit---76f85-ing-and-annotation-surfaces-web/image-annotation-font-menu.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---76f85-ing-and-annotation-surfaces-web/image-annotation-font-menu.png",
+      "sha256": "2498ccf20724eab8458255f21b4be1643f010ea41546afed1f878a2c7f58e2bf",
+      "bytes": 188745
+    },
+    {
+      "path": "after/canvas-node-visual-audit---76f85-ing-and-annotation-surfaces-web/image-annotation-font-menu-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---76f85-ing-and-annotation-surfaces-web/image-annotation-font-menu-inventory.json",
+      "sha256": "d4d0bae02f0af2d729fed1994c05cc70203b902448dad0be563d71080677db95",
+      "bytes": 1043
+    },
+    {
+      "path": "after/canvas-node-visual-audit---76f85-ing-and-annotation-surfaces-web/image-annotation-pen.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---76f85-ing-and-annotation-surfaces-web/image-annotation-pen.png",
+      "sha256": "730e30bd489ec81e04f689d2c522971398f2e490a6ccbf32caf1c46c0a17a64a",
+      "bytes": 185157
+    },
+    {
+      "path": "after/canvas-node-visual-audit---76f85-ing-and-annotation-surfaces-web/image-annotation-pen-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---76f85-ing-and-annotation-surfaces-web/image-annotation-pen-inventory.json",
+      "sha256": "c2fb36c865c2196c9ba667d5f3ee1bf1801f3e9cec5cf39e156c590b34f04d78",
+      "bytes": 475
+    },
+    {
+      "path": "after/canvas-node-visual-audit---7a35f-d-and-preview-are-reachable-web/storyboard-description-50pct.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---7a35f-d-and-preview-are-reachable-web/storyboard-description-50pct.png",
+      "sha256": "cfc4bd679f9c5f22a454efcd0e1fd06cb16a6b8aad4d34a32ebe7724054728b6",
+      "bytes": 49872
+    },
+    {
+      "path": "after/canvas-node-visual-audit---7a35f-d-and-preview-are-reachable-web/storyboard-description-50pct-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---7a35f-d-and-preview-are-reachable-web/storyboard-description-50pct-inventory.json",
+      "sha256": "e4a56e858ff27a12c5becdd38e7034f146c11cb3ad769b037bd7fcaef79c50b8",
+      "bytes": 1937
+    },
+    {
+      "path": "after/canvas-node-visual-audit---7a35f-d-and-preview-are-reachable-web/storyboard-shot-options.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---7a35f-d-and-preview-are-reachable-web/storyboard-shot-options.png",
+      "sha256": "535a8e5c4ff5af4643a5da6248b63f6f7c5985cb21f91947a61e1268614bece6",
+      "bytes": 50386
+    },
+    {
+      "path": "after/canvas-node-visual-audit---7a35f-d-and-preview-are-reachable-web/storyboard-shot-options-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---7a35f-d-and-preview-are-reachable-web/storyboard-shot-options-inventory.json",
+      "sha256": "8ab199def30c361a0ab47a325a4161d8d1b4881892885337dd0f32d22acad66e",
+      "bytes": 1840
+    },
+    {
+      "path": "after/canvas-node-visual-audit---7a35f-d-and-preview-are-reachable-web/storyboard-description-narrow-50pct.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---7a35f-d-and-preview-are-reachable-web/storyboard-description-narrow-50pct.png",
+      "sha256": "683ed2cf2fa890727ec06c0bdf5621619c74a22fb3bf51849a9a82ac00ea9594",
+      "bytes": 42308
+    },
+    {
+      "path": "after/canvas-node-visual-audit---7a35f-d-and-preview-are-reachable-web/storyboard-description-narrow-50pct-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---7a35f-d-and-preview-are-reachable-web/storyboard-description-narrow-50pct-inventory.json",
+      "sha256": "7fc8d4c4857106b7731de0ad84ec058c2a5e86abb3601128f7e260a25194041c",
+      "bytes": 2512
+    },
+    {
+      "path": "after/canvas-node-visual-audit---7a35f-d-and-preview-are-reachable-web/storyboard-camera-840-50pct.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---7a35f-d-and-preview-are-reachable-web/storyboard-camera-840-50pct.png",
+      "sha256": "76077c41a8112910f8db75e84526c39e5b0e512107326a22609874b3d9d87433",
+      "bytes": 48130
+    },
+    {
+      "path": "after/canvas-node-visual-audit---7a35f-d-and-preview-are-reachable-web/storyboard-camera-840-50pct-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---7a35f-d-and-preview-are-reachable-web/storyboard-camera-840-50pct-inventory.json",
+      "sha256": "028b22ab3456e78b1abc2845500e6335194480bf84d99da72b244180ca957fd4",
+      "bytes": 1844
+    },
+    {
+      "path": "after/canvas-node-visual-audit---7a35f-d-and-preview-are-reachable-web/storyboard-camera-1440-50pct.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---7a35f-d-and-preview-are-reachable-web/storyboard-camera-1440-50pct.png",
+      "sha256": "bc5e46ed1bca26ddd4f2a4bcf9d9d301c64e38a28e8a7fc25c2dec321ded2cf6",
+      "bytes": 56673
+    },
+    {
+      "path": "after/canvas-node-visual-audit---7a35f-d-and-preview-are-reachable-web/storyboard-camera-1440-50pct-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---7a35f-d-and-preview-are-reachable-web/storyboard-camera-1440-50pct-inventory.json",
+      "sha256": "67e2961a51dcbfe9ab02c5e8640c340217d4c3d4139e011f4e9410b7ba16a329",
+      "bytes": 1851
+    },
+    {
+      "path": "after/canvas-node-visual-audit---7a35f-d-and-preview-are-reachable-web/storyboard-frame-upload-preview.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---7a35f-d-and-preview-are-reachable-web/storyboard-frame-upload-preview.png",
+      "sha256": "e52a65d3911560c6b11db99af81a0769481f7264416c492bbf97197a7ba94215",
+      "bytes": 91698
+    },
+    {
+      "path": "after/canvas-node-visual-audit---7a35f-d-and-preview-are-reachable-web/storyboard-frame-upload-preview-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---7a35f-d-and-preview-are-reachable-web/storyboard-frame-upload-preview-inventory.json",
+      "sha256": "48f32e7eac5f93b1f63a74d4d5e309d24e255a3be73322cec48ea007b625ccaa",
+      "bytes": 3325
+    },
+    {
+      "path": "after/canvas-node-visual-audit---8b18c--export-and-inspector-menus-web/clip-local-image-timeline.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---8b18c--export-and-inspector-menus-web/clip-local-image-timeline.png",
+      "sha256": "b0b8750eb08d548f323861218cdd05b143927d254ac50f4ff085d9d05f59a8e6",
+      "bytes": 59571
+    },
+    {
+      "path": "after/canvas-node-visual-audit---8b18c--export-and-inspector-menus-web/clip-local-image-timeline-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---8b18c--export-and-inspector-menus-web/clip-local-image-timeline-inventory.json",
+      "sha256": "710ac17bfafd17231ad70c270924fb52c9837d220ddd51e0961aea1e32e7f3b1",
+      "bytes": 483
+    },
+    {
+      "path": "after/canvas-node-visual-audit---8b18c--export-and-inspector-menus-web/clip-detailed-editor.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---8b18c--export-and-inspector-menus-web/clip-detailed-editor.png",
+      "sha256": "6ce75cfeda040632efd47b918f944bdfd65e11b8601d77084b7875b7e36b142d",
+      "bytes": 160097
+    },
+    {
+      "path": "after/canvas-node-visual-audit---8b18c--export-and-inspector-menus-web/clip-detailed-editor-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---8b18c--export-and-inspector-menus-web/clip-detailed-editor-inventory.json",
+      "sha256": "d2fcd8cafb5ab899b71591d441d1e37131b3f2a2d791e33534f98c2f6ffd1063",
+      "bytes": 93
+    },
+    {
+      "path": "after/canvas-node-visual-audit---8b18c--export-and-inspector-menus-web/clip-inspector-animation-options.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---8b18c--export-and-inspector-menus-web/clip-inspector-animation-options.png",
+      "sha256": "67c2dd20a0fe64d898d3063d558d48e4608b37d88f6ece68d0d93f26265323ea",
+      "bytes": 83526
+    },
+    {
+      "path": "after/canvas-node-visual-audit---8b18c--export-and-inspector-menus-web/clip-inspector-animation-options-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---8b18c--export-and-inspector-menus-web/clip-inspector-animation-options-inventory.json",
+      "sha256": "d2fcd8cafb5ab899b71591d441d1e37131b3f2a2d791e33534f98c2f6ffd1063",
+      "bytes": 93
+    },
+    {
+      "path": "after/canvas-node-visual-audit---8b18c--export-and-inspector-menus-web/clip-real-audio-track-and-inspector.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---8b18c--export-and-inspector-menus-web/clip-real-audio-track-and-inspector.png",
+      "sha256": "8d0d2592907cd470ae77da7c2d7b04c90ac2e6d699e39f66e210fed2c451b8ad",
+      "bytes": 174722
+    },
+    {
+      "path": "after/canvas-node-visual-audit---8b18c--export-and-inspector-menus-web/clip-real-audio-track-and-inspector-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---8b18c--export-and-inspector-menus-web/clip-real-audio-track-and-inspector-inventory.json",
+      "sha256": "d2fcd8cafb5ab899b71591d441d1e37131b3f2a2d791e33534f98c2f6ffd1063",
+      "bytes": 93
+    },
+    {
+      "path": "after/canvas-node-visual-audit---8b18c--export-and-inspector-menus-web/clip-export-png-options.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---8b18c--export-and-inspector-menus-web/clip-export-png-options.png",
+      "sha256": "4b6b24d8dfedcf6b3dc42df78f045aef762f2b6d21a93ec23d95dd0bbe502430",
+      "bytes": 170002
+    },
+    {
+      "path": "after/canvas-node-visual-audit---8b18c--export-and-inspector-menus-web/clip-export-png-options-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---8b18c--export-and-inspector-menus-web/clip-export-png-options-inventory.json",
+      "sha256": "d4f52f7738ea2091116719966b2346f16030d907c5164e6daab1f243925c5efb",
+      "bytes": 455
+    },
+    {
+      "path": "after/canvas-node-visual-audit---8b18c--export-and-inspector-menus-web/clip-export-mp4-options.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---8b18c--export-and-inspector-menus-web/clip-export-mp4-options.png",
+      "sha256": "0bdbd4184aa5dcd789de0cb7c474747ef10736462460cb75626e1e73af637d1d",
+      "bytes": 165588
+    },
+    {
+      "path": "after/canvas-node-visual-audit---8b18c--export-and-inspector-menus-web/clip-export-mp4-options-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---8b18c--export-and-inspector-menus-web/clip-export-mp4-options-inventory.json",
+      "sha256": "870e6360d13e78d5c2faf8d88e9d3d7014ab7843a1689593d068300d3ac2233f",
+      "bytes": 443
+    },
+    {
+      "path": "after/canvas-node-visual-audit---06e55-emplate-entry-are-reachable-web/文本-selected-composer.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---06e55-emplate-entry-are-reachable-web/文本-selected-composer.png",
+      "sha256": "337e371b5f2d3b8c34d22f17d40635b2311dd5ab8dc758a0aa1f721ea3110930",
+      "bytes": 45959
+    },
+    {
+      "path": "after/canvas-node-visual-audit---06e55-emplate-entry-are-reachable-web/文本-selected-composer-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---06e55-emplate-entry-are-reachable-web/文本-selected-composer-inventory.json",
+      "sha256": "1a2aa3d8733f6020613fbb37bb8959221526d1ce8d8c7f6ff16c9689be267ffe",
+      "bytes": 1143
+    },
+    {
+      "path": "after/canvas-node-visual-audit---06e55-emplate-entry-are-reachable-web/文本-template-entry.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---06e55-emplate-entry-are-reachable-web/文本-template-entry.png",
+      "sha256": "53f1146842843ff12d6602741def9bbc6054dd5f944101295a0c996f8dc31c77",
+      "bytes": 52254
+    },
+    {
+      "path": "after/canvas-node-visual-audit---06e55-emplate-entry-are-reachable-web/文本-template-entry-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---06e55-emplate-entry-are-reachable-web/文本-template-entry-inventory.json",
+      "sha256": "ef358701fbb2e0d26aed2acedc49d61df395b42431a7267a2984d8301d1e4e92",
+      "bytes": 955
+    },
+    {
+      "path": "after/canvas-node-visual-audit---06e55-emplate-entry-are-reachable-web/文本-length-menu.png",
+      "source": ".tmp/e2e-results/length-stable-verified/canvas-node-visual-audit---06e55-emplate-entry-are-reachable-web/文本-length-menu.png",
+      "sha256": "2d0798053868d87c4c3e965cfc3fb148b40ea0f70e2d36e3e8e19b5bb7325b19",
+      "bytes": 53961
+    },
+    {
+      "path": "after/canvas-node-visual-audit---06e55-emplate-entry-are-reachable-web/文本-length-menu-inventory.json",
+      "source": ".tmp/e2e-results/length-stable-verified/canvas-node-visual-audit---06e55-emplate-entry-are-reachable-web/文本-length-menu-inventory.json",
+      "sha256": "7ae04c85e4393d3ed8720ad4dbbd88f252b9ac8d179346789b8f8b1ac2e15767",
+      "bytes": 1050
+    },
+    {
+      "path": "after/canvas-node-visual-audit---f80b8-emplate-entry-are-reachable-web/网页-selected-composer.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---f80b8-emplate-entry-are-reachable-web/网页-selected-composer.png",
+      "sha256": "541469f954410f7037817e9be1ae0dcda15d0c1eaaa82e67a1375fe5e3b3961f",
+      "bytes": 37994
+    },
+    {
+      "path": "after/canvas-node-visual-audit---f80b8-emplate-entry-are-reachable-web/网页-selected-composer-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---f80b8-emplate-entry-are-reachable-web/网页-selected-composer-inventory.json",
+      "sha256": "7b7b0e41868e60b8e43103e9d409f3ae87761dd04ef3b98f3ef8b434118b4711",
+      "bytes": 483
+    },
+    {
+      "path": "after/canvas-node-visual-audit---f80b8-emplate-entry-are-reachable-web/网页-template-entry.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---f80b8-emplate-entry-are-reachable-web/网页-template-entry.png",
+      "sha256": "455de2e3ac272734116350205deb038b213daeb8e84ceafa12e8f4f47eed283f",
+      "bytes": 47485
+    },
+    {
+      "path": "after/canvas-node-visual-audit---f80b8-emplate-entry-are-reachable-web/网页-template-entry-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---f80b8-emplate-entry-are-reachable-web/网页-template-entry-inventory.json",
+      "sha256": "ca244f88649723e17e54f0f5794be9ef0265ad2e57f0747347082673727bcb84",
+      "bytes": 956
+    },
+    {
+      "path": "after/canvas-node-visual-audit---f80b8-emplate-entry-are-reachable-web/web-design-system-entry.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---f80b8-emplate-entry-are-reachable-web/web-design-system-entry.png",
+      "sha256": "9e656281d9e9645e03448cc49d28f79d4775703dca872441dfedfd59dfb29305",
+      "bytes": 53391
+    },
+    {
+      "path": "after/canvas-node-visual-audit---f80b8-emplate-entry-are-reachable-web/web-design-system-entry-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---f80b8-emplate-entry-are-reachable-web/web-design-system-entry-inventory.json",
+      "sha256": "ca244f88649723e17e54f0f5794be9ef0265ad2e57f0747347082673727bcb84",
+      "bytes": 956
+    },
+    {
+      "path": "after/canvas-node-visual-audit---ca154-emplate-entry-are-reachable-web/PPT-selected-composer.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---ca154-emplate-entry-are-reachable-web/PPT-selected-composer.png",
+      "sha256": "14d0130893d585e53e30d68ca368b03a71265ae70220f455d71f75e892567948",
+      "bytes": 36513
+    },
+    {
+      "path": "after/canvas-node-visual-audit---ca154-emplate-entry-are-reachable-web/PPT-selected-composer-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---ca154-emplate-entry-are-reachable-web/PPT-selected-composer-inventory.json",
+      "sha256": "4c7c9117b799329112f512f47beee100741400a0f430cce97f32d7ed610ff51b",
+      "bytes": 483
+    },
+    {
+      "path": "after/canvas-node-visual-audit---ca154-emplate-entry-are-reachable-web/PPT-template-entry.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---ca154-emplate-entry-are-reachable-web/PPT-template-entry.png",
+      "sha256": "9642225c064437441691b55b59b0ef5414f7ca72d9628c66758d7980cf6320ff",
+      "bytes": 45522
+    },
+    {
+      "path": "after/canvas-node-visual-audit---ca154-emplate-entry-are-reachable-web/PPT-template-entry-inventory.json",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-node-visual-audit---ca154-emplate-entry-are-reachable-web/PPT-template-entry-inventory.json",
+      "sha256": "9b7f9e551779af044bed220f0a34185022424c74863dcf47127f6229f713d2bd",
+      "bytes": 956
+    },
+    {
+      "path": "after/canvas-node-visual-audit---ca154-emplate-entry-are-reachable-web/PPT-length-menu.png",
+      "source": ".tmp/e2e-results/length-stable-verified/canvas-node-visual-audit---ca154-emplate-entry-are-reachable-web/PPT-length-menu.png",
+      "sha256": "bcf6bed041aa61b2e53579adb8cf6b565abc83f14c19812bc70c428183730b19",
+      "bytes": 44530
+    },
+    {
+      "path": "after/canvas-node-visual-audit---ca154-emplate-entry-are-reachable-web/PPT-length-menu-inventory.json",
+      "source": ".tmp/e2e-results/length-stable-verified/canvas-node-visual-audit---ca154-emplate-entry-are-reachable-web/PPT-length-menu-inventory.json",
+      "sha256": "e246d62a96564895c44ee84d003ee7c47f81febd975913a720ad47f79c1cb933",
+      "bytes": 1050
+    },
+    {
+      "path": "after/canvas-overlay-style--P0-o-e8c70-t-and-switches-pointer-hand-web/canvas-mode-menu.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-overlay-style--P0-o-e8c70-t-and-switches-pointer-hand-web/canvas-mode-menu.png",
+      "sha256": "1e72efd8dac4f92be06c789849d75f8fd8f32d7314ed044f43eef83e34389ec2",
+      "bytes": 34438
+    },
+    {
+      "path": "after/canvas-overlay-style--P0-o-e8c70-t-and-switches-pointer-hand-web/canvas-mode-menu-detail.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-overlay-style--P0-o-e8c70-t-and-switches-pointer-hand-web/canvas-mode-menu-detail.png",
+      "sha256": "9272d324a4f236d5c42747bcbca83e5d351456ed1b698034ef02addcb213ce02",
+      "bytes": 3485
+    },
+    {
+      "path": "after/canvas-picker-style--P0-or-196aa--applies-a-real-local-asset-web/picker-canvas-source.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-picker-style--P0-or-196aa--applies-a-real-local-asset-web/picker-canvas-source.png",
+      "sha256": "640b3f4f48e32b69a9266485948cfcfd3e50bb203d9e088914f4e61e6ac7aa4a",
+      "bytes": 49395
+    },
+    {
+      "path": "after/canvas-picker-style--P0-or-196aa--applies-a-real-local-asset-web/picker-upload-source.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-picker-style--P0-or-196aa--applies-a-real-local-asset-web/picker-upload-source.png",
+      "sha256": "b8899a8f389cd83fc301fa500ea2d09a3026aac14a06b0b679d085a12893d484",
+      "bytes": 63023
+    },
+    {
+      "path": "after/canvas-picker-style--P0-or-196aa--applies-a-real-local-asset-web/picker-local-asset-selection.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-picker-style--P0-or-196aa--applies-a-real-local-asset-web/picker-local-asset-selection.png",
+      "sha256": "3f9bbbf1a5745c0e6caf2495b233281c52697ae4233f417a6451c3e94a19f494",
+      "bytes": 55720
+    },
+    {
+      "path": "after/canvas-picker-style--P0-or-196aa--applies-a-real-local-asset-web/picker-applied-reference.png",
+      "source": ".tmp/e2e-results/full-ui-verified/canvas-picker-style--P0-or-196aa--applies-a-real-local-asset-web/picker-applied-reference.png",
+      "sha256": "c7a9921c5ccaed8b6358ef4f786d3dbe1a91b4afcb2e1283f916e055a3a41b2d",
+      "bytes": 53346
+    },
+    {
+      "path": "after/default-locale--P0-英语浏览器全新配置默认简体中文，仍尊重手动英语偏好-web/00-default-chinese-english-browser.png",
+      "source": ".tmp/e2e-results/full-ui-verified/default-locale--P0-英语浏览器全新配置默认简体中文，仍尊重手动英语偏好-web/00-default-chinese-english-browser.png",
+      "sha256": "73e88e265fd262e63a6df557f11505d656d70bf532e826640932c1378acfd19b",
+      "bytes": 38489
+    },
+    {
+      "path": "after/office-previews--P0-DOCX-s-6aa83-ew-and-exact-download-bytes-web/34-docx-text-preview.png",
+      "source": ".tmp/e2e-results/full-ui-verified/office-previews--P0-DOCX-s-6aa83-ew-and-exact-download-bytes-web/34-docx-text-preview.png",
+      "sha256": "5c733e7655540e58cd92affeaf06e39fd2f5cd2dc4070bf79a0851473307d44a",
+      "bytes": 23946
+    },
+    {
+      "path": "after/office-previews--P0-PPTX-s-c9fa0-ew-and-exact-download-bytes-web/35-pptx-text-preview.png",
+      "source": ".tmp/e2e-results/full-ui-verified/office-previews--P0-PPTX-s-c9fa0-ew-and-exact-download-bytes-web/35-pptx-text-preview.png",
+      "sha256": "ca4fd41a62770388666658abec62a8e78a62404fb903010c8c5d17f09336468c",
+      "bytes": 30863
+    },
+    {
+      "path": "after/office-previews--P0-XLSX-s-1d172-ew-and-exact-download-bytes-web/36-xlsx-text-preview.png",
+      "source": ".tmp/e2e-results/full-ui-verified/office-previews--P0-XLSX-s-1d172-ew-and-exact-download-bytes-web/36-xlsx-text-preview.png",
+      "sha256": "4fad689ae54fc9a5cef7b890cfb26a800f97b7ae39b829cb1e7a9c25b9411c92",
+      "bytes": 26672
+    },
+    {
+      "path": "after/viewer-visual-audit--P0-vi-4d149--the-original-host-contract-web/viewer-handoff-layout.png",
+      "source": ".tmp/e2e-results/full-ui-verified/viewer-visual-audit--P0-vi-4d149--the-original-host-contract-web/viewer-handoff-layout.png",
+      "sha256": "4c647f188facf073e037c4afa498059bb4d81b20306bc0ccbf1a108cd8cbeb62",
+      "bytes": 64136
+    },
+    {
+      "path": "after/viewer-visual-audit--P0-vi-4d149--the-original-host-contract-web/viewer-shared-tooltip.png",
+      "source": ".tmp/e2e-results/full-ui-verified/viewer-visual-audit--P0-vi-4d149--the-original-host-contract-web/viewer-shared-tooltip.png",
+      "sha256": "b169cf9e133a43c9e2136c8f330fc3a15e34e72b9def4e0a740b656f3a89f9c5",
+      "bytes": 66778
+    },
+    {
+      "path": "after/viewer-visual-audit--P0-vi-4d149--the-original-host-contract-web/viewer-unconfigured-handoff.png",
+      "source": ".tmp/e2e-results/full-ui-verified/viewer-visual-audit--P0-vi-4d149--the-original-host-contract-web/viewer-unconfigured-handoff.png",
+      "sha256": "bec07df1c5a282839aa27799b1cc8308d2ef4317275c574b66af9c8919e87884",
+      "bytes": 67373
+    },
+    {
+      "path": "after/viewer-visual-audit--P0-or-24aa1-in-tab-and-fullscreen-modes-web/presentation-in-tab.png",
+      "source": ".tmp/e2e-results/full-ui-verified/viewer-visual-audit--P0-or-24aa1-in-tab-and-fullscreen-modes-web/presentation-in-tab.png",
+      "sha256": "2bf82dd78a4d60156755751940a3340009513a51689cda66ab7f5c4a3dce013e",
+      "bytes": 55901
+    },
+    {
+      "path": "after/viewer-visual-audit--P0-or-24aa1-in-tab-and-fullscreen-modes-web/presentation-fullscreen.png",
+      "source": ".tmp/e2e-results/full-ui-verified/viewer-visual-audit--P0-or-24aa1-in-tab-and-fullscreen-modes-web/presentation-fullscreen.png",
+      "sha256": "2bf82dd78a4d60156755751940a3340009513a51689cda66ab7f5c4a3dce013e",
+      "bytes": 55901
+    },
+    {
+      "path": "after/viewer-visual-audit--P0-fu-42d48-d-and-HTML-preview-geometry-web/asset-text-grid.png",
+      "source": ".tmp/e2e-results/full-ui-verified/viewer-visual-audit--P0-fu-42d48-d-and-HTML-preview-geometry-web/asset-text-grid.png",
+      "sha256": "5a97ea11ed5ac0c886d0adceaa23c9f144dd7a2ce65311c6d184082ccb923541",
+      "bytes": 50184
+    },
+    {
+      "path": "after/viewer-visual-audit--P0-fu-42d48-d-and-HTML-preview-geometry-web/asset-html-thumbnails.png",
+      "source": ".tmp/e2e-results/full-ui-verified/viewer-visual-audit--P0-fu-42d48-d-and-HTML-preview-geometry-web/asset-html-thumbnails.png",
+      "sha256": "1eff3eeb8d130294e41e05d0e572c84e6a845eee984cd3e601932091ec7e3647",
+      "bytes": 38008
+    },
+    {
+      "path": "after/viewer-visual-audit--P0-fu-42d48-d-and-HTML-preview-geometry-web/asset-expanded-1440.png",
+      "source": ".tmp/e2e-results/full-ui-verified/viewer-visual-audit--P0-fu-42d48-d-and-HTML-preview-geometry-web/asset-expanded-1440.png",
+      "sha256": "26dc8762537bf8ff8c5678aef65a3ffa491d230cf5877eb4034e6aaba7df9b04",
+      "bytes": 53893
+    },
+    {
+      "path": "after/viewer-visual-audit--P0-fu-42d48-d-and-HTML-preview-geometry-web/asset-expanded-840.png",
+      "source": ".tmp/e2e-results/full-ui-verified/viewer-visual-audit--P0-fu-42d48-d-and-HTML-preview-geometry-web/asset-expanded-840.png",
+      "sha256": "1b7975e3ac3150173d480243cd77b2b57ec387c1fd58c256117ac3faa840b227",
+      "bytes": 50959
+    },
+    {
+      "path": "after/viewer-visual-audit--P0-fu-42d48-d-and-HTML-preview-geometry-web/asset-expanded-560.png",
+      "source": ".tmp/e2e-results/full-ui-verified/viewer-visual-audit--P0-fu-42d48-d-and-HTML-preview-geometry-web/asset-expanded-560.png",
+      "sha256": "ce1166c10f56b083348e0ada8c87ac14f84d1965f4b453f5d2133b914686b790",
+      "bytes": 47402
+    },
+    {
+      "path": "after/viewer-visual-audit--P0-fu-42d48-d-and-HTML-preview-geometry-web/asset-delete-confirmation.png",
+      "source": ".tmp/e2e-results/confirmation-stable-verified/viewer-visual-audit--P0-fu-42d48-d-and-HTML-preview-geometry-web/asset-delete-confirmation.png",
+      "sha256": "71b7be993ba9541a135b17d77d2d7f66f690d5f29652eb8705d6aaa2d06726c7",
+      "bytes": 99627
+    },
+    {
+      "path": "after/viewer-visual-audit--P0-fu-42d48-d-and-HTML-preview-geometry-web/asset-create-form.png",
+      "source": ".tmp/e2e-results/full-ui-verified/viewer-visual-audit--P0-fu-42d48-d-and-HTML-preview-geometry-web/asset-create-form.png",
+      "sha256": "7623289aa170e9bb6cb8a9cc77962eb213282413a519c8557163997d6d9f956f",
+      "bytes": 109871
+    },
+    {
+      "path": "after/workspace-style--P0-origin-ed0e9-en-scrim-and-centered-frame-web/style-image-export-dialog.png",
+      "source": ".tmp/e2e-results/full-ui-verified/workspace-style--P0-origin-ed0e9-en-scrim-and-centered-frame-web/style-image-export-dialog.png",
+      "sha256": "8a778004de71b4726fc1788bf53ffe7ebae1907e0c62205b9ba5633611f94df8",
+      "bytes": 81153
+    },
+    {
+      "path": "after/workspace--P0-original-wor-61a01-ext-sketch-and-clip-persist-web/01-full-workspace.png",
+      "source": ".tmp/e2e-results/full-ui-verified/workspace--P0-original-wor-61a01-ext-sketch-and-clip-persist-web/01-full-workspace.png",
+      "sha256": "a79689b20695850c7c9c980156d2585c91cd804a6932d5f489adda303afd1e9f",
+      "bytes": 30964
+    },
+    {
+      "path": "after/workspace--P0-original-wor-61a01-ext-sketch-and-clip-persist-web/02-project-assets.png",
+      "source": ".tmp/e2e-results/full-ui-verified/workspace--P0-original-wor-61a01-ext-sketch-and-clip-persist-web/02-project-assets.png",
+      "sha256": "b0a4c929ea5d859475d5e3fb1d4f2cf25c0deb769b5ac7de2fd0d0fbe2983397",
+      "bytes": 71292
+    },
+    {
+      "path": "after/workspace--P0-original-wor-61a01-ext-sketch-and-clip-persist-web/03-launcher-tabs.png",
+      "source": ".tmp/e2e-results/full-ui-verified/workspace--P0-original-wor-61a01-ext-sketch-and-clip-persist-web/03-launcher-tabs.png",
+      "sha256": "943e042f72106f580455b66518c69b2ff7ee539c8a0e3dc380439e819b8563f1",
+      "bytes": 41105
+    },
+    {
+      "path": "after/workspace--P0-original-wor-61a01-ext-sketch-and-clip-persist-web/04-text-editor.png",
+      "source": ".tmp/e2e-results/full-ui-verified/workspace--P0-original-wor-61a01-ext-sketch-and-clip-persist-web/04-text-editor.png",
+      "sha256": "0e3a0555cf1155cd30b8a4888ba69f27825b1909f5648e903c7e402039af4b04",
+      "bytes": 39241
+    },
+    {
+      "path": "after/workspace--P0-original-wor-61a01-ext-sketch-and-clip-persist-web/05-sketch-editor.png",
+      "source": ".tmp/e2e-results/full-ui-verified/workspace--P0-original-wor-61a01-ext-sketch-and-clip-persist-web/05-sketch-editor.png",
+      "sha256": "ac8a60c34d35206f773d238543a52740cfde35690eed7f0f6d2be8fb46cdc6f0",
+      "bytes": 37698
+    },
+    {
+      "path": "after/workspace--P0-original-wor-61a01-ext-sketch-and-clip-persist-web/06-clip-workspace.png",
+      "source": ".tmp/e2e-results/full-ui-verified/workspace--P0-original-wor-61a01-ext-sketch-and-clip-persist-web/06-clip-workspace.png",
+      "sha256": "396fd3cd11c0b0f70eb752e734ff97c61dff650aaa3790bcc8dbba98741c7a7a",
+      "bytes": 57232
+    },
+    {
+      "path": "after/workspace--P0-HTML-and-pre-41c6c-d-version-history-roundtrip-web/07-html-preview.png",
+      "source": ".tmp/e2e-results/full-ui-verified/workspace--P0-HTML-and-pre-41c6c-d-version-history-roundtrip-web/07-html-preview.png",
+      "sha256": "c357fdcb466062d19c853edb48851a1fcda14701e5e0e5c2c21bd0fd7bf38d79",
+      "bytes": 69916
+    },
+    {
+      "path": "after/workspace--P0-HTML-and-pre-41c6c-d-version-history-roundtrip-web/08-html-source.png",
+      "source": ".tmp/e2e-results/full-ui-verified/workspace--P0-HTML-and-pre-41c6c-d-version-history-roundtrip-web/08-html-source.png",
+      "sha256": "55100d09a39469d7dbd69fb53cc09e7f01ff4e7a7752b4afbfa9df15b4e3b93c",
+      "bytes": 90337
+    },
+    {
+      "path": "after/workspace--P0-HTML-and-pre-41c6c-d-version-history-roundtrip-web/09-html-manual-edit.png",
+      "source": ".tmp/e2e-results/full-ui-verified/workspace--P0-HTML-and-pre-41c6c-d-version-history-roundtrip-web/09-html-manual-edit.png",
+      "sha256": "486f87fab8ec4099aa3fc05f26cf440bf03c9d6a3403d5975df3404ee5b765e6",
+      "bytes": 71083
+    },
+    {
+      "path": "after/workspace--P0-HTML-and-pre-41c6c-d-version-history-roundtrip-web/10-html-versions.png",
+      "source": ".tmp/e2e-results/full-ui-verified/workspace--P0-HTML-and-pre-41c6c-d-version-history-roundtrip-web/10-html-versions.png",
+      "sha256": "501c3b5fd2eb685cd26ef1faee013a2c1846d020585bf99dbb0626f3290071cc",
+      "bytes": 93536
+    },
+    {
+      "path": "after/workspace--P0-HTML-and-pre-41c6c-d-version-history-roundtrip-web/11-presentation-preview.png",
+      "source": ".tmp/e2e-results/full-ui-verified/workspace--P0-HTML-and-pre-41c6c-d-version-history-roundtrip-web/11-presentation-preview.png",
+      "sha256": "4c4fe52e420fed613aae0a34ad7fdde8512c305ccfeda89b57aa664f2eb47c3c",
+      "bytes": 82613
+    },
+    {
+      "path": "after/workspace--P0-HTML-and-pre-41c6c-d-version-history-roundtrip-web/11b-presentation-second-slide.png",
+      "source": ".tmp/e2e-results/full-ui-verified/workspace--P0-HTML-and-pre-41c6c-d-version-history-roundtrip-web/11b-presentation-second-slide.png",
+      "sha256": "ba50c5c767b0fcd78d6102452ee886f54cf2feed090fe410701f70ab884cd6b4",
+      "bytes": 74781
+    },
+    {
+      "path": "after/workspace--P0-HTML-and-pre-41c6c-d-version-history-roundtrip-web/12-presentation-source.png",
+      "source": ".tmp/e2e-results/full-ui-verified/workspace--P0-HTML-and-pre-41c6c-d-version-history-roundtrip-web/12-presentation-source.png",
+      "sha256": "aa10c512d8d349787a52b4e0b56e66196d3c744168af2e50de9b27155466ac75",
+      "bytes": 82714
+    },
+    {
+      "path": "after/native-browser--P0-native--44be8--grants-and-safe-URL-denial-desktop/13-native-browser-home.png",
+      "source": ".tmp/e2e-results/full-ui-verified/native-browser--P0-native--44be8--grants-and-safe-URL-denial-desktop/13-native-browser-home.png",
+      "sha256": "f12cf9b67f84ee1e43941266ca6acbb30dc7c1bd0df41ea75fe856a2e61a0e4a",
+      "bytes": 108280
+    },
+    {
+      "path": "after/native-browser--P0-native--44be8--grants-and-safe-URL-denial-desktop/14-native-browser-page.png",
+      "source": ".tmp/e2e-results/full-ui-verified/native-browser--P0-native--44be8--grants-and-safe-URL-denial-desktop/14-native-browser-page.png",
+      "sha256": "e19a47f625fceeda70210a737b1c77e0206b063cb2c41bc7b3a6c7467f98d860",
+      "bytes": 78080
+    },
+    {
+      "path": "after/native-browser--P0-native--44be8--grants-and-safe-URL-denial-desktop/15-native-resources.png",
+      "source": ".tmp/e2e-results/full-ui-verified/native-browser--P0-native--44be8--grants-and-safe-URL-denial-desktop/15-native-resources.png",
+      "sha256": "c57632aa509796086c451a128fb45b5184810c181cc9c49178a1bd36c81ec0d6",
+      "bytes": 112154
+    },
+    {
+      "path": "after/native-browser--P0-native--44be8--grants-and-safe-URL-denial-desktop/16-native-library-resource-saved.png",
+      "source": ".tmp/e2e-results/full-ui-verified/native-browser--P0-native--44be8--grants-and-safe-URL-denial-desktop/16-native-library-resource-saved.png",
+      "sha256": "b085f22983e9fc04825b7599a31542c6dee1736405f418e80345ee2fb40543f5",
+      "bytes": 114947
+    },
+    {
+      "path": "after/native-browser--P0-native--44be8--grants-and-safe-URL-denial-desktop/17-native-captured-project-image.png",
+      "source": ".tmp/e2e-results/full-ui-verified/native-browser--P0-native--44be8--grants-and-safe-URL-denial-desktop/17-native-captured-project-image.png",
+      "sha256": "c376c483e781603af9a7312b739008335c1d83e29e361bf322ea63ca3601f921",
+      "bytes": 61585
+    },
+    {
+      "path": "after/native-collector--P0-origi-c7d87-d-saves-to-the-real-library-desktop/27-original-native-collector-sidebar.png",
+      "source": ".tmp/e2e-results/full-ui-verified/native-collector--P0-origi-c7d87-d-saves-to-the-real-library-desktop/27-original-native-collector-sidebar.png",
+      "sha256": "a33ecfef4bb4e906ad0d6176731bbe0efa59626fea813d35a1b640770863eebb",
+      "bytes": 65119
+    },
+    {
+      "path": "after/native-collector--P0-origi-c7d87-d-saves-to-the-real-library-desktop/28-collector-project-tray-with-provenance.png",
+      "source": ".tmp/e2e-results/full-ui-verified/native-collector--P0-origi-c7d87-d-saves-to-the-real-library-desktop/28-collector-project-tray-with-provenance.png",
+      "sha256": "f11e39915ebe370bcc5bdbff8d3bcd84adb6f5fe03ecc8c4415b9790c89fe262",
+      "bytes": 79784
+    },
+    {
+      "path": "after/native-collector--P0-origi-c7d87-d-saves-to-the-real-library-desktop/29-canonical-original-save-asset-dialog.png",
+      "source": ".tmp/e2e-results/full-ui-verified/native-collector--P0-origi-c7d87-d-saves-to-the-real-library-desktop/29-canonical-original-save-asset-dialog.png",
+      "sha256": "2953d9395072e860ad8166a83ac78a5fe532054d1bf3024bfb4c94352ff63bcd",
+      "bytes": 121101
+    },
+    {
+      "path": "after/native-collector--P0-origi-c7d87-d-saves-to-the-real-library-desktop/30-native-browser-extension-entry-and-status.png",
+      "source": ".tmp/e2e-results/full-ui-verified/native-collector--P0-origi-c7d87-d-saves-to-the-real-library-desktop/30-native-browser-extension-entry-and-status.png",
+      "sha256": "a2516526c5c99fbe15489468fd6dd815eca03a68135cffe4c8eae0757ea4ff6c",
+      "bytes": 135278
+    },
+    {
+      "path": "after/workspace-native-style--P0-eac62-t-under-light-OS-preference-desktop/style-light-1440.png",
+      "source": ".tmp/e2e-results/full-ui-verified/workspace-native-style--P0-eac62-t-under-light-OS-preference-desktop/style-light-1440.png",
+      "sha256": "6e1d7aac3a6f8ba6be4cbcd8eea26bf89db397144559ba5bb4b59ae716770e1c",
+      "bytes": 46445
+    },
+    {
+      "path": "after/workspace-native-style--P0-eac62-t-under-light-OS-preference-desktop/style-light-840.png",
+      "source": ".tmp/e2e-results/full-ui-verified/workspace-native-style--P0-eac62-t-under-light-OS-preference-desktop/style-light-840.png",
+      "sha256": "1dff8136b449a8903c3be2f500dfdf9c1e3cdc6f02f07177baacb317a1dde0c5",
+      "bytes": 42402
+    },
+    {
+      "path": "after/workspace-native-style--P0-52f83-ut-under-dark-OS-preference-desktop/style-dark-1440.png",
+      "source": ".tmp/e2e-results/full-ui-verified/workspace-native-style--P0-52f83-ut-under-dark-OS-preference-desktop/style-dark-1440.png",
+      "sha256": "adfd4944b47eb4253475949fee5a010f6b45b2ed1e2174fd7d6f9d5689671dcb",
+      "bytes": 46485
+    },
+    {
+      "path": "after/workspace-native-style--P0-52f83-ut-under-dark-OS-preference-desktop/style-dark-840.png",
+      "source": ".tmp/e2e-results/full-ui-verified/workspace-native-style--P0-52f83-ut-under-dark-OS-preference-desktop/style-dark-840.png",
+      "sha256": "9b6ae5e7c33119c380135f4d7e0facdd6ceb4c720f6b44feea13aa2b670ed3a8",
+      "bytes": 42422
+    },
+    {
+      "path": "after/canvas-picker-style--P0-or-196aa--applies-a-real-local-asset-web/picker-real-asset-preview.png",
+      "source": ".tmp/e2e-results/picker-preview-verified/canvas-picker-style--P0-or-196aa--applies-a-real-local-asset-web/picker-real-asset-preview.png",
+      "sha256": "0479b20eb0e5791bc46d6ded86e3069fcc555f0e50897b10c09e918f55772217",
+      "bytes": 56455
+    },
+    {
+      "path": "before/asset-text-grid.png",
+      "source": ".tmp/e2e-results/full-audit-red/viewer-visual-audit--P0-fu-42d48-d-and-HTML-preview-geometry-web/asset-text-grid.png",
+      "sha256": "bf1f0684a4770a9dee69d1545919fc6dcc0801a56f49bb203fb6fca21b92e155",
+      "bytes": 59670
+    },
+    {
+      "path": "before/asset-html-thumbnails.png",
+      "source": ".tmp/e2e-results/full-audit-red/viewer-visual-audit--P0-fu-42d48-d-and-HTML-preview-geometry-web/asset-html-thumbnails.png",
+      "sha256": "bfa928da374a30f216abb24b4b801632c6f2db392fc927aff68661b24c03ad23",
+      "bytes": 54509
+    },
+    {
+      "path": "before/asset-expanded-1440.png",
+      "source": ".tmp/e2e-results/dialog-cascade-red/viewer-visual-audit--P0-fu-42d48-d-and-HTML-preview-geometry-web/asset-expanded-1440.png",
+      "sha256": "f72d53007e6083691c740729fdf1de29001cc3a3e6d56af521dacfbf2520745e",
+      "bytes": 81395
+    },
+    {
+      "path": "before/asset-delete-confirmation.png",
+      "source": ".tmp/e2e-results/dialog-cascade-red/viewer-visual-audit--P0-fu-42d48-d-and-HTML-preview-geometry-web/asset-delete-confirmation.png",
+      "sha256": "7f16b2e75e5f6cd27a2ab3a33736975519414213d8238ad846a1119083a93a74",
+      "bytes": 120896
+    },
+    {
+      "path": "before/asset-create-form.png",
+      "source": ".tmp/e2e-results/dialog-cascade-red/viewer-visual-audit--P0-fu-42d48-d-and-HTML-preview-geometry-web/asset-create-form.png",
+      "sha256": "6808ebd158477fdb9d883223951b3f538813cbcb50171c3b3d8a32e2a2a0f9f8",
+      "bytes": 102389
+    },
+    {
+      "path": "before/space-removal.png",
+      "source": ".tmp/e2e-results/dialog-leaf-red/asset-library--P0-original-fdf9d--favorite-and-canvas-import-web/24-space-removal-preserves-assets-by-default.png",
+      "sha256": "d8016158a84e83bf976ed425e0d073b6a0390e422b47b02a6f0ac176300841fa",
+      "bytes": 112311
+    },
+    {
+      "path": "before/browser-site-dialog.png",
+      "source": ".tmp/e2e-results/dialog-leaf-red/asset-library--P0-browser--84cbc-ngs-remain-reachable-on-Web-web/browser-site-dialog.png",
+      "sha256": "2d6c0f348c380a9f82d40cd061415cebbb1fc51329cca1372943ce6782d7141d",
+      "bytes": 135174
+    }
+  ],
+  "lastRefinedAt": "2026-10-09T16:08:39.670Z"
+}

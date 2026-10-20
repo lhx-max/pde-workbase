@@ -1,0 +1,37 @@
+// @vitest-environment jsdom
+import React from 'react';
+import { cleanup, render } from '@testing-library/react';
+import { afterEach, expect, it, vi } from 'vitest';
+import type { CanvasUiHost } from '@bezier/canvas-workbench';
+const state=vi.hoisted(()=>({host:null as CanvasUiHost|null,picker:vi.fn(()=>null)}));
+vi.mock('@bezier/canvas-workbench',()=>({CanvasWorkbenchSurface:({uiHost}:any)=>{state.host=uiHost;return null;}}));
+vi.mock('../src/components/asset-library/WorkspaceAssetPicker',()=>({renderWorkspaceAssetPicker:state.picker}));
+vi.mock('../src/components/asset-library/SelectableImageMasonry',()=>({SelectableTemplateGrid:()=>null}));
+vi.mock('../src/providers/registry',()=>({projectFileUrl:vi.fn()}));
+vi.mock('../src/providers/asset-library',()=>({usePersonalAssetInProject:vi.fn()}));
+vi.mock('../src/providers/project-usage',()=>({downloadProjectResource:vi.fn()}));
+vi.mock('../src/state/save-asset',()=>({requestSaveAsset:vi.fn()}));
+vi.mock('../src/state/asset-library-navigation',()=>({openAssetLibrary:vi.fn()}));
+vi.mock('../src/components/asset-library-reference-adapter',()=>({createAssetLibraryReferenceAdapter:()=>({})}));
+vi.mock('../src/components/workspace/WorkflowCanvasQuestion',()=>({WorkflowCanvasQuestion:()=>null}));
+vi.mock('../src/components/workspace/use-workflow-artifacts',()=>({useWorkflowArtifacts:()=>({artifacts:[]})}));
+vi.mock('../src/components/workspace/use-workflow-canvas-runs',()=>({useWorkflowCanvasRuns:()=>({runs:[]})}));
+vi.mock('../src/components/MarkdownWordDocument',()=>({MarkdownWordDocument:()=>null}));
+vi.mock('../src/components/workspace/CanvasArtifactPreview',()=>({CanvasArtifactPreview:()=>null}));
+vi.mock('../src/components/workspace/CanvasArtifactThumbnail',()=>({CanvasArtifactThumbnail:()=>null,cacheCanvasArtifactThumbnail:vi.fn()}));
+vi.mock('../src/components/home-hero/WorkbenchOverlayShells',()=>({renderCanvasWorkbenchDialog:vi.fn(),renderCanvasWorkbenchHoverCard:vi.fn(),renderCanvasWorkbenchMenu:vi.fn(),renderCanvasWorkbenchPopover:vi.fn(),renderCanvasWorkbenchTabs:vi.fn(),renderCanvasWorkbenchTemplateCategories:vi.fn()}));
+vi.mock('../src/i18n',()=>({useI18n:()=>({locale:'zh-CN',t:(key:string)=>key})}));
+import { CanvasWorkspace } from '../src/components/workspace/CanvasWorkspace';
+afterEach(cleanup);
+it('wires all original picker visual hosts with project-scoped lifetime',()=>{
+ render(<CanvasWorkspace projectId="p1"/>);
+ expect(state.host?.renderAssetPicker).toBeTypeOf('function');
+ expect(state.host?.renderTemplateGrid).toBeTypeOf('function');
+ expect(state.host?.formatTemplateCategory?.('brand-page')).toBe('community.subtype.brandPage');
+ expect(state.host?.formatTemplateCategory?.('fundraising-pitch')).toBe('pluginsHome.commercialCategory.fundraising-pitch');
+ expect(state.host?.formatTemplateCategory?.('unknown')).toBe('unknown');
+ const props={kind:'design-system' as const,open:false,onSelect:vi.fn(),onClose:vi.fn()};
+ state.host!.renderAssetPicker!(props);
+ expect(state.picker).toHaveBeenCalledWith(props,JSON.stringify(['p1',null]));
+});
+it('retains explicit host overrides',()=>{const renderAssetPicker=vi.fn();render(<CanvasWorkspace projectId="p1" uiHost={{renderAssetPicker}}/>);expect(state.host?.renderAssetPicker).toBe(renderAssetPicker);});

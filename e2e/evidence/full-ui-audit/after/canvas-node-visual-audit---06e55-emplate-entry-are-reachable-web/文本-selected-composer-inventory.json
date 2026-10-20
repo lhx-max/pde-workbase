@@ -1,0 +1,41 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 960
+  },
+  "zoom": "100%",
+  "nodes": [
+    {
+      "id": "basic-text-mv14w51v-j66p",
+      "classes": "react-flow__node react-flow__node-basicCanvas nopan selected selectable draggable",
+      "selected": true,
+      "rect": {
+        "x": 510,
+        "y": 238,
+        "width": 420,
+        "height": 520,
+        "top": 238,
+        "right": 930,
+        "bottom": 758,
+        "left": 510
+      }
+    }
+  ],
+  "overlays": [
+    {
+      "label": "添加节点",
+      "classes": "min-w-[152px] overflow-x-hidden overflow-y-auto max-h-(--radix-dropdown-menu-content-available-height) z-[var(--layer-tooltip)] rounded-[var(--radius-lg)] border-0 bg-bg-elevated text-text shadow-[var(--shadow-md)] outline-none p-[5px] workbench-host-menu CanvasAddNodeMenu-module__3JQ_uq__menu",
+      "rect": {
+        "x": 661.814453125,
+        "y": 547.19384765625,
+        "width": 198.37109375,
+        "height": 337.6123046875,
+        "top": 547.19384765625,
+        "right": 860.185546875,
+        "bottom": 884.80615234375,
+        "left": 661.814453125
+      },
+      "padding": "8px"
+    }
+  ]
+}

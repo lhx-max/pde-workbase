@@ -1,0 +1,10 @@
+/* Neutral resources adapter preview inside the original design-system picker panel. */
+.frame {
+  display: block;
+  width: 100%;
+  min-height: 400px;
+  height: 100%;
+  border: 0;
+  border-radius: 8px;
+  background: var(--bg-panel);
+}

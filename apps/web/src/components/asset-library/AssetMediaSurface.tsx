@@ -17,6 +17,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { MediaPreviewSpec } from '../asset-ui-ports';
+import './AssetMediaSurface.css';
 
 interface Props {
   preview: MediaPreviewSpec;

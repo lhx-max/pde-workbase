@@ -2,6 +2,9 @@
 /** Original CanvasWorkspace host assembly, with product services injected rather than chat/library imports. */
 import { useMemo,useRef,useEffect } from 'react';
 import {requestSaveAsset} from '../../state/save-asset';
+import { renderWorkspaceAssetPicker } from '../asset-library/WorkspaceAssetPicker';
+import { SelectableTemplateGrid } from '../asset-library/SelectableImageMasonry';
+import { templateCategoryLabel } from '../asset-library/template-category-label';
 import {projectFileUrl} from '../../providers/registry';
 import {usePersonalAssetInProject} from '../../providers/asset-library';
 import {openAssetLibrary} from '../../state/asset-library-navigation';
@@ -29,6 +32,9 @@ export function CanvasWorkspace({ uiHost,referenceAdapter, ...props }: CanvasWor
     const workflowRunState = useWorkflowCanvasRuns(props.projectId, props.workspaceContext ?? null);
     const workflowArtifacts=useWorkflowArtifacts(props.projectId,props.workspaceContext);
     const host = useMemo<CanvasUiHost>(() => ({
+        renderAssetPicker: picker => renderWorkspaceAssetPicker(picker, JSON.stringify([props.projectId, props.workspaceContext ?? null])),
+        renderTemplateGrid: grid => <SelectableTemplateGrid {...grid}/>,
+        formatTemplateCategory: category => templateCategoryLabel(locale, category, t),
         renderWorkflowQuestion:snapshot=><WorkflowCanvasQuestion snapshot={snapshot} context={props.workspaceContext} referenceAdapter={resolvedReferenceAdapter}/>,
         renderArtifactPreview: preview => <CanvasArtifactPreview key={preview.src} {...preview}/>,
         renderArtifactThumbnail: preview => <CanvasArtifactThumbnail key={preview.src} {...preview}/>,
@@ -50,7 +56,7 @@ export function CanvasWorkspace({ uiHost,referenceAdapter, ...props }: CanvasWor
           return ()=>controller.abort();
         },
         ...uiHost,
-    }), [uiHost, props.projectId, props.workspaceContext,resolvedReferenceAdapter,t]);
+    }), [uiHost, props.projectId, props.workspaceContext,resolvedReferenceAdapter,t,locale]);
     return <CanvasWorkbenchSurface workflowRuns={workflowRunState.runs} workflowRunsError={workflowRunState.error||workflowArtifacts.error} workflowArtifacts={workflowArtifacts.artifacts} onWorkflowArtifactsRefresh={workflowArtifacts.refresh} onInteractionActiveChange={workflowArtifacts.onInteractionActiveChange} {...props} uiHost={host} locale={locale}/>;
 }
 export default CanvasWorkspace;

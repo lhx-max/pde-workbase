@@ -15,7 +15,10 @@
 @import './styles/viewer/core.css';
 @import './styles/viewer/code.css';
 @import './styles/viewer/tools.css';
+@import './styles/viewer/deployment.css';
+@import './styles/viewer/presentation.css';
 @import './styles/workspace/question-form.css';
+@import './styles/loading-primitives.css';
 @import './styles/viewer/interaction-chrome.css';
 @import './styles/viewer/memory.css';
 @import './styles/viewer/routines.css';

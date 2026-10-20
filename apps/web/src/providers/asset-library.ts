@@ -65,8 +65,8 @@ const json = (method: string, body: unknown): RequestInit => ({
 function assetAnalysisSubmission(): PersonalAssetAnalysisRequest { return {executionRequired: true}; }
 
 return {
-  info: () => request<AssetLibraryInfo>('/info'),
-  get: (id: string) => request<{asset:PersonalAsset}>(`/${encodeURIComponent(id)}`),
+  info: (signal?: AbortSignal) => request<AssetLibraryInfo>('/info', { signal }),
+  get: (id: string, signal?: AbortSignal) => request<{asset:PersonalAsset}>(`/${encodeURIComponent(id)}`, { signal }),
   analysisStatus: (id: string) => request<AssetAnalysisStatus>(`/${encodeURIComponent(id)}/analysis`),
   promptStatus: (id: string) => request<PersonalAssetPromptStatus>(`/${encodeURIComponent(id)}/prompt`),
   generatePrompt: (id: string) => request<AssetAnalysisStatus>(`/${encodeURIComponent(id)}/prompt`, json('POST', { executionRequired: true, execution: undefined })),
@@ -77,8 +77,8 @@ return {
     if (!response.ok) throw new Error(tActive('asset.error.templateConnect'));
     return response.json() as Promise<{assets:PersonalAsset[]}>;
   },
-  list: async () => {
-    const result = await request<{ assets: PersonalAsset[] }>("");
+  list: async (signal?: AbortSignal) => {
+    const result = await request<{ assets: PersonalAsset[] }>("", { signal });
     if (!Array.isArray(result?.assets))
       throw new Error(tActive('asset.error.unavailable'));
     return result;
@@ -154,7 +154,7 @@ return {
     if(!file)throw new Error(tActive('asset.error.addToProject'));
     await request(`/${encodeURIComponent(assetId)}/uses`,json('POST',{projectId,versionId:version.id,filename:file.name}));return {asset,version,files:[file]};
   },
-  spaces: (scope = 'local') => request<AssetLibrarySpaces>(`/spaces?scope=${encodeURIComponent(scope)}`),
+  spaces: (scope = 'local', signal?: AbortSignal) => request<AssetLibrarySpaces>(`/spaces?scope=${encodeURIComponent(scope)}`, { signal }),
   patchSpaces: (scope: string, input: AssetLibrarySpacesPatch) => request<AssetLibrarySpaces>(`/spaces?scope=${encodeURIComponent(scope)}`, json('POST',input)),
   recordUse: (id:string, use:PersonalAssetUse) => request<{ok:true}>(`/${encodeURIComponent(id)}/uses`,json('POST',use)),
   exportUrl: (ids:string[]) => `${base}/export?ids=${encodeURIComponent(ids.join(','))}`,

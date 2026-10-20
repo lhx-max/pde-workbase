@@ -1544,6 +1544,7 @@ export interface Dict {
   'handoff.action': string;
   'handoff.fallbackTitle': string;
   'handoff.chooseTargetAria': string;
+  'handoff.notConfigured': string;
   'handoff.optionsAria': string;
   'handoff.editorSection': string;
   'handoff.cliSection': string;

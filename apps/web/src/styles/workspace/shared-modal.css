@@ -1,5 +1,5 @@
 /* Retained viewer modal primitives from upstream 319e5eee
-   workspace/mention-home.css:334-374,829-869, copied verbatim. These global
+   workspace/mention-home.css:334-374,592-647,829-869, copied verbatim. These global
    classes are shared by HTML/version export dialogs, not the removed Settings UI. */
 .modal-backdrop {
   position: fixed; inset: 0;
@@ -42,6 +42,63 @@
   margin: 0;
 }
 .modal .row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+
+.modal-confirm {
+  width: 420px;
+  gap: 12px;
+}
+.modal-confirm-message {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-strong);
+  line-height: 1.55;
+}
+.modal-confirm-error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--red);
+  line-height: 1.55;
+}
+.modal-confirm .row { margin-top: 8px; }
+.modal-confirm .row button {
+  padding: 8px 18px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  color: var(--text-strong);
+}
+.modal-confirm .row button:hover { border-color: var(--border-strong); }
+.modal-confirm .row button.primary {
+  background: #202020;
+  border-color: #202020;
+  color: #fafafa;
+}
+.modal-confirm .row button.primary:hover {
+  background: #353535;
+  border-color: #353535;
+  color: #fafafa;
+}
+.modal-confirm .row button.primary:active {
+  background: #494949;
+  border-color: #494949;
+  color: #fafafa;
+}
+.modal-confirm .row button.primary:disabled,
+.modal-confirm .row button.primary:disabled:hover {
+  background: #ededed;
+  border-color: transparent;
+  color: #bdbdbd;
+  cursor: not-allowed;
+}
+.modal-confirm .row button.danger {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+.modal-confirm .row button.danger:hover:not(:disabled) { filter: brightness(0.95); }
 
 .modal-head {
   display: flex;

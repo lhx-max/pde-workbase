@@ -1,0 +1,112 @@
+.area {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 24px 0;
+}
+
+.content {
+  width: min(100%, 480px);
+  margin: auto;
+  text-align: center;
+}
+
+.zone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 36px 28px 32px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 16px;
+  background: var(--bg-panel);
+  transition: border-color 140ms cubic-bezier(0.23, 1, 0.32, 1), background-color 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.zone[data-drag-over='true'] {
+  border-color: var(--border-selected);
+  border-style: solid;
+  background: var(--bg-subtle);
+}
+
+.icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-xs);
+  color: var(--text-muted);
+}
+
+.icon::before {
+  content: '';
+  position: absolute;
+  inset: -5px 5px 5px -5px;
+  z-index: -1;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-subtle);
+  transform: rotate(-9deg);
+}
+
+.zone { isolation: isolate; }
+
+.copy { display: grid; gap: 8px; }
+.copy h3 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.copy p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.zone .chooseButton {
+  min-height: 34px;
+  height: auto;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.note {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 6px;
+  margin: 14px 12px 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.note svg { flex-shrink: 0; margin-top: 3px; }
+
+.input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .area { padding: 12px 0; }
+  .zone { padding: 28px 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zone { transition: none; }
+}

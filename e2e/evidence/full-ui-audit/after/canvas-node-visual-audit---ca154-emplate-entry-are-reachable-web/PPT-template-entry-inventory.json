@@ -1,0 +1,41 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 960
+  },
+  "zoom": "100%",
+  "nodes": [
+    {
+      "id": "basic-page-mv14w7u7-a6cq",
+      "classes": "react-flow__node react-flow__node-basicCanvas nopan selected selectable draggable",
+      "selected": true,
+      "rect": {
+        "x": 400,
+        "y": 318,
+        "width": 640,
+        "height": 360,
+        "top": 318,
+        "right": 1040,
+        "bottom": 678,
+        "left": 400
+      }
+    }
+  ],
+  "overlays": [
+    {
+      "label": null,
+      "classes": "bg-background fixed inset-0 z-50 m-auto grid h-fit w-full max-w-[calc(100%-2rem)] gap-4 rounded-lg border-0 p-6 shadow-lg outline-none sm:max-w-lg home-workbench-dialog home-workbench-dialog--resource",
+      "rect": {
+        "x": 208,
+        "y": 142,
+        "width": 1024,
+        "height": 676,
+        "top": 142,
+        "right": 1232,
+        "bottom": 818,
+        "left": 208
+      },
+      "padding": "0px"
+    }
+  ]
+}

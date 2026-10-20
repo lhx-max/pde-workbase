@@ -1,0 +1,25 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 960
+  },
+  "zoom": "200%",
+  "nodes": [
+    {
+      "id": "img-mv14vt6r-xevo",
+      "classes": "react-flow__node react-flow__node-imageAsset nopan selected selectable draggable",
+      "selected": true,
+      "rect": {
+        "x": 300,
+        "y": 262,
+        "width": 840,
+        "height": 564,
+        "top": 262,
+        "right": 1140,
+        "bottom": 826,
+        "left": 300
+      }
+    }
+  ],
+  "overlays": []
+}
