@@ -20,7 +20,7 @@ import { applyCanvasOperations, assertCanvasMerge, assertCanvasReferences, recor
 import { canonical, equal, mergeCanvasValue as mergeOperationValue } from './merge.js';
 import { prepareCanvasImage } from './image-operations.js';
 import { prepareCanvasDocument } from './document-operations.js';
-import { prepareCanvasSketch, prepareCanvasVideo } from '@bezier/canvas-core';
+import { prepareCanvasSketch, prepareCanvasVideo, type CanvasSketchStore } from '@bezier/canvas-core';
 import { ProjectSketchStore } from '../storage/canvas-sketches.js';
 import { ProjectVideoStore } from '../storage/canvas-videos.js';
 import { reconcileTextOperationReferences } from './text-operation-references.js';
@@ -106,18 +106,22 @@ export class CanvasStateService {
   private readonly content: CanvasFileContent;
   private readonly effectsFactory: CanvasEffectsFactory | undefined;
   private readonly cardEntitlement: ((projectId: string) => Promise<string[] | undefined>) | undefined;
+  private readonly sketchStore: ((projectId: string) => Promise<CanvasSketchStore | null>) | undefined;
 
   private readonly imageAssets: AssetLibraryAdapter | undefined;
   constructor(private readonly resolveProjectRoot: ResolveCanvasProjectRoot,
     private readonly readUsage?: (projectId: string) => import('@bezier/contracts').CanvasContextSummary['recentUsage'],
     imageAssets?: AssetLibraryAdapter,
     storage?: { persistence?: CanvasPersistence; content?: CanvasFileContent; effects?: CanvasEffectsFactory;
-      cardEntitlement?: (projectId: string) => Promise<string[] | undefined> }) {
+      cardEntitlement?: (projectId: string) => Promise<string[] | undefined>;
+      /** When the sketch App is registered, sketch bytes go there. Null keeps the canvas store. */
+      sketchStore?: (projectId: string) => Promise<CanvasSketchStore | null> }) {
     this.imageAssets = imageAssets;
     this.persistence = storage?.persistence ?? new FileCanvasPersistence(resolveProjectRoot);
     this.content = storage?.content ?? new FileCanvasContent(resolveProjectRoot);
     this.effectsFactory = storage?.effects;
     this.cardEntitlement = storage?.cardEntitlement;
+    this.sketchStore = storage?.sketchStore;
   }
   get hasOperationImageAssets(): boolean { return Boolean(this.imageAssets); }
 
@@ -451,12 +455,16 @@ export class CanvasStateService {
    * stores; the Appwrite backend injects bucket+index stores at construction. */
   private async effects(projectId: string, operationId: string): Promise<CanvasEffects> {
     const card = createCardEffect({ projectId, files: this.content });
-    if (this.effectsFactory) return { ...await this.effectsFactory(projectId, operationId), card };
+    const remoteSketch = this.sketchStore ? await this.sketchStore(projectId) : null;
+    const sketch = remoteSketch
+      ? (op: SketchOperation, node?: CanvasItem) => prepareCanvasSketch(remoteSketch, operationId, op, node)
+      : undefined;
+    if (this.effectsFactory) return { ...await this.effectsFactory(projectId, operationId), card, ...(sketch ? { sketch } : {}) };
     const root = await this.requireRoot(projectId);
     return {
       image: (op, node) => prepareCanvasImage(root, projectId, operationId, op, node, this.imageAssets),
       document: (op, node) => prepareCanvasDocument(root, operationId, op, node),
-      sketch: (op, node) => prepareCanvasSketch(new ProjectSketchStore(root), operationId, op, node),
+      sketch: sketch ?? ((op, node) => prepareCanvasSketch(new ProjectSketchStore(root), operationId, op, node)),
       video: (op, node) => prepareCanvasVideo(new ProjectVideoStore(root), operationId, op, node),
       card,
     };

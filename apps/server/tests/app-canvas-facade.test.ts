@@ -23,12 +23,22 @@ beforeEach(async () => {
 afterEach(async () => { await new Promise<void>(r => server.close(() => r())); await rm(root, { recursive: true, force: true }); });
 
 it('declares actions, creates an instance, applies and queries', async () => {
-  const caps = await (await fetch(base)).json() as { data: { appId: string; actions: Array<{ actionId: string }> } };
+  const caps = await (await fetch(base)).json() as { data: {
+    appId: string;
+    actions: Array<{ actionId: string }>;
+    createActions: { image: string };
+    cardCapabilities: { text: { 'node.update': string }; sketch: { 'edge.connect': string } };
+    events: { types: string[] };
+  } };
   expect(caps.data.appId).toBe('canvas');
   const actionIds = caps.data.actions.map((a: { actionId: string }) => a.actionId);
   expect(actionIds).toContain('canvas.create');
   expect(actionIds).toContain('storyboard.shot.add');
   expect(actionIds).toContain('layout.arrange');
+  expect(caps.data.createActions.image).toBe('image.attach');
+  expect(caps.data.cardCapabilities.text['node.update']).toBe('supported');
+  expect(caps.data.cardCapabilities.sketch['edge.connect']).toBe('not-applicable');
+  expect(caps.data.events.types).toEqual(['card.created', 'card.updated', 'card.deleted']);
 
   const created = await fetch(`${base}/actions/canvas.create`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ input: { name: 'demo', instanceId: 'inst-1' } }) });
   expect(created.status).toBe(201);

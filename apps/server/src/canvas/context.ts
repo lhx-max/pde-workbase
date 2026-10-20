@@ -10,6 +10,7 @@ import type {
 import { workflowResultSupportsSurface } from '@bezier/contracts';
 
 import { recordProjectLedgerObservation } from '../project-ledger/active-recorder.js';
+import { publishCanvasCardChange } from './card-events.js';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -420,6 +421,17 @@ export function recordCanvasStateChanges(
       sensitivity: nextPayload?.brief || previousPayload?.brief ? 'sensitive' : 'normal',
       idempotencyKey: `${type}:${projectId}:${id}:${operationId}`,
     });
+    if (node.kind !== 'group' && node.kind !== 'image-group' && node.kind !== 'workflow-result') {
+      publishCanvasCardChange({
+        type: type === 'canvas.node.created' ? 'card.created' : type === 'canvas.node.deleted' ? 'card.deleted' : 'card.updated',
+        instanceId: projectId,
+        nodeId: id,
+        kind: node.kind,
+        title: node.title,
+        revision,
+        cursor: String(revision),
+      });
+    }
   }
   const beforeEdges = new Map(records(before.workbenchEdges).map((edge) => [String(edge.id), edge]));
   const afterEdges = new Map(records(after.workbenchEdges).map((edge) => [String(edge.id), edge]));

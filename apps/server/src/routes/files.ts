@@ -27,6 +27,13 @@ export interface RegisterProjectFileRoutesDeps {
   authorize?: (req: Request, res: Response, projectId: string, options: { mode: 'read' | 'write'; allowNavigationQuery?: boolean }) => boolean | Promise<boolean>;
   /** Non-response-writing permission probe for lazy HTML history initialization. */
   canWrite?: (req: Request, projectId: string) => boolean | Promise<boolean>;
+  /** Sketch document bytes live in the sketch App once it is registered.
+   * `undefined` means this canvas is still the store (app not registered). */
+  sketchDocuments?: {
+    read(path: string): Promise<string | null | undefined>;
+    write(path: string, content: string): Promise<ProjectFile | undefined>;
+    listed(projectId: string): Promise<ProjectFile[]>;
+  };
 }
 function sendApiError(res: Response, status: number, code: string, message: string, extra?: { details?: unknown }) {
   return res.status(status).json({ error: { code, message, ...extra } });
@@ -796,6 +803,11 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
         scope: req.query.scope === 'all' ? 'all' : 'artifacts',
         metadata: project?.metadata,
       });
+      if (ctx.sketchDocuments) {
+        const remote = await ctx.sketchDocuments.listed(project.id);
+        const seen = new Set(files.map(file => file.name));
+        for (const file of remote) if (!seen.has(file.name)) files.push(file);
+      }
       /** @type {import('@bezier/contracts').ProjectFilesResponse} */
       const body = { files };
       res.json(body);
@@ -1584,6 +1596,13 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
         project.id,
         { mode: 'read', allowNavigationQuery: true },
       )) return;
+      if (ctx.sketchDocuments && /\.(?:sketch\.json|excalidraw)$/i.test(fileSplat)) {
+        const remote = await ctx.sketchDocuments.read(fileSplat);
+        if (typeof remote === 'string') {
+          res.type('application/json; charset=utf-8').send(remote);
+          return;
+        }
+      }
       // Stream originals (especially videos) instead of buffering the whole file.
       await sendProjectFile(req, res, projectId, fileSplat, project?.metadata, undefined, undefined, true);
     } catch (err: any) {
@@ -1719,6 +1738,10 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
         if (rejectInternalVersionPath(res, name)) return;
         const desiredName = sanitizePath(name);
         if (rejectInternalVersionPath(res, desiredName)) return;
+        if (ctx.sketchDocuments && encoding !== 'base64' && artifact !== true && /\.(?:sketch\.json|excalidraw)$/i.test(desiredName)) {
+          const saved = await ctx.sketchDocuments.write(desiredName, content);
+          if (saved) return res.json({ file: saved });
+        }
         const requestedSource = uploadProject && /\.html?$/i.test(desiredName)
           ? requestProjectFileVersionUploadSource(req.body)
           : null;

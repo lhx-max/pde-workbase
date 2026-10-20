@@ -22,7 +22,7 @@ export class ProjectSketchStore implements CanvasSketchStore {
     if (info.size > 5_000_000) throw new CanvasStateError(400, 'CANVAS_INVALID_SKETCH', 'Sketch exceeds 5 MB');
     return readFile(file, 'utf8');
   }
-  async putSketch(content: string, operationId: string, nodeId: string): Promise<string> {
+  async putSketch(content: string, operationId: string, nodeId: string) {
     const hash = createHash('sha256').update(JSON.stringify([operationId, nodeId, content])).digest('hex').slice(0, 24);
     const relative = `${PROJECT_LAYOUT.sketches}/canvas-${hash}.sketch.json`;
     const file = this.file(relative);
@@ -32,6 +32,6 @@ export class ProjectSketchStore implements CanvasSketchStore {
       if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
       if (await this.readSketch(relative) !== content) throw new CanvasStateError(409, 'CANVAS_REVISION_CONFLICT', 'Sketch snapshot changed');
     }
-    return relative;
+    return { path: relative };
   }
 }

@@ -20,13 +20,14 @@
 - **约定**：App 只能通过 §2 的三个通道与画布交互；卡片也只通过 §3 的
   「打开编辑器」请求找到 App。
 
-## 2. 三个交换通道
+## 2. 四个交换通道
 
 ### 2.1 读画布 —— COI 门脸（已存在）
 
 ```
 GET /api/apps/canvas/instances/<bizId>/state        → 卡列表（含信封与 data 黑盒）
-GET /api/apps/canvas                                → 能力清单（卡 kind、动作）
+GET /api/apps/canvas                                → 能力清单（卡 kind、动作、每种卡能不能做）
+每种核心卡对每个动作是支持还是不适用，见 `cardCapabilities`，对照表在 `docs/canvas-card-capability-matrix.zh-CN.md`。
 ```
 
 App 读卡 = 读画布 state，拿到节点 id/kind/geometry/data/projectFilePath。
@@ -51,6 +52,22 @@ App 改卡只用两类操作：
 卡的内容文件统一走 Appwrite 桶，卡里只存 `projectFilePath`（相对路径）。
 App 读写同一桶（凭部署侧注入的会话凭证），**不自建存储、不直接拼桶内路径
 之外的地址**。写文件前先 `files.write`，再把路径写回卡的 `projectFilePath`。
+
+### 2.4 变化订阅 —— 卡片增删改（已存在）
+
+```
+GET /api/apps/canvas/instances/<bizId>/events?after=<eventCursor>
+```
+
+服务端推送。第一条是 `ready`：`{ instanceId, cursor, resync }`。
+之后是 `card.created` / `card.updated` / `card.deleted`。
+每条只有实例、卡片 id、kind、标题、版本和游标，不含正文。
+
+`after` 用上次读 state 或动作回包里的 `eventCursor`。不传 `after` 就只听连上之后的新变化。
+`resync` 为 true 表示这段游标已经掉出缓冲，回放不完整：先重新 `GET .../state`，再用新游标连上。
+
+这条流跟着保存走。分组、图片组、工作流结果不发，连线变化也不走这里。
+网页和 PPT 存的 kind 都是 `page`。能力清单 `GET /api/apps/canvas` 的 `events` 字段写明路径和事件名。
 
 ## 3. 打开编辑器（卡 → App）
 
@@ -81,7 +98,15 @@ interface OpenEditorRequest {
 |---|---|---|
 | 卡信封（位置/大小/标题/路径） | 画布 | COI 读 / node.* 写 |
 | 卡 `data` 黑盒 | 卡的业务方 | card.* 动作 / onPatch |
-| 卡内容文件（.sketch.json 等） | 共享桶 | projectFilePath |
+| 卡内容文件（.sketch.json 等，**非 sketch 卡**） | 共享桶 / 画布工程 | projectFilePath |
+| **草图卡内容文件** | **草图 App 后端**（Appwrite `sketches` + 桶） | 卡里 `data.sketchId` 为主键；`projectFilePath` 仅作草图 App 内逻辑路径索引 |
+
+**草图卡文件通道（与 §2.3 画布桶不同）**：
+- 字节只写在草图 App（`GET/PUT /api/files?path=` 或 `GET/PUT /api/sketches/:id/file`）。
+- 画布 `sketch.create` / 复制 / 首次落盘应调用已注册的草图 App，不在画布 `canvas_files` 或工程目录新建草图正文。
+- `POST .../open-editor` 除 `filePath` 外应带 `sketchId`（来自卡 `data`）；编辑器读写草图 App 的 URL，不再默认走 `.../canvas/instances/.../files`。
+- 推荐逻辑路径：`canvases/<instanceId>/cards/<nodeId>.sketch.json`，便于按卡回溯，仍归草图 App 索引。
+
 | 编辑器会话/草稿 | App 自己 | 不进画布 |
 
 **禁条**：
@@ -98,6 +123,7 @@ interface OpenEditorRequest {
 | **App 目录** | ✅ `GET /api/apps` 列已注册 App；`POST /api/apps/register` 外部 App 自注册（body: `{appId,name,endpoint,description?}`）；镜像 Appwrite `apps` 集合 |
 | **打开编辑器** | ✅ `open-editor` 端点已实现（见 §3） |
 | **跨 App 文件通道** | ✅ `GET/PUT /api/apps/canvas/instances/:id/files?path=`——App 读写卡里存的同一份文件（一期文本负载） |
+| **变化订阅** | ✅ `GET /api/apps/canvas/instances/:id/events`——卡片增删改；游标掉出缓冲时 `ready.resync`，调用方重读 state |
 | App 独立仓/独立部署 | ⏳ 拆出中 |
 
 ## 6. 待定（二期）

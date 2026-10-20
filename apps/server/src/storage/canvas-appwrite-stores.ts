@@ -55,17 +55,17 @@ export class AppwriteSketchStore implements CanvasSketchStore {
     return new TextDecoder().decode(bytes);
   }
 
-  async putSketch(content: string, operationId: string, nodeId: string): Promise<string> {
+  async putSketch(content: string, operationId: string, nodeId: string) {
     const hash = createHash('sha256').update(`${operationId}:${nodeId}:${content}`).digest('hex').slice(0, 24);
     const relative = `canvas-sketches/canvas-${hash}.sketch.json`;
     const existing = await findFile(this.client, this.databaseId, this.files, this.canvasId, relative);
     if (existing) {
       const stored = await this.readSketch(relative);
       if (stored !== content) throw new CanvasStateError(409, 'CANVAS_SKETCH_CONTENT_CHANGED', 'Stored sketch snapshot has changed');
-      return relative;
+      return { path: relative };
     }
     await uploadIndexed(this.client, this.databaseId, this.bucketId, this.files, this.canvasId, relative, 'sketch', 'application/json', new TextEncoder().encode(content));
-    return relative;
+    return { path: relative };
   }
 }
 

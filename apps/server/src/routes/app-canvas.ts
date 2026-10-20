@@ -4,6 +4,8 @@ import type { Express, Request, Response } from 'express';
 import type { CanvasStateService } from '../canvas/state.js';
 import { CanvasStateError } from '../canvas/errors.js';
 import { listCardOps, listRegisteredCardKinds, listRegisteredCardApps, listRegisteredPacks } from '../canvas/card-ops.js';
+import { CARD_CAPABILITY_MATRIX, CARD_CREATE_ACTIONS } from '../canvas/card-capability-matrix.js';
+import { canvasCardChangesAfter, subscribeCanvasCardChanges, type CanvasCardChange } from '../canvas/card-events.js';
 import type { AppRegistryStore } from '../storage/app-registry.js';
 import type { CanvasFileContent } from '../canvas/persistence.js';
 
@@ -61,6 +63,9 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
         editorApps: { ...CORE_EDITOR_APPS, ...listRegisteredCardApps() },
         cardPacks: listRegisteredPacks().map(pack => ({ packId: pack.packId, team: pack.team, name: pack.name, kinds: pack.kinds, ops: pack.ops, editorApps: pack.editorApps })),
         actions: [{ actionId: 'canvas.create', target: 'app' }, ...actions],
+        createActions: CARD_CREATE_ACTIONS,
+        cardCapabilities: CARD_CAPABILITY_MATRIX,
+        events: { method: 'GET', path: '/api/apps/canvas/instances/{instanceId}/events', query: { after: 'eventCursor' }, types: ['card.created', 'card.updated', 'card.deleted'] },
         requestSchema: canvasOperationsJsonSchema,
         requiresExpectedRevision: true, maxBatchSize: 100, execution: 'synchronous',
       } });
@@ -77,6 +82,57 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
       const project = deps.registry.create({ id, name: name ?? '新画布' });
       res.status(201).json({ requestId: requestId(), data: { receiptId: req.get('idempotency-key') ?? null, status: 'succeeded', result: { instanceId: project.id } } });
     } catch (error) { sendAppError(res, error); }
+  });
+
+  /** Card change stream. `after` is the eventCursor already applied.
+   * A fallen-out cursor returns ready.resync so the caller re-reads state. */
+  app.get<{ instanceId: string }>('/api/apps/canvas/instances/:instanceId/events', async (req, res) => {
+    let unsubscribe = () => {};
+    try {
+      const projectId = resolveInstanceId(req.params.instanceId);
+      if (!await authorize(req, res, projectId, { mode: 'read' })) return;
+      const pending: CanvasCardChange[] = [];
+      let live = false;
+      const send = (event: string, payload: unknown) => {
+        if (!res.writableEnded && !res.destroyed) res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`);
+      };
+      unsubscribe = subscribeCanvasCardChanges(projectId, (event) => {
+        if (!live) pending.push(event);
+        else send(event.type, event);
+      });
+      const current = await deps.canvasState.read(projectId);
+      const after = typeof req.query.after === 'string' && req.query.after !== '' ? Number(req.query.after) : current.revision;
+      if (!Number.isFinite(after)) throw new CanvasStateError(400, 'BAD_REQUEST', 'after must be a revision cursor');
+      const replay = canvasCardChangesAfter(projectId, after);
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.flushHeaders();
+      send('ready', { instanceId: req.params.instanceId, cursor: String(current.revision), resync: replay.resync });
+      const mark = (event: { type: string; nodeId: string; cursor: string }) => `${event.type}:${event.nodeId}:${event.cursor}`;
+      const sent = new Set<string>();
+      if (!replay.resync) {
+        for (const event of replay.events) { sent.add(mark(event)); send(event.type, event); }
+      }
+      live = true;
+      if (!replay.resync) {
+        for (const event of pending) {
+          const key = mark(event);
+          if (sent.has(key) || event.revision <= after) continue;
+          sent.add(key);
+          send(event.type, event);
+        }
+      }
+      const heartbeat = setInterval(() => { if (!res.destroyed) res.write(': heartbeat\n\n'); }, 20_000);
+      heartbeat.unref();
+      const cleanup = () => { clearInterval(heartbeat); unsubscribe(); };
+      res.once('close', cleanup);
+      res.once('finish', cleanup);
+    } catch (error) {
+      unsubscribe();
+      if (!res.headersSent) sendAppError(res, error);
+      else res.end();
+    }
   });
 
   /** Instance state: latest authored JSON state plus revision. */
@@ -142,7 +198,8 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
       if (!app || app.status !== 'active') throw new CanvasStateError(404, 'APP_NOT_INSTALLED', `Editor App '${appId}' is not registered`);
       const filePath = node.projectFilePath
         ?? (typeof node.data?.projectFilePath === 'string' ? node.data.projectFilePath : undefined);
-      res.json({ requestId: requestId(), data: { appId, endpoint: app.endpoint, nodeId, kind, filePath: filePath ?? null } });
+      const sketchId = kind === 'sketch' && typeof node.data?.sketchId === 'string' ? node.data.sketchId : undefined;
+      res.json({ requestId: requestId(), data: { appId, endpoint: app.endpoint, nodeId, kind, filePath: filePath ?? null, ...(sketchId ? { sketchId } : {}) } });
     } catch (error) { sendAppError(res, error); }
   });
 

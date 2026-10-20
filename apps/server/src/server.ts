@@ -6,6 +6,8 @@ import path from 'node:path';
 import { mkdirSync } from 'node:fs';
 import { createProjectRegistry } from './storage/project-registry.js';
 import { CanvasStateService } from './canvas/state.js';
+import { FileCanvasContent } from './canvas/persistence.js';
+import { isSketchDocumentPath, SketchAppFiles, SketchAppSketchStore } from './storage/sketch-app-files.js';
 import { ProjectLedger } from './project-ledger/service.js';
 import { withProjectLedgerRecorder } from './project-ledger/active-recorder.js';
 import { registerCanvasStateRoutes } from './routes/canvas.js';
@@ -46,11 +48,14 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
  const registry=createProjectRegistry(dataRoot), ledger=new ProjectLedger(dataRoot);
  const assetLibrary=options.assetLibrary?.adapter??createLocalAssetLibrary(dataRoot);
  const appwriteClient=options.appwrite?new AppwriteClient(options.appwrite):undefined;
- const appContent=options.appwrite&&appwriteClient?new AppwriteCanvasFileContent(appwriteClient,options.appwrite.databaseId,options.appwrite.bucketId,'canvas_files',(pid,rel)=>readLocalProjectFile(id=>registry.resolveProjectRoot(id),pid,rel)):undefined;
+ const resolveProjectRoot=(id:string)=>registry.resolveProjectRoot(id);
+ const appContent=options.appwrite&&appwriteClient?new AppwriteCanvasFileContent(appwriteClient,options.appwrite.databaseId,options.appwrite.bucketId,'canvas_files',(pid,rel)=>readLocalProjectFile(resolveProjectRoot,pid,rel)):new FileCanvasContent(resolveProjectRoot);
  const appRegistry=new AppRegistryStore(appwriteClient,options.appwrite?.databaseId);
  appRegistry.register({appId:'canvas',name:'画布',endpoint:'/api/apps/canvas',status:'active'}).catch(err=>console.warn('[app-registry] canvas self-register failed:',err));
  const appwriteStorage=options.appwrite&&appwriteClient?(()=>{const client=appwriteClient;const resolveRoot=(id:string)=>registry.resolveProjectRoot(id);const cardRegistry=new CardRegistryStore(client,options.appwrite!.databaseId);syncCardPackRegistry(cardRegistry).catch(err=>console.warn('[card-registry] pack sync failed:',err));return {persistence:new AppwriteCanvasPersistence(client,options.appwrite!.databaseId),content:appContent!,effects:appwriteCanvasEffects(client,options.appwrite!.databaseId,options.appwrite!.bucketId,resolveRoot),cardEntitlement:(projectId:string)=>cardRegistry.resolveAllowedKinds({projectId})};})():undefined;
- const canvas=new CanvasStateService(id=>registry.resolveProjectRoot(id),undefined,assetLibrary,appwriteStorage);
+ const sketchEndpoint=async()=>{const app=await appRegistry.get('sketch');return app&&app.status==='active'&&/^https?:\/\//.test(app.endpoint)?app.endpoint:null;};
+ const sketchStore=async(projectId:string)=>{const endpoint=await sketchEndpoint();return endpoint?new SketchAppSketchStore(new SketchAppFiles(endpoint),projectId):null;};
+ const canvas=new CanvasStateService(id=>registry.resolveProjectRoot(id),undefined,assetLibrary,appwriteStorage?{...appwriteStorage,sketchStore}:{sketchStore});
  const db=new Database(path.join(dataRoot,'workspace.sqlite'));
  db.exec('CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY)');
  for(const project of registry.list())db.prepare('INSERT OR IGNORE INTO projects(id) VALUES (?)').run(project.id);
@@ -95,8 +100,12 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
  app.get('/api/health',(_req,res)=>res.json({ok:true,service:'canvas-workspace'}));
  registerCanvasStateRoutes(app,{canvasState:canvas,ledger,resolveProjectRoot:id=>registry.resolveProjectRoot(id),authorizeProjectRequest});
  registerAppsRoutes(app,{registry:appRegistry});
- registerAppCanvasRoutes(app,{canvasState:canvas,registry,authorizeProjectRequest,appRegistry,...(appContent?{content:appContent}:{})});
- registerProjectFileRoutes(app,{registry,canvasFiles:canvas,authorize:authorizeProjectRequest});
+ registerAppCanvasRoutes(app,{canvasState:canvas,registry,authorizeProjectRequest,appRegistry,content:appContent});
+ registerProjectFileRoutes(app,{registry,canvasFiles:canvas,authorize:authorizeProjectRequest,sketchDocuments:{
+  async read(filePath){const endpoint=await sketchEndpoint();if(!endpoint||!isSketchDocumentPath(filePath))return undefined;return new SketchAppFiles(endpoint).read(filePath);},
+  async write(filePath,content){const endpoint=await sketchEndpoint();if(!endpoint||!isSketchDocumentPath(filePath))return undefined;const saved=await new SketchAppFiles(endpoint).write(filePath,content);return {name:saved.path,path:saved.path,size:saved.size,mtime:Date.parse(saved.updatedAt)||Date.now(),kind:'sketch',mime:'application/json',type:'file'};},
+  async listed(projectId){const endpoint=await sketchEndpoint();if(!endpoint)return [];const snapshot=await canvas.read(projectId);const nodes=Array.isArray(snapshot.state.workbenchBasicNodes)?snapshot.state.workbenchBasicNodes:[];const client=new SketchAppFiles(endpoint);const out=[];for(const node of nodes){if(!node||typeof node!=='object')continue;const row=node as {kind?:unknown;projectFilePath?:unknown};if(row.kind!=='sketch'||typeof row.projectFilePath!=='string'||!isSketchDocumentPath(row.projectFilePath))continue;const meta=await client.meta(row.projectFilePath);if(!meta)continue;out.push({name:meta.path,path:meta.path,size:meta.size,mtime:Date.parse(meta.updatedAt)||Date.now(),kind:'sketch' as const,mime:'application/json',type:'file' as const});}return out;},
+ }});
  registerMediaRoutes(app,{media,registry,...(options.capabilities?{capabilities:options.capabilities}:{})});
  registerAssetRoutes(app,{registry,library:assetLibrary,...(options.assets?{adapter:options.assets}:{})});
  registerAssetLibraryRoutes(app,{...options.assetLibrary,service:assetLibrary,registry,authorizeProject:authorizeProjectRequest});
