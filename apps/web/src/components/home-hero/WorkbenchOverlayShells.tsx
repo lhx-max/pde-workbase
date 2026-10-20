@@ -27,6 +27,7 @@ import {
   TabsTrigger,
 } from '@/src/components/ui';
 import { FilterChipRail } from '../FilterChipRail';
+import './WorkbenchOverlayShells.css';
 
 type HomeWorkbenchDialogRenderProps = ResourceDialogRenderProps & {
   morphLayoutId?: string;

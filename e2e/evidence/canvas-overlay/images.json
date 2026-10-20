@@ -1,0 +1,29 @@
+{
+  "note": "Full images preserve original PNG bytes; details are same-coordinate, unscaled crops including the dock.",
+  "images": [
+    {
+      "file": "before.png",
+      "source": ".tmp/e2e-results/overlay-red/canvas-overlay-style--P0-o-e8c70-t-and-switches-pointer-hand-web/canvas-mode-menu.png",
+      "sha256": "c1e8bab27011c7f80e490e58f436063000ba5fd8f5e704a75a8f8d9d5f22e667",
+      "cropFile": "before-detail.png",
+      "cropBox": [
+        520,
+        740,
+        920,
+        960
+      ]
+    },
+    {
+      "file": "after.png",
+      "source": ".tmp/e2e-results/overlay-final/canvas-overlay-style--P0-o-e8c70-t-and-switches-pointer-hand-web/canvas-mode-menu.png",
+      "sha256": "0ab6f295fee00635899b93e4a153c6466bafce4070b9198ab79b9dd0b4a371c2",
+      "cropFile": "after-detail.png",
+      "cropBox": [
+        520,
+        740,
+        920,
+        960
+      ]
+    }
+  ]
+}

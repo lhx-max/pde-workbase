@@ -1,6 +1,23 @@
 # 样式还原专项复验
 
-## 范围与结论
+## 追加复验：画布「选择／抓手」菜单
+
+用户再次指出的菜单确实有遗漏。上一轮主要审查全局入口和草图，未覆盖“被移除的 Home 页面通过副作用加载共享弹层样式”的依赖。本轮将原有宿主规则直接绑定到 [WorkbenchOverlayShells](<../apps/web/src/components/home-hero/WorkbenchOverlayShells.tsx>)，而不是让独立画布继续依赖首页是否被加载。
+
+- 原 [混合样式](<../apps/web/src/styles/home/home-hero-composer-footer.css>) 的 27–174、180–253 行机械抽到 [组件拥有的共享契约](<../apps/web/src/components/home-hero/WorkbenchOverlayShells.css>)，跳过 Home composer 专属规则。保留 Popover、Menu、Resource / Domain Dialog 原选择器、顺序与层级。
+- 菜单原版按内容收紧；实测 **288px → 144px**、外壳 padding **16px → 0**，内部 canvas scope 从 **#f2f2f2 → 透明**。没有给菜单新增固定宽度，也没有删除 canvas scope 或其域 token。
+- 底部按钮保留原规则：共享 icon 的最小宽度 36px，dock 高度 34px。测试初稿只读 dock 声明而预期宽度 34px，经核对共享 primitive 修正为原有效值 36px；这不是为过测修改产品。截图中的描边为真实焦点状态，未隐藏或修改。
+- 未凭空添加上游不存在的 HoverCard reset，也未将所有首页样式带回。其它资源/域弹层规则做了源码闭包核对；本轮不把未专门打开的每种弹层都报成视觉验收通过。
+
+验证：新 [样式归属红测](<../apps/web/tests/workbench-overlay-style.test.ts>)先失败后通过；[真实菜单回归](<../e2e/ui/canvas-overlay-style.test.ts>)先复现宽度、留白及灰底错误，修复后验证悬停保持、选择／抓手切换、选中态及 Escape 关闭。Guard、全仓类型检查、生产构建通过；Web **43 个文件、328 项通过**。完整 UI 两轮 **28 通过、0 失败、2 人工跳过**，扩展复验继续暂缓。
+
+| 修复前（同位置、未缩放裁切） | 修复后（同位置、未缩放裁切） |
+|---|---|
+| ![修复前](<../e2e/evidence/canvas-overlay/before-detail.png>) | ![修复后](<../e2e/evidence/canvas-overlay/after-detail.png>) |
+
+原始全图：[修复前](<../e2e/evidence/canvas-overlay/before.png>) · [修复后](<../e2e/evidence/canvas-overlay/after.png>)；[来源、SHA256 与裁切范围](<../e2e/evidence/canvas-overlay/images.json>)。原图字节保留；局部图仅做等范围裁切，不调整比例、颜色或内容。
+
+## 上一轮：草图与全局入口
 
 用户指出草图顶部标签及右上操作区样式疑似未完整还原。本轮以原代码 `319e5eee556a3641d2ee68a6111a36ddc7a1eff7` 为参照，重新检查 CSS 入口、祖先选择器、默认外观初始化及实际渲染几何；此前的中文化和功能测试不能替代样式完整性验证。
 
