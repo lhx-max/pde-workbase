@@ -15,6 +15,9 @@ export interface RegisteredApp {
   /** Optional human/provider description surfaced in discovery. */
   description?: string | undefined;
   status: 'active' | 'disabled';
+  /** platform = every tenant sees it; team = only its own team's catalogue. */
+  scope?: 'platform' | 'team';
+  teamId?: string;
   registeredAt: string;
 }
 

@@ -34,7 +34,7 @@ import { DesignBrowserPanel } from './DesignBrowserPanel';
 import { CanvasWorkspace } from './workspace/CanvasWorkspace';
 import { TabLauncherMenu } from './workspace/TabLauncherMenu';
 import { buildLauncherActions, type LauncherContext } from './workspace/tab-launcher';
-import { AppTabSurface, createAppTab, createAppDocTab, type RegisteredAppEntry } from '../app-surfaces';
+import { AppTabSurface, createAppTab, createAppDocTab, tenantHeaders, type RegisteredAppEntry } from '../app-surfaces';
 import { SketchWorkspaceTab } from './workspace/SketchWorkspaceTab';
 import { CanvasSketchCard } from './workspace/CanvasSketchCard';
 import { SketchEnginePrewarm } from './SketchEnginePrewarm';
@@ -227,7 +227,7 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
                 const nodeId = await requestCanvasCard('text');
                 const st = await fetch(`/api/apps/canvas/instances/${encodeURIComponent(projectId)}/state`).then(r => r.json()) as { data: { state: { workbenchBasicNodes?: { id: string; projectFilePath?: string }[] } } };
                 const mirrorPath = st.data.state.workbenchBasicNodes?.find(n => n.id === nodeId)?.projectFilePath;
-                const res = await fetch(`${app.endpoint}/actions/doc.create`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ input: { nodeId, name: '未命名文档', mirrorCanvasId: projectId, ...(mirrorPath ? { mirrorPath } : {}) } }) });
+                const res = await fetch(`${app.endpoint}/actions/doc.create`, { method: 'POST', headers: { 'content-type': 'application/json', ...tenantHeaders() }, body: JSON.stringify({ input: { nodeId, name: '未命名文档', mirrorCanvasId: projectId, ...(mirrorPath ? { mirrorPath } : {}) } }) });
                 if (!res.ok) throw new Error(`doc create ${res.status}`);
                 const { instanceId } = (await res.json() as { data: { result: { instanceId: string } } }).data.result;
                 tab = createAppDocTab('doc', instanceId, '未命名文档', mirrorPath);
@@ -322,16 +322,16 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
         content = request.content;
     } setTextDocumentChange({ path: request.path, content, revision: Date.now() }); await refreshFiles(); const docApp = registeredApps.find(app => app.appId === 'doc' && (!app.status || app.status === 'active'));
     if (docApp) {
-        const res = await fetch(`${docApp.endpoint}/actions/doc.create`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ input: { ...(request.nodeId ? { nodeId: request.nodeId } : {}), name: request.title, content, mirrorCanvasId: projectId, mirrorPath: request.path } }) });
+        const res = await fetch(`${docApp.endpoint}/actions/doc.create`, { method: 'POST', headers: { 'content-type': 'application/json', ...tenantHeaders() }, body: JSON.stringify({ input: { ...(request.nodeId ? { nodeId: request.nodeId } : {}), name: request.title, content, mirrorCanvasId: projectId, mirrorPath: request.path } }) });
         if (!res.ok) throw new Error(`doc bind ${res.status}`);
         const { instanceId, meta } = (await res.json() as { data: { result: { instanceId: string; meta?: { name?: string } } } }).data.result;
         // Reconcile: if the card mirror diverged from the App document (e.g.
         // the user typed inline in the card), the mirror is the newer edit —
         // push it into the App document before opening the detail.
-        const readRes = await fetch(`${docApp.endpoint}/instances/${encodeURIComponent(instanceId)}/actions/doc.read`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ input: {} }) });
+        const readRes = await fetch(`${docApp.endpoint}/instances/${encodeURIComponent(instanceId)}/actions/doc.read`, { method: 'POST', headers: { 'content-type': 'application/json', ...tenantHeaders() }, body: JSON.stringify({ input: {} }) });
         const docContent = readRes.ok ? String(((await readRes.json()) as { data?: { result?: { content?: string } } }).data?.result?.content ?? '') : '';
         if (docContent !== content) {
-            await fetch(`${docApp.endpoint}/instances/${encodeURIComponent(instanceId)}/actions/doc.write`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ input: { content } }) });
+            await fetch(`${docApp.endpoint}/instances/${encodeURIComponent(instanceId)}/actions/doc.write`, { method: 'POST', headers: { 'content-type': 'application/json', ...tenantHeaders() }, body: JSON.stringify({ input: { content } }) });
         }
         const detailTab = createAppDocTab('doc', instanceId, meta?.name || request.title, request.path);
         updateTabs(state => ({ ...state, tabs: state.tabs.includes(detailTab.id) ? state.tabs : [...state.tabs, detailTab.id], active: detailTab.id, appTabs: [...(state.appTabs ?? []).filter(item => item.id !== detailTab.id), detailTab] }));

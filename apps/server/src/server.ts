@@ -63,13 +63,16 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
   const docApp=apps.find(a=>a.appId==='doc'&&a.status==='active'&&/^https?:\/\//.test(a.endpoint));
   if(!docApp)return;
   const base=docApp.endpoint.replace(/\/+$/,'');
+  // Bound docs inherit the canvas instance's tenant (spec §3.0).
+  const project=registry.get(projectId);
+  const headers={'content-type':'application/json','x-team-id':project?.teamId??'local','x-user-id':project?.createdBy??'local'};
   let docId=docBindingCache.get(nodeId);
   if(!docId){
    // Eager binding: first content save creates the App document bound to
    // this card (idempotent — a doc already bound by another path is reused).
    const mirrorPath=typeof node.projectFilePath==='string'?node.projectFilePath:undefined;
    const title=typeof node.title==='string'&&node.title.trim()?node.title:undefined;
-   const res=await fetch(`${base}/actions/doc.create`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({input:{nodeId,name:title,content:text,mirrorCanvasId:projectId,...(mirrorPath?{mirrorPath}:{})}})});
+   const res=await fetch(`${base}/actions/doc.create`,{method:'POST',headers,body:JSON.stringify({input:{nodeId,name:title,content:text,mirrorCanvasId:projectId,...(mirrorPath?{mirrorPath}:{})}})});
    if(!res.ok)return;
    const result=((await res.json()) as {data?:{result?:{instanceId?:string}}}).data?.result;
    docId=result?.instanceId;if(!docId)return;
@@ -78,7 +81,7 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
   // doc.write follows doc.create too — a deduped document may hold older
   // content (created empty or seeded earlier), so always converge to the
   // card's latest text.
-  await fetch(`${base}/instances/${encodeURIComponent(docId)}/actions/doc.write`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({input:{content:text}})});
+  await fetch(`${base}/instances/${encodeURIComponent(docId)}/actions/doc.write`,{method:'POST',headers,body:JSON.stringify({input:{content:text}})});
  };
  const canvas=new CanvasStateService(id=>registry.resolveProjectRoot(id),undefined,assetLibrary,appwriteStorage?{...appwriteStorage,sketchStore,textDocumentSynced}:{sketchStore,textDocumentSynced});
  const db=new Database(path.join(dataRoot,'workspace.sqlite'));

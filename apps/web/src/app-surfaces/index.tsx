@@ -18,6 +18,15 @@ import { DocumentEditorPane, type DocDocumentApi, type DocMeta } from '@doc/surf
 import '@doc/surface/styles.css';
 import type { ProjectAppWorkspaceTab } from '@bezier/contracts';
 
+/** Tenant context (spec §3.0) — dev mode headers; deployed mode the host
+ * gateway injects verified identity instead. */
+export function tenantHeaders(): Record<string, string> {
+  return {
+    'x-team-id': process.env.NEXT_PUBLIC_TEAM_ID ?? 'local',
+    'x-user-id': process.env.NEXT_PUBLIC_USER_ID ?? 'local',
+  };
+}
+
 export interface RegisteredAppEntry {
   appId: string;
   name: string;
@@ -34,7 +43,7 @@ function httpDocApi(endpoint: string, docId: string, mirror?: { canvasId: string
   const base = endpoint.replace(/\/+$/, '');
   const call = async (action: string, input: Record<string, unknown>) => {
     const res = await fetch(`${base}/instances/${encodeURIComponent(docId)}/actions/${action}`, {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ input }),
+      method: 'POST', headers: { 'content-type': 'application/json', ...tenantHeaders() }, body: JSON.stringify({ input }),
     });
     const body = await res.json() as { data?: { result?: Record<string, unknown> }; error?: { message?: string } };
     if (!res.ok) throw new Error(body?.error?.message ?? `doc ${action} ${res.status}`);
@@ -55,7 +64,7 @@ function httpDocApi(endpoint: string, docId: string, mirror?: { canvasId: string
     },
     async exportDocument(format, content, title) {
       const origin = base.replace(/\/api\/apps\/[^/]+$/, '');
-      const res = await fetch(`${origin}/api/documents/export`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ format, markdown: content, title }) });
+      const res = await fetch(`${origin}/api/documents/export`, { method: 'POST', headers: { 'content-type': 'application/json', ...tenantHeaders() }, body: JSON.stringify({ format, markdown: content, title }) });
       return res.ok ? { ok: true } : { ok: false, error: `export ${res.status}` };
     },
   };
@@ -67,7 +76,7 @@ function httpDocApi(endpoint: string, docId: string, mirror?: { canvasId: string
 export async function createAppTab(app: RegisteredAppEntry): Promise<ProjectAppWorkspaceTab> {
   if (app.appId === 'doc') {
     const res = await fetch(`${app.endpoint}/actions/doc.create`, {
-      method: 'POST', headers: { 'content-type': 'application/json' },
+      method: 'POST', headers: { 'content-type': 'application/json', ...tenantHeaders() },
       body: JSON.stringify({ input: { name: '未命名文档' } }),
     });
     if (!res.ok) throw new Error(`doc create ${res.status}`);

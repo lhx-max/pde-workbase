@@ -20,21 +20,29 @@ export interface RegisterAppsRoutesDeps {
  * `GET /api/apps` lists canvas + self-registered external Apps;
  * `POST /api/apps/register` lets an external App announce its endpoint. */
 export function registerAppsRoutes(app: Express, deps: RegisterAppsRoutesDeps): void {
-  app.get('/api/apps', async (_req, res) => {
+  const tenantOf = (req: Request): { teamId: string; userId: string } => ({
+    teamId: typeof req.headers['x-team-id'] === 'string' && req.headers['x-team-id'] ? req.headers['x-team-id'] : 'local',
+    userId: typeof req.headers['x-user-id'] === 'string' && req.headers['x-user-id'] ? req.headers['x-user-id'] : 'local',
+  });
+
+  app.get('/api/apps', async (req, res) => {
     try {
-      const apps = await deps.registry.list();
+      const teamId = tenantOf(req).teamId;
+      const apps = (await deps.registry.list())
+        .filter(a => (a.scope ?? 'platform') === 'platform' || a.teamId === teamId);
       res.json({ requestId: requestId(), data: { apps } });
     } catch (error) { sendAppError(res, error); }
   });
 
   app.post('/api/apps/register', async (req, res) => {
     try {
-      const { appId, name, endpoint, webUrl, description } = (req.body ?? {}) as { appId?: string; name?: string; endpoint?: string; webUrl?: string; description?: string };
+      const { appId, name, endpoint, webUrl, description, scope } = (req.body ?? {}) as { appId?: string; name?: string; endpoint?: string; webUrl?: string; description?: string; scope?: 'platform' | 'team' };
       if (!appId || !name || !endpoint) throw new CanvasStateError(400, 'BAD_REQUEST', 'appId, name and endpoint are required');
       if (!/^https?:\/\//.test(endpoint)) throw new CanvasStateError(400, 'BAD_REQUEST', 'endpoint must be an http(s) URL');
       if (webUrl !== undefined && !/^https?:\/\//.test(webUrl)) throw new CanvasStateError(400, 'BAD_REQUEST', 'webUrl must be an http(s) URL when provided');
       const cleanWebUrl = webUrl?.replace(/\/+$/, '');
-      const row = await deps.registry.register({ appId, name, endpoint: endpoint.replace(/\/+$/, ''), ...(cleanWebUrl ? { webUrl: cleanWebUrl } : {}), description, status: 'active' });
+      // Team-scoped apps belong to the registering tenant's catalogue only.
+      const row = await deps.registry.register({ appId, name, endpoint: endpoint.replace(/\/+$/, ''), ...(cleanWebUrl ? { webUrl: cleanWebUrl } : {}), description, status: 'active', scope: scope === 'team' ? 'team' : 'platform', ...(scope === 'team' ? { teamId: tenantOf(req).teamId } : {}) });
       res.status(201).json({ requestId: requestId(), data: { app: row } });
     } catch (error) { sendAppError(res, error); }
   });

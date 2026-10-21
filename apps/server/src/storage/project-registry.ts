@@ -20,7 +20,7 @@ function normalizeBrowserWorkspaceTab(value: unknown): ProjectBrowserWorkspaceTa
   return tab;
 }
 
-export interface CreateProjectInput { id?: string; name: string; metadata?: ProjectMetadata }
+export interface CreateProjectInput { id?: string; name: string; metadata?: ProjectMetadata; teamId?: string; createdBy?: string }
 interface RegistryState { version: 1; projects: Project[]; tabs: Record<string, ProjectTabsState> }
 
 /** One registry per resolved runtime root; never infers storage from cwd or environment. */
@@ -73,7 +73,7 @@ export function createProjectRegistry(dataRoot: string) {
       assertProjectPathHasNoSymlinks(projectsRoot, id);
       mkdirSync(path.join(projectsRoot, id), { recursive: true });
       const now = Date.now();
-      const project: Project = { id, name: input.name.trim(), skillId: null, designSystemId: null, createdAt: now, updatedAt: now, ...(input.metadata ? { metadata: structuredClone(input.metadata) } : {}) };
+      const project: Project = { id, name: input.name.trim(), skillId: null, designSystemId: null, createdAt: now, updatedAt: now, ...(input.teamId ? { teamId: input.teamId } : {}), ...(input.createdBy ? { createdBy: input.createdBy } : {}), ...(input.metadata ? { metadata: structuredClone(input.metadata) } : {}) };
       state.projects.push(project);
       save(state);
       return project;

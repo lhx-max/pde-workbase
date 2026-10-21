@@ -12,8 +12,9 @@ import type { CanvasFileContent } from '../canvas/persistence.js';
 type Authorize = (req: Request, res: Response, projectId: string, access?: { mode: 'read' | 'write'; capability?: string }) => Promise<boolean>;
 
 interface Registry {
-  create(input: { id?: string; name: string; metadata?: unknown }): { id: string };
-  list?(): { id: string; name: string; createdAt: number; updatedAt: number }[];
+  create(input: { id?: string; name: string; metadata?: unknown; teamId?: string; createdBy?: string }): { id: string };
+  get?(id: string): { id: string; teamId?: string } | null;
+  list?(): { id: string; name: string; createdAt: number; updatedAt: number; teamId?: string }[];
   update?(id: string, input: { name?: string }): { id: string; name: string };
   delete?(id: string): void;
 }
@@ -54,6 +55,23 @@ export interface RegisterAppCanvasRoutesDeps {
 }
 
 export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRoutesDeps): void {
+  /** Tenant context (spec §3.0) — dev mode reads X-Team-Id/X-User-Id, default
+   * 'local'; deployed mode a gateway injects verified identity. */
+  const tenantOf = (req: Request): { teamId: string; userId: string } => ({
+    teamId: typeof req.headers['x-team-id'] === 'string' && req.headers['x-team-id'] ? req.headers['x-team-id'] : 'local',
+    userId: typeof req.headers['x-user-id'] === 'string' && req.headers['x-user-id'] ? req.headers['x-user-id'] : 'local',
+  });
+  /** Every instance-scoped route is tenant-gated: an asset owned by another
+   * team is a 403, not a leak. Projects without a stamped tenant belong to
+   * 'local'. */
+  app.use('/api/apps/canvas/instances/:instanceId', (req, res, next) => {
+    const project = deps.registry.get?.(req.params.instanceId) ?? null;
+    if (project && (project.teamId ?? 'local') !== tenantOf(req).teamId) {
+      sendAppError(res, new CanvasStateError(403, 'TENANT_FORBIDDEN', 'Asset belongs to another team'));
+      return;
+    }
+    next();
+  });
   const authorize = deps.authorizeProjectRequest ?? (async () => true);
 
   /** App detail: capability declaration consumed by management side (COI). */
@@ -111,7 +129,8 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
       const name = typeof req.body?.input?.name === 'string' ? req.body.input.name : undefined;
       const id = typeof req.body?.input?.instanceId === 'string' ? req.body.input.instanceId : `canvas-${randomUUID().slice(0, 12)}`;
       if (!await authorize(req, res, id, { mode: 'write' })) return;
-      const project = deps.registry.create({ id, name: name ?? '新画布' });
+      const tenant = tenantOf(req);
+      const project = deps.registry.create({ id, name: name ?? '新画布', teamId: tenant.teamId, createdBy: tenant.userId });
       res.status(201).json({ requestId: requestId(), data: { receiptId: req.get('idempotency-key') ?? null, status: 'succeeded', result: { instanceId: project.id } } });
     } catch (error) { sendAppError(res, error); }
   });
@@ -178,9 +197,10 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
   });
 
   /** Instance list (P5). */
-  app.get('/api/apps/canvas/instances', async (_req, res) => {
+  app.get('/api/apps/canvas/instances', async (req, res) => {
     try {
-      const instances = (deps.registry.list?.() ?? []).map(p => ({ instanceId: p.id, name: p.name, createdAt: p.createdAt, updatedAt: p.updatedAt }));
+      const teamId = tenantOf(req).teamId;
+      const instances = (deps.registry.list?.() ?? []).filter(p => (p.teamId ?? 'local') === teamId).map(p => ({ instanceId: p.id, name: p.name, createdAt: p.createdAt, updatedAt: p.updatedAt }));
       res.json({ requestId: requestId(), data: { instances } });
     } catch (error) { sendAppError(res, error); }
   });

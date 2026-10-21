@@ -247,6 +247,11 @@ export interface Project {
   // pick a plugin they already selected.
   appliedPluginSnapshotId?: string;
   customInstructions?: string;
+  /** Tenant ownership (spec §3.0) — the team/user this project belongs to.
+   * Stamped at creation from the request tenant context; governs list
+   * filtering and cross-tenant access checks. Absent = 'local'. */
+  teamId?: string;
+  createdBy?: string;
   /**
    * The daemon-authoritative visibility from this project's
    * `workspace_projects` row.
