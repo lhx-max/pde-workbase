@@ -2,7 +2,7 @@ import { open, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 
 const MAX_JSON_BYTES = 64 * 1024 * 1024;
-const VALUE_FLAGS = new Set(['server-url', 'body-file', 'prompt-file', 'output', 'file', 'mime', 'project', 'session', 'token', 'id', 'navigation', 'scope', 'ids', 'version', 'name', 'kind', 'text-file', 'filename', 'path', 'instance']);
+const VALUE_FLAGS = new Set(['server-url', 'body-file', 'prompt-file', 'output', 'file', 'mime', 'project', 'session', 'token', 'id', 'navigation', 'scope', 'ids', 'version', 'name', 'kind', 'text-file', 'filename', 'path', 'instance', 'tenant', 'actor']);
 const HELP = `canvas-server request METHOD /api/path [--body-file JSON_PATH|-] [--prompt-file TEXT_PATH|-]
 canvas-server assets info|list|get|create|upload|patch|batch|versions|content|export|spaces|uses|metadata|analysis|prompt|import|save
 canvas-server browser preferences [--body-file REVISION_PATCH_JSON|-]
@@ -52,7 +52,12 @@ export async function buildHttpCliRequest(args: string[]): Promise<{ url: URL; i
   if (!base) throw new Error('--server-url or CANVAS_SERVER_URL is required for API commands');
   const origin = new URL(base);
   if (!['http:', 'https:'].includes(origin.protocol) || origin.username || origin.password || origin.search || origin.hash) throw new Error('Server URL must be credential-free HTTP(S)');
-  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(process.env.CANVAS_AUTH_TOKEN ? { Authorization: `Bearer ${process.env.CANVAS_AUTH_TOKEN}` } : {}) };
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(process.env.CANVAS_AUTH_TOKEN ? { Authorization: `Bearer ${process.env.CANVAS_AUTH_TOKEN}` } : {}),
+    'x-team-id': flag('tenant') ?? process.env.CANVAS_TEAM_ID ?? 'local',
+    'x-user-id': flag('actor') ?? process.env.CANVAS_USER_ID ?? 'local',
+  };
   const bodyFile = flag('body-file'), promptFile = flag('prompt-file');
   if (bodyFile === '-' && promptFile === '-') throw new Error('Only one input can consume standard input');
   let body: RequestInit['body'] = bodyFile ? await textFile(bodyFile) : undefined;
