@@ -54,7 +54,7 @@ export class BindingStore {
 
   upsert(input: { canvasInstanceId: string; nodeId: string; appId: string; appInstanceId: string; kind?: string; mirrorPath?: string; teamId?: string }): Binding {
     const state = this.load();
-    const index = state.bindings.findIndex(b => b.canvasInstanceId === input.canvasInstanceId && b.nodeId === input.nodeId && b.appInstanceId === input.appInstanceId);
+    const index = state.bindings.findIndex(b => b.canvasInstanceId === input.canvasInstanceId && b.nodeId === input.nodeId && b.appId === input.appId && b.appInstanceId === input.appInstanceId);
     const now = new Date().toISOString();
     const row: Binding = {
       bindingId: index >= 0 ? state.bindings[index]!.bindingId : `bind-${randomUUID().slice(0, 8)}`,

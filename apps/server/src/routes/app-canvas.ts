@@ -238,8 +238,13 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
       if (!await authorize(req, res, req.params.instanceId, { mode: 'write' })) return;
       if (!deps.bindings) throw new CanvasStateError(501, 'BINDINGS_UNAVAILABLE', 'binding store not configured');
       const body = (req.body ?? {}) as { nodeId?: string; kind?: string; appId?: string; appInstanceId?: string; mirrorPath?: string };
-      if (!body.nodeId || !body.appId || !body.appInstanceId) throw new CanvasStateError(400, 'BAD_REQUEST', 'nodeId, appId and appInstanceId are required');
+      if (![body.nodeId, body.appId, body.appInstanceId].every(value => typeof value === 'string' && value.length > 0)) throw new CanvasStateError(400, 'BAD_REQUEST', 'nodeId, appId and appInstanceId must be non-empty strings');
+      if (!body.nodeId || !body.appId || !body.appInstanceId) throw new CanvasStateError(400, 'BAD_REQUEST', 'Missing binding identifiers');
       await requireAppAccess(req, body.appId);
+      const snapshot = await deps.canvasState.read(req.params.instanceId);
+      const nodes = [...(Array.isArray(snapshot.state.workbenchBasicNodes) ? snapshot.state.workbenchBasicNodes : []),
+        ...(Array.isArray(snapshot.state.workbenchImages) ? snapshot.state.workbenchImages : [])];
+      if (!nodes.some(node => node && node.id === body.nodeId)) throw new CanvasStateError(404, 'CANVAS_NODE_NOT_FOUND', 'Cannot bind an absent card');
       const row = deps.bindings.upsert({
         canvasInstanceId: req.params.instanceId, nodeId: body.nodeId,
         ...(body.kind ? { kind: body.kind } : {}), appId: body.appId, appInstanceId: body.appInstanceId,
@@ -312,7 +317,7 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
       const projectId = resolveInstanceId(req.params.instanceId);
       if (!await authorize(req, res, projectId, { mode: 'write', capability: 'writeFiles' })) return;
       const response = await deps.canvasState.applyOperations(projectId, req.body);
-      res.json({ requestId: requestId(), data: { receipt: response.receipt, revision: response.revision, state: response.state, replayed: response.replayed, eventCursor: String(response.revision) } });
+      res.json({ requestId: requestId(), data: { receipt: response.receipt, revision: response.revision, state: response.state, replayed: response.replayed, eventCursor: String(response.revision), ...(response.syncWarnings ? { syncWarnings: response.syncWarnings } : {}) } });
     } catch (error) { sendAppError(res, error); }
   });
 

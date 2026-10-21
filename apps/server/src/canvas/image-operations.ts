@@ -34,7 +34,10 @@ export async function prepareCanvasImage(root:string, projectId:string, operatio
     if ('assetId' in op.source) {
       if (!assets) throw new CanvasStateError(503,'CANVAS_CAPABILITY_UNAVAILABLE','Asset service unavailable');
       let content:Awaited<ReturnType<AssetLibraryAdapter['content']>>;
-      try {content=await assets.content(op.source.assetId,op.source.versionId);} catch {throw new CanvasStateError(404,'CANVAS_ASSET_NOT_FOUND','Image asset/version unavailable');}
+      try {content=await assets.content(op.source.assetId,op.source.versionId);} catch(error) {
+        if((error as {status?:number}|null)?.status===403)throw new CanvasStateError(403,'CANVAS_ASSET_FORBIDDEN','Image asset source is not authorized for this caller');
+        throw new CanvasStateError(404,'CANVAS_ASSET_NOT_FOUND','Image asset/version unavailable');
+      }
       if (content.asset.deletedAt) throw new CanvasStateError(404,'CANVAS_ASSET_NOT_FOUND','Image asset/version unavailable');
       if(content.asset.kind!=='image') invalid('Asset is not an image');
       bytes=content.bytes; name=content.asset.name;

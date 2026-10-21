@@ -47,6 +47,9 @@ export type CanvasState = Record<string, unknown>;
 export interface CanvasStateSnapshot {
   state: CanvasState;
   revision: number;
+  /** Canvas commit succeeded; these App-side side effects did not. */
+  syncWarnings?: string[];
+  mirrorPath?: string;
 }
 
 export interface CanvasPatchOptions {
@@ -109,9 +112,11 @@ export class CanvasStateService {
   private readonly sketchStore: ((projectId: string) => Promise<CanvasSketchStore | null>) | undefined;
 
   private readonly imageAssets: AssetLibraryAdapter | undefined;
-  private readonly textDocumentSynced: ((projectId: string, node: Record<string, unknown>) => Promise<void>) | undefined;
+  private readonly textDocumentSynced: ((projectId: string, node: Record<string, unknown>, revision: number, baseContent?: string) => Promise<void>) | undefined;
   private readonly documentNodesChanged: ((projectId: string, nodes: readonly Record<string, unknown>[]) => void) | undefined;
   private readonly documentQueues = new Map<string, Promise<void>>();
+  private readonly textDocumentPrepared: ((projectId: string, node: Record<string, unknown>, revision: number, baseContent?: string) => void) | undefined;
+  private readonly documentMirrorSaved: ((projectId: string, nodeId: string, docId: string, docRevision: string, content: string, path: string, canvasRevision: number) => void) | undefined;
   constructor(private readonly resolveProjectRoot: ResolveCanvasProjectRoot,
     private readonly readUsage?: (projectId: string) => import('@bezier/contracts').CanvasContextSummary['recentUsage'],
     imageAssets?: AssetLibraryAdapter,
@@ -121,9 +126,11 @@ export class CanvasStateService {
       sketchStore?: (projectId: string) => Promise<CanvasSketchStore | null>;
       /** Mirror push: runs after a text node's file mirror is written so a
        * bound editor App (doc) gets the fresh content — App store is truth. */
-      textDocumentSynced?: (projectId: string, node: Record<string, unknown>) => Promise<void>;
+      textDocumentSynced?: (projectId: string, node: Record<string, unknown>, revision: number, baseContent?: string) => Promise<void>;
       /** Reconcile binding presence after any committed write path (including UI PATCH). */
-      documentNodesChanged?: (projectId: string, nodes: readonly Record<string, unknown>[]) => void }) {
+      documentNodesChanged?: (projectId: string, nodes: readonly Record<string, unknown>[]) => void;
+      textDocumentPrepared?: (projectId: string, node: Record<string, unknown>, revision: number, baseContent?: string) => void;
+      documentMirrorSaved?: (projectId: string, nodeId: string, docId: string, docRevision: string, content: string, path: string, canvasRevision: number) => void }) {
     this.imageAssets = imageAssets;
     this.persistence = storage?.persistence ?? new FileCanvasPersistence(resolveProjectRoot);
     this.content = storage?.content ?? new FileCanvasContent(resolveProjectRoot);
@@ -132,6 +139,8 @@ export class CanvasStateService {
     this.sketchStore = storage?.sketchStore;
     this.textDocumentSynced = storage?.textDocumentSynced;
     this.documentNodesChanged = storage?.documentNodesChanged;
+    this.textDocumentPrepared = storage?.textDocumentPrepared;
+    this.documentMirrorSaved = storage?.documentMirrorSaved;
   }
   get hasOperationImageAssets(): boolean { return Boolean(this.imageAssets); }
 
@@ -151,7 +160,7 @@ export class CanvasStateService {
       const next = update(current.state);
       if (next === current.state) return { state: current.state, revision: current.revision };
       const revision = Math.max(current.revision + 1, Date.now());
-      await this.persistence.commit(projectId, { ...current, state: next, revision });
+      await this.commit(projectId, { ...current, state: next, revision });
       recordCanvasStateChanges(projectId, current.state, next, revision, await this.persistence.describe(projectId));
       return { state: next, revision };
     });
@@ -196,7 +205,7 @@ export class CanvasStateService {
       const nextNode = { ...node, generation: { ...generation, status: 'succeeded', candidateText: input.content, runId: input.runId, error: undefined } };
       const next = { ...current.state, workbenchBasicNodes: nodes.map(item => item.id === input.nodeId ? nextNode : item) };
       const revision = Math.max(current.revision + 1, Date.now());
-      await this.persistence.commit(projectId, { ...current, state: next, revision });
+      await this.commit(projectId, { ...current, state: next, revision });
       recordCanvasStateChanges(projectId, current.state, next, revision, await this.persistence.describe(projectId));
       return { state: next, revision };
     });
@@ -213,7 +222,7 @@ export class CanvasStateService {
       const next = { ...current.state, workbenchBasicNodes: nodes.map(item => item.id === input.nodeId
         ? { ...item, generation: { ...generation, runId: input.runId, status: 'failed', error: input.error } } : item) };
       const revision = Math.max(current.revision + 1, Date.now());
-      await this.persistence.commit(projectId, { ...current, state: next, revision });
+      await this.commit(projectId, { ...current, state: next, revision });
       recordCanvasStateChanges(projectId, current.state, next, revision, await this.persistence.describe(projectId));
     });
   }
@@ -241,7 +250,7 @@ export class CanvasStateService {
       }, ['storyboard']);
       const next = { ...current.state, workbenchBasicNodes: nodes.map(item => item.id === input.nodeId ? nextNode : item) };
       const revision = Math.max(current.revision + 1, Date.now());
-      await this.persistence.commit(projectId, { ...current, state: next, revision });
+      await this.commit(projectId, { ...current, state: next, revision });
       recordCanvasStateChanges(projectId, current.state, next, revision, await this.persistence.describe(projectId));
       return { state: next, revision };
     });
@@ -275,7 +284,7 @@ export class CanvasStateService {
       const next = { ...current.state, workbenchBasicNodes: nodes.map(item => item.id === input.nodeId ? nextNode : item) };
       await this.syncTextDocuments(projectId, [nextNode]);
       const revision = Math.max(current.revision + 1, Date.now());
-      await this.persistence.commit(projectId, { ...current, state: next, revision });
+      await this.commit(projectId, { ...current, state: next, revision });
       recordCanvasStateChanges(projectId, current.state, next, revision, await this.persistence.describe(projectId));
       return { state: next, revision };
     });
@@ -358,7 +367,7 @@ export class CanvasStateService {
       }
 
       const revision = Math.max(current.revision + 1, Date.now());
-      await this.persistence.commit(projectId, { ...current, state: next, revision });
+      await this.commit(projectId, { ...current, state: next, revision });
       recordCanvasStateChanges(projectId, current.state, next, revision, await this.persistence.describe(projectId));
       return { state: next, revision };
     });
@@ -372,7 +381,7 @@ export class CanvasStateService {
     return entry.receipt;
   }
 
-  async applyOperations(projectId: string, input: unknown): Promise<CanvasOperationsResponse> {
+  async applyOperations(projectId: string, input: unknown): Promise<CanvasOperationsResponse & Pick<CanvasStateSnapshot, 'syncWarnings'>> {
     const parsed = canvasOperationsRequestSchema.safeParse(input);
     if (!parsed.success) throw new CanvasStateError(400, 'CANVAS_INVALID_INPUT', 'Invalid canvas operation', { issues: parsed.error.issues });
     const request = parsed.data;
@@ -444,7 +453,7 @@ export class CanvasStateService {
       if (applied.keys.includes('workbenchBasicNodes')) {
         await this.syncTextDocuments(projectId, records(applied.state.workbenchBasicNodes).filter(node => !equal(node, oldNodes.find(item => item.id === node.id))));
       }
-      await this.persistence.commit(projectId, { ...current, updatedAt: receipt.createdAt, state: applied.state, revision,
+      await this.commit(projectId, { ...current, updatedAt: receipt.createdAt, state: applied.state, revision,
         operations: { ...journal, [request.operationId]: { fingerprint, receipt, before, after } } }, request.operationId);
       // The asset index is advisory; its immutable version binding is already in the canvas.
       for (const node of records(applied.state.workbenchImages)) {
@@ -487,6 +496,23 @@ export class CanvasStateService {
     return path.resolve(root);
   }
 
+  private async commit(projectId: string, blob: CanvasStoredBlob, changedOperationId?: string): Promise<void> {
+    if (this.textDocumentPrepared) {
+      const previous = arrayRecords((await this.persistence.load(projectId)).state.workbenchBasicNodes);
+      for (const node of arrayRecords(blob.state.workbenchBasicNodes)) {
+        if (node.kind !== 'text' || typeof node.text !== 'string') continue;
+        const old = previous.find(item => item.id === node.id && item.kind === 'text');
+        if (old && old.text === node.text && canvasTextDocumentPath(old) === canvasTextDocumentPath(node)) continue;
+        // Persist intent first. The worker will never deliver until this exact
+        // committed content exists; a crash cannot turn an uncommitted draft
+        // into a document write.
+        this.textDocumentPrepared(projectId, { ...node, projectFilePath: canvasTextDocumentPath(node) }, blob.revision,
+          typeof old?.text === 'string' ? old.text : undefined);
+      }
+    }
+    await this.persistence.commit(projectId, blob, changedOperationId);
+  }
+
   /** App callbacks run AFTER releasing the transaction lock: a doc write can
    * synchronously call the canvas file bridge back without deadlocking. */
   private async withDocumentChanges<T extends CanvasStateSnapshot>(projectId: string, write: () => Promise<T>): Promise<T> {
@@ -496,46 +522,78 @@ export class CanvasStateService {
       return write();
     });
     const after = arrayRecords(result.state.workbenchBasicNodes);
+    const syncWarnings: string[] = [];
     const pending = (this.documentQueues.get(projectId) ?? Promise.resolve()).then(async () => {
-      const latest = arrayRecords((await this.persistence.load(projectId)).state.workbenchBasicNodes);
-      this.documentNodesChanged?.(projectId, latest);
+      const latestState = (await this.persistence.load(projectId)).state;
+      const latest = arrayRecords(latestState.workbenchBasicNodes);
+      this.documentNodesChanged?.(projectId, [...latest, ...arrayRecords(latestState.workbenchImages)]);
       for (const node of after) {
         if (node.kind !== 'text' || typeof node.text !== 'string') continue;
         const previous = before.find(old => old.id === node.id && old.kind === 'text');
         if (previous && previous.text === node.text && canvasTextDocumentPath(previous) === canvasTextDocumentPath(node)) continue;
         const live = latest.find(current => current.id === node.id && current.kind === 'text');
         if (!live || live.text !== node.text || canvasTextDocumentPath(live) !== canvasTextDocumentPath(node)) continue;
-        try { await this.textDocumentSynced?.(projectId, { ...node, projectFilePath: canvasTextDocumentPath(live) }); }
-        catch (error) { console.warn('[textDocumentSynced] canvas saved; App synchronization failed', error); }
+        try { await this.textDocumentSynced?.(projectId, { ...node, projectFilePath: canvasTextDocumentPath(live) }, result.revision, typeof previous?.text === 'string' ? previous.text : undefined); }
+        catch (error) {
+          syncWarnings.push(`Card ${String(node.id)}: canvas saved, document synchronization failed: ${error instanceof Error ? error.message : String(error)}`);
+          console.warn('[textDocumentSynced] canvas saved; App synchronization failed', error);
+        }
       }
     });
     const settled = pending.catch(error => console.warn('[document-bindings] reconciliation failed', error));
     this.documentQueues.set(projectId, settled);
     try { await settled; }
     finally { if (this.documentQueues.get(projectId) === settled) this.documentQueues.delete(projectId); }
-    return result;
+    return syncWarnings.length ? { ...result, syncWarnings } : result;
   }
 
-  /** Doc-origin updates are serialized with canvas edits, with no echo to doc.
-   * A stale mirror revision fails BEFORE writing the file or card. */
-  async writeTextMirror(projectId: string, logicalPath: string, content: string, expectedRevision?: number): Promise<CanvasStateSnapshot> {
+  async readFileSnapshot(projectId: string, logicalPath: string): Promise<{ content: string | null; revision: number; path: string }> {
     const documentPath = normalizeSafeProjectFilePath(logicalPath);
-    return this.lock.run(projectId, async () => {
+    return this.lock.run(projectId, async () => ({ content: await this.content.read(projectId, documentPath),
+      revision: (await this.persistence.load(projectId)).revision, path: documentPath }));
+  }
+
+  /** A mirror is an acknowledged document snapshot, not a blind file overwrite.
+   * Generic file clients remain canvas edits and DO publish document intents. */
+  async writeTextMirror(projectId: string, logicalPath: string, content: string, expectedRevision?: number,
+    options: { nodeId?: string; docId?: string; documentRevision?: string; baseContent?: string; sourceRevision?: number } = {}): Promise<CanvasStateSnapshot> {
+    const documentPath = normalizeSafeProjectFilePath(logicalPath);
+    const docOrigin = !!(options.docId && options.documentRevision);
+    if (options.documentRevision && options.documentRevision !== createHash('sha256').update(content).digest('hex')) throw new CanvasStateError(400, 'CANVAS_BAD_DOCUMENT_VERSION', 'Document revision does not match its body');
+    const write = async () => {
       const current = await this.persistence.load(projectId);
-      if (expectedRevision !== undefined && expectedRevision !== current.revision) {
+      if ((expectedRevision !== undefined && expectedRevision !== current.revision)
+        || (options.sourceRevision !== undefined && options.sourceRevision !== current.revision)) {
         throw new CanvasStateError(409, 'CANVAS_REVISION_CONFLICT', 'Canvas changed before the document mirror was saved');
       }
       const nodes = arrayRecords(current.state.workbenchBasicNodes);
-      const changed = nodes.some(node => node.kind === 'text' && node.projectFilePath === documentPath && node.text !== content);
-      await this.content.write(projectId, documentPath, content);
-      if (!changed) return { state: current.state, revision: current.revision };
-      const next = { ...current.state, workbenchBasicNodes: nodes.map(node =>
-        node.kind === 'text' && node.projectFilePath === documentPath ? { ...node, text: content } : node) };
-      const revision = Math.max(current.revision + 1, Date.now());
-      await this.persistence.commit(projectId, { ...current, state: next, revision });
-      recordCanvasStateChanges(projectId, current.state, next, revision, await this.persistence.describe(projectId));
-      return { state: next, revision };
-    });
+      const targets = nodes.filter(node => node.kind === 'text' && canvasTextDocumentPath(node) === documentPath && (!options.nodeId || node.id === options.nodeId));
+      if (options.nodeId && targets.length !== 1) throw new CanvasStateError(409, 'CANVAS_MIRROR_TARGET_CHANGED', 'Bound card or its file changed');
+      if (targets.length > 1) throw new CanvasStateError(409, 'CANVAS_AMBIGUOUS_MIRROR', 'Shared legacy path requires an explicit target card');
+      const oldContent = targets[0] && typeof targets[0].text === 'string' ? targets[0].text : await this.content.read(projectId, documentPath);
+      if (oldContent !== null && oldContent !== content && expectedRevision === undefined && options.baseContent === undefined) throw new CanvasStateError(428, 'CANVAS_PRECONDITION_REQUIRED', 'Read the file and supply its version before changing it');
+      if (options.sourceRevision === undefined && options.baseContent !== undefined && oldContent !== options.baseContent && oldContent !== content) {
+        throw new CanvasStateError(409, 'CANVAS_CONTENT_CONFLICT', 'Canvas contains independent edits; neither side was overwritten', { currentContent: oldContent, draftContent: content, baseContent: options.baseContent });
+      }
+      if (docOrigin && options.sourceRevision === undefined && options.baseContent === undefined && oldContent !== content) throw new CanvasStateError(428, 'CANVAS_BASE_CONTENT_REQUIRED', 'Document mirror needs a common baseline');
+      let actualPath = documentPath;
+      if (targets[0] && oldContent !== content && nodes.some(node => node.kind === 'text' && node.id !== targets[0]!.id && canvasTextDocumentPath(node) === documentPath)) {
+        actualPath = canvasTextForkPath(nodes, targets[0], `${current.revision}:${content}`);
+      }
+      const fileBefore = await this.content.read(projectId, actualPath);
+      await this.content.write(projectId, actualPath, content);
+      const changed = oldContent !== content || actualPath !== documentPath || fileBefore !== content;
+      const next = { ...current.state, ...(targets.length ? { workbenchBasicNodes: nodes.map(node => node.id === targets[0]!.id ? { ...node, text: content, projectFilePath: actualPath } : node) } : {}) };
+      const revision = changed ? Math.max(current.revision + 1, Date.now()) : current.revision;
+      if (changed) {
+        if (docOrigin) await this.persistence.commit(projectId, { ...current, state: next, revision });
+        else await this.commit(projectId, { ...current, state: next, revision });
+        recordCanvasStateChanges(projectId, current.state, next, revision, await this.persistence.describe(projectId));
+      }
+      if (docOrigin && targets[0]) this.documentMirrorSaved?.(projectId, String(targets[0].id), options.docId!, options.documentRevision!, content, actualPath, revision);
+      return { state: next, revision, mirrorPath: actualPath };
+    };
+    return docOrigin ? this.lock.run(projectId, write) : this.withDocumentChanges(projectId, write);
   }
 
   private async syncTextDocuments(projectId: string, nodes: readonly Record<string, unknown>[]): Promise<void> {

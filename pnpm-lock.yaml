@@ -107,8 +107,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/workbench-ui
       '@doc/surface':
-        specifier: file:../../vendor/doc-surface-0.1.0.tgz
-        version: file:vendor/doc-surface-0.1.0.tgz(@floating-ui/dom@1.8.0)(@tiptap/pm@3.30.0)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: file:../../vendor/doc-surface-0.1.1.tgz
+        version: file:vendor/doc-surface-0.1.1.tgz(@floating-ui/dom@1.8.0)(@tiptap/pm@3.30.0)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@excalidraw/excalidraw':
         specifier: 0.18.1
         version: 0.18.1(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -272,7 +272,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 4.1.6
-        version: 4.1.6(@types/node@24.12.2)(jsdom@29.1.1)(vite@8.3.4(@types/node@24.12.2)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))
+        version: 4.1.6(@types/node@26.6.5)(jsdom@29.1.1)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))
 
   packages/canvas-pack-demo:
     dependencies:
@@ -337,7 +337,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 4.1.6
-        version: 4.1.6(@types/node@24.12.2)(jsdom@29.1.1)(vite@8.3.4(@types/node@24.12.2)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))
+        version: 4.1.6(@types/node@26.6.5)(jsdom@29.1.1)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))
 
   packages/components:
     devDependencies:
@@ -370,7 +370,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 4.1.6
-        version: 4.1.6(@types/node@24.12.2)(jsdom@29.1.1)(vite@8.3.4(@types/node@24.12.2)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))
+        version: 4.1.6(@types/node@26.6.5)(jsdom@29.1.1)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))
 
   packages/contracts:
     dependencies:
@@ -398,7 +398,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 4.1.6
-        version: 4.1.6(@types/node@24.12.2)(jsdom@29.1.1)(vite@8.3.4(@types/node@24.12.2)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))
+        version: 4.1.6(@types/node@26.6.5)(jsdom@29.1.1)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))
 
   packages/host:
     dependencies:
@@ -488,7 +488,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 4.1.6
-        version: 4.1.6(@types/node@24.12.2)(jsdom@29.1.1)(vite@8.3.4(@types/node@24.12.2)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))
+        version: 4.1.6(@types/node@26.6.5)(jsdom@29.1.1)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))
 
 packages:
 
@@ -619,9 +619,9 @@ packages:
     resolution: {integrity: sha512-OoKoR0f76dCY666JlcbhmVTs2drYj1GUXZTYTcbUgJjh9Nv41aFfZ21bPQTERm5+L5cBDo466NltB2lplS5GBw==}
     engines: {node: '>=20.19.0'}
 
-  '@doc/surface@file:vendor/doc-surface-0.1.0.tgz':
-    resolution: {integrity: sha512-nSzv5TQsxKhG3N1KRVwR9bRqFpNuxShoj62lneupdWaD2MGr4OaFnmQOnyLxAOf9jPgIIi+ioD0SKcJ1KZf4Nw==, tarball: file:vendor/doc-surface-0.1.0.tgz}
-    version: 0.1.0
+  '@doc/surface@file:vendor/doc-surface-0.1.1.tgz':
+    resolution: {integrity: sha512-ZcpCHcMBEbu9Mc9fpSI7DqnUNKz0/FtXIVrG60FuaoCgYJBTcbHo+yEAAiGkw9vkeM12eCwuQ40iZEadGD/8VQ==, tarball: file:vendor/doc-surface-0.1.1.tgz}
+    version: 0.1.1
     peerDependencies:
       react: ^18.3.1
       react-dom: ^18.3.1
@@ -2888,6 +2888,9 @@ packages:
   '@types/node@24.12.2':
     resolution: {integrity: sha512-A1sre26ke7HDIuY/M23nd9gfB+nrmhtYyMINbjI1zHJxYteKR6qSMX56FsmjMcDb3SMcjJg5BiRRgOCC/yBD0g==}
 
+  '@types/node@26.6.5':
+    resolution: {integrity: sha512-uMzsv9stDdofIZBx4UGh4Z9ZgXnGC9seRDscilBcTHAeOFk67MZg/k9bWVfO+bk4qZmG+l52hRnLwUiH2LnJTg==}
+
   '@types/pako@2.0.4':
     resolution: {integrity: sha512-VWDCbrLeVXJM9fihYodcLiIv0ku+AlOa/TQ1SvYOaBuyrSKgEcro95LJyIsJ4vSo6BXIxOKxiJAat04CmST9Fw==}
 
@@ -3426,6 +3429,10 @@ packages:
   dingbat-to-unicode@1.0.2:
     resolution: {integrity: sha512-R0bRerYzy/EZP6QzD3Hkl6JjUDA1Mnn+pd928w0nWjPzihnbAR6dcjGJGiRyznj5E4S1duEKzWrTqw02DPcdzg==}
 
+  docx@9.13.0:
+    resolution: {integrity: sha512-MofrvX7rzwCe1xUFXnwneQHzv2p1lIUIDPD01DueOnKGw+TSKxAAcK5Beo69bTyqKUYsX8d49Co03Bcntc60WQ==}
+    engines: {node: '>=10'}
+
   dom-accessibility-api@0.5.16:
     resolution: {integrity: sha512-X7BJ2yElsnOJ30pZF4uIIDfBEVgF4XEBxL9Bxhy6dnrm5hkzqmsWHGTiHqRiITNhMyFLyAiWndIJP7Z1NTteDg==}
 
@@ -3653,6 +3660,9 @@ packages:
   has-symbols@1.1.0:
     resolution: {integrity: sha512-1cDNdwJ2Jaohmb3sg4OmKaMBwuC48sYni5HUw2DvsC8LjGTLK9h+eb1X6RyuOHe4hT0ULCW68iomhjUoKUqlPQ==}
     engines: {node: '>= 0.4'}
+
+  hash.js@1.1.7:
+    resolution: {integrity: sha512-taOaskGt4z4SOANNseOviYDvjEJinIkRgmp7LbKP2YTTmVxWBl87s/uzK9r+44BclBSp2X7K1hqeNfz9JbBeXA==}
 
   hasown@2.0.4:
     resolution: {integrity: sha512-T2UbfbBEF32wiepXIsMlTW9+dDYC6wMh/t/vYA4tuOMKqWz/n3vr1NFSxQiyP+zk2mXsoMA/i/7qV6LKut1t1A==}
@@ -4158,6 +4168,9 @@ packages:
     resolution: {integrity: sha512-I9jwMn07Sy/IwOj3zVkVik2JTvgpaykDZEigL6Rx6N9LbMywwUSMtxET+7lVoDLLd3O3IXwJwvuuns8UB/HeAg==}
     engines: {node: '>=4'}
 
+  minimalistic-assert@1.0.1:
+    resolution: {integrity: sha512-UtJcAD4yEaGtjPezWuO9wC4nwUnVH/8/Im3yEHQP4b67cXlD/Qr9hdITCU1xDbSEXg2XKNaP8jsReV7vQd00/A==}
+
   motion-dom@12.43.0:
     resolution: {integrity: sha512-azKON4d9S65PEoFUiQTMTgPheEmzf2QngdRc50AKfJp9Q9mmcBVw22c8eMq9k8kxOFHdL7+WZY7N/5F/lwiDag==}
 
@@ -4203,6 +4216,11 @@ packages:
   nanoid@4.0.2:
     resolution: {integrity: sha512-7ZtY5KTCNheRGfEFxnedV5zFiORN1+Y1N6zvPTnHQd8ENUvfaDBeuJDZb2bN/oXwXxu3qkTXDzy57W5vAmDTBw==}
     engines: {node: ^14 || ^16 || >=18}
+    hasBin: true
+
+  nanoid@6.0.2:
+    resolution: {integrity: sha512-hIvVOb9Qr1p/9CNNLOe0OlWvgx/ziTsVwKN/GDSsuArN2K0wDiafP3s0SWmsm7o2BdnyS8Z9Z64NFBUbn6ziBg==}
+    engines: {node: ^22 || ^24 || >=26}
     hasBin: true
 
   negotiator@1.1.0:
@@ -4872,6 +4890,9 @@ packages:
   undici-types@7.8.0:
     resolution: {integrity: sha512-9UJ2xGDvQ43tYyVMpuHlsgApydB8ZKfVYTsLDhXkFL/6gfkp+U8xTGdh8pMJv1SpZna0zxG1DwsKZsreLbXBxw==}
 
+  undici-types@8.9.0:
+    resolution: {integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==}
+
   undici@7.30.0:
     resolution: {integrity: sha512-dkrQXeHSaoamnItlYbmzG0wFYrM0ZwDxCIg0A7aKjTyyhh9svRzCNFEzV+Vm05/yehjCzjDZ31KXfGEjYSztDQ==}
     engines: {node: '>=20.18.1'}
@@ -5263,12 +5284,13 @@ snapshots:
 
   '@csstools/css-tokenizer@4.0.2': {}
 
-  '@doc/surface@file:vendor/doc-surface-0.1.0.tgz(@floating-ui/dom@1.8.0)(@tiptap/pm@3.30.0)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@doc/surface@file:vendor/doc-surface-0.1.1.tgz(@floating-ui/dom@1.8.0)(@tiptap/pm@3.30.0)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@tiptap/core': 3.30.0(@tiptap/pm@3.30.0)
       '@tiptap/extension-text-align': 3.30.0(@tiptap/core@3.30.0(@tiptap/pm@3.30.0))
       '@tiptap/react': 3.30.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.30.0(@tiptap/pm@3.30.0))(@tiptap/pm@3.30.0)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tiptap/starter-kit': 3.30.0
+      docx: 9.13.0
       dompurify: 3.4.2
       lucide-react: 0.468.0(@types/react@18.3.28)(react@18.3.1)
       micromark: 4.0.2
@@ -7528,6 +7550,10 @@ snapshots:
     dependencies:
       undici-types: 7.16.0
 
+  '@types/node@26.6.5':
+    dependencies:
+      undici-types: 8.9.0
+
   '@types/pako@2.0.4': {}
 
   '@types/prop-types@15.7.15': {}
@@ -7605,6 +7631,14 @@ snapshots:
       magic-string: 0.30.21
     optionalDependencies:
       vite: 8.3.4(@types/node@24.12.2)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0)
+
+  '@vitest/mocker@4.1.6(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))':
+    dependencies:
+      '@vitest/spy': 4.1.6
+      estree-walker: 3.0.3
+      magic-string: 0.30.21
+    optionalDependencies:
+      vite: 8.3.4(@types/node@26.6.5)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0)
 
   '@vitest/pretty-format@4.1.6':
     dependencies:
@@ -8135,6 +8169,13 @@ snapshots:
 
   dingbat-to-unicode@1.0.2: {}
 
+  docx@9.13.0:
+    dependencies:
+      '@types/node': 26.6.5
+      hash.js: 1.1.7
+      jszip: 3.10.1
+      nanoid: 6.0.2
+
   dom-accessibility-api@0.5.16: {}
 
   dom-accessibility-api@0.6.3: {}
@@ -8392,6 +8433,11 @@ snapshots:
   hachure-fill@0.5.2: {}
 
   has-symbols@1.1.0: {}
+
+  hash.js@1.1.7:
+    dependencies:
+      inherits: 2.0.4
+      minimalistic-assert: 1.0.1
 
   hasown@2.0.4:
     dependencies:
@@ -9014,6 +9060,8 @@ snapshots:
 
   min-indent@1.0.1: {}
 
+  minimalistic-assert@1.0.1: {}
+
   motion-dom@12.43.0:
     dependencies:
       motion-utils: 12.39.0
@@ -9049,6 +9097,8 @@ snapshots:
   nanoid@3.3.3: {}
 
   nanoid@4.0.2: {}
+
+  nanoid@6.0.2: {}
 
   negotiator@1.1.0:
     dependencies:
@@ -9857,6 +9907,8 @@ snapshots:
 
   undici-types@7.8.0: {}
 
+  undici-types@8.9.0: {}
+
   undici@7.30.0: {}
 
   unist-util-is@6.0.1:
@@ -9973,6 +10025,21 @@ snapshots:
       tsx: 4.22.3
       yaml: 2.9.0
 
+  vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0):
+    dependencies:
+      lightningcss: 1.33.0
+      picomatch: 4.0.7
+      postcss: 8.5.15
+      rolldown: 1.2.13
+      tinyglobby: 0.2.17
+    optionalDependencies:
+      '@types/node': 26.6.5
+      esbuild: 0.28.0
+      fsevents: 2.3.3
+      jiti: 2.7.0
+      tsx: 4.22.3
+      yaml: 2.9.0
+
   vitest@4.1.6(@types/node@20.19.39)(jsdom@29.1.1)(vite@8.3.4(@types/node@20.19.39)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0)):
     dependencies:
       '@vitest/expect': 4.1.6
@@ -10053,6 +10120,34 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 24.12.2
+      jsdom: 29.1.1
+    transitivePeerDependencies:
+      - msw
+
+  vitest@4.1.6(@types/node@26.6.5)(jsdom@29.1.1)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0)):
+    dependencies:
+      '@vitest/expect': 4.1.6
+      '@vitest/mocker': 4.1.6(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))
+      '@vitest/pretty-format': 4.1.6
+      '@vitest/runner': 4.1.6
+      '@vitest/snapshot': 4.1.6
+      '@vitest/spy': 4.1.6
+      '@vitest/utils': 4.1.6
+      es-module-lexer: 2.3.2
+      expect-type: 1.4.0
+      magic-string: 0.30.21
+      obug: 2.2.1
+      pathe: 2.0.3
+      picomatch: 4.0.7
+      std-env: 4.3.0
+      tinybench: 2.9.0
+      tinyexec: 1.3.1
+      tinyglobby: 0.2.17
+      tinyrainbow: 3.2.0
+      vite: 8.3.4(@types/node@26.6.5)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@types/node': 26.6.5
       jsdom: 29.1.1
     transitivePeerDependencies:
       - msw

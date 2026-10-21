@@ -1,6 +1,7 @@
 import type {AssetAnalysisTarget, AssetAnalysisStatus, AssetLibraryInfo, AssetLibraryCatalogueResponse, PersonalAssetAnalysisRequest, PersonalAssetCreate} from '@bezier/contracts';
 import {createPersonalAssetService, type PersonalAssetService} from './core.js';
 import {openAssetLibraryDatabase} from '../storage/asset-library.js';
+import {assertLocalAssetLibraryAccess} from './local-access.js';
 
 type Awaitable<T> = T | Promise<T>;
 type Operations = Pick<PersonalAssetService, 'list'|'read'|'create'|'patch'|'version'|'content'|'batch'|'uses'|'recordUse'|'readSpaces'|'patchSpaces'|'importTemplates'|'indexImages'>;
@@ -36,8 +37,18 @@ export function createLocalAssetLibrary(dataRoot:string):AssetLibraryAdapter {
   const db=openAssetLibraryDatabase(dataRoot);
   let core:PersonalAssetService;
   try { core=createPersonalAssetService(db); } catch(error) { db.close();throw error; }
+  const local = <Args extends unknown[], Result>(operation:(...args:Args)=>Result) => (...args:Args):Result => {
+    assertLocalAssetLibraryAccess();
+    return operation(...args);
+  };
   return {
-    ...core, source:{id:'builtin-local',name:'Local asset library',kind:'builtin'},imageMetadata:true,idempotentCreate:true,
+    // Guard the service too: canvas image effects also read assets without
+    // traversing the asset-library HTTP routes. Source IDs are not ACLs.
+    list:local(core.list),read:local(core.read),create:local(core.create),patch:local(core.patch),
+    version:local(core.version),content:local(core.content),batch:local(core.batch),
+    uses:local(core.uses),recordUse:local(core.recordUse),readSpaces:local(core.readSpaces),
+    patchSpaces:local(core.patchSpaces),importTemplates:local(core.importTemplates),indexImages:local(core.indexImages),
+    source:{id:'builtin-local',name:'Local asset library',kind:'builtin'},imageMetadata:true,idempotentCreate:true,
     async close(){await core.whenIdle();db.close();},
   };
 }

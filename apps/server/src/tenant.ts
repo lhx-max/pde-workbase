@@ -1,7 +1,20 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import type { Request } from 'express';
 import type { RegisteredApp } from './storage/app-registry.js';
 
 export interface TenantContext { teamId: string; userId: string }
+
+const requestTenant = new AsyncLocalStorage<Readonly<TenantContext>>();
+
+/** The verified caller survives async work without borrowing the asset creator's
+ * identity. Undefined means background work with no originating HTTP request. */
+export function currentRequestTenant(): Readonly<TenantContext> | undefined {
+  return requestTenant.getStore();
+}
+
+export function runWithRequestTenant<T>(tenant: TenantContext, run: () => T): T {
+  return requestTenant.run(Object.freeze({ ...tenant }), run);
+}
 
 /** Development identity only. Deployed adapters must replace client headers
  * with verified identity before routes run; these headers are not credentials. */

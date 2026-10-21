@@ -304,6 +304,10 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
                     written = await callDocAction(docApp.endpoint, 'doc.write', { content }, tenantHeaders(), document.instanceId);
                 }
                 if (written.mirror?.status && written.mirror.status !== 'synced') reportError(new Error('文档已导入，但画布副本同步未确认。请保留文档正文后再试。'));
+                // Push the imported text into the still-local card so it shows
+                // content immediately — the server round-trip would take a
+                // visible beat otherwise.
+                if (mirrorPath) setTextDocumentChange({ path: mirrorPath, content, revision: Date.now() });
                 // Dedupe may return the synchronizer's card-named doc — take
                 // the file's name so the doc/tab reads like the dropped file.
                 if (document.name && document.name !== title) {

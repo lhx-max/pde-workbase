@@ -109,11 +109,12 @@ export class AppRegistryStore {
   }
 
   async unregister(appId: string): Promise<boolean> {
-    const existed = this.memory.delete(appId) || Boolean(await this.list().then(rows => rows.find(r => r.appId === appId)));
+    const existed = Boolean(await this.get(appId));
     if (this.client && this.databaseId) {
       try { await this.client.call('DELETE', `${this.path()}/${appId}`); }
       catch (error) { if (!isMissing(error)) throw error; }
     }
+    this.memory.delete(appId);
     this.persistLocal();
     return existed;
   }

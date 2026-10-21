@@ -44,7 +44,7 @@ const EN = {
   dropFiles: 'Drop files',
   addContent: 'Add something',
   startCreating: 'Start creating',
-  emptyHint: 'Add content from the bottom toolbar',
+  emptyHint: 'Click the + below to start creating',
 } as const;
 const ZH = {
   generateImage: '生成图片', image: '图片', genFailed: '生成失败', crop: '裁剪', colorGrade: '调色',
@@ -85,5 +85,5 @@ const ZH = {
   dropFiles: '拖入素材',
   addContent: '添加内容',
   startCreating: '开始创作',
-  emptyHint: '使用底部工具栏添加内容',
+  emptyHint: '点击下方加号开始创作',
 } satisfies CopyShape<typeof EN>;

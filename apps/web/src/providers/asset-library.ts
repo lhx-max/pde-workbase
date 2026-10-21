@@ -22,7 +22,7 @@ import {
   type PersonalAssetUse,
   type WorkspaceCollabContext,
 } from "@bezier/contracts";
-import { projectFileUrl,fetchProjectFiles,writeProjectBase64File } from './registry';
+import { projectFileUrl,writeProjectBase64File } from './registry';
 
 
 export class PersonalAssetRequestError extends Error {
@@ -148,9 +148,14 @@ return {
     const {asset}=await request<{asset:PersonalAsset}>(`/${encodeURIComponent(assetId)}`);
     const version=versionId?asset.versions.find(item=>item.id===versionId):asset.versions.at(-1);
     if(!version)throw new Error(tActive('asset.error.pickAsset'));
-    const previous=(await request<{uses:PersonalAssetUse[]}>(`/${encodeURIComponent(assetId)}/uses`)).uses.find(use=>use.projectId===projectId&&use.versionId===version.id);
-    let file=previous?(await fetchProjectFiles(projectId,{fresh:true,workspaceContext:context})).find(item=>item.name===previous.filename):undefined;
-    if(!file){const response=await fetch(`${base}/${encodeURIComponent(assetId)}/content?version=${encodeURIComponent(version.id)}`);if(!response.ok)throw new Error(tActive('asset.error.readContent'));const bytes=new Uint8Array(await response.arrayBuffer());let binary='';for(let offset=0;offset<bytes.length;offset+=32768)binary+=String.fromCharCode(...bytes.subarray(offset,offset+32768));const saved=await writeProjectBase64File(projectId,`asset-${crypto.randomUUID()}-${version.filename.split(/[\\/]/).at(-1)||'asset'}`,btoa(binary),context);if(saved)file=saved;}
+    // A use is provenance, never a live link to a previous consumer's editable file.
+    // Always materialize the selected immutable version as a new project copy.
+    const response=await fetch(`${base}/${encodeURIComponent(assetId)}/content?version=${encodeURIComponent(version.id)}`);
+    if(!response.ok)throw new Error(tActive('asset.error.readContent'));
+    const bytes=new Uint8Array(await response.arrayBuffer());
+    let binary='';
+    for(let offset=0;offset<bytes.length;offset+=32768)binary+=String.fromCharCode(...bytes.subarray(offset,offset+32768));
+    const file=await writeProjectBase64File(projectId,`asset-${crypto.randomUUID()}-${version.filename.split(/[\\/]/).at(-1)||'asset'}`,btoa(binary),context);
     if(!file)throw new Error(tActive('asset.error.addToProject'));
     await request(`/${encodeURIComponent(assetId)}/uses`,json('POST',{projectId,versionId:version.id,filename:file.name}));return {asset,version,files:[file]};
   },
@@ -270,8 +275,9 @@ export async function usePersonalAssetInProject(
     content = await response.blob();
     return content;
   };
-  // The server authorizes the project, reuses this exact version and records its
-  // use atomically. Importing bytes is deliberately separate from canvas acceptance.
+  // The server authorizes the project and copies this exact version to a fresh
+  // file. Usage is provenance, not a shared document or binding. Importing bytes
+  // is deliberately separate from canvas acceptance.
   const imported = await adapter.importIntoProject(projectId,asset.id,version.id,context);
   const file = imported.files[0];
   if (!file) throw new Error(tActive('asset.error.addToProject'));

@@ -18,7 +18,7 @@
     "@bezier/host": "workspace:*",
     "@bezier/workbench-core": "workspace:*",
     "@bezier/workbench-ui": "workspace:*",
-    "@doc/surface": "file:../../vendor/doc-surface-0.1.0.tgz",
+    "@doc/surface": "file:../../vendor/doc-surface-0.1.1.tgz",
     "@excalidraw/excalidraw": "0.18.1",
     "@floating-ui/react": "0.27.20",
     "@radix-ui/react-separator": "1.1.15",

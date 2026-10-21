@@ -33,7 +33,7 @@ import {BindingStore} from './storage/bindings.js';
 import {AuditLog} from './storage/audit-log.js';
 import {registerAppsRoutes} from './routes/apps.js';
 import {syncCardPackRegistry} from './card-packs.js';
-import {ownsTenantAsset,tenantOf,type AuthorizeAppManagement} from './tenant.js';
+import {ownsTenantAsset,tenantOf,runWithRequestTenant,type AuthorizeAppManagement} from './tenant.js';
 export interface CanvasServerOptions {
  dataRoot:string; host?:string; authToken?:string; allowedOrigins?:string[]; assets?:AssetAdapter;
  media?:MediaAdapter; capabilities?:CapabilityAdapter; assetLibrary?:AssetLibraryOptions;
@@ -99,10 +99,14 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
   const project=registry.get(projectId);
    if(project&&!ownsTenantAsset(project,tenantOf(req))){sendApiError(res,403,'TENANT_FORBIDDEN','Asset belongs to another team');return false;}
    if(entitlements.resolve('canvas',tenantOf(req))==='deny'){sendApiError(res,403,'TENANT_FORBIDDEN','App denied for this tenant');return false;}
+   const repeatArchive=req.method==='POST'&&req.params.actionId==='canvas.delete'&&req.params.instanceId===projectId;
+   if(project?.archivedAt&&access.mode==='write'&&!repeatArchive){sendApiError(res,409,'CANVAS_ARCHIVED','Archived canvas is read-only');return false;}
    return options.authorizeProject?await options.authorizeProject(req,res,projectId,access):true;
  };
  app.use(authorize);
  if(options.authorize)app.use(options.authorize);
+  // Capture identity only after the trusted host adapter has rewritten it.
+  app.use((req,_res,next)=>runWithRequestTenant(tenantOf(req),next));
  app.use(async(req,res,next)=>{
   try{const scoped=/^\/api\/projects\/([^/]+)(?:\/|$)/.exec(req.path);
    const globalTask=/^\/api\/(?:media\/tasks|image-tasks)\/([^/]+)(?:\/|$)/.exec(req.path);

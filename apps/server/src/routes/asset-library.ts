@@ -4,9 +4,11 @@ import type {Express, Request, RequestHandler, Response} from 'express';
 import multer from 'multer';
 import JSZip from 'jszip';
 import path from 'node:path';
+import {randomUUID} from 'node:crypto';
 import {assetMetadataYaml, type PersonalAssetCreate, type PersonalAssetAnalysisRequest, type AssetLibraryImportRequest, type AssetLibrarySaveRequest, type PersonalAssetUse} from '@bezier/contracts';
 import {PersonalAssetError, inferPersonalAssetKind} from '../asset-library/core.js';
 import {assetLibraryInfo, type AssetLibraryAdapter, type AssetLibraryOptions} from '../asset-library/service.js';
+import {assertLocalAssetLibraryAccess, LocalAssetLibraryAccessError} from '../asset-library/local-access.js';
 import type {ProjectRegistry} from '../storage/project-registry.js';
 import {readProjectFile, resolveProjectFilePath, writeProjectFile, sanitizePath} from '../projects.js';
 import {assertProjectPathHasNoSymlinks} from '../project-layout.js';
@@ -21,7 +23,7 @@ const route=(fn:RequestHandler):RequestHandler=>async(req,res,next)=>{
   try { await fn(req,res,next); } catch(error) {
     const value=error as {status?:number;code?:string;message?:string};
     const status=error instanceof PersonalAssetError?error.status:value.status??500;
-    res.status(status).json({error:{code:'ASSET_LIBRARY_ERROR',message:error instanceof PersonalAssetError?error.message:status<500?value.message:'Asset library operation failed'}});
+    res.status(status).json({error:{code:error instanceof LocalAssetLibraryAccessError?error.code:'ASSET_LIBRARY_ERROR',message:error instanceof PersonalAssetError?error.message:status<500?value.message:'Asset library operation failed'}});
   }
 };
 const body=(req:Request):Record<string,any>=>{
@@ -54,6 +56,10 @@ const revisionOf=(value:unknown):number|undefined=>{
 
 export function registerAssetLibraryRoutes(app:Express,deps:Deps):void {
   const service=deps.service;
+  app.use([base,'/api/projects/:id/asset-library'],route((_req,_res,next)=>{
+    if(service.source.kind==='builtin')assertLocalAssetLibraryAccess();
+    next();
+  }));
   const receive=multer({storage:multer.memoryStorage(),preservePath:true,limits:{fileSize:200*1024*1024,files:1,fields:30,fieldSize:5*1024*1024}}).single('file');
   const upload:RequestHandler=(req,res,next)=>receive(req,res,error=>{
     if(!error){next();return;}
@@ -212,7 +218,9 @@ export function registerAssetLibraryRoutes(app:Express,deps:Deps):void {
     if(!await deps.authorizeProject(req,res,projectId,{mode:'write'}))return;
     if(typeof input.assetId!=='string')throw new PersonalAssetError(400,'Invalid asset reference');
     const {asset,version,bytes}=await service.content(input.assetId,textQuery(input.versionId));
-    const filename=projectPath(input.path??version.filename),root=deps.registry.resolveProjectRoot(projectId);
+    // Import means a new editable copy, not reopening the last consumer's file.
+    // Explicit paths retain create-only conflict semantics (including retries).
+    const filename=projectPath(input.path??`asset-${randomUUID()}-${safeEntry(version.filename)}`),root=deps.registry.resolveProjectRoot(projectId);
     noProjectLinks(root,filename);
     let file:Awaited<ReturnType<typeof writeProjectFile>>|undefined;
     try{

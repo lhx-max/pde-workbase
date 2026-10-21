@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CanvasStateService } from '../src/canvas/state.js';
-import { FileCanvasContent } from '../src/canvas/persistence.js';
+import { FileCanvasContent, FileCanvasPersistence } from '../src/canvas/persistence.js';
 import { BindingStore } from '../src/storage/bindings.js';
 
 const roots: string[] = [];
@@ -71,6 +71,37 @@ describe('canvas / doc boundary', () => {
     await expect(canvas.writeTextMirror('p', node.projectFilePath, '旧页面覆盖', initial.revision)).rejects.toMatchObject({ status: 409 });
     expect(await content.read('p', node.projectFilePath)).toBe(original);
     expect((await canvas.read('p')).state.workbenchBasicNodes).toEqual(initial.state.workbenchBasicNodes);
+  });
+
+  it('does not let a slow document callback overwrite a later canvas save', async () => {
+    const { root } = await fixture();
+    const persistence = new FileCanvasPersistence(() => root);
+    let entered!: () => void, release!: () => void, committed!: () => void;
+    const enteredA = new Promise<void>(resolve => { entered = resolve; });
+    const releaseA = new Promise<void>(resolve => { release = resolve; });
+    const committedB = new Promise<void>(resolve => { committed = resolve; });
+    const commit = persistence.commit.bind(persistence);
+    vi.spyOn(persistence, 'commit').mockImplementation(async (id, value) => {
+      await commit(id, value);
+      if ((value.state.workbenchBasicNodes as typeof card[])?.[0]?.text === 'B') committed();
+    });
+    let canvas: CanvasStateService;
+    canvas = new CanvasStateService(() => root, undefined, undefined, { persistence,
+      textDocumentSynced: async (id, node, revision) => {
+        if (node.text === 'A') { entered(); await releaseA; }
+        await canvas.writeTextMirror(id, String(node.projectFilePath), String(node.text), revision);
+      },
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const a = canvas.patch('p', { workbenchBasicNodes: [{ ...card, text: 'A' }] });
+      await enteredA;
+      const b = canvas.patch('p', { workbenchBasicNodes: [{ ...card, text: 'B' }] });
+      await committedB; release();
+      expect((await a).syncWarnings?.[0]).toContain('synchronization failed');
+      expect((await b).syncWarnings).toBeUndefined();
+      expect((await canvas.read('p')).state.workbenchBasicNodes).toEqual([expect.objectContaining({ text: 'B' })]);
+    } finally { release(); warn.mockRestore(); }
   });
 
   it('does not push an unchanged card again on a viewport save', async () => {

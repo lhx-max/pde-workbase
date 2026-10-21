@@ -113,6 +113,35 @@ it('saves and imports project bytes through confined file publication and record
  symlinkSync(f.root,path.join(root,'linked'));expect((await f.request(`/api/projects/${project.id}/asset-library/save`,'POST',{filename:'linked/workspace.sqlite'})).status).toBe(403);
  expect((await f.request(`/api/projects/${project.id}/asset-library/import`,'POST',{assetId:a.id,path:'linked/escape.html'})).status).toBe(403);expect(existsSync(path.join(f.root,'escape.html'))).toBe(false);
 });
+it('imports every library use as a fresh copy and keeps source, siblings and versions independent',async()=>{
+ const f=await fixture(),author=f.api.registry.create({name:'Author'}),consumer=f.api.registry.create({name:'Consumer'});
+ const authorRoot=f.api.registry.resolveProjectRoot(author.id),consumerRoot=f.api.registry.resolveProjectRoot(consumer.id);
+ writeFileSync(path.join(authorRoot,'note.md'),'published snapshot');
+ const saved=await f.request(`/api/projects/${author.id}/asset-library/save`,'POST',{filename:'note.md'});
+ expect(saved.status).toBe(201);
+ const asset=(await saved.json() as {asset:PersonalAsset}).asset,version=asset.versions[0]!;
+ writeFileSync(path.join(authorRoot,'note.md'),'author later edit');
+ const importCopy=async()=>{
+  const result=await f.request(`/api/projects/${consumer.id}/asset-library/import`,'POST',{assetId:asset.id,versionId:version.id});
+  expect(result.status).toBe(200);
+  return (await result.json() as {files:Array<{name:string}>}).files[0]!.name;
+ };
+ const first=await importCopy();
+ writeFileSync(path.join(consumerRoot,first),'first copy edit');
+ const second=await importCopy();
+ expect(second).not.toBe(first);
+ expect(first).toMatch(/^asset-[\w-]+-note\.md$/);
+ expect(readFileSync(path.join(consumerRoot,first),'utf8')).toBe('first copy edit');
+ expect(readFileSync(path.join(consumerRoot,second),'utf8')).toBe('published snapshot');
+ expect(readFileSync(path.join(authorRoot,'note.md'),'utf8')).toBe('author later edit');
+ expect(await(await f.request(`/api/asset-library/${asset.id}/content?version=${version.id}`)).text()).toBe('published snapshot');
+ const uses=(await(await f.request(`/api/asset-library/${asset.id}/uses`)).json() as {uses:Array<{filename:string}>}).uses;
+ expect(uses.map(use=>use.filename).sort()).toEqual([first,second].sort());
+ // File materialization does not reuse or fabricate a source App binding.
+ expect((await f.api.canvas.read(consumer.id)).state.workbenchBasicNodes??[]).toEqual([]);
+ const bindings=await(await f.request(`/api/apps/canvas/instances/${consumer.id}/bindings`)).json();
+ expect(bindings).toMatchObject({data:{bindings:[]}});
+});
 it('does not bypass host/project policy for uses, source attribution or project imports',async()=>{
  const f=await fixture({authorizeProject:(_req,res)=>{res.status(403).json({error:{code:'DENIED'}});return false;}}),a=await create(f),project=f.api.registry.create({name:'Private'});
  expect((await f.request(`/api/asset-library/${a.id}/uses`,'POST',{projectId:project.id,filename:'x.md',versionId:a.versions[0]!.id,usedAt:1})).status).toBe(403);

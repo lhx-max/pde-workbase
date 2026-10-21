@@ -14,7 +14,7 @@
  * URL the App registered with — so the component talks the standard API.
  */
 import React from 'react';
-import { DocumentEditorPane, type DocDocumentApi, type DocMeta } from '@doc/surface';
+import { DocumentEditorPane, type DocDocumentApi, type DocMeta, type DocSnapshot, type DocWriteOptions, type DocWriteSnapshot } from '@doc/surface';
 import '@doc/surface/styles.css';
 import type { ProjectAppWorkspaceTab } from '@bezier/contracts';
 
@@ -39,28 +39,50 @@ export interface RegisteredAppEntry {
  * through the unified /api/apps protocol actions (doc.read / doc.write).
  * `mirror` writes the same content to a canvas file so the card's preview
  * stays live — App storage is truth, the canvas file is a render mirror. */
-function httpDocApi(endpoint: string, docId: string, mirror?: { canvasId: string; path: string; onSaved?: (path: string, content: string) => void }): DocDocumentApi {
+export function httpDocApi(endpoint: string, docId: string, mirror?: { canvasId: string; path: string; onSaved?: (path: string, content: string) => void }, onSyncWarning?: (warning: string) => void): DocDocumentApi {
   const base = endpoint.replace(/\/+$/, '');
+  let legacySnapshot: DocSnapshot | undefined;
   const call = async (action: string, input: Record<string, unknown>) => {
     const res = await fetch(`${base}/instances/${encodeURIComponent(docId)}/actions/${action}`, {
       method: 'POST', headers: { 'content-type': 'application/json', ...tenantHeaders() }, body: JSON.stringify({ input }),
     });
-    const body = await res.json() as { data?: { result?: Record<string, unknown> }; error?: { message?: string } };
-    if (!res.ok) throw new Error(body?.error?.message ?? `doc ${action} ${res.status}`);
-    return body.data?.result ?? {};
+    const body = await res.json() as { data?: { result?: Record<string, unknown> }; error?: { message?: string; code?: string; details?: unknown } };
+    if (!res.ok) throw Object.assign(new Error(body?.error?.message ?? `doc ${action} ${res.status}`), { code: body.error?.code, details: body.error?.details, status: res.status });
+    if (!body.data?.result) throw new Error('文档服务未返回有效结果');
+    return body.data.result;
+  };
+  const snapshot = (result: Record<string, unknown>): DocSnapshot => {
+    if (typeof result.content !== 'string') throw new Error('文档服务未返回正文，已停止加载以防覆盖');
+    if (typeof result.revision !== 'string' || !result.revision) throw new Error('文档服务未返回版本，已停止保存以防覆盖');
+    return { content: result.content, revision: result.revision, ...(result.meta ? { meta: result.meta as DocMeta } : {}) };
+  };
+  const readSnapshot = async () => snapshot(await call('doc.read', {}));
+  const writeSnapshot = async (content: string, options: DocWriteOptions): Promise<DocWriteSnapshot> => {
+      if (typeof options.expectedRevision !== 'string') throw new Error('文档保存需要正文版本，不能使用画布版本');
+      const result = await call('doc.write', { content, ...options });
+      const canonical = snapshot(result);
+      const status = result.mirror as { status?: string; path?: string } | undefined;
+      if (status?.status === 'synced') {
+        onSyncWarning?.('');
+        if (mirror) mirror.onSaved?.(status.path ?? mirror.path, canonical.content);
+      } else if (mirror || (status?.status && status.status !== 'unbound')) {
+        onSyncWarning?.(status?.status === 'unbound'
+          ? '文档已保存；关联卡片不存在或已解除，文档仍独立保留。'
+          : '文档已保存，但画布副本尚未同步（' + (status?.status ?? '状态未确认') + '）。正文已保留，请勿用旧画布副本覆盖。');
+      }
+      const meta = result.meta as DocMeta | undefined;
+      if (!meta?.id) throw new Error('文档保存响应缺少元数据，请检查服务状态');
+      return { ...canonical, meta, merged: result.merged === true };
   };
   return {
-    async read() {
-      const result = await call('doc.read', {});
-      return typeof result.content === 'string' ? result.content : '';
-    },
+    readSnapshot,
+    writeSnapshot,
+    async read() { legacySnapshot = await readSnapshot(); return legacySnapshot.content; },
     async write(content) {
-      const result = await call('doc.write', { content });
-      // doc writes through to the canvas mirror file itself; notify the host
-      // so the card preview refreshes without a second write.
-      if (mirror) mirror.onSaved?.(mirror.path, content);
-      const meta = result.meta as DocMeta | undefined;
-      return meta ?? { id: docId, name: '', path: '', size: content.length, updatedAt: new Date().toISOString() };
+      if (!legacySnapshot) throw new Error('请先读取文档版本再保存，以防覆盖其他入口的修改');
+      const saved = await writeSnapshot(content, { expectedRevision: legacySnapshot.revision, baseContent: legacySnapshot.content });
+      legacySnapshot = saved;
+      return saved.meta;
     },
     async exportDocument(format, content, title) {
       const origin = base.replace(/\/api\/apps\/[^/]+$/, '');
@@ -95,14 +117,34 @@ export function createAppDocTab(appId: string, docId: string, label: string, mir
 }
 
 /** The mounted surface for a persisted App tab. */
-export function AppTabSurface({ tab, app, canvasId, onMirrorSaved }: { tab: ProjectAppWorkspaceTab; app?: RegisteredAppEntry; canvasId?: string; onMirrorSaved?: (path: string, content: string) => void }) {
-  if (!app) return <div className="app-tab-missing" style={{ padding: 32 }}>App「{tab.appId}」未注册或已下线</div>;
-  if (app.appId === 'doc' && tab.target) {
+export function AppTabSurface({ tab, app, canvasId, onMirrorSaved, onDirtyChange, registerFlush }: { tab: ProjectAppWorkspaceTab; app?: RegisteredAppEntry; canvasId?: string; onMirrorSaved?: (path: string, content: string) => void; onDirtyChange?: (dirty: boolean) => void; registerFlush?: (flush: (() => Promise<boolean>) | null) => void }) {
+  const [syncWarning, setSyncWarning] = React.useState('');
+  const dirtyGeneration = React.useRef(0);
+  const reportDirty = React.useCallback((dirty: boolean) => {
+    dirtyGeneration.current += 1;
+    onDirtyChange?.(dirty);
+  }, [onDirtyChange]);
+  React.useEffect(() => () => { registerFlush?.(null); onDirtyChange?.(false); }, [registerFlush, onDirtyChange]);
+  const trackedApi = React.useMemo(() => {
+    if (!app || app.appId !== 'doc' || !tab.target) return null;
     const mirror = tab.mirrorPath && canvasId ? { canvasId, path: tab.mirrorPath, onSaved: onMirrorSaved } : undefined;
+    const api = httpDocApi(app.endpoint, tab.target, mirror, setSyncWarning);
+    return { ...api, async write(content: string) {
+      const generation = dirtyGeneration.current;
+      const saved = await api.write(content);
+      // Do not mark a newer edit clean when an older in-flight save completes.
+      if (generation === dirtyGeneration.current) reportDirty(false);
+      return saved;
+    } } satisfies DocDocumentApi;
+  }, [app?.appId, app?.endpoint, tab.target, tab.mirrorPath, canvasId, onMirrorSaved, reportDirty]);
+  if (!app) return <div className="app-tab-missing" style={{ padding: 32 }}>App「{tab.appId}」未注册或已下线</div>;
+  if (app.appId === 'doc' && tab.target && trackedApi) {
     // doc-surface styles are scoped to .doc-surface-root so its design tokens
     // never leak into the host page's global variables.
-    return <div className="doc-surface-root" style={{ height: '100%', overflow: 'auto' }}><DocumentEditorPane
-      api={httpDocApi(app.endpoint, tab.target, mirror)}
+    return <div className="doc-surface-root" style={{ height: '100%', overflow: 'auto' }}>{syncWarning ? <div role="status">{syncWarning}</div> : null}<DocumentEditorPane
+      api={trackedApi}
+      onDirtyChange={reportDirty}
+      registerFlush={registerFlush}
       document={{ id: tab.target, name: tab.label, path: tab.target, size: 0, updatedAt: '' }}
     /></div>;
   }
