@@ -800,12 +800,14 @@ function CanvasSendToChatButton({ node, className }: { node: CanvasBasicNode; cl
 }
 
 function TextToolbarWithChat({ toolbar, node }: { toolbar: React.ReactNode; node: CanvasBasicNode }) {
+  const uiHost = useCanvasUiHost();
   if (!React.isValidElement<{ children?: React.ReactNode }>(toolbar)) return <>{toolbar}</>;
+  const canSendToAgent = Boolean(uiHost?.agentTasksAvailable);
   return React.cloneElement(toolbar, undefined,
     <>
       {toolbar.props.children}
       <span className="markdown-word-toolbar-divider" aria-hidden="true" />
-      {node.text?.trim() ? <><CanvasSaveAssetButton nodeId={node.id} className="markdown-word-tool" /><span className="markdown-word-toolbar-divider" aria-hidden="true" /><CanvasSendToChatButton node={node} className="markdown-word-tool" /></> : null}
+      {node.text?.trim() ? <><CanvasSaveAssetButton nodeId={node.id} className="markdown-word-tool" />{canSendToAgent ? <><span className="markdown-word-toolbar-divider" aria-hidden="true" /><CanvasSendToChatButton node={node} className="markdown-word-tool" /></> : null}</> : null}
     </>,
   );
 }
