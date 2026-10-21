@@ -10,8 +10,20 @@ const response = (entries: CanvasDocumentSyncEntry[]) => new Response(JSON.strin
 const settle = async () => { await act(async () => { await Promise.resolve(); }); };
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
-it('polls every three seconds and on focus/visibility with tenant headers', async () => {
+class FakeEventSource {
+  static instances: FakeEventSource[] = [];
+  listeners = new Map<string, () => void>();
+  closed = false;
+  constructor(public url: string) { FakeEventSource.instances.push(this); }
+  addEventListener(type: string, cb: () => void) { this.listeners.set(type, cb); }
+  close() { this.closed = true; }
+  emit(type: string) { this.listeners.get(type)?.(); }
+}
+
+it('refreshes on card events, focus/visibility and a slow fallback with tenant headers', async () => {
   vi.useFakeTimers();
+  FakeEventSource.instances = [];
+  vi.stubGlobal('EventSource', FakeEventSource);
   const fetcher = vi.fn().mockImplementation(async () => response([entry({ status: 'pending' })]));
   vi.stubGlobal('fetch', fetcher);
   const view = render(<CanvasDocumentSyncNotice canvasId="canvas/a" />);
@@ -20,14 +32,21 @@ it('polls every three seconds and on focus/visibility with tenant headers', asyn
   expect(fetcher.mock.calls[0]![1].headers).toMatchObject({ 'x-team-id': 'team-a', 'x-user-id': 'user-a' });
   expect(screen.getByText('画布草稿待同步（不代表文档已保存）')).toBeTruthy();
   expect(screen.queryByText('采用画布草稿')).toBeNull();
-  await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
+  const source = FakeEventSource.instances[0]!;
+  expect(source.url).toBe('/api/apps/canvas/instances/canvas%2Fa/events');
+  source.emit('card.updated');
+  source.emit('card.updated');
+  await act(async () => { await vi.advanceTimersByTimeAsync(400); });
   expect(fetcher).toHaveBeenCalledTimes(2);
+  await act(async () => { await vi.advanceTimersByTimeAsync(30000); });
+  expect(fetcher).toHaveBeenCalledTimes(3);
   await act(async () => { window.dispatchEvent(new Event('focus')); });
   await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
-  expect(fetcher).toHaveBeenCalledTimes(4);
+  expect(fetcher).toHaveBeenCalledTimes(5);
   view.unmount();
-  await act(async () => { await vi.advanceTimersByTimeAsync(6000); });
-  expect(fetcher).toHaveBeenCalledTimes(4);
+  expect(source.closed).toBe(true);
+  await act(async () => { await vi.advanceTimersByTimeAsync(60000); });
+  expect(fetcher).toHaveBeenCalledTimes(5);
 });
 
 it('shows both versions and only resolves after confirmation with exact observed versions', async () => {

@@ -77,12 +77,29 @@ export function CanvasDocumentSyncNotice({ canvasId, enabled = true }: { canvasI
     if (!enabled || !canvasId) return;
     void refresh();
     const visibleRefresh = () => { if (document.visibilityState !== 'hidden') void refresh(); };
-    const timer = window.setInterval(visibleRefresh, 3000);
+    // Event-driven refresh: card changes are exactly what enqueue sync
+    // intents, so the card-events SSE is the right trigger. The 30s interval
+    // is a slow fallback for journal transitions that carry no card event
+    // (retry settling to synced, conflict surfacing from the doc side).
+    let eventTimer: ReturnType<typeof setTimeout> | undefined;
+    const onCardEvent = () => {
+      if (eventTimer) return;
+      eventTimer = setTimeout(() => { eventTimer = undefined; visibleRefresh(); }, 300);
+    };
+    const source = typeof EventSource !== 'undefined'
+      ? new EventSource(`/api/apps/canvas/instances/${encodeURIComponent(canvasId)}/events`)
+      : undefined;
+    source?.addEventListener('card.created', onCardEvent);
+    source?.addEventListener('card.updated', onCardEvent);
+    source?.addEventListener('card.deleted', onCardEvent);
+    const timer = window.setInterval(visibleRefresh, 30000);
     window.addEventListener('focus', visibleRefresh);
     document.addEventListener('visibilitychange', visibleRefresh);
     return () => {
       sequenceRef.current += 1;
       window.clearInterval(timer);
+      if (eventTimer) clearTimeout(eventTimer);
+      source?.close();
       window.removeEventListener('focus', visibleRefresh);
       document.removeEventListener('visibilitychange', visibleRefresh);
     };
