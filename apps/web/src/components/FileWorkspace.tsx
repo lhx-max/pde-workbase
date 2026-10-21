@@ -295,15 +295,16 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
                     continue;
                 }
                 const document = await openBoundDoc(docApp.endpoint, { nodeId, name: title, content, mirrorCanvasId: projectId, ...(mirrorPath ? { mirrorPath } : {}) }, tenantHeaders());
-                // Write the IMPORTED text, not the dedupe-hit doc body — the
-                // canvas-side doc synchronizer may have already bound an empty
-                // doc (named after the card) to this fresh node.
-                let written = await callDocAction(docApp.endpoint, 'doc.write', { content }, tenantHeaders(), document.instanceId);
+                // Write the IMPORTED text with optimistic-versioning inputs —
+                // doc.write requires baseContent/expectedRevision and the dedupe
+                // doc may already hold the synchronizer's seeded copy.
+                const writeInput = () => ({ content, baseContent: document.content, expectedRevision: document.revision });
+                let written = await callDocAction(docApp.endpoint, 'doc.write', writeInput(), tenantHeaders(), document.instanceId);
                 if (written.mirror?.status && written.mirror.status !== 'synced') {
                     // The fresh card's canvas op may still be in the persist
                     // queue — one delayed retry covers that sub-second race.
                     await new Promise(resolve => setTimeout(resolve, 800));
-                    written = await callDocAction(docApp.endpoint, 'doc.write', { content }, tenantHeaders(), document.instanceId);
+                    written = await callDocAction(docApp.endpoint, 'doc.write', writeInput(), tenantHeaders(), document.instanceId);
                 }
                 if (written.mirror?.status && written.mirror.status !== 'synced') reportError(new Error('文档已导入，但画布副本同步未确认。请保留文档正文后再试。'));
                 // A dedupe-hit doc created before the title landed can still

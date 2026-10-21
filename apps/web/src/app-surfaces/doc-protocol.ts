@@ -1,4 +1,4 @@
-export type DocActionResult = { instanceId?: string; content?: string; meta?: { name?: string }; mirror?: { status?: string; path?: string } };
+export type DocActionResult = { instanceId?: string; content?: string; revision?: string; meta?: { name?: string }; mirror?: { status?: string; path?: string } };
 
 export async function callDocAction(endpoint: string, action: string, input: Record<string, unknown>, headers: Record<string, string>, docId?: string): Promise<DocActionResult> {
   const scope = docId ? `/instances/${encodeURIComponent(docId)}` : '';
@@ -18,5 +18,5 @@ export async function openBoundDoc(endpoint: string, input: Record<string, unkno
   if (!created.instanceId) throw new Error('文档服务未返回文档 ID');
   const read = await callDocAction(endpoint, 'doc.read', {}, headers, created.instanceId);
   if (typeof read.content !== 'string') throw new Error('文档正文读取失败，未覆盖画布或文档');
-  return { instanceId: created.instanceId, name: read.meta?.name ?? created.meta?.name, content: read.content };
+  return { instanceId: created.instanceId, name: read.meta?.name ?? created.meta?.name, content: read.content, revision: read.revision };
 }
