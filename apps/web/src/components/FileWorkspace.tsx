@@ -263,6 +263,12 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
             for (const [index, file] of files.entries()) {
                 const position = { x: flowPosition.x + index * 24, y: flowPosition.y + index * 24 };
                 const content = await documentFileToMarkdown(file);
+                // A File entry with no bytes (virtual drop source, or a truly
+                // empty file) must not create a ghost card+doc pair — say so.
+                if (!content.trim()) {
+                    reportError(new Error(`「${file.name}」没有读到内容——若从聊天窗/下载栏拖入，请改用访达中的原文件。`));
+                    continue;
+                }
                 const title = documentDropTitle(file.name);
                 const nodeId = await requestCanvasCard('text', position);
                 const stRes = await fetch(`/api/apps/canvas/instances/${encodeURIComponent(projectId)}/state`, { headers: tenantHeaders() });
