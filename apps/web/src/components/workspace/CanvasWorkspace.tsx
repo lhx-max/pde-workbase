@@ -12,6 +12,7 @@ import {createAssetLibraryReferenceAdapter} from '../asset-library-reference-ada
 import { CanvasWorkbenchSurface, CanvasKindAvailability, type CanvasWorkbenchSurfaceProps, type CanvasUiHost } from '@bezier/canvas-workbench';
 import type { QuestionReferenceAdapter } from '../question-form-reference-adapter';
 import { MarkdownWordDocument } from '@doc/surface';
+import '@doc/surface/styles.css';
 import { useI18n } from '../../i18n';
 import { downloadProjectResource } from '../../providers/project-usage';
 import { CanvasArtifactPreview } from './CanvasArtifactPreview';
