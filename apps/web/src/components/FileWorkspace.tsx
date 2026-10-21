@@ -225,8 +225,10 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
             let tab;
             if (app.appId === 'doc') {
                 const nodeId = await requestCanvasCard('text');
-                const st = await fetch(`/api/apps/canvas/instances/${encodeURIComponent(projectId)}/state`).then(r => r.json()) as { data: { state: { workbenchBasicNodes?: { id: string; projectFilePath?: string }[] } } };
-                const mirrorPath = st.data.state.workbenchBasicNodes?.find(n => n.id === nodeId)?.projectFilePath;
+                const stRes = await fetch(`/api/apps/canvas/instances/${encodeURIComponent(projectId)}/state`, { headers: tenantHeaders() });
+                if (!stRes.ok) throw new Error(`canvas state ${stRes.status}`);
+                const st = await stRes.json() as { data?: { state?: { workbenchBasicNodes?: { id: string; projectFilePath?: string }[] } } };
+                const mirrorPath = st.data?.state?.workbenchBasicNodes?.find(n => n.id === nodeId)?.projectFilePath;
                 const res = await fetch(`${app.endpoint}/actions/doc.create`, { method: 'POST', headers: { 'content-type': 'application/json', ...tenantHeaders() }, body: JSON.stringify({ input: { nodeId, name: '未命名文档', mirrorCanvasId: projectId, ...(mirrorPath ? { mirrorPath } : {}) } }) });
                 if (!res.ok) throw new Error(`doc create ${res.status}`);
                 const { instanceId } = (await res.json() as { data: { result: { instanceId: string } } }).data.result;
