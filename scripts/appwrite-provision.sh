@@ -5,7 +5,14 @@
 set -euo pipefail
 DB="${1:-canvas_app_dev}"
 BUCKET="${2:-canvas_assets_v2}"
-PERMS=('read("users")' 'create("users")' 'update("users")' 'delete("users")')
+# All authenticated users may inspect; only named service/maintenance users may write.
+: "${APPWRITE_SERVICE_WRITER_IDS:?Set comma-separated verified writer user IDs; do not grant users write}"
+IFS=',' read -r -a SERVICE_WRITERS <<< "$APPWRITE_SERVICE_WRITER_IDS"
+PERMS=('read("users")')
+for writer in "${SERVICE_WRITERS[@]}"; do
+  [[ "$writer" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]{0,35}$ ]] || { echo 'Invalid writer user ID' >&2; exit 1; }
+  for action in read create update delete; do PERMS+=("$action(\"user:$writer\")"); done
+done
 MAX_SIZE=16777215   # MEDIUMTEXT for journal/snapshot blobs
 BIG=4294967295      # not accepted on this instance; use 16MB attributes instead
 

@@ -27,11 +27,19 @@ MA → CLI或正式工具 → 认证网关/Provider → 同一App后端
 | `packages/canvas-cli` | 独立HTTP客户端与Skill；[安装与使用](packages/canvas-cli/README.md) |
 | `packages/canvas-card-sdk` / `packages/canvas-pack-*` | 卡包类型、渲染器、纯服务端kind/动作入口；[卡包合同](.devin/skills/canvas-app-platform/docs/canvas-card-pack.zh-CN.md) |
 | `packages/contracts` | 共享纯类型/协议；前后端不互相导入私有实现 |
-| 独立仓 `design/designai-app-doc` | 文档后端、权威正文和编辑器；本仓不复制部署第二份正文服务 |
+| [独立文档仓 `design/designai-app-doc`](https://git.corp.kuaishou.com/design/designai-app-doc) | 公司Git私有仓，默认main；文档后端、权威正文和 `@ks-designai/doc-surface`。Git权限与npm/数据权限分开；本机未提交改动不等于线上已有 |
 | 外部MA-V / Plugin Kit | 身份、目录/实例、会话、宿主和MA调度；我们适配已有合同，不修改其内部机制 |
 | `e2e` / `docs/verification` | 集成验收与运行证据 |
 
 画布保存卡片/连线/布局；绑定文档的权威正文归文档App，画布保留可编辑镜像。正文保存与镜像同步分别确认。卡片详情打开原绑定，使用资产则创建独立副本。详见 [架构](docs/architecture.md)、[双App关系与状态](docs/canvas-doc-relationship-and-status.zh-CN.md)。
+
+## 后端数据与开发者只读访问
+
+文档源码从上面的公司Git仓获取；业务接口由对应App服务提供。Appwrite API `https://frontend-cloud.corp.kuaishou.com/v1`，项目 `grworkspace`；画布库/桶 `canvas_app_dev` / `canvas_assets_v2`，文档库/桶 `doc_app_dev` / `doc_assets_v2`。这些资源已在2026-10-21完成默认只读配置与真实账号验证。
+
+**默认已登录用户可读上述Appwrite资源，无需逐人申请；不能新增、实际修改、删除或上传。匿名不可读，写入只给明确维护者/服务身份。** 普通读者也不能执行两条带写权限的云函数。使用自己的平台用户会话读取，不发维护者cookie、函数key或通用 `CANVAS_AUTH_TOKEN`；写入联调用自己的隔离测试环境。Appwrite读取不等于向所有COI/Provider业务接口发放通用token，也不代表其他库/管理员权限被改变。
+
+实际读取路径见 [开发者访问说明](docs/developer-read-only-access.zh-CN.md)，7个集合/2个桶/2条写函数的配置及25项真实验证见 [只读验收](docs/verification/developer-readonly/README.md)。保护已在云端生效；通用HTTP业务token的细粒度reader角色仍需另接，不能只靠README写“不要修改”。
 
 ## 内网 npm 安装与交付状态
 

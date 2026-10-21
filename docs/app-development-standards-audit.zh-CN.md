@@ -42,6 +42,7 @@
 | COI动作参数→Agent schema闭包 | 卡包合同§11仍列inputSchema自动暴露待补；MA画布manifest的operations items较宽 | 精确可校验动作联合类型/示例；缺参数、非法kind失败用例 | 画布API/卡包平台 |
 | CLI完整写入前提 | 当前`http-cli.ts`的apps call将body-file封成input，未提供顶层expectedRevision/稳定幂等键flags | 独立CLI交付选择暴露完整信封或明确request命令；实测409/重放/不确定写入 | CLI发布与能力维护者 |
 | 可信Provider入口 | 画布`requireLocal`默认503/仅loopback；doc`providerTenant`假设可信上游 | 确认正式认证/网络合同，错误票据与跨租户拒绝 | App适配方＋基座接口提供方 |
+| 开发者共享数据只读 | 后续已配置7集合/2桶默认登录读、显式writer写，两条写函数限writer；[25项实测](verification/developer-readonly/README.md)通过；通用HTTP token未分reader/writer | 开发资源读取用自身会话；业务网关细粒度reader角色另接，不能共享writer凭据 | 后端/平台维护者 |
 | Provider版本竞争窗口 | doc外层`checkProviderRevision`与正文执行分开；补最新baseline不自动保护过时输入 | 原子比较/提交或可信内层版本传递；并发竞争测试 | doc后端维护者 |
 | 回执重启语义 | doc动作回执为Map；画布有持久operation-journal | 每个action公开稳定键作用域/持久范围，重启重放测试 | 各业务后端 |
 | 正式目录/发布入口 | 本轮已知MA目录/实例曾返回STORAGE_ACCEPTANCE_REQUIRED；本地未确认独立mavapi源码/发布API | 正式机制提交两份manifest，目录/实例/会话真实读回 | 基座维护者；App交付文件 |

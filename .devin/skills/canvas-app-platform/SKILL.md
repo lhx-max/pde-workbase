@@ -21,6 +21,12 @@ version: 2.1.0
 
 现有冲突修正与工程待补清单见 [规范审计](../../../docs/app-development-standards-audit.zh-CN.md)。打包发布按实际发布任务核验，不改他人宿主或伪造登记。以下卡片专用章节只适用于卡包开发，不把其工作面限制套到独立 App 任务上。
 
+## 关联仓库与开发者数据访问
+
+- 画布主仓：[design/designai-app-canvas](https://git.corp.kuaishou.com/design/designai-app-canvas)；独立文档仓：[design/designai-app-doc](https://git.corp.kuaishou.com/design/designai-app-doc)（公司Git私有仓，默认main）。文档后端/正文/surface属于文档仓，不在画布另建一套。组件包、CLI版本与实际安装证据见 [npm交付记录](../../../docs/verification/npm-distribution/README.md)，不是从本机目录复制依赖。
+- **需要看Appwrite或共享数据时先读 [开发者访问](../../../docs/developer-read-only-access.zh-CN.md)**。当前两App的指定集合/桶默认允许已登录用户读，无需逐个申请，匿名拒绝；只有明确维护者/服务身份能写，普通读者不能执行写函数。使用自己的用户会话，不给管理员cookie、函数key或通用服务token。
+- 云端默认只读已通过 [25项实测](../../../docs/verification/developer-readonly/README.md)，不等于业务token、其他App/管理员也被限权。看字段不需要运行provision或改权限；写入验证只用隔离环境。维护脚本要求显式APPWRITE_SERVICE_WRITER_IDS，不能恢复users宽写授权。
+
 ## 铁律（违反 = 包被拒收）
 
 - **信封归平台，内容归你**：`data` 黑盒随便写（JSON、≤256KB）；平台信封字段只读
@@ -161,7 +167,9 @@ node apps/server/dist/cli.js --data-dir /tmp/<数据目录> --port 17460
 - `CANVAS_AUTH_TOKEN` 可选，给服务加令牌鉴权
 - 内部画布 API（`/api/projects/:id/canvas/*`）是实现细节，卡片开发统一走上面 COI 门
 
-### 自助拿 Appwrite 会话（不用求人）
+### 维护者本地测试会话（不是开发者只读入口）
+
+以下是历史维护者调试示例，不作为新开发者的默认步骤。会话权限取决于服务端ACL，获取一个会话不保证只读。共享数据访问遵守上面的只读说明；未经明确授权，不创建账号/凭据、不修改云端资源，也不把维护者会话交给其他开发者。
 
 ```bash
 # 1. 注册测试账号（内网实例开放注册）

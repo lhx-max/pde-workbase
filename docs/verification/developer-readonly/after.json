@@ -1,0 +1,161 @@
+{
+  "verifiedAt": "2026-10-21T09:00:34.320Z",
+  "projectId": "grworkspace",
+  "readerTeam": "users",
+  "writers": [
+    "6a7144262b2aae180614"
+  ],
+  "resources": [
+    {
+      "kind": "collection",
+      "databaseId": "canvas_app_dev",
+      "id": "canvases",
+      "name": "Canvases",
+      "permissions": [
+        "create(\"user:6a7144262b2aae180614\")",
+        "delete(\"user:6a7144262b2aae180614\")",
+        "read(\"user:6a7144262b2aae180614\")",
+        "read(\"users\")",
+        "update(\"user:6a7144262b2aae180614\")"
+      ],
+      "perItemSecurity": false,
+      "enabled": true
+    },
+    {
+      "kind": "collection",
+      "databaseId": "canvas_app_dev",
+      "id": "canvas_operations",
+      "name": "Canvas Operations",
+      "permissions": [
+        "create(\"user:6a7144262b2aae180614\")",
+        "delete(\"user:6a7144262b2aae180614\")",
+        "read(\"user:6a7144262b2aae180614\")",
+        "read(\"users\")",
+        "update(\"user:6a7144262b2aae180614\")"
+      ],
+      "perItemSecurity": false,
+      "enabled": true
+    },
+    {
+      "kind": "collection",
+      "databaseId": "canvas_app_dev",
+      "id": "canvas_files",
+      "name": "Canvas Files",
+      "permissions": [
+        "create(\"user:6a7144262b2aae180614\")",
+        "delete(\"user:6a7144262b2aae180614\")",
+        "read(\"user:6a7144262b2aae180614\")",
+        "read(\"users\")",
+        "update(\"user:6a7144262b2aae180614\")"
+      ],
+      "perItemSecurity": false,
+      "enabled": true
+    },
+    {
+      "kind": "collection",
+      "databaseId": "canvas_app_dev",
+      "id": "card_packs",
+      "name": "Card Packs",
+      "permissions": [
+        "create(\"user:6a7144262b2aae180614\")",
+        "delete(\"user:6a7144262b2aae180614\")",
+        "read(\"user:6a7144262b2aae180614\")",
+        "read(\"users\")",
+        "update(\"user:6a7144262b2aae180614\")"
+      ],
+      "perItemSecurity": false,
+      "enabled": true
+    },
+    {
+      "kind": "collection",
+      "databaseId": "canvas_app_dev",
+      "id": "card_grants",
+      "name": "Card Grants",
+      "permissions": [
+        "create(\"user:6a7144262b2aae180614\")",
+        "delete(\"user:6a7144262b2aae180614\")",
+        "read(\"user:6a7144262b2aae180614\")",
+        "read(\"users\")",
+        "update(\"user:6a7144262b2aae180614\")"
+      ],
+      "perItemSecurity": false,
+      "enabled": true
+    },
+    {
+      "kind": "collection",
+      "databaseId": "canvas_app_dev",
+      "id": "apps",
+      "name": "Apps",
+      "permissions": [
+        "create(\"user:6a7144262b2aae180614\")",
+        "delete(\"user:6a7144262b2aae180614\")",
+        "read(\"user:6a7144262b2aae180614\")",
+        "read(\"users\")",
+        "update(\"user:6a7144262b2aae180614\")"
+      ],
+      "perItemSecurity": false,
+      "enabled": true
+    },
+    {
+      "kind": "collection",
+      "databaseId": "doc_app_dev",
+      "id": "documents",
+      "name": "Documents",
+      "permissions": [
+        "create(\"user:6a7144262b2aae180614\")",
+        "delete(\"user:6a7144262b2aae180614\")",
+        "read(\"user:6a7144262b2aae180614\")",
+        "read(\"users\")",
+        "update(\"user:6a7144262b2aae180614\")"
+      ],
+      "perItemSecurity": false,
+      "enabled": true
+    },
+    {
+      "kind": "bucket",
+      "id": "canvas_assets_v2",
+      "name": "Canvas Assets v2",
+      "permissions": [
+        "create(\"user:6a7144262b2aae180614\")",
+        "delete(\"user:6a7144262b2aae180614\")",
+        "read(\"user:6a7144262b2aae180614\")",
+        "read(\"users\")",
+        "update(\"user:6a7144262b2aae180614\")"
+      ],
+      "perItemSecurity": false,
+      "enabled": true
+    },
+    {
+      "kind": "bucket",
+      "id": "doc_assets_v2",
+      "name": "Doc Assets",
+      "permissions": [
+        "create(\"user:6a7144262b2aae180614\")",
+        "delete(\"user:6a7144262b2aae180614\")",
+        "read(\"user:6a7144262b2aae180614\")",
+        "read(\"users\")",
+        "update(\"user:6a7144262b2aae180614\")"
+      ],
+      "perItemSecurity": false,
+      "enabled": true
+    },
+    {
+      "kind": "function",
+      "id": "canvas-coi",
+      "name": "Canvas COI",
+      "permissions": [
+        "user:6a7144262b2aae180614"
+      ],
+      "enabled": true
+    },
+    {
+      "kind": "function",
+      "id": "doc-api",
+      "name": "Doc API",
+      "permissions": [
+        "user:6a7144262b2aae180614"
+      ],
+      "enabled": true
+    }
+  ]
+}

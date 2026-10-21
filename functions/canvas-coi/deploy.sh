@@ -3,6 +3,15 @@
 # Prereqs: appwrite-cf installed + `login-ks` done + run inside a dir with
 # appwrite-cf.config.json (project context). Usage: ./deploy.sh /path/to/cf-project-dir
 set -euo pipefail
+
+# Writer functions must not become a database-write bypass for default readers.
+: "${APPWRITE_SERVICE_WRITER_IDS:?Set comma-separated verified writer user IDs}"
+IFS=',' read -r -a SERVICE_WRITERS <<< "$APPWRITE_SERVICE_WRITER_IDS"
+EXECUTE_ROLES=()
+for writer in "${SERVICE_WRITERS[@]}"; do
+  [[ "$writer" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]{0,35}$ ]] || { echo 'Invalid writer user ID' >&2; exit 1; }
+  EXECUTE_ROLES+=("user:$writer")
+done
 FN_DIR="$(cd "$(dirname "$0")" && pwd)"
 CF_DIR="${1:-.}"
 
@@ -12,7 +21,7 @@ mkdir -p .deploy && cp dist/main.js .deploy/main.js && echo '{}' > .deploy/packa
 
 cd "$CF_DIR"
 appwrite-cf functions create --function-id canvas-coi --name "Canvas COI" --runtime node-22 \
-  --execute users --timeout 60 --entrypoint main.js --enabled true --logging true \
+  --execute "${EXECUTE_ROLES[@]}" --timeout 60 --entrypoint main.js --enabled true --logging true \
   --scopes databases.read databases.write collections.read collections.write attributes.read attributes.write \
           indexes.read indexes.write documents.read documents.write files.read files.write buckets.read buckets.write \
   2>/dev/null || true

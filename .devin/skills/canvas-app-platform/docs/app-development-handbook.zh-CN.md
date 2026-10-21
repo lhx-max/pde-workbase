@@ -129,7 +129,7 @@ designai-app-<id>/
 
 独立启动和嵌入使用同一业务 API 与组件。不要为了嵌入成功改成直接读宿主文件，也不要在包装层再维护一份正文。数据根由入口显式解析并注入；禁止依赖另一个 checkout、cwd、开发者绝对路径或本机 symlink。
 
-doc 参考仓为公司 Git `design/designai-app-doc`。可以读它的公开接口/测试、按其许可证和来源要求适配代码；不能把作者本机目录写进新 App 的 package.json。参考仓不可用时按本手册与合同实现最小领域服务，不猜其私有 API；若某宿主类型/schema不可得，则相应接入门标待提供，独立业务继续做。
+doc 参考仓为 [公司 Git `design/designai-app-doc`](https://git.corp.kuaishou.com/design/designai-app-doc)，私有仓、默认main，需相应Git读取权限。可以读它的公开接口/测试、按其许可证和来源要求适配代码；不能把作者本机目录写进新 App 的 package.json。参考仓不可用时按本手册与合同实现最小领域服务，不猜其私有 API；若某宿主类型/schema不可得，则相应接入门标待提供，独立业务继续做。
 
 ### 4.1 surface 的最低合同
 
@@ -253,6 +253,8 @@ profile 至少区分 local 独立运行、local 宿主联调、staging。生产�
 ### 9.2 认证不是显隐
 
 显隐表/卡种 grant 控制能力可用范围，不能替代用户认证、团队成员资格或资源授权。`platform` 范围不代表资产公开。服务端必须独立拒绝绕过菜单的直接请求；身份缓存缺失不得新建信任。SSO、传输 token、委托凭证、actor ID 分开说明。
+
+开发者访问遵守 [只读合同](../../../../docs/developer-read-only-access.zh-CN.md)。本项目两个开发库/桶已按用户要求配置为“已登录用户默认读、显式维护/服务身份写”，无需逐个申请读者名单，且限制两条写函数的执行者；实测见 [只读验收](../../../../docs/verification/developer-readonly/README.md)。这不是所有生产App/业务团队资产都应开放全库读的通用授权规则。通用服务token不是只读token，开发者不运行初始化脚本；写入联调在隔离环境进行。
 
 ### 9.3 包发布的最低交付
 
