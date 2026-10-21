@@ -103,6 +103,7 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
   const dirtyVersionsRef = React.useRef(new Map<string, number>());
   const savedVersionsRef = React.useRef(new Map<string, number>());
   const saveErrorRef = React.useRef<unknown>(undefined);
+  const conflictRetriesRef = React.useRef(0);
   const [saveConflict, setSaveConflict] = React.useState<string | null>(null);
   const blockedRef = React.useRef(false);
   const recoveredDraftRef = React.useRef<CanvasState | null>(null);
@@ -138,7 +139,7 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
             }
             try { localStorage.removeItem(draftKey); } catch { /* Storage unavailable. */ }
           }).catch(() => {
-            blockedRef.current = true;
+            // Banner only — a failed replay must not freeze every future save.
             setSaveConflict('Recovered an unsaved canvas draft. Export it before discarding or reloading.');
           });
           return;
@@ -153,11 +154,10 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
               try { localStorage.removeItem(draftKey); } catch { /* Storage unavailable. */ }
               return;
             }
-            blockedRef.current = true;
+            // Banner only — never block the queue over a leftover draft.
             setSaveConflict('Recovered an unsaved canvas draft. Export it before discarding or reloading.');
           })
           .catch(() => {
-            blockedRef.current = true;
             setSaveConflict('Recovered an unsaved canvas draft. Export it before discarding or reloading.');
           });
       }
@@ -341,6 +341,7 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
               payload.receipt.revision !== payload.revision)) {
             throw new Error('Canvas operation receipt does not match the pending request');
           }
+          conflictRetriesRef.current = 0;
           // Validate all rebases before acknowledging any key: a conflict must
           // never leave a partially advanced queue or a regenerated operation id.
           const rebased = new Map<string, { pending: PendingCanvasChange; value: unknown }>();
@@ -385,9 +386,34 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
           } else scheduleDraftCheckpoint();
         } catch (error) {
           saveErrorRef.current = error;
+          const status = (error as { status?: number }).status;
+          // 409 = a background write moved the revision (e.g. an App mirror
+          // push). Rebase the failed batch onto fresh state and retry instead
+          // of permanently blocking every future save.
+          if (status === 409 && conflictRetriesRef.current < 3) {
+            conflictRetriesRef.current += 1;
+            try {
+              const fresh = await request<{ state?: CanvasState; revision?: number }>(requestContext, '/api/canvas/state', { method: 'GET' });
+              if (fresh?.state && typeof fresh.revision === 'number') {
+                revisionRef.current = Math.max(revisionRef.current, fresh.revision);
+                stateRef.current = { ...stateRef.current, ...fresh.state };
+                setState(stateRef.current);
+                for (const [key, entry] of batch) {
+                  pendingChangesRef.current.set(key, { ...entry, baseValue: fresh.state[key] });
+                }
+              }
+            } catch { /* fall through to the normal error path */ }
+            retryRequestRef.current = null;
+            if (retryTimerRef.current === undefined) {
+              retryTimerRef.current = window.setTimeout(() => {
+                retryTimerRef.current = undefined;
+                void flushChanges();
+              }, 1500);
+            }
+            return;
+          }
           try { localStorage.setItem(draftKey, JSON.stringify({ state: stateRef.current, request: JSON.parse(requestBody) })); } catch { /* Keep in memory. */ }
           setSaveConflict(error instanceof Error ? error.message : cr().compatSaveFail);
-          const status = (error as { status?: number }).status;
           if (status && status >= 400 && status < 500 && status !== 429) blockedRef.current = true;
           console.error(cr().compatSaveFail, error);
           if (!blockedRef.current && retryTimerRef.current === undefined) {
