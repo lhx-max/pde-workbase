@@ -1,0 +1,42 @@
+{
+  "published": true,
+  "verifiedAt": "2026-10-21T08:31:25.291Z",
+  "packages": [
+    {
+      "name": "@ks-designai/canvas-surface",
+      "version": "0.1.2",
+      "registry": "https://npm.corp.kuaishou.com/",
+      "tarball": "https://npm.corp.kuaishou.com/@ks-designai/canvas-surface/-/@ks-designai/canvas-surface-0.1.2.tgz",
+      "integrity": "sha512-0IzGHAE1h1uS39xOIaDRkpiF27Qofber/TsSPnXVKcSZlK8CTWaHwjPAu2Y8S/e1ulzfWvJDRgkaEnWZN9HdJg==",
+      "sha256": "b4ad972345d4b4f8abdc86eaec423864c983a452bfe345cb149beaf844da55a4",
+      "distTags": {
+        "latest": "0.1.2",
+        "staging": "0.1.2"
+      }
+    },
+    {
+      "name": "@ks-designai/doc-surface",
+      "version": "0.1.2",
+      "registry": "https://npm.corp.kuaishou.com/",
+      "tarball": "https://npm.corp.kuaishou.com/@ks-designai/doc-surface/-/@ks-designai/doc-surface-0.1.2.tgz",
+      "integrity": "sha512-WHNk1ql2Ad4iSyjRv1p9RZdJW7T8WaWJZt4JDhBZlyHljXlvbBaynaEeBzZJsWQ44G8sBJu2RxWnk7NDh66UFQ==",
+      "sha256": "ee67be1ba3e8315884e4c7ca887e3704ff7d531aaac9f2b307d6e64c3f8e222d",
+      "distTags": {
+        "latest": "0.1.2",
+        "staging": "0.1.2"
+      }
+    },
+    {
+      "name": "@ks-designai/canvas-cli",
+      "version": "0.1.1",
+      "registry": "https://npm.corp.kuaishou.com/",
+      "tarball": "https://npm.corp.kuaishou.com/@ks-designai/canvas-cli/-/@ks-designai/canvas-cli-0.1.1.tgz",
+      "integrity": "sha512-aMCUGlRzvHGsmNFOFjxldClmzxt0YQs5qi/3TZREBP18ccpcmzgiYHMayOwjXroAsO1OOpECVkneZhTx0rYpBQ==",
+      "sha256": "7886d1f76dbddba3b070c2156bd6e6ee667f3f81a26e19085924df8da63d86ae",
+      "distTags": {
+        "latest": "0.1.0",
+        "staging": "0.1.1"
+      }
+    }
+  ]
+}

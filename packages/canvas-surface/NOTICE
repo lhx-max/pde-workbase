@@ -1,0 +1,22 @@
+Canvas Workspace — standalone canvas surface distribution
+
+This package adapts and bundles source from this independent canvas-workspace
+checkout, extracted from Bezier/Loom commit
+319e5eee556a3641d2ee68a6111a36ddc7a1eff7.
+The upstream Apache License 2.0 is retained in LICENSE.
+
+Adaptation: new TypeScript packaging facade, Vite library build, relocated
+TypeScript declarations, explicit combined stylesheet, dependency/license audit,
+and tarball-only consumer verification. Existing canvas UI and server sources
+are not modified by this packaging tool.
+
+The build consumes the current local working tree, which may include uncommitted
+adaptations. dist/build-report.json records the checkout commit, source hashes,
+bundled package versions and license inventory. Third-party notices and license
+texts are retained under dist/third-party-licenses/.
+
+React, React DOM and @xyflow/react are external peers and are not redistributed
+as JavaScript in this package. The React Flow baseline stylesheet is included;
+its upstream license is retained with the other bundled materials.
+
+No source or runtime resource is linked to or resolved from the original checkout.

@@ -4,7 +4,86 @@
 
 原始版本：`319e5eee556a3641d2ee68a6111a36ddc7a1eff7`。来源与授权见 [NOTICE](NOTICE) 和 [LICENSE](LICENSE)。
 
-## 包含什么
+## 开发规范入口
+
+开发者和 AI Agent 开工前先读仓库内的 [App 平台开发 Skill](.devin/skills/canvas-app-platform/SKILL.md)。没有项目背景时，从其中的 [独立 App 开发手册](.devin/skills/canvas-app-platform/docs/app-development-handbook.zh-CN.md) 开始；新 App 使用 [开发与接入合同模板](.devin/skills/canvas-app-platform/templates/APP_CONTRACT.template.md)。规范覆盖独立前后端、卡包与深编辑、MA-V 接入、CLI/安装交付及分级验收。Agent 入口同时见 [AGENTS.md](AGENTS.md)。
+
+## 项目结构与接入关系
+
+**App 是有业务、后端和权威数据的小产品；npm 包是交付物。** 卡包安装到画布，画布/文档组件及包装层安装到宿主，CLI安装到MA执行环境，后端独立部署。
+
+```text
+卡包 → 画布组件 → MA-V画布App包装层 → 基座标签页
+文档组件 → 画布详情 / 独立页面 / MA-V文档App包装层
+界面 → API适配器 → App后端 → 各自权威存储
+MA → CLI或正式工具 → 认证网关/Provider → 同一App后端
+```
+
+| 位置 | 责任 / 入口 |
+| --- | --- |
+| `apps/web` | 独立画布工作台、页面和本宿主适配 |
+| `apps/server` | 业务、文件、操作回执、COI/Provider与存储；[服务端说明](apps/server/README.md) |
+| `packages/canvas-surface` | 对外画布组件；[安装、props、CSS与限制](packages/canvas-surface/README.md) |
+| `packages/canvas-cli` | 独立HTTP客户端与Skill；[安装与使用](packages/canvas-cli/README.md) |
+| `packages/canvas-card-sdk` / `packages/canvas-pack-*` | 卡包类型、渲染器、纯服务端kind/动作入口；[卡包合同](.devin/skills/canvas-app-platform/docs/canvas-card-pack.zh-CN.md) |
+| `packages/contracts` | 共享纯类型/协议；前后端不互相导入私有实现 |
+| 独立仓 `design/designai-app-doc` | 文档后端、权威正文和编辑器；本仓不复制部署第二份正文服务 |
+| 外部MA-V / Plugin Kit | 身份、目录/实例、会话、宿主和MA调度；我们适配已有合同，不修改其内部机制 |
+| `e2e` / `docs/verification` | 集成验收与运行证据 |
+
+画布保存卡片/连线/布局；绑定文档的权威正文归文档App，画布保留可编辑镜像。正文保存与镜像同步分别确认。卡片详情打开原绑定，使用资产则创建独立副本。详见 [架构](docs/architecture.md)、[双App关系与状态](docs/canvas-doc-relationship-and-status.zh-CN.md)。
+
+## 内网 npm 安装与交付状态
+
+2026-10-21 已从快手内网 `https://npm.corp.kuaishou.com/` 查询到三个固定版本。安装需要公司网络和读取权限；升级以实际发布记录为准。
+
+| 包 | 版本 | 安装位置 / 作用 |
+| --- | --- | --- |
+| `@ks-designai/canvas-surface` | `0.1.2` | 宿主前端项目，画布组件与CSS |
+| `@ks-designai/doc-surface` | `0.1.2` | 宿主前端项目，文档编辑器与CSS |
+| `@ks-designai/canvas-cli` | `0.1.1` | MA容器/工作区或开发者环境，调用真实App后端 |
+
+前端消费方在自己的项目中安装：
+
+```sh
+npm install @ks-designai/canvas-surface@0.1.2 @ks-designai/doc-surface@0.1.2 \
+  react@18.3.1 react-dom@18.3.1 @xyflow/react@12.8.5 \
+  --registry=https://npm.corp.kuaishou.com/
+```
+
+命名导出、CSS和API注入按包说明接入；安装依赖不会自动出现宿主菜单。还需要包装层、manifest、Provider配置与实例映射。当前画布组件共用宿主的一份React renderer，不捆绑第二份React。
+
+CLI安装到实际执行命令的环境（Node 24），不另启服务或另存一份画布：
+
+```sh
+npm install -g @ks-designai/canvas-cli@0.1.1 --registry=https://npm.corp.kuaishou.com/
+canvas-cli --version
+canvas-cli --help
+export CANVAS_SERVER_URL='https://<当前执行环境可达的画布API地址>'
+canvas-cli apps list
+```
+
+地址占位符要替换；远端MA的loopback不指向开发者电脑。认证凭据按部署合同通过环境/密钥管理注入，不写进提示词或仓库；`CANVAS_TEAM_ID/CANVAS_USER_ID`只是上下文。实例参数使用解析后的业务画布ID。包内 `skills/canvas-cli/SKILL.md` 需按MA正式加载机制安装，npm安装不会自动注册工具或授予执行权限。
+
+[干净安装与真实读写记录](docs/verification/npm-distribution/local-install.json) 已覆盖三个包、CLI发现画布/文档、创建/读写/读回、重放、旧版本冲突与错误非零退出；另有 [浏览器渲染截图](docs/verification/npm-distribution/installed-components.png)。本地 tarball 与内网按包名下载均已复验，见 [内网安装记录](docs/verification/npm-distribution/registry-install.json)；不代表正式 MA 或 staging 通过。
+
+## 开发、联调与验收导航
+
+| 你要做什么 | 入口 |
+| --- | --- |
+| 零背景开发独立App | [手册](.devin/skills/canvas-app-platform/docs/app-development-handbook.zh-CN.md) → [合同模板](.devin/skills/canvas-app-platform/templates/APP_CONTRACT.template.md) → [API与接入规范](.devin/skills/canvas-app-platform/docs/app-development-spec.zh-CN.md) |
+| 开发卡包、嵌卡与深编辑 | [卡包合同](.devin/skills/canvas-app-platform/docs/canvas-card-pack.zh-CN.md)、[互联协议](.devin/skills/canvas-app-platform/docs/canvas-app-interop.zh-CN.md)、[卡种能力矩阵](.devin/skills/canvas-app-platform/docs/canvas-card-capability-matrix.zh-CN.md) |
+| 查数据、版本、复制和恢复 | [数据模型](.devin/skills/canvas-app-platform/docs/data-model.zh-CN.md)、[正文增补合同](.devin/skills/canvas-app-platform/docs/document-sync-contract.zh-CN.md) |
+| 接一涵MA-V基座 | [接入与验收记录](docs/ma-base-integration-acceptance.zh-CN.md) |
+| 看本地模拟登记效果 | [启动与复现](docs/verification/ma-registration-simulation/README.md)：18581代理原宿主18580；只模拟登记相关数据，组件使用真实本地服务，不改云端登记 |
+| 查规范修正与工程缺口 | [规范审计](docs/app-development-standards-audit.zh-CN.md)；包分发部分是审计时快照，最新可发现版本见上表 |
+| 查实际通过范围 | [功能对照](docs/feature-parity.md)、[运行记录](docs/runtime-verification.md)、[双App状态](docs/canvas-doc-relationship-and-status.zh-CN.md) |
+
+**验收分开报告**：独立业务 → 卡片互联（适用时）→ 可安装交付 → 模拟宿主 → 正式登记与认证 → MA自主调用 → staging。npm可发现和本地读写不能证明后面各门已通过。以下原独立工作区的能力概览应结合部署profile与最新状态阅读，不代表每个嵌入包都包含整套工作台/原生能力。
+
+## 原独立工作区的能力概览
+
+下面保留原提取范围的说明；当前App拆分、可用入口与各部署限制以顶部导航和功能对照为准，已删除的历史能力不能据此恢复。
 
 - 原画布及图片、文本、草图、分镜、视频、剪辑、网页、演示文稿节点。
 - 原顶部标签及浏览器、草图、文本、剪辑入口。
@@ -65,7 +144,7 @@ pnpm tools-dev run web --data-dir "$CANVAS_DATA_DIR" --production
 pnpm tools-dev run desktop --data-dir "$CANVAS_DATA_DIR" --production
 ```
 
-桌面模式自动为后端到原生宿主的连接生成仅本次进程使用的传输密钥，并使用独立浏览器 profile。API 的可选 `CANVAS_AUTH_TOKEN` 与该原生宿主密钥相互独立。`Ctrl+C` 停止本次启动的进程。可通过 `--daemon-port`、`--web-port`、`--browser-host-port` 和 `--desktop-user-data` 配置独立实例；并发实例必须使用不同的数据根、profile 和端口。原生能力说明见 [browser-host.md](docs/browser-host.md)。
+桌面模式自动为后端到原生宿主的连接生成仅本次进程使用的传输密钥，并使用独立浏览器 profile。API 的可选 `CANVAS_AUTH_TOKEN` 与该原生宿主密钥相互独立。`Ctrl+C` 停止本次启动的进程。可通过 `--daemon-port`、`--web-port`、`--browser-host-port` 和 `--desktop-user-data` 配置独立实例；并发实例必须使用不同的数据根、profile 和端口。原生能力说明见 [架构中的原生宿主边界](docs/architecture.md)。
 
 ## 三个入口与本地资产库
 
@@ -82,7 +161,7 @@ AI 元数据分析和外部模板目录是可选适配器，默认不可用；�
 顶部 **MF 对话** 打开独立侧栏，不替换画布／资产／采集。实际使用锁定版本 `@ks-kp/agent-ui@0.1.5-beta.18`；安装需要有权访问公司 npm 源，仓库不保存 npm 或 MF 登录凭据。
 
 - 画布组件包保留 React 18.3.1 的依赖／类型约束；Next 16 App Router 浏览器实际采用其自带的 React DOM `19.3.0-canary-3f0b9e61-20260317`，不能把安装声明当实际渲染器版本。MF 独立使用 React／ReactDOM 19.2.3，在同一监听端口的保留域名 `mf.localhost` 中运行；实测两个文档各一份 DOM 渲染器。该域名避开 SDK 的 localhost 开发令牌提取分支，不代理 `/sso-health`，不向浏览器暴露 SSO 令牌。版本化消息桥校验来源、窗口、项目、实例、请求及响应；MF 域名不能直接访问普通画布 API。
-- 未配置时明确显示不可用，不加载完整 MF SDK、不发起 MF 模型请求，也不伪造会话。后端配置方式及同源／鉴权限制见 [MF 服务端说明](<apps/server/README.md>)，UI 能力和限制见 [MF 集成说明](<apps/mf-ui/README.md>)。
+- 未配置时明确显示不可用，不加载完整 MF SDK、不发起 MF 模型请求，也不伪造会话。后端配置方式及同源／鉴权限制见 [MF 服务端说明](<apps/server/README.md>)，UI 能力和限制见 [MF 集成说明](<docs/mf-integration.md>)。
 - 显式勾选 MF 作为画布执行方后，只有 MF 发起生成；本地 Agent 适配器不再重复执行。同一画布任务登记、消息发送、模型结束和实际交付是不同阶段。
 - **画布定向生成要求新建 MF 对话**。当前 SDK 对已有会话复用客户端 run ID，无法可靠关联每次新提交；不会自动切换会话或清除草稿。普通历史对话和引用暂存不因此禁用。
 - 只有受控交付工具通过任务、输入、修订及取消检查后，才写入画布。取消操作保证阻止本地晚到交付，不等于确认远程 MF 已停止或不再计费；远程停止使用 MF 原生停止入口。
@@ -127,7 +206,7 @@ pnpm tools-dev run web --data-dir "$CANVAS_DATA_DIR" --production
 
 ## CLI 与 API
 
-CLI 是独立服务端入口，不会启动原应用：
+给MA安装的独立 `canvas-cli` 见上方“内网 npm 安装与交付状态”。下面是仓内 `canvas-server` 的源码/服务端兼容入口，不是独立CLI安装方式：
 
 ```sh
 pnpm --filter @canvas/server exec node dist/cli.js --help
@@ -146,8 +225,7 @@ CANVAS_SERVER_URL=http://127.0.0.1:17456 \
 
 - [画布状态与修订](apps/server/src/routes/canvas.ts)
 - [项目文件、目录、预览、标签和事件](apps/server/src/routes/files.ts)
-- [Agent 任务和候选交付](apps/server/src/routes/tasks.ts)
-- [剪辑编辑与导出](apps/server/src/routes/clip-editor.ts)
+- [Agent 任务和候选交付说明](apps/server/README.md)
 - [浏览器资源授权协议](<apps/server/src/routes/browser-resources.ts>)
 - [本地资产库、空间、版本、导入与保存](<apps/server/src/routes/asset-library.ts>)
 - [浏览器偏好设置](<packages/contracts/src/api/browser-preferences.ts>)
@@ -178,3 +256,7 @@ pnpm --filter @canvas/e2e test:ui
 独立采集扩展与原浏览器登录接续已经纳入；Pinterest 接续保留原 macOS、未打包开发模式限制，并须用户明确同意。真实账号登录、日常浏览器安装与系统弹窗人工确认不会由自动化验收擅自执行。
 
 项目资产、本地资产库、画布产物和项目版本均属于本工作区的核心能力。
+
+## 公司 npm 交付
+
+画布组件、文档组件与独立 Agent CLI 的固定版本、安装方式、联调证据及验收边界见 [npm 交付记录](docs/verification/npm-distribution/README.md)。

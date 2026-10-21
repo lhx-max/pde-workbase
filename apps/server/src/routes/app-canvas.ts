@@ -5,9 +5,11 @@ import type { CanvasStateService } from '../canvas/state.js';
 import { CanvasStateError } from '../canvas/errors.js';
 import { listCardOps, listRegisteredCardKinds, listRegisteredCardApps, listRegisteredPacks } from '../canvas/card-ops.js';
 import { CARD_CAPABILITY_MATRIX, CARD_CREATE_ACTIONS } from '../canvas/card-capability-matrix.js';
+import { listAgentSurface } from '../canvas/agent-surface.js';
 import { canvasCardChangesAfter, subscribeCanvasCardChanges, type CanvasCardChange } from '../canvas/card-events.js';
 import type { AppRegistryStore } from '../storage/app-registry.js';
-import type { BindingStore } from '../storage/bindings.js';
+import { BindingStoreError, type BindingStore } from '../storage/bindings.js';
+import type { createDocSynchronizer } from '../canvas/doc-sync.js';
 import type { AuditLog } from '../storage/audit-log.js';
 import type { CanvasFileContent } from '../canvas/persistence.js';
 import type { AppEntitlementStore } from '../storage/app-entitlements.js';
@@ -42,7 +44,7 @@ const CORE_EDITOR_APPS: Record<string, string> = {
 };
 
 function sendAppError(res: Response, error: unknown): void {
-  const err = error instanceof CanvasStateError ? error : new CanvasStateError(500, 'CANVAS_STORAGE_ERROR', String(error));
+  const err = error instanceof CanvasStateError ? error : error instanceof BindingStoreError ? new CanvasStateError(error.status, error.code, error.message) : new CanvasStateError(500, 'CANVAS_STORAGE_ERROR', String(error));
   res.status(err.status).json({ error: { code: err.code, message: err.message, retryable: err.status >= 500, ...(err.details ? { details: err.details } : {}) }, requestId: requestId() });
 }
 
@@ -56,6 +58,7 @@ export interface RegisterAppCanvasRoutesDeps {
   bindings?: BindingStore;
   audit?: AuditLog;
   entitlements?: AppEntitlementStore;
+  documentSync?: Pick<ReturnType<typeof createDocSynchronizer>, 'status' | 'retry' | 'resolve'>;
   /** Canvas-owned file channel — external Apps read/write the same files
    * the cards point at (`projectFilePath`). Text payloads in v1. */
   content?: CanvasFileContent;
@@ -120,6 +123,7 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
         createActions: CARD_CREATE_ACTIONS,
         cardCapabilities: CARD_CAPABILITY_MATRIX,
         events: { method: 'GET', path: '/api/apps/canvas/instances/{instanceId}/events', query: { after: 'eventCursor' }, types: ['card.created', 'card.updated', 'card.deleted'] },
+        agentSurface: listAgentSurface(),
         requestSchema: canvasOperationsJsonSchema,
         requiresExpectedRevision: true, maxBatchSize: 100, execution: 'synchronous',
         // Agent task execution belongs to the manage side. Until a real
@@ -245,6 +249,28 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
       const nodes = [...(Array.isArray(snapshot.state.workbenchBasicNodes) ? snapshot.state.workbenchBasicNodes : []),
         ...(Array.isArray(snapshot.state.workbenchImages) ? snapshot.state.workbenchImages : [])];
       if (!nodes.some(node => node && node.id === body.nodeId)) throw new CanvasStateError(404, 'CANVAS_NODE_NOT_FOUND', 'Cannot bind an absent card');
+      const targetApp = await deps.appRegistry?.get(body.appId);
+      if (!targetApp || targetApp.status !== 'active' || !/^https?:\/\//.test(targetApp.endpoint)) throw new CanvasStateError(503, 'APP_UNAVAILABLE', 'Binding target App is unavailable');
+      const actor = tenantOf(req);
+      // Doc state also queries its delivery queue. A queue-owned mirror request
+      // must verify against the independent body-read action, not re-enter that
+      // same queue through state (which would deadlock across two HTTP servers).
+      const documentTarget = body.appId === 'doc';
+      const verified = await fetch(`${targetApp.endpoint.replace(/\/+$/, '')}/instances/${encodeURIComponent(body.appInstanceId)}${documentTarget ? '/actions/doc.read' : '/state'}`, {
+        method: documentTarget ? 'POST' : 'GET', headers: { 'content-type': 'application/json', 'x-team-id': actor.teamId, 'x-user-id': actor.userId },
+        ...(documentTarget ? { body: JSON.stringify({ input: {} }) } : {}), signal: AbortSignal.timeout(5000),
+      });
+      if (!verified.ok) throw new CanvasStateError(verified.status === 403 || verified.status === 404 ? 403 : 503, 'BINDING_TARGET_UNVERIFIED', 'Target instance is not accessible to this caller');
+      type TargetSnapshot = { instanceId?: string; meta?: { id?: string; teamId?: string; nodeId?: string; mirrorCanvasId?: string; archivedAt?: string } };
+      const target = await verified.json() as { data?: TargetSnapshot & { result?: TargetSnapshot } };
+      const targetSnapshot = documentTarget ? target.data?.result : target.data;
+      if ((documentTarget ? targetSnapshot?.meta?.id : targetSnapshot?.instanceId) !== body.appInstanceId) throw new CanvasStateError(503, 'BINDING_TARGET_UNVERIFIED', 'Target App returned a different instance');
+      if (body.appId === 'doc' && (!targetSnapshot?.meta || (targetSnapshot.meta.teamId ?? 'local') !== actor.teamId || targetSnapshot.meta.nodeId !== body.nodeId || targetSnapshot.meta.mirrorCanvasId !== req.params.instanceId || targetSnapshot.meta.archivedAt)) throw new CanvasStateError(409, 'BINDING_TARGET_MISMATCH', 'Document is not an active copy owned by this card');
+      const fresh = await deps.canvasState.read(req.params.instanceId);
+      const freshNodes = [...(Array.isArray(fresh.state.workbenchBasicNodes) ? fresh.state.workbenchBasicNodes : []), ...(Array.isArray(fresh.state.workbenchImages) ? fresh.state.workbenchImages : [])];
+      const currentNode = freshNodes.find(node => node && node.id === body.nodeId);
+      if (!currentNode) throw new CanvasStateError(404, 'CANVAS_NODE_NOT_FOUND', 'Card was removed during binding verification');
+      if (body.mirrorPath && currentNode.projectFilePath !== body.mirrorPath) throw new CanvasStateError(409, 'CANVAS_MIRROR_TARGET_CHANGED', 'Card file changed during binding verification');
       const row = deps.bindings.upsert({
         canvasInstanceId: req.params.instanceId, nodeId: body.nodeId,
         ...(body.kind ? { kind: body.kind } : {}), appId: body.appId, appInstanceId: body.appInstanceId,
@@ -260,8 +286,12 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
   app.delete<{ instanceId: string }>('/api/apps/canvas/instances/:instanceId/bindings', async (req, res) => {
     try {
       if (!await authorize(req, res, req.params.instanceId, { mode: 'write' })) return;
-      const nodeId = typeof req.query.nodeId === 'string' ? req.query.nodeId : undefined;
-      const count = deps.bindings?.archive(req.params.instanceId, nodeId) ?? 0;
+      const nodeId = typeof req.query.nodeId === 'string' ? req.query.nodeId : '';
+      const appId = typeof req.query.appId === 'string' ? req.query.appId : '';
+      const appInstanceId = typeof req.query.appInstanceId === 'string' ? req.query.appInstanceId : '';
+      if (!nodeId || !appId || !appInstanceId) throw new CanvasStateError(428, 'BINDING_PRECONDITION_REQUIRED', 'Conditional unbinding requires nodeId, appId and appInstanceId');
+      await requireAppAccess(req, appId);
+      const count = deps.bindings?.archive(req.params.instanceId, nodeId, 'asset_archived', { appId, appInstanceId }) ?? 0;
       res.json({ requestId: requestId(), data: { archived: count } });
     } catch (error) { sendAppError(res, error); }
   });
@@ -409,6 +439,39 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
     } catch (error) { sendAppError(res, error); }
   });
 
+  app.get<{ instanceId: string }>('/api/apps/canvas/instances/:instanceId/document-sync', async (req, res) => {
+    try {
+      const projectId = resolveInstanceId(req.params.instanceId);
+      if (!await authorize(req, res, projectId, { mode: 'read' })) return;
+      if (!deps.documentSync) throw new CanvasStateError(503, 'DOCUMENT_SYNC_UNAVAILABLE', 'Document synchronization is not configured');
+      await requireAppAccess(req, 'doc');
+      res.json({ requestId: requestId(), data: { entries: deps.documentSync.status(projectId).filter(entry => entry.teamId === tenantOf(req).teamId) } });
+    } catch (error) { sendAppError(res, error); }
+  });
+  app.post<{ instanceId: string }>('/api/apps/canvas/instances/:instanceId/document-sync/retry', async (req, res) => {
+    try {
+      const projectId = resolveInstanceId(req.params.instanceId);
+      if (!await authorize(req, res, projectId, { mode: 'write' })) return;
+      if (!deps.documentSync) throw new CanvasStateError(503, 'DOCUMENT_SYNC_UNAVAILABLE', 'Document synchronization is not configured');
+      await requireAppAccess(req, 'doc');
+      if (req.body?.nodeId !== undefined && typeof req.body.nodeId !== 'string') throw new CanvasStateError(400, 'BAD_REQUEST', 'nodeId must be a string');
+      await deps.documentSync.retry(projectId, req.body?.nodeId);
+      res.json({ requestId: requestId(), data: { entries: deps.documentSync.status(projectId).filter(entry => entry.teamId === tenantOf(req).teamId) } });
+    } catch (error) { sendAppError(res, error); }
+  });
+  app.post<{ instanceId: string }>('/api/apps/canvas/instances/:instanceId/document-sync/resolve', async (req, res) => {
+    try {
+      const projectId = resolveInstanceId(req.params.instanceId);
+      if (!await authorize(req, res, projectId, { mode: 'write' })) return;
+      if (!deps.documentSync) throw new CanvasStateError(503, 'DOCUMENT_SYNC_UNAVAILABLE', 'Document synchronization is not configured');
+      await requireAppAccess(req, 'doc');
+      const { nodeId, choice, expectedCanvasContent, expectedDocumentRevision } = req.body ?? {};
+      if (typeof nodeId !== 'string' || !nodeId || !['canvas', 'document'].includes(choice) || typeof expectedCanvasContent !== 'string' || typeof expectedDocumentRevision !== 'string') throw new CanvasStateError(400, 'BAD_REQUEST', 'Conflict resolution requires choice and both observed versions');
+      await deps.documentSync.resolve(projectId, nodeId, choice, expectedCanvasContent, expectedDocumentRevision);
+      res.json({ requestId: requestId(), data: { entries: deps.documentSync.status(projectId).filter(entry => entry.teamId === tenantOf(req).teamId) } });
+    } catch (error) { sendAppError(res, error); }
+  });
+
   /** Shared file channel: external Apps read/write the exact file a card
    * points at (`projectFilePath`). Query `path` is required; paths are
    * project-relative and must not escape the canvas root. */
@@ -423,9 +486,9 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
       const projectId = resolveInstanceId(req.params.instanceId);
       if (!await authorize(req, res, projectId, { mode: 'read' })) return;
       if (!deps.content) throw new CanvasStateError(503, 'CANVAS_FILES_UNAVAILABLE', 'file channel is not configured');
-      const content = await deps.content.read(projectId, filePath(req));
-      if (content === null) throw new CanvasStateError(404, 'CANVAS_FILE_NOT_FOUND', 'File not found');
-      res.json({ requestId: requestId(), data: { content } });
+      const snapshot = await deps.canvasState.readFileSnapshot(projectId, filePath(req));
+      if (snapshot.content === null) throw new CanvasStateError(404, 'CANVAS_FILE_NOT_FOUND', 'File not found');
+      res.json({ requestId: requestId(), data: snapshot });
     } catch (error) { sendAppError(res, error); }
   });
 
@@ -441,8 +504,18 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
       if (expectedRevision !== undefined && (typeof expectedRevision !== 'number' || !Number.isSafeInteger(expectedRevision) || expectedRevision < 0)) {
         throw new CanvasStateError(400, 'BAD_REQUEST', 'expectedRevision must be a nonnegative safe integer');
       }
-      const snapshot = await deps.canvasState.writeTextMirror(projectId, path, content, expectedRevision as number | undefined);
-      res.json({ requestId: requestId(), data: { path, status: 'written', revision: snapshot.revision } });
+      for (const field of ['baseContent', 'nodeId', 'docId', 'documentRevision'] as const) if (req.body?.[field] !== undefined && typeof req.body[field] !== 'string') throw new CanvasStateError(400, 'BAD_REQUEST', `${field} must be a string`);
+      const sourceRevision: unknown = req.body?.sourceRevision;
+      if (sourceRevision !== undefined && (typeof sourceRevision !== 'number' || !Number.isSafeInteger(sourceRevision) || sourceRevision < 0)) throw new CanvasStateError(400, 'BAD_REQUEST', 'sourceRevision must be a nonnegative safe integer');
+      if ((req.body.docId || req.body.documentRevision) && (!req.body.docId || !req.body.documentRevision || !req.body.nodeId)) throw new CanvasStateError(400, 'BAD_REQUEST', 'Document mirror requires docId, nodeId and documentRevision');
+      if (req.body.docId && deps.bindings) {
+        const binding = deps.bindings.getActive(projectId, req.body.nodeId, 'doc');
+        if (!binding || binding.status !== 'active' || binding.appId !== 'doc' || binding.appInstanceId !== req.body.docId) throw new CanvasStateError(409, 'CANVAS_BINDING_CONFLICT', 'Document is not the active binding of this card');
+      }
+      const snapshot = await deps.canvasState.writeTextMirror(projectId, path, content, expectedRevision as number | undefined,
+        { baseContent: req.body.baseContent, nodeId: req.body.nodeId, docId: req.body.docId, documentRevision: req.body.documentRevision, ...(sourceRevision !== undefined ? { sourceRevision: sourceRevision as number } : {}) });
+      const saved = await deps.canvasState.readFileSnapshot(projectId, snapshot.mirrorPath ?? path);
+      res.json({ requestId: requestId(), data: { ...saved, status: 'written', ...(snapshot.syncWarnings ? { syncWarnings: snapshot.syncWarnings } : {}) } });
     } catch (error) { sendAppError(res, error); }
   });
 }

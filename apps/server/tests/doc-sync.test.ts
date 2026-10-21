@@ -1,5 +1,7 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
+import { createHash } from 'node:crypto';
+const revision = (text: string) => createHash('sha256').update(text).digest('hex');
 import path from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
 import { createDocSynchronizer } from '../src/canvas/doc-sync.js';
@@ -21,8 +23,15 @@ async function setup(scope: 'platform' | 'team' = 'platform') {
   const registry = new AppRegistryStore(undefined, undefined, path.join(root, 'registry.json'));
   await registry.register({ appId: 'doc', name: '文档', endpoint: 'http://doc/api/apps/doc', status: 'active', scope, ...(scope === 'team' ? { teamId: 'other' } : {}) });
   const bindings = new BindingStore(root), audit = new AuditLog(root), entitlements = new AppEntitlementStore(root);
-  return { bindings, audit, entitlements, sync: createDocSynchronizer({ registry, bindings, audit, entitlements,
-    project: () => ({ teamId: 'team-a', createdBy: 'alice' }) }) };
+  const service = createDocSynchronizer({ dataRoot: root, registry, bindings, audit, entitlements,
+    project: () => ({ teamId: 'team-a', createdBy: 'alice' }) });
+  const committed = new Map<string, { state: Record<string, unknown>; revision: number }>();
+  service.attach({ read: async id => committed.get(id)! });
+  const sync = async (id: string, node: Record<string, unknown>, rev: number, base?: string) => {
+    committed.set(id, { state: { workbenchBasicNodes: [{ kind: 'text', ...node }] }, revision: rev });
+    return service(id, node, rev, base);
+  };
+  return { bindings, audit, entitlements, sync };
 }
 const ok = (result: unknown) => new Response(JSON.stringify({ data: { result } }), { status: 200 });
 
@@ -32,13 +41,13 @@ it('refreshes scoped binding pointers on every save and pins the originating rev
   vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit) => {
     const input = JSON.parse(String(init.body)).input;
     calls.push({ url, input, headers: init.headers as Record<string, string> });
-    return ok(url.endsWith('doc.create') ? { instanceId: `doc-${input.mirrorCanvasId}` } : { mirror: { status: 'synced' } });
+    return ok(url.endsWith('doc.create') ? { instanceId: `doc-${input.mirrorCanvasId}` } : { content: input.content, revision: revision(input.content), mirror: { status: 'synced' } });
   }));
-  await sync('canvas-a', { id: 'same', kind: 'text', text: 'A', projectFilePath: 'sources/text/a.md' }, 10);
-  await sync('canvas-b', { id: 'same', kind: 'text', text: 'B', projectFilePath: 'sources/text/b.md' }, 20);
+  await sync('canvas-a', { id: 'same', kind: 'text', text: 'A', projectFilePath: 'sources/text/a.md' }, 10, '');
+  await sync('canvas-b', { id: 'same', kind: 'text', text: 'B', projectFilePath: 'sources/text/b.md' }, 20, '');
   await sync('canvas-a', { id: 'same', kind: 'text', text: 'A2', projectFilePath: 'sources/text/a-new.md' }, 30);
   expect(calls).toHaveLength(6);
-  expect(calls[5]!.input).toEqual({ content: 'A2', mirrorRevision: 30 });
+  expect(calls[5]!.input).toEqual({ content: 'A2', baseContent: 'A', expectedRevision: revision('A'), mirrorRevision: 30, mirrorBaseContent: 'A2' });
   expect(calls[4]!.input.mirrorPath).toBe('sources/text/a-new.md');
   expect(calls.every(call => call.headers['x-team-id'] === 'team-a')).toBe(true);
   expect(bindings.list({ canvasInstanceId: 'canvas-a' })[0]).toMatchObject({ appInstanceId: 'doc-canvas-a', mirrorPath: 'sources/text/a-new.md' });
@@ -50,16 +59,16 @@ it('rejects failed doc writes and records a failure rather than claiming synchro
   const { sync, audit } = await setup();
   vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(ok({ instanceId: 'archived' }))
     .mockResolvedValueOnce(new Response('DOC_ARCHIVED', { status: 409 })));
-  await expect(sync('canvas-a', { id: 'n', text: '保留画布' }, 5)).rejects.toThrow('409');
+  await expect(sync('canvas-a', { id: 'n', text: '保留画布' }, 5, 'before')).rejects.toThrow('409');
   expect(audit.list()[0]).toMatchObject({ status: 'failed', action: 'doc.sync' });
 });
 
 it('uses the actual editor for user entitlements and audit, not the project creator', async () => {
   const { sync, entitlements, audit } = await setup();
   entitlements.put({ scope: 'user:bob', appId: 'doc', effect: 'deny' });
-  const fetcher = vi.fn(async (url: string) => ok(url.endsWith('doc.create') ? { instanceId: 'd' } : { mirror: { status: 'synced' } }));
+  const fetcher = vi.fn(async (url: string, init: RequestInit) => { const input = JSON.parse(String(init.body)).input; return ok(url.endsWith('doc.create') ? { instanceId: 'd' } : { content: input.content, revision: revision(input.content), mirror: { status: 'synced' } }); });
   vi.stubGlobal('fetch', fetcher);
-  await runWithRequestTenant({ teamId: 'team-a', userId: 'bob' }, () => sync('canvas-a', { id: 'n', text: 'blocked' }, 1));
+  await expect(runWithRequestTenant({ teamId: 'team-a', userId: 'bob' }, () => sync('canvas-a', { id: 'n', text: 'blocked' }, 1, ''))).rejects.toMatchObject({ code: 'DOC_FORBIDDEN' });
   expect(fetcher).not.toHaveBeenCalled();
   entitlements.remove('user:bob', 'doc');
   await runWithRequestTenant({ teamId: 'team-a', userId: 'bob' }, () => sync('canvas-a', { id: 'n', text: 'allowed' }, 2));
@@ -70,6 +79,6 @@ it('uses the actual editor for user entitlements and audit, not the project crea
 it('does not send data to another team’s registered doc service', async () => {
   const { sync } = await setup('team');
   const fetcher = vi.fn(); vi.stubGlobal('fetch', fetcher);
-  await sync('canvas-a', { id: 'n', text: 'private' }, 1);
+  await expect(sync('canvas-a', { id: 'n', text: 'private' }, 1)).rejects.toMatchObject({ code: 'DOC_FORBIDDEN' });
   expect(fetcher).not.toHaveBeenCalled();
 });

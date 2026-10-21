@@ -1,0 +1,188 @@
+{
+  "passed": true,
+  "origin": "http://127.0.0.1:4173",
+  "checks": [
+    "Registry mounts original full canvas and resolves Provider instance",
+    "UI add-video-card action persists into the same Provider state",
+    "Provider edit appears in UI; old-key replay is stable; stale writes return 409",
+    "A/B instances switch only after flush, remain isolated, and restore A",
+    "Browser reload restores the same persisted canvas and Provider edit"
+  ],
+  "a": "ma-9fc3ba2d544ac381e33f2516339c4e3e5d86a8775f68d17099a302e4c8b18956",
+  "b": "ma-f8d931ea7e2b8d98286e6e6936222e31ec5c19b3302dd50d1726ce394882fe79",
+  "nodeId": "basic-video-mvhr8upl-ncia",
+  "title": "Provider verified 1792565550236",
+  "errors": [],
+  "traffic": [
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4173/canvas-provider/open-platform/v1/instances/pi_workspace_a/actions/canvas.create",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4173/canvas-provider/open-platform/v1/instances/pi_workspace_a/actions/canvas.create",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/projects/ma-9fc3ba2d544ac381e33f2516339c4e3e5d86a8775f68d17099a302e4c8b18956/canvas/state",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/projects/ma-9fc3ba2d544ac381e33f2516339c4e3e5d86a8775f68d17099a302e4c8b18956/canvas/state",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/media/models",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/media/config",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/agents",
+      "status": 200
+    },
+    {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/projects/ma-9fc3ba2d544ac381e33f2516339c4e3e5d86a8775f68d17099a302e4c8b18956/canvas/state",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/projects/ma-9fc3ba2d544ac381e33f2516339c4e3e5d86a8775f68d17099a302e4c8b18956/canvas/revision",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/projects/ma-9fc3ba2d544ac381e33f2516339c4e3e5d86a8775f68d17099a302e4c8b18956/canvas/state",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4173/canvas-provider/open-platform/v1/instances/pi_workspace_b/actions/canvas.create",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4173/canvas-provider/open-platform/v1/instances/pi_workspace_b/actions/canvas.create",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/projects/ma-f8d931ea7e2b8d98286e6e6936222e31ec5c19b3302dd50d1726ce394882fe79/canvas/state",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/projects/ma-f8d931ea7e2b8d98286e6e6936222e31ec5c19b3302dd50d1726ce394882fe79/canvas/state",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/media/models",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/media/config",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/agents",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4173/canvas-provider/open-platform/v1/instances/pi_workspace_a/actions/canvas.create",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4173/canvas-provider/open-platform/v1/instances/pi_workspace_a/actions/canvas.create",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/projects/ma-9fc3ba2d544ac381e33f2516339c4e3e5d86a8775f68d17099a302e4c8b18956/canvas/state",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/projects/ma-9fc3ba2d544ac381e33f2516339c4e3e5d86a8775f68d17099a302e4c8b18956/canvas/state",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/media/models",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/media/config",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/agents",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4173/canvas-provider/open-platform/v1/instances/pi_workspace_a/actions/canvas.create",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4173/canvas-provider/open-platform/v1/instances/pi_workspace_a/actions/canvas.create",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/projects/ma-9fc3ba2d544ac381e33f2516339c4e3e5d86a8775f68d17099a302e4c8b18956/canvas/state",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/projects/ma-9fc3ba2d544ac381e33f2516339c4e3e5d86a8775f68d17099a302e4c8b18956/canvas/state",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/media/models",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/media/config",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/agents",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/media/models",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/media/config",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/projects/ma-9fc3ba2d544ac381e33f2516339c4e3e5d86a8775f68d17099a302e4c8b18956/canvas/revision",
+      "status": 200
+    }
+  ]
+}

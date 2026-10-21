@@ -1,6 +1,7 @@
 # 数据模型总图 —— 团队版 App 平台
 
 > 定位：**资产和治理全自管，身份和组织调一涵的接口**。本文件列全每张表的字段、归属、现状。标注：✅已实现 / 🟡部分 / ⬜待建。
+> **阅读修正（2026-10-21）**：本文同时保留早期规划与后续云端收敛设计；§一/§二的候选表不等于本期建设要求，当前云端目标见§三。✅是该记录的实现声明，不证明当前云资源存在或生产验收。源码、本地索引、云表及运行证据分开核查；总体关系先读 [开发手册](app-development-handbook.zh-CN.md)。
 
 ## 〇、数据三分法
 
@@ -22,7 +23,7 @@
 | syncedAt | 上次同步时间 |
 | status | active / dissolved（解散后资产走归档流程） |
 
-**规则**：同步只进不出——一涵改了什么我们跟什么；我们不反向写。请求进来的 `X-Team-Id/X-User-Id`（部署态由 SSO 网关注入）先查这张表校验存在性，查不到当新租户放行（本地 dev 的 `local` 租户直接放行）。
+**历史候选，当前不建此表（见§三）**：展示缓存若将来需要，不能成为授权真源。生产请求必须有可信身份与团队资格，缓存查不到不能当“新租户”自动放行；本地模式另行显式启用。
 
 ## 二、平台治理层（我们的表）
 
@@ -78,52 +79,70 @@ status, receiptId?, summary, createdAt
 ```
 每个操作回执落一条——「谁在什么时候对哪个资产干了什么」一查到底。现在的回执是会话级内存，需要落盘成这张表。
 
-## 三、用户资产层（分散存储 + 全局绑定索引）
+## 三、现在这两个 App 的云表（2026-10-21）
 
-### `projects`（画布实例）✅ 已有
+不新建绑定表，不建项目名单，不建租户表。项目菜单在一涵的基座，他只存画布编号。租户编号用他传来的 `teamId`，写在下面这些行上，两边必须相同。
 
-```
-id, name, teamId, createdBy, createdAt, updatedAt, metadata, status?
-```
-⬜ 待补：`archivedAt`（删画布=归档，实例文件不删）。
+云端目标是业务正文、画布状态及资源进入对应云存储；本地开发仍可显式使用本地存储。操作回执、绑定缓存、同步日志/outbox 和配置属于另一类运行数据，不能从“正文在云端”推导它们不需要持久化。当前实现的单写者/持久卷限制见正文增补合同，尚未核验的云资源不标已部署。
 
-### `bindings`（卡↔App 绑定索引）⬜ 待建
+### `canvases`（画布）✅ 已有
 
-```
-bindingId, canvasInstanceId, nodeId, kind,
-appId, appInstanceId,            ← 绑的是哪个 App 的哪条实例
-mirrorPath?, tenantId,
-status: active|archived, createdAt, updatedAt
-```
-**为什么单独建**：现在绑定信息散在 doc 文档的 meta 里（nodeId/mirror）——画布删卡要归档绑定文档、按画布列出全部绑定资产、换 App 时迁移绑定，都需要一张全局索引。写入规则：绑定时两边各记一份（App meta 记 nodeId 照旧 + 中心 bindings 记一行）；以中心表为准做治理。
-
-### 各 App 自己的实例库 ✅ 已有（doc 为例）
+一行一张画布。编号由基座传入。
 
 ```
-doc_documents: id, name, path, size, updatedAt,
-               nodeId?, mirrorCanvasId?, mirrorPath?,   ← 绑定信息（与中心表对账）
-               teamId, createdBy
-sketch/其他 App 同理——各自的库各自的桶，互不进对方库
+id, teamId, createdBy, revision, updatedAt,
+state    卡片、连线、视口，以及瘦身后的操作回执
+archivedAt?
 ```
 
-### `canvas_files`（镜像文件）✅ 已有
+卡片上直接写绑定，不另表：`boundAppId`、`boundAppInstanceId`。`teamId` 用这一行的，不在卡片上再存一份。
 
-按实例组织（`sources/text/…`），画布侧渲染镜像——App 写透传维护，不属于治理表。
+### `canvas_files` + 存储桶 ✅ 已有
+
+表只做索引，字节在桶里。画布 JSON 里只留路径。
+
+```
+canvasId, path, fileId, kind, mime, size, sha256, createdAt
+```
+
+图片、文字卡的文件副本走这里。文字卡的正文还会抄在卡片的 `text` 里，给 Agent 直接读。
+
+### `canvas_operations` ✅ 已有，只是索引
+
+方便按一次操作去查。真源在 `canvases` 那一行里的回执，这张表丢了也能从那里补。
+
+### `documents` + 文档桶 ✅ 已有（文档 App 自己的库）
+
+一行一份文档，正文在文档桶，不进画布库。
+
+```
+id, name, path, fileId, size, updatedAt,
+nodeId, mirrorCanvasId, mirrorPath,
+teamId, createdBy, archivedAt?
+```
+
+`nodeId` + `mirrorCanvasId` 就是文档这边的绑定，必须和画布卡片上的 `boundAppInstanceId` 对上，`teamId` 必须和画布那一行相同。
+
+### 明确不建
+
+| 不建 | 原因 |
+|---|---|
+| 新增云端 `bindings` 表 | 当前云端设计以画布卡片和文档行表达；不等于删除现有 bindings API/本地安全索引，迁移须另验 |
+| `projects` / 项目名单 | 菜单在一涵基座 |
+| `tenant_projection` | 现在不镜像组织，只记录他传来的 teamId |
+| `audit_log` | 打开和编辑都不靠它 |
 
 ## 四、关系与铁律
 
 ```
-tenant(一涵镜像)
-  ├── projects[] (teamId)
-  │     └── bindings[] (nodeId → appInstanceId)
-  │              └── doc_documents / sketch_docs …（各 App 库）
-  ├── apps (platform) + apps (team:<id>)
-  ├── app_entitlements (team:<id>|user:<id> → appId)
-  └── quotas / usage_counters / audit_log
+一涵：项目菜单 → 画布编号
+画布库：canvases（卡片上写 boundAppId / boundAppInstanceId）
+        canvas_files → 存储桶
+文档库：documents（nodeId / mirrorCanvasId / teamId）→ 文档桶
 ```
 
-1. **每条资产链到底可查**：卡 → binding → App 实例 → 文件 → tenant，一条线全是外键
-2. **写操作三件套**：回执（幂等）+ 审计行 + 租户头——所有 App 协议统一
+1. **对得上才算绑上**：画布卡片的文档编号 = 文档行的 id，文档行的画布编号和卡片编号反过来也指向这张卡，两边 teamId 相同。
+2. **写操作检查**：可信身份/授权 + 版本/幂等 + 可关联结果。审计和回执按实现记录持久范围；不能因传了租户头就当认证通过，也不能因旧规划有审计表就默认实际已建。
 3. **App 私有数据不进中心库**：doc 正文永远只存 doc 自己的库；中心只有「索引和治理」，这是分散存储原则的底线
 4. **删除一律归档**：asset 标 `archived` 不物理删——资产沉淀 + 可恢复 + 审计
 
@@ -132,5 +151,5 @@ tenant(一涵镜像)
 | 阶段 | 内容 | 状态 |
 |---|---|---|
 | ① 已落地 | apps/entitlements/kind_grants/projects/doc 实例库（带租户指纹） | ✅ |
-| ② 本期 | bindings 中心索引 + audit_log 落盘 + projects 归档字段 | 本次做 |
-| ③ 上云前 | tenant_projection（接一涵 API）+ quotas/usage + app_releases | 待一涵接入清单 |
+| ② 本期 | 绑定写在 canvases 卡片和 documents 行上；本地文件不再作为真源 | 约定已定，云未接上前本地只是兜底 |
+| ③ 按需规划 | 身份对接、quotas/usage、版本上架；tenant_projection 当前不建 | 外部合同和需求确认后再实施，不作为无条件建表要求 |

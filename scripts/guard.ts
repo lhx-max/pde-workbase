@@ -25,7 +25,12 @@ const names = new Set(manifests.map(item => item.value.name));
 for (const { file, value } of manifests) {
   for (const [name, spec] of Object.entries({ ...value.dependencies, ...value.devDependencies, ...value.peerDependencies })) {
     if (spec.startsWith('workspace:') && !names.has(name)) errors.push(`${file}: unresolved workspace dependency ${name}`);
-    if (/^(?:link:|file:)/.test(spec)) errors.push(`${file}: nonportable local dependency ${name}`);
+    // Versioned, regular tarballs shipped INSIDE vendor/ are portable App
+    // packages, not runtime links to another checkout. Directory/link/file
+    // escapes remain forbidden; files excludes symlinks during traversal.
+    const localTarget = spec.startsWith('file:') ? path.relative(root, path.resolve(root, path.dirname(file), spec.slice(5))).split(path.sep).join('/') : '';
+    const vendoredArchive = !path.isAbsolute(spec.slice(5)) && /^vendor\/[A-Za-z0-9_./-]+\.tgz$/.test(localTarget) && !localTarget.split('/').includes('..') && files.includes(localTarget);
+    if (spec.startsWith('link:') || (spec.startsWith('file:') && !vendoredArchive)) errors.push(`${file}: nonportable local dependency ${name}`);
     if ((name === '@ks-kp/agent-ui' || name === '@canvas/mf-ui') && file !== 'apps/mf-ui/package.json') errors.push(`${file}: MF SDK must stay inside its isolated document`);
     if (file === 'apps/mf-ui/package.json' && /^(?:@bezier\/(?:components|canvas-workbench|workbench-ui)|@canvas-workspace\/web)$/.test(name)) errors.push(`${file}: React18 UI dependency crosses the MF document boundary`);
   }

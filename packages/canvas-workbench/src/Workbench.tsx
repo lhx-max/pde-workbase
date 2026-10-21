@@ -67,6 +67,7 @@ import {
   useCanvasUiHost,
 } from './platform/ui-host';
 import { applyCanvasTextGenerationResults } from './workbench/canvas-text-generation';
+import { useCanvasTextDocumentChange } from './workbench/useCanvasTextDocumentChange';
 import {
   applyCanvasTextDocumentChange,
   canvasTextPatchWithCopyOnWrite,
@@ -630,14 +631,13 @@ function FlowHome({
     return () => controller.abort();
   }, [legacyArtifactKey, setBasicNodes]);
 
-  React.useEffect(() => {
-    if (!textDocumentChange) return;
+  useCanvasTextDocumentChange(getCanvasHostContext().projectId, textDocumentChange, change => {
     setBasicNodes(nodes => {
-      const next = applyCanvasTextDocumentChange(nodes, textDocumentChange);
+      const next = applyCanvasTextDocumentChange(nodes, change);
       if (next !== nodes) basicNodesRef.current = next;
       return next;
     });
-  }, [setBasicNodes, textDocumentChange]);
+  });
 
   React.useEffect(() => {
     if (!textGenerationResults?.length) return;

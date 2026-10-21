@@ -24,6 +24,8 @@ export type TextDocumentOpener = (
 ) => TextDocumentOpenResult | Promise<TextDocumentOpenResult>;
 
 export type TextDocumentChange = {
+  /** Scope a one-shot save notification; hosts should always supply this. */
+  projectId?: string;
   path: string;
   content: string;
   revision: number;

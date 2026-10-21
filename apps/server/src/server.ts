@@ -4,6 +4,7 @@ import type {IncomingMessage} from 'node:http';
 import type {Duplex} from 'node:stream';
 import path from 'node:path';
 import { mkdirSync } from 'node:fs';
+import { canvasTextPath } from '@bezier/contracts';
 import { createProjectRegistry } from './storage/project-registry.js';
 import { CanvasStateService } from './canvas/state.js';
 import { createDocSynchronizer } from './canvas/doc-sync.js';
@@ -32,10 +33,13 @@ import {AppEntitlementStore} from './storage/app-entitlements.js';
 import {BindingStore} from './storage/bindings.js';
 import {AuditLog} from './storage/audit-log.js';
 import {registerAppsRoutes} from './routes/apps.js';
+import {registerCanvasProviderRoutes} from './routes/canvas-provider.js';
 import {syncCardPackRegistry} from './card-packs.js';
 import {ownsTenantAsset,tenantOf,runWithRequestTenant,type AuthorizeAppManagement} from './tenant.js';
 export interface CanvasServerOptions {
  dataRoot:string; host?:string; authToken?:string; allowedOrigins?:string[]; assets?:AssetAdapter;
+ /** Explicit loopback-only Plugin Kit integration. Never use as production authentication. */
+ providerLocalDevelopment?:boolean;
  media?:MediaAdapter; capabilities?:CapabilityAdapter; assetLibrary?:AssetLibraryOptions;
  /** Canvas self-closed-loop backend: state/journal/canvas files on Appwrite
  * instead of the project filesystem. Task artifact features stay
@@ -95,7 +99,7 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
   next();
  };
  const authorizeProjectRequest=async(req:express.Request,res:Response,projectId:string,access:{mode:'read'|'write';capability?:string}={mode:'read'})=>{
-  const creating=req.method==='POST'&&(req.path==='/api/projects'||req.path==='/api/apps/canvas/actions/canvas.create');
+  const creating=req.method==='POST'&&(req.path==='/api/projects'||req.path==='/api/apps/canvas/actions/canvas.create'||(options.providerLocalDevelopment===true&&/^\/open-platform\/v1\/instances\/[^/]+\/actions\/canvas\.create$/.test(req.path)));
   if(!creating&&!registry.get(projectId)){sendApiError(res,404,'PROJECT_NOT_FOUND','Project not found');return false;}
   const project=registry.get(projectId);
    if(project&&!ownsTenantAsset(project,tenantOf(req))){sendApiError(res,403,'TENANT_FORBIDDEN','Asset belongs to another team');return false;}
@@ -121,8 +125,21 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
  app.get('/api/health',(_req,res)=>res.json({ok:true,service:'canvas-workspace'}));
  registerCanvasStateRoutes(app,{canvasState:canvas,ledger,resolveProjectRoot:id=>registry.resolveProjectRoot(id),authorizeProjectRequest});
  registerAppsRoutes(app,{registry:appRegistry,entitlements,audit,...(options.authorizeAppManagement?{authorizeAppManagement:options.authorizeAppManagement}:(options.authToken||options.authorize)?{authorizeAppManagement:()=>false}:{})});
- registerAppCanvasRoutes(app,{canvasState:canvas,registry,authorizeProjectRequest,appRegistry,content:appContent,ledger,bindings,audit,entitlements});
- registerProjectFileRoutes(app,{registry,canvasFiles:canvas,authorize:authorizeProjectRequest,sketchDocuments:{
+ registerAppCanvasRoutes(app,{canvasState:canvas,registry,authorizeProjectRequest,appRegistry,content:appContent,ledger,bindings,audit,entitlements,documentSync:textDocumentSynced});
+ registerCanvasProviderRoutes(app,{canvasState:canvas,registry,authorizeProjectRequest,providerLocalDevelopment:options.providerLocalDevelopment});
+ registerProjectFileRoutes(app,{registry,canvasFiles:canvas,authorize:authorizeProjectRequest,
+  guardLegacyFileWrite:async(projectId,file)=>{
+    const active=new Set(bindings.list({canvasInstanceId:projectId,appId:'doc'}).map(binding=>binding.nodeId));
+    if(!active.size)return;
+    const snapshot=await canvas.read(projectId);
+    const nodes=Array.isArray(snapshot.state.workbenchBasicNodes)?snapshot.state.workbenchBasicNodes:[];
+    // The index mirrorPath can lag a canvas rename/fork. Current card identity
+    // and path, not that historical pointer, determine the protected mirror.
+    if(nodes.some(node=>node&&node.kind==='text'&&typeof node.id==='string'&&active.has(node.id)
+      &&(typeof node.projectFilePath==='string'?node.projectFilePath:canvasTextPath(node.id))===file)){
+      throw Object.assign(new Error('Edit this document through its canvas card, Doc editor, or versioned App files channel'),{status:428,code:'DOC_WRITE_CHANNEL_REQUIRED'});
+    }
+  },sketchDocuments:{
   async read(filePath){const endpoint=await sketchEndpoint();if(!endpoint||!isSketchDocumentPath(filePath))return undefined;return new SketchAppFiles(endpoint).read(filePath);},
   async write(filePath,content){const endpoint=await sketchEndpoint();if(!endpoint||!isSketchDocumentPath(filePath))return undefined;const saved=await new SketchAppFiles(endpoint).write(filePath,content);return {name:saved.path,path:saved.path,size:saved.size,mtime:Date.parse(saved.updatedAt)||Date.now(),kind:'sketch',mime:'application/json',type:'file'};},
   async listed(projectId){const endpoint=await sketchEndpoint();if(!endpoint)return [];const snapshot=await canvas.read(projectId);const nodes=Array.isArray(snapshot.state.workbenchBasicNodes)?snapshot.state.workbenchBasicNodes:[];const client=new SketchAppFiles(endpoint);const out=[];for(const node of nodes){if(!node||typeof node!=='object')continue;const row=node as {kind?:unknown;projectFilePath?:unknown};if(row.kind!=='sketch'||typeof row.projectFilePath!=='string'||!isSketchDocumentPath(row.projectFilePath))continue;const meta=await client.meta(row.projectFilePath);if(!meta)continue;out.push({name:meta.path,path:meta.path,size:meta.size,mtime:Date.parse(meta.updatedAt)||Date.now(),kind:'sketch' as const,mime:'application/json',type:'file' as const});}return out;},

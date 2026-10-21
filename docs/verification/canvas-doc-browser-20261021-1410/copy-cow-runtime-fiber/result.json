@@ -1,0 +1,10 @@
+{
+  "checks": [],
+  "errors": [],
+  "responses": [],
+  "failures": [
+    {
+      "error": "AssertionError [ERR_ASSERTION]: Keyboard copied draft must persist\n    at <anonymous> (/private/tmp/canvas-doc-browser-KXH8y7/fiber-diagnostic.ts:131:38)"
+    }
+  ]
+}

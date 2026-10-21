@@ -30,6 +30,8 @@ export interface MountedCardPack {
   ops: string[];
   /** kind → appId: which editor App owns deep editing for a kind. */
   editorApps?: Record<string, string> | undefined;
+  /** kind → fields an agent reads in canvas JSON, and the action that writes each one. */
+  agent?: Record<string, { read: string[]; write: Record<string, string> }> | undefined;
 }
 
 const packs = new Map<string, MountedCardPack>();
@@ -41,6 +43,7 @@ export function registerCardPack(pack: MountedCardPack): void {
     kinds: [...new Set([...(existing?.kinds ?? []), ...pack.kinds])],
     ops: [...new Set([...(existing?.ops ?? []), ...pack.ops])],
     editorApps: { ...(existing?.editorApps ?? {}), ...(pack.editorApps ?? {}) },
+    agent: { ...(existing?.agent ?? {}), ...(pack.agent ?? {}) },
   });
 }
 

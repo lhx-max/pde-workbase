@@ -86,6 +86,16 @@ interface CanvasCard {
 3. 平台不校验 `data` 内容；**你自己在包里用 schema 校验**（见 §4.3）。
 4. 平台承诺持久化和传输中**保留全部未知字段**——包括 `data` 和你加的平级字段。
 
+### 3.1 Agent 怎么读、怎么改
+
+没有第二条通道。Agent 读画布 state 里的这张卡，再调用能力清单 `agentSurface` 上写明的动作。
+
+- `read`：这张卡在 JSON 里可以直接读的字段。文字卡的正文在 `text`。
+- `write`：字段对应的动作。文字正文走 `node.update`，标题走 `node.rename`。
+- `boundApp`：绑了文档 App 时，正文真源用文档的 `doc.write` 改；`text` 仍是画布里那份 Agent 直接能读的副本。
+- 业务卡在服务端注册时填 `agent: { read, write }`。不填则默认可读 `title`、`data`、`projectFilePath`，`write` 用该卡已注册的动作。
+
+
 ## 4. 操作协议（卡片动作）
 
 ### 4.1 通用动作（平台已提供，直接用）
@@ -218,7 +228,7 @@ await ctx.files.read('card-assets/product-p1.json');          // 读
 
 ## 10. 开发流程
 
-1. 从画布主仓 `feat/zhuzhiheng-da-cloud` 拉分支 `feat/card-pack-<团队>-<业务>`。
+1. 从画布当前开发基线 `feat/zhuzhiheng-card-pack-base` 拉分支 `feat/card-pack-<团队>-<业务>`；跨仓分支不可照抄，先核对根 AGENTS 与实际 Git 状态。
 2. 新建包 `packages/canvas-pack-<业务>/`（或独立仓库发 npm 包），含 `src/server.ts` 服务端入口；把 `./server` 出口指向构建产物（参考 `canvas-pack-demo` 的 `tsconfig.build.json`）。
 3. 本地起工作台验证（数据走 Appwrite）：
 

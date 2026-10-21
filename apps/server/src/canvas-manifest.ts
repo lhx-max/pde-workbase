@@ -4,6 +4,8 @@
  * the actual "card API" (create/move/update/delete cards, connect edges,
  * kind-specific ops). Content-level edits route through the bound App's
  * actions instead (spec: data owner owns the action). */
+import { listAgentSurface } from './canvas/agent-surface.js';
+
 export function canvasManifest() {
   return {
     appId: 'canvas',
@@ -45,6 +47,7 @@ export function canvasManifest() {
     },
     events: { available: true, types: ['card.created', 'card.updated', 'card.deleted', 'edge.created', 'edge.updated', 'edge.deleted'] },
     snapshots: { available: true },
+    agentSurface: listAgentSurface(),
     tenancy: 'required',
     execution: 'receipt',
   };

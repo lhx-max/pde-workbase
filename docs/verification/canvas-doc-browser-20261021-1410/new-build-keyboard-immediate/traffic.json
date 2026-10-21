@@ -1,0 +1,50 @@
+[
+  {
+    "type": "request",
+    "at": 1792563735220,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62813/api/projects/browser-p/canvas/operations",
+    "method": "POST",
+    "body": "{\"operationId\":\"ec0358bc-ef4a-4d24-9339-06ff17c5e8a3\",\"baseRevision\":1792563732934,\"operations\":[{\"type\":\"node.update\",\"nodeId\":\"n\",\"set\":{\"textEntryMode\":\"edit\"}}],\"expectedState\":{\"workbenchBasicNodes\":[{\"title\":\"合成正文\",\"text\":\"# 合成正文\\n\\nfirst middle last\\n\",\"width\":600,\"height\":440,\"x\":150,\"y\":150,\"id\":\"n\",\"kind\":\"text\",\"projectFilePath\":\"sources/text/n-op-46b252504a4da63d.md\"}]}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563735265,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62813/api/projects/browser-p/canvas/operations",
+    "status": 200,
+    "body": "{\"ok\":true,\"state\":{\"workbenchBasicNodes\":[{\"title\":\"合成正文\",\"text\":\"# 合成正文\\n\\nfirst middle last\\n\",\"width\":600,\"height\":440,\"x\":150,\"y\":150,\"id\":\"n\",\"kind\":\"text\",\"projectFilePath\":\"sources/text/n-op-46b252504a4da63d.md\",\"textEntryMode\":\"edit\"}]},\"revision\":1792563735226,\"receipt\":{\"operationId\":\"ec0358bc-ef4a-4d24-9339-06ff17c5e8a3\",\"status\":\"applied\",\"baseRevision\":1792563732934,\"revision\":1792563735226,\"nodeIds\":[\"n\"],\"createdAt\":\"2026-10-21T06:22:15.226Z\"},\"replayed\":false}"
+  },
+  {
+    "type": "request",
+    "at": 1792563735324,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62813/api/projects/browser-p/canvas/operations",
+    "method": "POST",
+    "body": "{\"operationId\":\"03979f5a-3674-4423-81a6-60a4589b2ff9\",\"baseRevision\":1792563735226,\"operations\":[{\"type\":\"node.duplicate\",\"nodeId\":\"n\",\"newNodeId\":\"basic-text-mvhq5yby-yzvv\",\"x\":186,\"y\":186}],\"expectedState\":{\"workbenchBasicNodes\":[{\"title\":\"合成正文\",\"text\":\"# 合成正文\\n\\nfirst middle last\\n\",\"width\":600,\"height\":440,\"x\":150,\"y\":150,\"id\":\"n\",\"kind\":\"text\",\"projectFilePath\":\"sources/text/n-op-46b252504a4da63d.md\",\"textEntryMode\":\"edit\"}]}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563735457,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62813/api/projects/browser-p/canvas/operations",
+    "status": 200,
+    "body": "{\"ok\":true,\"state\":{\"workbenchBasicNodes\":[{\"title\":\"合成正文\",\"text\":\"# 合成正文\\n\\nfirst middle last\\n\",\"width\":600,\"height\":440,\"x\":150,\"y\":150,\"id\":\"n\",\"kind\":\"text\",\"projectFilePath\":\"sources/text/n-op-46b252504a4da63d.md\",\"textEntryMode\":\"edit\"},{\"id\":\"basic-text-mvhq5yby-yzvv\",\"title\":\"合成正文\",\"text\":\"# 合成正文\\n\\nfirst middle last\\n\",\"width\":600,\"height\":440,\"x\":186,\"y\":186,\"kind\":\"text\",\"projectFilePath\":\"sources/text/basic-text-mvhq5yby-yzvv-op-8001e82b7b905ed6.md\",\"textEntryMode\":\"edit\"}]},\"revision\":1792563735326,\"receipt\":{\"operationId\":\"03979f5a-3674-4423-81a6-60a4589b2ff9\",\"status\":\"applied\",\"baseRevision\":1792563735226,\"revision\":1792563735326,\"nodeIds\":[\"n\",\"basic-text-mvhq5yby-yzvv\"],\"createdAt\":\"2026-10-21T06:22:15.326Z\"},\"replayed\":false}"
+  },
+  {
+    "type": "request",
+    "at": 1792563735799,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62813/api/projects/browser-p/canvas/state",
+    "method": "PATCH",
+    "body": "{\"changes\":{\"workbenchBasicNodes\":[{\"title\":\"合成正文\",\"text\":\"# 合成正文\\n\\nfirst middle last\\n\",\"width\":600,\"height\":440,\"x\":150,\"y\":150,\"id\":\"n\",\"kind\":\"text\",\"projectFilePath\":\"sources/text/n-op-46b252504a4da63d.md\",\"textEntryMode\":\"edit\"},{\"title\":\"合成正文\",\"text\":\"# 合成正文\\n\\nfirst middle last\\n\",\"width\":600,\"height\":440,\"x\":186,\"y\":186,\"id\":\"basic-text-mvhq5yby-yzvv\",\"kind\":\"text\",\"projectFilePath\":\"sources/text/n-op-46b252504a4da63d.md\",\"textEntryMode\":\"edit\"}]},\"base\":{\"workbenchBasicNodes\":[{\"title\":\"合成正文\",\"text\":\"# 合成正文\\n\\nfirst middle last\\n\",\"width\":600,\"height\":440,\"x\":150,\"y\":150,\"id\":\"n\",\"kind\":\"text\",\"projectFilePath\":\"sources/text/n-op-46b252504a4da63d.md\",\"textEntryMode\":\"edit\"},{\"id\":\"basic-text-mvhq5yby-yzvv\",\"title\":\"合成正文\",\"text\":\"# 合成正文\\n\\nfirst middle last\\n\",\"width\":600,\"height\":440,\"x\":186,\"y\":186,\"kind\":\"text\",\"projectFilePath\":\"sources/text/basic-text-mvhq5yby-yzvv-op-8001e82b7b905ed6.md\",\"textEntryMode\":\"edit\"}]},\"expectedRevision\":1792563735326}"
+  },
+  {
+    "type": "response",
+    "at": 1792563735810,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62813/api/projects/browser-p/canvas/state",
+    "status": 200,
+    "body": "{\"ok\":true,\"state\":{\"workbenchBasicNodes\":[{\"title\":\"合成正文\",\"text\":\"# 合成正文\\n\\nfirst middle last\\n\",\"width\":600,\"height\":440,\"x\":150,\"y\":150,\"id\":\"n\",\"kind\":\"text\",\"projectFilePath\":\"sources/text/n-op-46b252504a4da63d.md\",\"textEntryMode\":\"edit\"},{\"id\":\"basic-text-mvhq5yby-yzvv\",\"title\":\"合成正文\",\"text\":\"# 合成正文\\n\\nfirst middle last\\n\",\"width\":600,\"height\":440,\"x\":186,\"y\":186,\"kind\":\"text\",\"projectFilePath\":\"sources/text/basic-text-mvhq5yby-yzvv-op-8001e82b7b905ed6.md\",\"textEntryMode\":\"edit\"}]},\"revision\":1792563735807}"
+  }
+]

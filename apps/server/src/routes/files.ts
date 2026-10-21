@@ -28,6 +28,9 @@ export interface RegisterProjectFileRoutesDeps {
   authorize?: (req: Request, res: Response, projectId: string, options: { mode: 'read' | 'write'; allowNavigationQuery?: boolean }) => boolean | Promise<boolean>;
   /** Non-response-writing permission probe for lazy HTML history initialization. */
   canWrite?: (req: Request, projectId: string) => boolean | Promise<boolean>;
+  /** Legacy uploads have no document CAS baseline. The host may reject writes
+   * to a currently bound document mirror after the target path is sanitized. */
+  guardLegacyFileWrite?: (projectId: string, sanitizedPath: string) => void | Promise<void>;
   /** Sketch document bytes live in the sketch App once it is registered.
    * `undefined` means this canvas is still the store (app not registered). */
   sketchDocuments?: {
@@ -99,8 +102,8 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
   app.put('/api/projects/:id/tabs', async (req, res) => {
     if (!await authorizeProjectRequest(req, res, req.params.id, { mode: 'write' })) return;
     try {
-      const { tabs = [], active = null, browserTabs = [] } = req.body ?? {};
-      res.json(registry.setTabs(req.params.id, { tabs, active, browserTabs }));
+      const { tabs = [], active = null, browserTabs = [], appTabs = [] } = req.body ?? {};
+      res.json(registry.setTabs(req.params.id, { tabs, active, browserTabs, appTabs }));
     } catch (error) { sendApiError(res, 400, 'BAD_REQUEST', String(error)); }
   });
   app.get('/api/projects/:id/events', async (req, res) => {
@@ -1658,6 +1661,7 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
               ? sanitizePath(req.body.name)
               : sanitizeName(decodeMultipartFilename(req.file.originalname));
             if (rejectInternalVersionPath(res, desiredName)) return;
+            await ctx.guardLegacyFileWrite?.(req.params.id, desiredName);
             const requestedSource = uploadProject && /\.html?$/i.test(desiredName)
               ? requestProjectFileVersionUploadSource(req.body)
               : null;
@@ -1740,6 +1744,7 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
         if (rejectInternalVersionPath(res, name)) return;
         const desiredName = sanitizePath(name);
         if (rejectInternalVersionPath(res, desiredName)) return;
+        await ctx.guardLegacyFileWrite?.(req.params.id, desiredName);
         if (ctx.sketchDocuments && encoding !== 'base64' && artifact !== true && /\.(?:sketch\.json|excalidraw)$/i.test(desiredName)) {
           const saved = await ctx.sketchDocuments.write(desiredName, content);
           if (saved) return res.json({ file: saved });
@@ -1838,6 +1843,9 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
         res.json(body);
       } catch (err: any) {
         const message = String(err?.message || err);
+        if (err?.status === 428 && err?.code === 'DOC_WRITE_CHANNEL_REQUIRED') {
+          return sendApiError(res, 428, err.code, message);
+        }
         if (/^invalid (source|versionSource);/u.test(message)) {
           return sendApiError(res, 400, 'BAD_REQUEST', message);
         }

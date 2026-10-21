@@ -5,6 +5,7 @@ import type { CanvasOperationReceipt } from '@bezier/contracts';
 import { Button } from '@bezier/components';
 import { CanvasHistory } from './canvas-history';
 import { canvasOperationBatch, rebaseCanvasDraft } from './canvas-operation-batch';
+import { CanvasAcknowledgedPaths } from './canvas-acknowledged-paths';
 import { registerCanvasPersistence } from './canvas-persistence';
 import { CanvasIdleWorkContext, createCanvasIdleWork } from './canvas-idle-work';
 import { cr } from '../locales/canvas-remainder';
@@ -100,10 +101,10 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
   const hydrateBusinessStateRef = React.useRef(hydrateBusinessState);
   const revisionRef = React.useRef(0);
   const mutationVersionRef = React.useRef(0);
+  const acknowledgedPathsRef = React.useRef(new CanvasAcknowledgedPaths());
   const dirtyVersionsRef = React.useRef(new Map<string, number>());
   const savedVersionsRef = React.useRef(new Map<string, number>());
   const saveErrorRef = React.useRef<unknown>(undefined);
-  const conflictRetriesRef = React.useRef(0);
   const [saveConflict, setSaveConflict] = React.useState<string | null>(null);
   const blockedRef = React.useRef(false);
   const recoveredDraftRef = React.useRef<CanvasState | null>(null);
@@ -341,26 +342,36 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
               payload.receipt.revision !== payload.revision)) {
             throw new Error('Canvas operation receipt does not match the pending request');
           }
-          conflictRetriesRef.current = 0;
           // Validate all rebases before acknowledging any key: a conflict must
           // never leave a partially advanced queue or a regenerated operation id.
+          if (payload.state && batch.has('workbenchBasicNodes')) {
+            acknowledgedPathsRef.current.acknowledge(batch.get('workbenchBasicNodes')!.value, payload.state.workbenchBasicNodes);
+            acknowledgedPathsRef.current.acknowledgeOperations(JSON.parse(requestBody), payload.state.workbenchBasicNodes);
+          }
           const rebased = new Map<string, { pending: PendingCanvasChange; value: unknown }>();
           for (const [key, entry] of batch) {
             const pending = pendingChangesRef.current.get(key);
-            if (pending && payload.state) rebased.set(key, {
-              pending, value: rebaseCanvasDraft(entry.value, pending.value, payload.state[key]),
-            });
+            if (pending && payload.state) {
+              const draft = key === 'workbenchBasicNodes'
+                ? acknowledgedPathsRef.current.reconcile(payload.state[key], pending.value)
+                : pending.value;
+              rebased.set(key, { pending, value: rebaseCanvasDraft(entry.value, draft, payload.state[key]) });
+            }
           }
           retryRequestRef.current = null;
           saveErrorRef.current = undefined;
           setSaveConflict(null);
           revisionRef.current = Math.max(revisionRef.current, payload.revision);
+          // Do not mutate stateRef until the aggregate state is published. Doing
+          // so makes shareUnchangedFields compare the rebased state to itself,
+          // suppressing setState and leaving external-store subscribers stale.
+          let rebasedState = stateRef.current;
           for (const [key, entry] of batch) {
             savedVersionsRef.current.set(key, entry.version);
             const nextPending = rebased.get(key);
             if (nextPending && payload.state) {
               pendingChangesRef.current.set(key, { ...nextPending.pending, value: nextPending.value, baseValue: payload.state[key] });
-              stateRef.current = { ...stateRef.current, [key]: nextPending.value };
+              rebasedState = { ...rebasedState, [key]: nextPending.value };
             }
             if (dirtyVersionsRef.current.get(key) === entry.version) {
               dirtyVersionsRef.current.delete(key);
@@ -369,8 +380,8 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
           if (payload.state) {
             const nextState = { ...payload.state };
             for (const key of dirtyVersionsRef.current.keys()) {
-              if (Object.prototype.hasOwnProperty.call(stateRef.current, key)) {
-                nextState[key] = stateRef.current[key];
+              if (Object.prototype.hasOwnProperty.call(rebasedState, key)) {
+                nextState[key] = rebasedState[key];
               }
             }
             const sharedState = shareUnchangedFields(stateRef.current, nextState);
@@ -387,29 +398,20 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
         } catch (error) {
           saveErrorRef.current = error;
           const status = (error as { status?: number }).status;
-          // 409 = a background write moved the revision (e.g. an App mirror
-          // push). Rebase the failed batch onto fresh state and retry instead
-          // of permanently blocking every future save.
-          if (status === 409 && conflictRetriesRef.current < 3) {
-            conflictRetriesRef.current += 1;
-            try {
-              const fresh = await request<{ state?: CanvasState; revision?: number }>(requestContext, '/api/canvas/state', { method: 'GET' });
-              if (fresh?.state && typeof fresh.revision === 'number') {
-                revisionRef.current = Math.max(revisionRef.current, fresh.revision);
-                stateRef.current = { ...stateRef.current, ...fresh.state };
-                setState(stateRef.current);
-                for (const [key, entry] of batch) {
-                  pendingChangesRef.current.set(key, { ...entry, baseValue: fresh.state[key] });
-                }
-              }
-            } catch { /* fall through to the normal error path */ }
-            retryRequestRef.current = null;
-            if (retryTimerRef.current === undefined) {
-              retryTimerRef.current = window.setTimeout(() => {
-                retryTimerRef.current = undefined;
-                void flushChanges();
-              }, 1500);
+          // A 409 can be a local three-way rebase failure *after* the request
+          // was acknowledged. Replacing the pending queue with that older batch
+          // loses later typing, and replaying it against a new base is a blind
+          // overwrite. Keep the newest draft/version and require explicit recovery.
+          if (status === 409) {
+            for (const [key, entry] of batch) {
+              const pending = pendingChangesRef.current.get(key);
+              if (!pending || pending.version < entry.version) pendingChangesRef.current.set(key, entry);
             }
+            retryRequestRef.current = null; // Do not replay the stale request on reload.
+            blockedRef.current = true;
+            checkpointDraft();
+            setSaveConflict(error instanceof Error ? error.message : cr().compatSaveFail);
+            console.error(cr().compatSaveFail, error);
             return;
           }
           try { localStorage.setItem(draftKey, JSON.stringify({ state: stateRef.current, request: JSON.parse(requestBody) })); } catch { /* Keep in memory. */ }
@@ -429,7 +431,7 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
         if (!blockedRef.current && pendingChangesRef.current.size && retryTimerRef.current === undefined) queueMicrotask(() => void flushChanges());
       });
     return saveQueueRef.current;
-  }, [requestContext, draftKey, scheduleDraftCheckpoint]);
+  }, [requestContext, draftKey, scheduleDraftCheckpoint, checkpointDraft]);
 
   const scheduleFlush = React.useCallback(() => {
     if (flushScheduledRef.current) return;
@@ -469,9 +471,12 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
     const previous = (Object.prototype.hasOwnProperty.call(stateRef.current, key)
       ? stateRef.current[key]
       : defaultValue) as T;
-    const resolved = typeof nextValue === 'function'
+    const proposed = typeof nextValue === 'function'
       ? (nextValue as (value: T) => T)(previous)
       : nextValue;
+    const resolved = key === 'workbenchBasicNodes'
+      ? acknowledgedPathsRef.current.reconcile(previous, proposed) as T
+      : proposed;
     if (sameValue(previous, resolved)) return;
     const nextState = { ...stateRef.current, [key]: resolved };
     const mutationVersion = ++mutationVersionRef.current;

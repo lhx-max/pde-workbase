@@ -4,6 +4,7 @@
 > `designai-app-sketch`、浏览器 `designai-app-browser` 等）之间的数据交换。
 > 卡片包（Card Pack）是卡**内部**的开发协议，见 `canvas-card-pack.zh-CN.md`；
 > 本文是卡**外部**的 App 间协议。App 是独立仓库、独立部署的产物，画布是宿主。
+> **适用与优先级**：这是我们维护的 Canvas COI profile，不是外部 MA 登记合同。零背景先读 [开发手册](app-development-handbook.zh-CN.md)；正文版本/绑定/恢复以 [正文增补合同](document-sync-contract.zh-CN.md) 为准。下面历史“已上线”只指所列实现，不表示 staging 或 MA 自主调用通过。
 
 ## 0. 定这个协议解决什么
 
@@ -25,7 +26,7 @@
 ### 2.1 读画布 —— COI 门脸（已存在）
 
 ```
-GET /api/apps/canvas/instances/<bizId>/state        → 卡列表（含信封与 data 黑盒）
+GET /api/apps/canvas/instances/<canvasInstanceId>/state → 卡列表（含信封与 data 黑盒）
 GET /api/apps/canvas                                → 能力清单（卡 kind、动作、每种卡能不能做）
 每种核心卡对每个动作是支持还是不适用，见 `cardCapabilities`，对照表在 `canvas-card-capability-matrix.zh-CN.md`。
 ```
@@ -36,10 +37,12 @@ App 读卡 = 读画布 state，拿到节点 id/kind/geometry/data/projectFilePat
 ### 2.2 写画布 —— COI 动作（已存在）
 
 ```
-POST /api/apps/canvas/instances/<bizId>/actions/<actionId>
-{ "input": { "operationId": "<幂等键>", "baseRevision": <版本>,
-             "operations": [...] } }
+POST /api/apps/canvas/instances/<canvasInstanceId>/operations
+{ "operationId": "<稳定幂等键>", "baseRevision": <读到的画布版本>,
+  "operations": [...] }
 ```
+
+单动作另走 `.../actions/<actionId>`，body `{input, expectedRevision}` 与约定的幂等 header。MA Provider 又是不同信封，不能混用。这里的 canvasInstanceId 不是外部 MA bizId。
 
 App 改卡只用两类操作：
 - 通用信封操作：`node.move` / `node.update`（标题、文件引用等）
@@ -49,14 +52,12 @@ App 改卡只用两类操作：
 
 ### 2.3 文件交换 —— 共享桶（已存在）
 
-卡的内容文件统一走 Appwrite 桶，卡里只存 `projectFilePath`（相对路径）。
-App 读写同一桶（凭部署侧注入的会话凭证），**不自建存储、不直接拼桶内路径
-之外的地址**。写文件前先 `files.write`，再把路径写回卡的 `projectFilePath`。
+画布侧工程/镜像文件经画布文件 API 读写，卡里只留实例作用域的 `projectFilePath`（相对路径）；卡包使用注入 `ctx.files`。App 自有正文/资源留在自己的服务存储，通过授权 API 交换。不得向浏览器或另一个 App 分发共享桶特权凭据，也不直接操作对方桶。
 
 ### 2.4 变化订阅 —— 卡片增删改（已存在）
 
 ```
-GET /api/apps/canvas/instances/<bizId>/events?after=<eventCursor>
+GET /api/apps/canvas/instances/<canvasInstanceId>/events?after=<eventCursor>
 ```
 
 服务端推送。第一条是 `ready`：`{ instanceId, cursor, resync }`。
@@ -78,7 +79,7 @@ interface OpenEditorRequest {
   appId: string;              // 'sketch' | 'browser' | <团队前缀>
   nodeId: string;             // 卡片 id
   projectFilePath: string;    // 桶内相对路径（卡内容）
-  bizId: string;              // 画布实例
+  bizId: string;              // 历史内部类型名：此处为画布实例，不是 MA bizId
 }
 ```
 
@@ -125,7 +126,7 @@ interface OpenEditorRequest {
 | **跨 App 文件通道** | ✅ `GET/PUT /api/apps/canvas/instances/:id/files?path=`——App 读写卡里存的同一份文件（一期文本负载） |
 | **变化订阅** | ✅ `GET /api/apps/canvas/instances/:id/events`——卡片增删改；游标掉出缓冲时 `ready.resync`，调用方重读 state |
 | **统一合同补全**（2026-10-20） | ✅ 实例列表 `GET .../instances`、批量 `POST .../instances/:id/operations`（原子多操作、operationId 幂等、baseRevision 冲突 409）、回执 `GET .../operations/:operationId`、`/revision`、`/context`、`/nodes/:nodeId`、`/nodes/:nodeId/history`、生命周期动作 `canvas.rename`/`canvas.delete`（`canvas.duplicate` 501 未实现）。完整合同见 `app-development-spec.zh-CN.md` §4.2 |
-| **租户与治理**（2026-10-21） | ✅ `X-Team-Id/X-User-Id` 头、资产 `teamId/createdBy` 打标、查询过滤、越权 403；`app_entitlements` 显隐表（`GET/PUT/DELETE`）；审计 `audit.jsonl` + `GET /api/apps/audit`；实例/资产一律归档不物理删 |
+| **租户与治理**（2026-10-21） | 本地过滤/标记和治理端点有实现；生产身份/团队委托、远端授权另验。自报 `X-Team-Id/X-User-Id` 不证明身份，显隐不能替代授权 |
 | **绑定索引** | ✅ `GET/PUT/DELETE /api/apps/canvas/instances/:id/bindings`——卡↔App 资产映射中心表；doc.create 带 `nodeId+mirrorCanvasId` 自动上报；删卡/归档级联 |
 | **Agent 代理口 + CLI** | ✅ `POST /api/apps/<appId>/(instances/:iid/)actions/:aid` 宿主代理转发（租户头/幂等键透传，entitlement 短路）；`canvas-server apps list|call|state|bindings|entitlements|audit` |
 | **能力清单注册** | ✅ register body 带 `manifest`，目录 `GET /api/apps` 原样返回；画布自己也带 manifest（28 个 operations + 生命周期动作） |

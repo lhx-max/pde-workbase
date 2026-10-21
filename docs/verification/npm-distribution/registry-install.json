@@ -1,0 +1,41 @@
+{
+  "passed": true,
+  "mode": "registry",
+  "consumer": "/private/tmp/da-app-registry-install-20261021",
+  "packages": {
+    "@ks-designai/canvas-surface": "0.1.2",
+    "@ks-designai/doc-surface": "0.1.2",
+    "@ks-designai/canvas-cli": "0.1.1"
+  },
+  "instanceId": "npm-check-1792571484319",
+  "nodeId": "npm-installed-cli-card",
+  "checks": [
+    "No workspace/local-source runtime dependencies or package symlinks",
+    "Installed CLI version/help and live app discovery",
+    "Create/read/write/readback against real local canvas service",
+    "Stable operation replay and stale-write rejection",
+    "Missing instance exits nonzero",
+    "Both installed UI packages compile in one clean consumer",
+    "Doc discovery/create/read/write/readback through the same installed CLI and App gateway"
+  ],
+  "docId": "npm CLI document verification-f6f29075",
+  "beforeRevision": 0,
+  "afterRevision": 1792571484517,
+  "conflict": {
+    "error": {
+      "code": "CANVAS_REVISION_CONFLICT",
+      "message": "Canvas revision changed",
+      "retryable": false,
+      "details": {
+        "actualRevision": 1792571484517
+      }
+    },
+    "requestId": "req_332c275d-6277-4cd6-a7af-5abbd09abd7d"
+  },
+  "browserVerification": {
+    "screenshot": "installed-components.png",
+    "uiRuntimeBytesMatchRenderedTarballs": true,
+    "canvas": "real CLI-created card rendered",
+    "doc": "read-only fixture rendered; real writes verified separately through CLI"
+  }
+}

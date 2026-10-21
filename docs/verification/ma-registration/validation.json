@@ -1,0 +1,22 @@
+{
+  "schemaSource": "design-ai-client/yihan-dev-ma@fa9475183/packages/contracts/src/api/ma-applications.ts",
+  "mode": "local-only-schema-validation",
+  "registered": false,
+  "previewRelativeUrlAccepted": false,
+  "apps": [
+    {
+      "app": "canvas",
+      "schemaValid": true,
+      "provider": "http://127.0.0.1:17463",
+      "moduleId": "design-agent-plugin-kit/canvas-workspace",
+      "version": "0.1.0"
+    },
+    {
+      "app": "doc",
+      "schemaValid": true,
+      "provider": "http://127.0.0.1:19000",
+      "moduleId": "design-agent-plugin-kit/doc",
+      "version": "0.1.0"
+    }
+  ]
+}

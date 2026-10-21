@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "slug": "canvas",
+  "version": "0.1.0",
+  "name": "画布工作区",
+  "description": "完整 DA 画布：卡片、连线和持久化；独立于矩形图层示范应用。",
+  "icon": "layout-dashboard",
+  "instanceMode": "multiple",
+  "frontend": {
+    "moduleId": "design-agent-plugin-kit/canvas-workspace",
+    "exportName": "CanvasWorkspaceApp"
+  },
+  "provider": {
+    "baseUrl": "http://127.0.0.1:17463",
+    "protocolVersion": "1.0"
+  },
+  "permissions": [
+    "canvas:read",
+    "canvas:write"
+  ],
+  "actions": [
+    {
+      "id": "canvas.create",
+      "title": "创建画布",
+      "description": "按 Provider 实例幂等创建画布",
+      "effect": "write",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "requiredPermissions": [
+        "canvas:write"
+      ]
+    },
+    {
+      "id": "canvas.read",
+      "title": "读取画布",
+      "description": "读取画布完整状态及版本",
+      "effect": "read",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false
+      },
+      "requiredPermissions": [
+        "canvas:read"
+      ]
+    },
+    {
+      "id": "canvas.operations",
+      "title": "操作画布",
+      "description": "提交原子卡片或连线操作；信封必须带上次读取的 expectedRevision",
+      "effect": "write",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "operations"
+        ],
+        "properties": {
+          "operations": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "requiredPermissions": [
+        "canvas:write"
+      ]
+    },
+    {
+      "id": "canvas.context",
+      "title": "画布上下文",
+      "description": "读取供 Agent 使用的画布上下文",
+      "effect": "read",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false
+      },
+      "requiredPermissions": [
+        "canvas:read"
+      ]
+    }
+  ]
+}

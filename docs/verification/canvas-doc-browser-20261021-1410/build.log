@@ -1,0 +1,16 @@
+2026-10-21 Asia/Shanghai
+Node 24.15.0, pnpm 10.33.2
+Command: PATH=/opt/homebrew/opt/node@24/bin:$PATH pnpm --filter @bezier/canvas-workbench build && CANVAS_WEB_BUILD_DIR=.tmp/doc-sync-20261021-1346 pnpm --filter @canvas-workspace/web build
+Job: bash-a54efe45e0e24fde
+Exit code: 0
+
+> @bezier/canvas-workbench@1.4.4 build
+> tsc -p tsconfig.build.json --emitDeclarationOnly
+
+> @canvas-workspace/web@0.1.0 build
+> next build
+Next.js 16.2.6 (Turbopack)
+Compiled successfully in 6.5s
+Finished TypeScript in 13.0s
+Generating static pages (3/3) in 310ms
+Routes: /, /_not-found, /api/[...path], /artifacts/[...path], /frames/[...path]

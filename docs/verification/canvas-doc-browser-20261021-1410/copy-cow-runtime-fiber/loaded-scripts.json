@@ -1,0 +1,135 @@
+[
+  {
+    "url": "http://127.0.0.1:59363/_next/static/chunks/0bds0u46i8~eu.js",
+    "length": 196317,
+    "acknowledgeOperations": false,
+    "normalizePatch": false,
+    "canonical": true
+  },
+  {
+    "url": "http://127.0.0.1:59363/_next/static/chunks/00unj867cxn3c.js",
+    "length": 227530,
+    "acknowledgeOperations": false,
+    "normalizePatch": false,
+    "canonical": true
+  },
+  {
+    "url": "http://127.0.0.1:59363/_next/static/chunks/turbopack-0qxtqr3lio2vd.js",
+    "length": 10547,
+    "acknowledgeOperations": false,
+    "normalizePatch": false,
+    "canonical": false
+  },
+  {
+    "url": "http://127.0.0.1:59363/_next/static/chunks/0jzvnnn9l33or.js",
+    "length": 57913,
+    "acknowledgeOperations": false,
+    "normalizePatch": false,
+    "canonical": false
+  },
+  {
+    "url": "http://127.0.0.1:59363/_next/static/chunks/155id3j6i5rg5.js",
+    "length": 3615,
+    "acknowledgeOperations": false,
+    "normalizePatch": false,
+    "canonical": false
+  },
+  {
+    "url": "http://127.0.0.1:59363/_next/static/chunks/03~yq9q893hmn.js",
+    "length": 112541,
+    "acknowledgeOperations": false,
+    "normalizePatch": false,
+    "canonical": false
+  },
+  {
+    "url": "http://127.0.0.1:59363/_next/static/chunks/0fpomxqk65qar.js",
+    "length": 51185,
+    "acknowledgeOperations": false,
+    "normalizePatch": false,
+    "canonical": false
+  },
+  {
+    "url": "http://127.0.0.1:59363/_next/static/chunks/06hmoi~41da~r.js",
+    "length": 530083,
+    "acknowledgeOperations": false,
+    "normalizePatch": false,
+    "canonical": false
+  },
+  {
+    "url": "http://127.0.0.1:59363/_next/static/chunks/0nfwm8owj12j5.js",
+    "length": 39619,
+    "acknowledgeOperations": false,
+    "normalizePatch": false,
+    "canonical": false
+  },
+  {
+    "url": "http://127.0.0.1:59363/_next/static/chunks/08qb266yrzwjp.js",
+    "length": 557466,
+    "acknowledgeOperations": false,
+    "normalizePatch": false,
+    "canonical": false
+  },
+  {
+    "url": "http://127.0.0.1:59363/_next/static/chunks/04zbx338wkrnv.js",
+    "length": 2643364,
+    "acknowledgeOperations": true,
+    "normalizePatch": false,
+    "canonical": true
+  },
+  {
+    "url": "http://127.0.0.1:59363/_next/static/chunks/097nuwrf8q0fi.js",
+    "length": 1649744,
+    "acknowledgeOperations": false,
+    "normalizePatch": false,
+    "canonical": true
+  },
+  {
+    "url": "http://127.0.0.1:59363/_next/static/chunks/0p._9-d3z5fj-.js",
+    "length": 77902,
+    "acknowledgeOperations": false,
+    "normalizePatch": false,
+    "canonical": false
+  },
+  {
+    "url": "http://127.0.0.1:59363/_next/static/chunks/03-2xa.j9fwu5.js",
+    "length": 668,
+    "acknowledgeOperations": false,
+    "normalizePatch": false,
+    "canonical": false
+  },
+  {
+    "url": "http://127.0.0.1:59363/_next/static/chunks/0ya.~b8zaxl3..js",
+    "length": 1656,
+    "acknowledgeOperations": false,
+    "normalizePatch": false,
+    "canonical": false
+  },
+  {
+    "url": "http://127.0.0.1:59363/_next/static/chunks/0hkg79cpno--9.js",
+    "length": 1007,
+    "acknowledgeOperations": false,
+    "normalizePatch": false,
+    "canonical": false
+  },
+  {
+    "url": "http://127.0.0.1:59363/_next/static/chunks/0kcfq2mdav2d~.js",
+    "length": 13329,
+    "acknowledgeOperations": false,
+    "normalizePatch": false,
+    "canonical": false
+  },
+  {
+    "url": "http://127.0.0.1:59363/_next/static/chunks/0f0uqxx77ep91.js",
+    "length": 2987,
+    "acknowledgeOperations": false,
+    "normalizePatch": false,
+    "canonical": false
+  },
+  {
+    "url": "http://127.0.0.1:59363/_next/static/chunks/0legm7ewxzps-.js",
+    "length": 22226,
+    "acknowledgeOperations": false,
+    "normalizePatch": false,
+    "canonical": false
+  }
+]

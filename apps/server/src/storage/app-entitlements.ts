@@ -26,10 +26,31 @@ export class AppEntitlementStore {
   }
 
   private load(): State {
-    try {
-      const state = JSON.parse(readFileSync(this.file, 'utf8')) as State;
-      return state.version === 1 && Array.isArray(state.rules) ? state : { version: 1, rules: [] };
-    } catch { return { version: 1, rules: [] }; }
+    const fail = (code: string, message: string): never => {
+      throw Object.assign(new Error(message), { status: 500, code });
+    };
+    let serialized: string;
+    try { serialized = readFileSync(this.file, 'utf8'); }
+    catch (error) {
+      // Only a genuinely absent table means no overrides. An unreadable deny
+      // policy must never become the default-allow empty policy.
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { version: 1, rules: [] };
+      return fail('APP_ENTITLEMENTS_STORAGE_ERROR', 'App entitlement policy could not be read');
+    }
+    let value: unknown;
+    try { value = JSON.parse(serialized); }
+    catch { return fail('APP_ENTITLEMENTS_CORRUPT', 'App entitlement policy is damaged or has an unsupported schema'); }
+    const nonempty = (field: unknown): field is string => typeof field === 'string' && field.trim().length > 0;
+    const state = value as State | null;
+    if (!state || typeof state !== 'object' || Array.isArray(state) || state.version !== 1 || !Array.isArray(state.rules)
+      || !state.rules.every(rule => rule && typeof rule === 'object' && !Array.isArray(rule)
+        && [rule.id, rule.scope, rule.appId, rule.updatedAt].every(nonempty)
+        && (rule.scope === '*' || /^(team|user):[A-Za-z0-9_-]+$/.test(rule.scope))
+        && (rule.effect === 'allow' || rule.effect === 'deny')
+        && (rule.updatedBy === undefined || typeof rule.updatedBy === 'string'))) {
+      return fail('APP_ENTITLEMENTS_CORRUPT', 'App entitlement policy is damaged or has an unsupported schema');
+    }
+    return state;
   }
 
   private save(state: State) {

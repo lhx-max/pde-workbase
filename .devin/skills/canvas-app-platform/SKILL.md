@@ -1,20 +1,25 @@
 ---
 name: 画布 APP 平台开发
 description: 画布 App 平台开发与 Agent 调用入口。Use when 用户要"开发画布卡片/卡片包/card pack/新建一种卡片/FDE 业务卡片/开发新 APP/接入画布体系/Agent 调画布/租户治理/App 显隐"，或要让 AI/Agent 通过 API/CLI 操作画布与已注册 App。负责指引卡片包契约、App 开发规范（P1–P24 合同）、租户资产体系、Agent 统一调用口；不负责替你定业务字段。
-version: 2.0.0
+version: 2.1.0
 ---
 
 # 画布 APP 平台开发（卡片包 + App + Agent 调用）
 
-一句话：**卡片 = 一个 npm 包（TSX 渲染器 + 可选动作 handler），按 `card.<团队>.<名>` 命名挂载**。
+本 Skill 覆盖三种工作：开发卡包、开发独立 App、适配宿主/Agent。**App 是有业务与权威数据的产品；surface、卡包、CLI 是不同交付物。一个卡包可提供多种卡，一张卡是画布中的实例。**
 
-**契约真源**：[`docs/canvas-card-pack.zh-CN.md`](docs/canvas-card-pack.zh-CN.md)——本技能是操作指引，字段细节一律以契约文档为准，冲突时改契约不改技能。
+**零背景入口**：先读 [独立 App 开发手册](docs/app-development-handbook.zh-CN.md)，再按下表加载专项合同。开发合同与实现/发布状态分开记录；不从旧文档的“✅”推断今天的运行状态。
 
 ## 开工前必读（按顺序）
 
-1. `docs/canvas-card-pack.zh-CN.md` §1–§3：交付形态、命名规范、卡片数据协议
-2. §11 平台待补清单：确认你要用的接缝平台已接上
-3. 附录 A 示范卡：最小可用实现，照抄改名
+| 任务 | 读什么 | 必须交付 |
+| --- | --- | --- |
+| 新 App / 无背景接手 | 手册 → `docs/app-development-spec.zh-CN.md` → [合同模板](templates/APP_CONTRACT.template.md) | 本 App 的 `docs/APP_CONTRACT.md`、前后端独立闭环及适用验收证据 |
+| 新卡包 | 手册 §1/§6 → `docs/canvas-card-pack.zh-CN.md` §1–§3、§11、附录A | 前端 renderer、纯服务端 kind/可选 handler、data/schema 与真实保存读回 |
+| 卡片深编辑 / App互联 | `docs/canvas-app-interop.zh-CN.md`；正文另读 `docs/document-sync-contract.zh-CN.md` | 同实例绑定、版本化读写、复制隔离、同步/冲突/恢复 |
+| 外部 MA-V / CLI | 手册 §7–§11 → App规范 §4.5/§4.6 | 未改宿主的适配包、manifest、Provider、安装/配置/Skill 和分级验收 |
+
+现有冲突修正与工程待补清单见 [规范审计](../../../docs/app-development-standards-audit.zh-CN.md)。打包发布按实际发布任务核验，不改他人宿主或伪造登记。以下卡片专用章节只适用于卡包开发，不把其工作面限制套到独立 App 任务上。
 
 ## 铁律（违反 = 包被拒收）
 
@@ -189,6 +194,8 @@ curl -X POST https://frontend-cloud.corp.kuaishou.com/v1/account/sessions/email 
 
 ## 冻结区（正在拆出，禁止 FDE 改动）
 
+本节限制 **FDE 卡包任务**。平台所有者明确授权的独立 App/接入/规范任务按用户范围执行，不得误解为所有 Agent 都只能改下面三处。
+
 以下代码正在拆成独立 App 仓（`designai-app-*`），**不是卡片开发面，不要读、不要改、不要引用**：
 
 - `apps/web/src/components/Browser*`、`DesignBrowserPanel`、浏览器标签/收集面板——拆为 `designai-app-browser`
@@ -199,5 +206,7 @@ curl -X POST https://frontend-cloud.corp.kuaishou.com/v1/account/sessions/email 
 你的工作面**只有**：`packages/canvas-pack-*`、`packages/canvas-workbench/src/packs.ts`、`apps/server/src/card-packs.ts` 三处，外加自己的测试。
 
 ## App ↔ 画布交互
+
+**外部基座接入（2026-10-21）**：只改我们自己的 App、包装层和部署产物以适配目标已公开合同；不要修改对方基座/公共 SDK/菜单/Agent 调度。静态组件注册、后端应用登记、真实 Agent 调用是三项独立验收。MA profile 的完整 URL、正式 props、版本匹配和交付自检见 [`App 开发规范 §4.6`](docs/app-development-spec.zh-CN.md#46-外部基座接入应用侧适配与登记验收2026-10-21-用户确认)。
 
 卡片点开编辑器是「画布 → 独立 App」的请求，协议见 `docs/canvas-app-interop.zh-CN.md`：COI 读状态 / COI 动作写回 / 共享桶存文件，App 与画布互不依赖内部代码。

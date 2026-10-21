@@ -27,6 +27,7 @@ import { reconcileTextOperationReferences } from './text-operation-references.js
 import type { AssetLibraryAdapter } from '../asset-library/service.js';
 import { recordProjectLedgerObservation } from '../project-ledger/active-recorder.js';
 import { FileCanvasContent, FileCanvasPersistence, normalizeSafeProjectFilePath, type CanvasFileContent, type CanvasPersistence, type CanvasStoredBlob } from './persistence.js';
+import { compactOperationJournal } from './operation-journal.js';
 import type { CanvasItem, ImageOperation, DocumentOperation, SketchOperation, VideoOperation } from '@bezier/canvas-core';
 type ResolveCanvasProjectRoot = (projectId: string) => string | null | Promise<string | null>;
 
@@ -454,7 +455,7 @@ export class CanvasStateService {
         await this.syncTextDocuments(projectId, records(applied.state.workbenchBasicNodes).filter(node => !equal(node, oldNodes.find(item => item.id === node.id))));
       }
       await this.commit(projectId, { ...current, updatedAt: receipt.createdAt, state: applied.state, revision,
-        operations: { ...journal, [request.operationId]: { fingerprint, receipt, before, after } } }, request.operationId);
+        operations: compactOperationJournal({ ...journal, [request.operationId]: { fingerprint, receipt, before, after } }) }, request.operationId);
       // The asset index is advisory; its immutable version binding is already in the canvas.
       for (const node of records(applied.state.workbenchImages)) {
         const source = node.sourceAsset as { assetId?: string; versionId?: string } | undefined;
@@ -655,9 +656,15 @@ function applyCanvasTextCopyOnWrite(
   const currentById = new Map(currentNodes.map(node => [node.id, node]));
   const boundNodes = nextNodes.map(node => {
     const current = currentById.get(node.id);
-    return node.kind === 'text' && !node.projectFilePath && current?.kind === 'text'
-      ? { ...node, projectFilePath: canvasTextDocumentPath(current) }
-      : node;
+    if (node.kind !== 'text' || current?.kind !== 'text') return node;
+    const currentPath = canvasTextDocumentPath(current);
+    const requestedPath = canvasTextDocumentPath(node);
+    // Optimistic UI copies can send their source path again AFTER the server
+    // has assigned an independent file. Never let that stale whole-state PATCH
+    // re-alias two previously independent documents.
+    const reusesAnotherCard = requestedPath !== currentPath && nextNodes.some(other =>
+      other.id !== node.id && other.kind === 'text' && canvasTextDocumentPath(other) === requestedPath);
+    return !node.projectFilePath || reusesAnotherCard ? { ...node, projectFilePath: currentPath } : node;
   });
   const nextById = new Map(boundNodes.map(node => [node.id, node]));
   return boundNodes.map(node => {

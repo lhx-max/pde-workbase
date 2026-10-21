@@ -6,12 +6,12 @@ import type { AuditLog } from '../storage/audit-log.js';
 import type { AppEntitlementStore } from '../storage/app-entitlements.js';
 import { DocumentSyncJournal, type DocumentSyncEntry } from '../storage/document-sync-journal.js';
 import { appVisibleToTenant, currentRequestTenant } from '../tenant.js';
-import type { CanvasStateSnapshot } from './state.js';
+import type { CanvasStateSnapshot, CanvasStateService } from './state.js';
+import { CanvasStateError } from './errors.js';
+type CanvasPort = { read(id: string): Promise<CanvasStateSnapshot>; writeTextMirror?: CanvasStateService['writeTextMirror'] };
 
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
-class SyncFailure extends Error {
-  constructor(readonly status: number, readonly code: string, message: string, readonly details?: Record<string, unknown>) { super(message); }
-}
+class SyncFailure extends CanvasStateError {}
 interface ActionResult { instanceId?: string; content?: string; revision?: string; meta?: { id?: string }; mirror?: { status?: string; path?: string; code?: string } }
 
 /** Document-specific protocol stays in this adapter; canvas transactions only
@@ -22,7 +22,7 @@ export function createDocSynchronizer(deps: {
   retryIntervalMs?: number;
 }) {
   const journal = new DocumentSyncJournal(deps.dataRoot);
-  let canvas: { read(id: string): Promise<CanvasStateSnapshot> } | undefined;
+  let canvas: CanvasPort | undefined;
   let timer: ReturnType<typeof setInterval> | undefined;
   const running = new Map<string, Promise<void>>();
   let stopped = false;
@@ -43,7 +43,10 @@ export function createDocSynchronizer(deps: {
       method: 'POST', headers: { 'content-type': 'application/json', 'x-team-id': entry.teamId, 'x-user-id': entry.userId },
       body: JSON.stringify({ input }), signal: AbortSignal.timeout(10000),
     });
-    const body = await response.json() as { data?: { result?: ActionResult }; error?: { code?: string; message?: string; details?: Record<string, unknown> } };
+    const text = await response.text();
+    let body: { data?: { result?: ActionResult }; error?: { code?: string; message?: string; details?: Record<string, unknown> } };
+    try { body = JSON.parse(text); }
+    catch { throw new SyncFailure(response.ok ? 502 : response.status, `DOC_HTTP_${response.status}`, `Doc HTTP ${response.status}: ${text.slice(0, 300)}`); }
     if (!response.ok) throw new SyncFailure(response.status, body.error?.code ?? `DOC_HTTP_${response.status}`, body.error?.message ?? `Doc HTTP ${response.status}`, body.error?.details);
     if (!body.data?.result) throw new SyncFailure(502, 'DOC_INVALID_RESPONSE', 'Document service returned no result');
     return body.data.result;
@@ -53,6 +56,7 @@ export function createDocSynchronizer(deps: {
     if (!owner || owner.archivedAt || (owner.teamId ?? 'local') !== entry.teamId) {
       journal.update(entry, { status: 'detached', error: 'Canvas removed, archived or tenant changed' }); return;
     }
+    if (!canvas) throw new SyncFailure(503, 'CANVAS_STATE_UNAVAILABLE', 'Committed canvas state must be attached before delivery');
     let sourceRevision = entry.canvasRevision;
     if (canvas) {
       const snapshot = await canvas.read(entry.projectId);
@@ -76,7 +80,15 @@ export function createDocSynchronizer(deps: {
     const binding = { canvasInstanceId: entry.projectId, nodeId: entry.nodeId, kind: 'text', appId: entry.appId,
       appInstanceId: docId, mirrorPath: entry.mirrorPath, teamId: entry.teamId };
     deps.bindings.upsert(binding);
-    journal.update(entry, { documentId: docId });
+    if (entry.documentId && entry.documentId !== docId) {
+      // A replacement binding is a different document, not another revision of
+      // the old identity. Persist that loss of baseline before any retry, so a
+      // second attempt cannot accidentally resurrect the old document's base.
+      const { baseContent: _base, documentRevision: _revision, remoteContent: _remote, ...withoutOldDocument } = entry;
+      entry = { ...withoutOldDocument, documentId: docId };
+      const current = journal.get(entry.projectId, entry.nodeId);
+      if (current?.generation === entry.generation) journal.put(entry);
+    } else journal.update(entry, { documentId: docId });
     // Unknown legacy baselines must never be inferred by declaring a fresh read
     // to be the base of an older draft. Only equality proves safe bootstrap.
     if (entry.baseContent === undefined) {
@@ -130,11 +142,19 @@ export function createDocSynchronizer(deps: {
   };
   const sync = async (projectId: string, node: Record<string, unknown>, revision: number, baseContent?: string) => {
     const entry = prepare(projectId, node, revision, baseContent);
-    if (entry) await attempt(entry.projectId, entry.nodeId);
+    if (entry) {
+      try { await attempt(entry.projectId, entry.nodeId); }
+      catch (error) {
+        // An uninstalled optional App is not a failed canvas save. Its durable
+        // intent remains pending for a later installation; no doc success is claimed.
+        if (error instanceof SyncFailure && error.code === 'DOC_UNAVAILABLE' && !await deps.registry.get(entry.appId)) return;
+        throw error;
+      }
+    }
   };
   return Object.assign(sync, {
     prepare,
-    attach(port: { read(id: string): Promise<CanvasStateSnapshot> }) { canvas = port; },
+    attach(port: CanvasPort) { canvas = port; },
     status(projectId: string) { return journal.list(projectId); },
     confirmMirror(projectId: string, nodeId: string, documentId: string, documentRevision: string, content: string, mirrorPath: string, canvasRevision: number) {
       const entry = journal.get(projectId, nodeId);
@@ -144,7 +164,41 @@ export function createDocSynchronizer(deps: {
     },
     async retry(projectId?: string, nodeId?: string) {
       const entries = journal.list(projectId).filter(entry => (!nodeId || entry.nodeId === nodeId) && entry.status !== 'synced' && entry.status !== 'detached');
+      const caller = currentRequestTenant();
+      for (const entry of entries) if (caller) {
+        if (caller.teamId !== entry.teamId) throw new CanvasStateError(403, 'TENANT_FORBIDDEN', 'Cannot retry another team’s document');
+        journal.put({ ...entry, userId: caller.userId, updatedAt: Date.now() });
+      }
       await Promise.allSettled(entries.map(entry => attempt(entry.projectId, entry.nodeId)));
+    },
+    async resolve(projectId: string, nodeId: string, choice: 'canvas' | 'document', expectedCanvasContent: string, expectedDocumentRevision: string) {
+      const entry = journal.get(projectId, nodeId);
+      const caller = currentRequestTenant();
+      if (!entry || !entry.documentId) throw new CanvasStateError(404, 'DOCUMENT_SYNC_NOT_FOUND', 'No document synchronization entry');
+      const owner = deps.project(projectId);
+      if (!owner || owner.archivedAt) throw new CanvasStateError(409, 'CANVAS_ARCHIVED', 'Conflict resolution cannot modify a missing or archived canvas');
+      if ((owner.teamId ?? 'local') !== entry.teamId) throw new CanvasStateError(403, 'TENANT_FORBIDDEN', 'Canvas ownership changed');
+      if (!caller || caller.teamId !== entry.teamId) throw new CanvasStateError(403, 'TENANT_FORBIDDEN', 'Conflict resolution requires the owning team');
+      if (!canvas?.writeTextMirror) throw new CanvasStateError(503, 'DOCUMENT_SYNC_UNAVAILABLE', 'Canvas write adapter unavailable');
+      const app = await deps.registry.get(entry.appId);
+      if (!app || app.status !== 'active' || !appVisibleToTenant(app, caller) || deps.entitlements.resolve(entry.appId, caller) === 'deny') throw new CanvasStateError(403, 'DOC_FORBIDDEN', 'Document App is unavailable to caller');
+      const snapshot = await canvas.read(projectId);
+      const nodes = Array.isArray(snapshot.state.workbenchBasicNodes) ? snapshot.state.workbenchBasicNodes as Record<string, unknown>[] : [];
+      const node = nodes.find(item => item.id === nodeId && item.kind === 'text');
+      if (!node || node.text !== expectedCanvasContent) throw new CanvasStateError(409, 'CANVAS_CONTENT_CONFLICT', 'Canvas changed; inspect the latest versions before resolving');
+      const authorizedEntry = { ...entry, userId: caller.userId };
+      const remote = await call(app.endpoint, authorizedEntry, `/instances/${encodeURIComponent(entry.documentId)}/actions/doc.read`, {});
+      if (typeof remote.content !== 'string' || remote.revision !== expectedDocumentRevision) throw new CanvasStateError(409, 'DOC_CONFLICT', 'Document changed; inspect the latest versions before resolving');
+      const mirrorPath = typeof node.projectFilePath === 'string' ? node.projectFilePath : canvasTextPath(nodeId);
+      if (choice === 'document') {
+        await canvas.writeTextMirror(projectId, mirrorPath, remote.content, snapshot.revision,
+          { nodeId, docId: entry.documentId, documentRevision: remote.revision, baseContent: expectedCanvasContent });
+      } else {
+        journal.put({ ...authorizedEntry, generation: entry.generation + 1, canvasRevision: snapshot.revision, mirrorPath,
+          content: expectedCanvasContent, baseContent: remote.content, documentRevision: remote.revision, status: 'pending', attempts: 0, nextAttemptAt: 0, updatedAt: Date.now() });
+        await attempt(projectId, nodeId);
+      }
+      deps.audit.record({ actor: caller, action: 'doc.sync.resolve', appId: entry.appId, targetId: entry.documentId, status: 'succeeded', summary: `Explicit ${choice} resolution` });
     },
     start() {
       if (timer) return;

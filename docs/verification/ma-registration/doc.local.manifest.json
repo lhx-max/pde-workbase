@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "slug": "doc",
+  "version": "0.1.0",
+  "name": "文档编辑器",
+  "description": "Markdown 文档编辑器 —— designai-app-doc 应用，Provider Protocol 1.0",
+  "icon": "file-text",
+  "instanceMode": "multiple",
+  "frontend": {
+    "moduleId": "design-agent-plugin-kit/doc",
+    "exportName": "DocEditorApp"
+  },
+  "provider": {
+    "baseUrl": "http://127.0.0.1:19000",
+    "protocolVersion": "1.0"
+  },
+  "permissions": [
+    "doc:read",
+    "doc:write"
+  ],
+  "actions": [
+    {
+      "id": "doc.read",
+      "title": "读取文档",
+      "description": "返回文档正文与版本",
+      "effect": "read",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false
+      },
+      "requiredPermissions": [
+        "doc:read"
+      ]
+    },
+    {
+      "id": "doc.write",
+      "title": "写入文档",
+      "description": "按乐观锁写入文档正文",
+      "effect": "write",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "baseContent": {
+            "type": "string"
+          },
+          "expectedRevision": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "requiredPermissions": [
+        "doc:write"
+      ]
+    },
+    {
+      "id": "doc.create",
+      "title": "创建文档",
+      "description": "新建一篇文档实例",
+      "effect": "write",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "requiredPermissions": [
+        "doc:write"
+      ]
+    },
+    {
+      "id": "doc.rename",
+      "title": "重命名文档",
+      "description": "修改文档标题",
+      "effect": "write",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "requiredPermissions": [
+        "doc:write"
+      ]
+    },
+    {
+      "id": "doc.archive",
+      "title": "归档文档",
+      "description": "归档文档（可恢复）",
+      "effect": "write",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false
+      },
+      "requiredPermissions": [
+        "doc:write"
+      ]
+    }
+  ]
+}

@@ -9,7 +9,10 @@ type CardPackLike = {
   packId?: string;
   name?: string;
   cards: { kind: string; /** App id that owns this kind's deep editor (e.g. 'doc'). */
-    editorApp?: string; ops?: Record<string, CardOpHandler | { handler: CardOpHandler; targets?: string }> }[];
+    editorApp?: string;
+    /** Fields of this card the agent reads in canvas state, and the action that writes each. */
+    agent?: { read: string[]; write?: Record<string, string> };
+    ops?: Record<string, CardOpHandler | { handler: CardOpHandler; targets?: string }> }[];
 };
 
 /** Server-side card-pack mount: each pack's card ops register under
@@ -41,7 +44,8 @@ for (const pack of CARD_PACKS) {
     }
   }
   const editorApps = Object.fromEntries(pack.cards.filter(card => card.editorApp).map(card => [card.kind, card.editorApp!]));
-  registerCardPack({ packId, team, name: pack.name, kinds, ops, editorApps });
+  const agent = Object.fromEntries(pack.cards.filter(card => card.agent).map(card => [card.kind, { read: card.agent!.read, write: card.agent!.write ?? {} }]));
+  registerCardPack({ packId, team, name: pack.name, kinds, ops, editorApps, agent });
 }
 
 /** Mirror mounted packs into the Appwrite `card_packs` collection so the

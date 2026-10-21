@@ -1,0 +1,63 @@
+{
+  "name": "@ks-designai/canvas-surface",
+  "version": "0.1.2",
+  "description": "Standalone bundled canvas surface with host-injected transport and UI adapters.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "main": "./dist/index.js",
+  "types": "./dist/types/canvas-surface/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/canvas-surface/src/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./styles.css": "./dist/styles.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE",
+    "README.md"
+  ],
+  "sideEffects": [
+    "**/*.css",
+    "./dist/index.js"
+  ],
+  "peerDependencies": {
+    "@xyflow/react": "12.8.5",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.12.2",
+    "@types/react": "18.3.28",
+    "@types/react-dom": "18.3.7",
+    "@xyflow/react": "12.8.5",
+    "jsdom": "29.1.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "tsx": "4.22.3",
+    "typescript": "5.9.3",
+    "vite": "8.3.4"
+  },
+  "scripts": {
+    "build": "tsx tools/build.ts",
+    "pack:surface": "tsx tools/pack.ts",
+    "test": "tsx --test tests/*.test.ts",
+    "verify:consumer": "tsx tools/verify-consumer.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "publishConfig": {
+    "registry": "https://npm.corp.kuaishou.com/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@git.corp.kuaishou.com/design/designai-app-canvas.git",
+    "directory": "packages/canvas-surface"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "tarball": "packages/canvas-surface/artifacts/ks-designai-canvas-surface-0.1.2.tgz",
+  "tarballBytes": 930105,
+  "sha256": "b4ad972345d4b4f8abdc86eaec423864c983a452bfe345cb149beaf844da55a4",
+  "unpackedBytes": 7585940,
+  "javascriptBytes": 1357948,
+  "cssBytes": 390537,
+  "installedFiles": 292,
+  "consumer": ".tmp/canvas-surface-consumers/consumer-so3WZ3",
+  "reactRoot": "node_modules/react",
+  "checks": [
+    "npm install tarball",
+    "no symlinks",
+    "no workspace runtime dependencies",
+    "strict standalone declarations (skipLibCheck=false)",
+    "consumer Vite bundle",
+    "single React resolution",
+    "installed API SSR smoke",
+    "unmounted flush rejects"
+  ]
+}

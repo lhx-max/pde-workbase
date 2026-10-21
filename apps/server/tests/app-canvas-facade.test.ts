@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { CanvasStateService } from '../src/canvas/state.js';
 import { registerAppCanvasRoutes } from '../src/routes/app-canvas.js';
+import '../src/card-packs.js';
 let root: string, base: string, server: ReturnType<ReturnType<typeof express>['listen']>;
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'app-canvas-'));
@@ -29,6 +30,7 @@ it('declares actions, creates an instance, applies and queries', async () => {
     createActions: { image: string };
     cardCapabilities: { text: { 'node.update': string }; sketch: { 'edge.connect': string } };
     events: { types: string[] };
+    agentSurface: { readState: string; writeAction: string; cards: { text: { read: string[]; write: { text: string }; boundApp?: { writeAction: string } }; 'card.demo.memo': { read: string[] } } };
   } };
   expect(caps.data.appId).toBe('canvas');
   const actionIds = caps.data.actions.map((a: { actionId: string }) => a.actionId);
@@ -39,6 +41,11 @@ it('declares actions, creates an instance, applies and queries', async () => {
   expect(caps.data.cardCapabilities.text['node.update']).toBe('supported');
   expect(caps.data.cardCapabilities.sketch['edge.connect']).toBe('not-applicable');
   expect(caps.data.events.types).toEqual(['card.created', 'card.updated', 'card.deleted']);
+  expect(caps.data.agentSurface.readState).toContain('/state');
+  expect(caps.data.agentSurface.cards.text.read).toContain('text');
+  expect(caps.data.agentSurface.cards.text.write.text).toBe('node.update');
+  expect(caps.data.agentSurface.cards.text.boundApp?.writeAction).toBe('doc.write');
+  expect(caps.data.agentSurface.cards['card.demo.memo'].read).toEqual(['title', 'data']);
 
   const created = await fetch(`${base}/actions/canvas.create`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ input: { name: 'demo', instanceId: 'inst-1' } }) });
   expect(created.status).toBe(201);

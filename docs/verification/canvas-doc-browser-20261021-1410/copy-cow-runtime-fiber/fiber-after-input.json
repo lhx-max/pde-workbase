@@ -1,0 +1,2989 @@
+{
+  "at": 1792565064767,
+  "fibers": [
+    {
+      "name": "dO",
+      "tag": 0,
+      "key": "browser-p",
+      "provider": true,
+      "flow": false,
+      "editor": false,
+      "props": null,
+      "hooks": [
+        {
+          "index": 0,
+          "value": {
+            "workbenchBasicNodes": [
+              {
+                "id": "n",
+                "text": "# 合成正文\n\nfirst middle last\n",
+                "path": "sources/text/n-op-005a44253096d8ea.md",
+                "kind": "text"
+              },
+              {
+                "id": "basic-text-mvhqyg2u-ya25",
+                "text": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+                "path": "sources/text/basic-text-mvhqyg2u-ya25.md",
+                "kind": "text"
+              }
+            ]
+          }
+        },
+        {
+          "index": 1,
+          "value": [
+            {
+              "type": "Object",
+              "keys": [
+                "isActive",
+                "setActive",
+                "schedule",
+                "clear"
+              ]
+            },
+            []
+          ]
+        },
+        {
+          "index": 2,
+          "value": {
+            "current": {
+              "type": "Map",
+              "entries": [
+                [
+                  "workbenchViewport",
+                  {
+                    "type": "Set",
+                    "values": [
+                      null,
+                      null
+                    ]
+                  }
+                ],
+                [
+                  "workbenchMediaSubmissions",
+                  {
+                    "type": "Set",
+                    "values": [
+                      null
+                    ]
+                  }
+                ],
+                [
+                  "workbenchBasicNodes",
+                  {
+                    "type": "Set",
+                    "values": [
+                      null,
+                      null
+                    ]
+                  }
+                ],
+                [
+                  "workbenchImages",
+                  {
+                    "type": "Set",
+                    "values": [
+                      null,
+                      null
+                    ]
+                  }
+                ],
+                [
+                  "workbenchWorkflowRunGroups",
+                  {
+                    "type": "Set",
+                    "values": [
+                      null
+                    ]
+                  }
+                ],
+                [
+                  "workbenchOrganizationGroups",
+                  {
+                    "type": "Set",
+                    "values": [
+                      null
+                    ]
+                  }
+                ],
+                [
+                  "dismissedWorkflowResults",
+                  {
+                    "type": "Set",
+                    "values": [
+                      null
+                    ]
+                  }
+                ],
+                [
+                  "workbenchStoryboardAssets",
+                  {
+                    "type": "Set",
+                    "values": [
+                      null
+                    ]
+                  }
+                ],
+                [
+                  "storyboardAssetGroupPositions",
+                  {
+                    "type": "Set",
+                    "values": [
+                      null
+                    ]
+                  }
+                ],
+                [
+                  "detachedStoryboardImages",
+                  {
+                    "type": "Set",
+                    "values": [
+                      null
+                    ]
+                  }
+                ],
+                [
+                  "workbenchWorkflowStagePositionsV2",
+                  {
+                    "type": "Set",
+                    "values": [
+                      null
+                    ]
+                  }
+                ],
+                [
+                  "workbenchCanvasEdgesVisible",
+                  {
+                    "type": "Set",
+                    "values": [
+                      null
+                    ]
+                  }
+                ],
+                [
+                  "workbenchCanvasBackground",
+                  {
+                    "type": "Set",
+                    "values": [
+                      null
+                    ]
+                  }
+                ],
+                [
+                  "workbenchCanvasTone",
+                  {
+                    "type": "Set",
+                    "values": [
+                      null
+                    ]
+                  }
+                ],
+                [
+                  "workbenchPriorLayoutV1",
+                  {
+                    "type": "Set",
+                    "values": [
+                      null
+                    ]
+                  }
+                ],
+                [
+                  "workbenchInstances",
+                  {
+                    "type": "Set",
+                    "values": [
+                      null
+                    ]
+                  }
+                ],
+                [
+                  "workbenchPromptCards",
+                  {
+                    "type": "Set",
+                    "values": [
+                      null
+                    ]
+                  }
+                ],
+                [
+                  "workbenchImageGroups",
+                  {
+                    "type": "Set",
+                    "values": [
+                      null
+                    ]
+                  }
+                ],
+                [
+                  "workbenchEdges",
+                  {
+                    "type": "Set",
+                    "values": [
+                      null
+                    ]
+                  }
+                ],
+                [
+                  "workbenchTaskDrafts",
+                  {
+                    "type": "Set",
+                    "values": [
+                      null
+                    ]
+                  }
+                ],
+                [
+                  "projectPath",
+                  {
+                    "type": "Set",
+                    "values": [
+                      null
+                    ]
+                  }
+                ]
+              ]
+            }
+          }
+        },
+        {
+          "index": 3,
+          "value": {
+            "current": {
+              "workbenchBasicNodes": [
+                {
+                  "id": "n",
+                  "text": "# 合成正文\n\nfirst middle last\n",
+                  "path": "sources/text/n-op-005a44253096d8ea.md",
+                  "kind": "text"
+                },
+                {
+                  "id": "basic-text-mvhqyg2u-ya25",
+                  "text": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+                  "path": "sources/text/basic-text-mvhqyg2u-ya25.md",
+                  "kind": "text"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 4,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 5,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 6,
+          "value": {
+            "current": {
+              "type": "dE",
+              "keys": [
+                "past",
+                "future"
+              ]
+            }
+          }
+        },
+        {
+          "index": 7,
+          "value": {
+            "current": 0
+          }
+        },
+        {
+          "index": 8,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 9,
+          "value": true
+        },
+        {
+          "index": 10,
+          "value": true
+        },
+        {
+          "index": 11,
+          "value": {
+            "current": {
+              "workbenchBasicNodes": [
+                {
+                  "id": "n",
+                  "text": "# 合成正文\n\nfirst middle last\n",
+                  "path": "sources/text/n-op-005a44253096d8ea.md",
+                  "kind": "text"
+                },
+                {
+                  "id": "basic-text-mvhqyg2u-ya25",
+                  "text": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+                  "path": "sources/text/basic-text-mvhqyg2u-ya25.md",
+                  "kind": "text"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "index": 12,
+          "value": {}
+        },
+        {
+          "index": 13,
+          "value": {
+            "current": 1792565064598
+          }
+        },
+        {
+          "index": 14,
+          "value": {
+            "current": 3
+          }
+        },
+        {
+          "index": 15,
+          "value": {
+            "current": {
+              "corrections": {
+                "type": "Map",
+                "entries": []
+              }
+            }
+          }
+        },
+        {
+          "index": 16,
+          "value": {
+            "current": {
+              "type": "Map",
+              "entries": [
+                [
+                  "workbenchBasicNodes",
+                  3
+                ]
+              ]
+            }
+          }
+        },
+        {
+          "index": 17,
+          "value": {
+            "current": {
+              "type": "Map",
+              "entries": [
+                [
+                  "workbenchBasicNodes",
+                  1
+                ]
+              ]
+            }
+          }
+        },
+        {
+          "index": 18,
+          "value": {}
+        },
+        {
+          "index": 19,
+          "value": {
+            "current": 0
+          }
+        },
+        {
+          "index": 20,
+          "value": null
+        },
+        {
+          "index": 21,
+          "value": {
+            "current": false
+          }
+        },
+        {
+          "index": 22,
+          "value": {
+            "current": null
+          }
+        },
+        {
+          "index": 23,
+          "value": {
+            "current": {
+              "route": "/api/canvas/operations",
+              "body": "{\"operationId\":\"9a32d236-598e-4f40-9fd2-9add1d8b4743\",\"baseRevision\":1792565064598,\"operations\":[{\"type\":\"node.duplicate\",\"nodeId\":\"n\",\"newNodeId\":\"basic-text-mvhqyg2u-ya25\",\"x\":186,\"y\":186}],\"expectedState\":{\"workbenchBasicNodes\":[{\"title\":\"合成正文\",\"text\":\"# 合成正文\\n\\nfirst middle last\\n\",\"width\":600,\"height\":440,\"x\":150,\"y\":150,\"id\":\"n\",\"kind\":\"text\",\"projectFilePath\":\"sources/text/n-op-005a44253096d8ea.md\",\"textEntryMode\":\"edit\"}]}}",
+              "batch": {
+                "type": "Map",
+                "entries": [
+                  [
+                    "workbenchBasicNodes",
+                    {
+                      "value": [
+                        {
+                          "id": "n",
+                          "text": "# 合成正文\n\nfirst middle last\n",
+                          "path": "sources/text/n-op-005a44253096d8ea.md",
+                          "kind": "text"
+                        },
+                        {
+                          "id": "basic-text-mvhqyg2u-ya25",
+                          "text": "# 合成正文\n\nfirst middle last\n",
+                          "path": "sources/text/n-op-005a44253096d8ea.md",
+                          "kind": "text"
+                        }
+                      ],
+                      "baseValue": [
+                        {
+                          "id": "n",
+                          "text": "# 合成正文\n\nfirst middle last\n",
+                          "path": "sources/text/n-op-005a44253096d8ea.md",
+                          "kind": "text"
+                        }
+                      ],
+                      "version": 2
+                    }
+                  ]
+                ]
+              }
+            }
+          }
+        },
+        {
+          "index": 24,
+          "value": {
+            "current": 27
+          }
+        },
+        {
+          "index": 25,
+          "value": {
+            "current": "browser-p"
+          }
+        },
+        {
+          "index": 26,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 27,
+          "value": {
+            "current": {
+              "type": "Map",
+              "entries": [
+                [
+                  "workbenchBasicNodes",
+                  {
+                    "value": [
+                      {
+                        "id": "n",
+                        "text": "# 合成正文\n\nfirst middle last\n",
+                        "path": "sources/text/n-op-005a44253096d8ea.md",
+                        "kind": "text"
+                      },
+                      {
+                        "id": "basic-text-mvhqyg2u-ya25",
+                        "text": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+                        "path": "sources/text/basic-text-mvhqyg2u-ya25.md",
+                        "kind": "text"
+                      }
+                    ],
+                    "baseValue": [
+                      {
+                        "id": "n",
+                        "text": "# 合成正文\n\nfirst middle last\n",
+                        "path": "sources/text/n-op-005a44253096d8ea.md",
+                        "kind": "text"
+                      },
+                      {
+                        "id": "basic-text-mvhqyg2u-ya25",
+                        "text": "# 合成正文\n\nfirst middle last\n",
+                        "path": "sources/text/n-op-005a44253096d8ea.md",
+                        "kind": "text"
+                      }
+                    ],
+                    "version": 3
+                  }
+                ]
+              ]
+            }
+          }
+        },
+        {
+          "index": 28,
+          "value": {
+            "current": {
+              "type": "Promise",
+              "keys": []
+            }
+          }
+        },
+        {
+          "index": 29,
+          "value": {
+            "current": true
+          }
+        },
+        {
+          "index": 30,
+          "value": {
+            "current": false
+          }
+        },
+        {
+          "index": 31,
+          "value": {}
+        },
+        {
+          "index": 32,
+          "value": {
+            "current": true
+          }
+        },
+        {
+          "index": 33,
+          "value": {
+            "current": false
+          }
+        },
+        {
+          "index": 34,
+          "value": {
+            "current": "[function]"
+          }
+        },
+        {
+          "index": 35,
+          "value": {
+            "current": "[function]"
+          }
+        },
+        {
+          "index": 36,
+          "value": [
+            "[function]",
+            [
+              "canvas-unsaved:browser-p"
+            ]
+          ]
+        },
+        {
+          "index": 37,
+          "value": [
+            "[function]",
+            [
+              "[function]"
+            ]
+          ]
+        },
+        {
+          "index": 38,
+          "value": [
+            "[function]",
+            [
+              null,
+              {
+                "type": "Object",
+                "keys": [
+                  "isActive",
+                  "setActive",
+                  "schedule",
+                  "clear"
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "index": 39,
+          "value": [
+            "[function]",
+            []
+          ]
+        },
+        {
+          "index": 40,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 41,
+          "value": [
+            "[function]",
+            [
+              {
+                "type": "Object",
+                "keys": [
+                  "projectId",
+                  "workspaceContext",
+                  "businessModules",
+                  "disabledMediaProviders",
+                  "transport"
+                ]
+              },
+              "canvas-unsaved:browser-p",
+              "[function]"
+            ]
+          ]
+        },
+        {
+          "index": 42,
+          "value": [
+            "[function]",
+            [
+              "[function]"
+            ]
+          ]
+        },
+        {
+          "index": 43,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 44,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "[function]",
+              "[function]"
+            ]
+          ]
+        },
+        {
+          "index": 45,
+          "value": [
+            "[function]",
+            []
+          ]
+        },
+        {
+          "index": 46,
+          "value": [
+            "[function]",
+            [
+              "[function]"
+            ]
+          ]
+        },
+        {
+          "index": 47,
+          "value": [
+            {
+              "type": "Object",
+              "keys": [
+                "run",
+                "undo",
+                "redo"
+              ]
+            },
+            [
+              "[function]",
+              "[function]"
+            ]
+          ]
+        },
+        {
+          "index": 48,
+          "value": [
+            "[function]",
+            [
+              "[function]"
+            ]
+          ]
+        },
+        {
+          "index": 49,
+          "value": [
+            "[function]",
+            []
+          ]
+        },
+        {
+          "index": 50,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 51,
+          "value": [
+            "[function]",
+            []
+          ]
+        },
+        {
+          "index": 52,
+          "value": [
+            {
+              "type": "Object",
+              "keys": [
+                "requestContext",
+                "getState",
+                "subscribe",
+                "setValue",
+                "setInteractionActive",
+                "isInteractionActive",
+                "history",
+                "flush"
+              ]
+            },
+            [
+              {
+                "type": "Object",
+                "keys": [
+                  "projectId",
+                  "workspaceContext",
+                  "businessModules",
+                  "disabledMediaProviders",
+                  "transport"
+                ]
+              },
+              "[function]",
+              "[function]",
+              "[function]",
+              "[function]",
+              "[function]",
+              {
+                "type": "Object",
+                "keys": [
+                  "run",
+                  "undo",
+                  "redo"
+                ]
+              },
+              "[function]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "p1",
+      "tag": 0,
+      "key": null,
+      "provider": false,
+      "flow": true,
+      "editor": false,
+      "props": {
+        "basicNodes": [
+          {
+            "id": "n",
+            "text": "# 合成正文\n\nfirst middle last\n",
+            "path": "sources/text/n-op-005a44253096d8ea.md",
+            "kind": "text"
+          },
+          {
+            "id": "basic-text-mvhqyg2u-ya25",
+            "text": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+            "path": "sources/text/basic-text-mvhqyg2u-ya25.md",
+            "kind": "text"
+          }
+        ]
+      },
+      "hooks": [
+        {
+          "index": 0,
+          "value": {
+            "current": {
+              "type": "Object",
+              "keys": []
+            }
+          }
+        },
+        {
+          "index": 1,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchMediaSubmissions"
+            ]
+          ]
+        },
+        {
+          "index": 2,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchMediaSubmissions"
+            ]
+          ]
+        },
+        {
+          "index": 3,
+          "value": {
+            "type": "Object",
+            "keys": []
+          }
+        },
+        {
+          "index": 4,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 5,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchMediaSubmissions"
+            ]
+          ]
+        },
+        {
+          "index": 6,
+          "value": {
+            "current": []
+          }
+        },
+        {
+          "index": 7,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchBasicNodes"
+            ]
+          ]
+        },
+        {
+          "index": 8,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchBasicNodes"
+            ]
+          ]
+        },
+        {
+          "index": 9,
+          "value": [
+            {
+              "id": "n",
+              "text": "# 合成正文\n\nfirst middle last\n",
+              "path": "sources/text/n-op-005a44253096d8ea.md",
+              "kind": "text"
+            },
+            {
+              "id": "basic-text-mvhqyg2u-ya25",
+              "text": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+              "path": "sources/text/basic-text-mvhqyg2u-ya25.md",
+              "kind": "text"
+            }
+          ]
+        },
+        {
+          "index": 10,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 11,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchBasicNodes"
+            ]
+          ]
+        },
+        {
+          "index": 12,
+          "value": {
+            "current": []
+          }
+        },
+        {
+          "index": 13,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchImages"
+            ]
+          ]
+        },
+        {
+          "index": 14,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchImages"
+            ]
+          ]
+        },
+        {
+          "index": 15,
+          "value": []
+        },
+        {
+          "index": 16,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 17,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchImages"
+            ]
+          ]
+        },
+        {
+          "index": 18,
+          "value": {
+            "current": {
+              "type": "Object",
+              "keys": [
+                "nodes",
+                "images"
+              ]
+            }
+          }
+        },
+        {
+          "index": 19,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 20,
+          "value": {
+            "current": {
+              "type": "Object",
+              "keys": []
+            }
+          }
+        },
+        {
+          "index": 21,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchWorkflowRunGroups"
+            ]
+          ]
+        },
+        {
+          "index": 22,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchWorkflowRunGroups"
+            ]
+          ]
+        },
+        {
+          "index": 23,
+          "value": {
+            "type": "Object",
+            "keys": []
+          }
+        },
+        {
+          "index": 24,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 25,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchWorkflowRunGroups"
+            ]
+          ]
+        },
+        {
+          "index": 26,
+          "value": [
+            [],
+            [
+              []
+            ]
+          ]
+        },
+        {
+          "index": 27,
+          "value": [
+            {
+              "type": "Object",
+              "keys": []
+            },
+            [
+              {
+                "type": "Object",
+                "keys": []
+              },
+              []
+            ]
+          ]
+        },
+        {
+          "index": 28,
+          "value": {
+            "current": []
+          }
+        },
+        {
+          "index": 29,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchOrganizationGroups"
+            ]
+          ]
+        },
+        {
+          "index": 30,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchOrganizationGroups"
+            ]
+          ]
+        },
+        {
+          "index": 31,
+          "value": []
+        },
+        {
+          "index": 32,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 33,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchOrganizationGroups"
+            ]
+          ]
+        },
+        {
+          "index": 34,
+          "value": {
+            "current": {
+              "type": "Object",
+              "keys": []
+            }
+          }
+        },
+        {
+          "index": 35,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "dismissedWorkflowResults"
+            ]
+          ]
+        },
+        {
+          "index": 36,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "dismissedWorkflowResults"
+            ]
+          ]
+        },
+        {
+          "index": 37,
+          "value": {
+            "type": "Object",
+            "keys": []
+          }
+        },
+        {
+          "index": 38,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 39,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "dismissedWorkflowResults"
+            ]
+          ]
+        },
+        {
+          "index": 40,
+          "value": [
+            "[function]",
+            [
+              {
+                "type": "Object",
+                "keys": [
+                  "run",
+                  "undo",
+                  "redo"
+                ]
+              },
+              "[function]"
+            ]
+          ]
+        },
+        {
+          "index": 41,
+          "value": ""
+        },
+        {
+          "index": 42,
+          "value": {
+            "current": {
+              "type": "Set",
+              "values": []
+            }
+          }
+        },
+        {
+          "index": 43,
+          "value": {
+            "type": "Object",
+            "keys": []
+          }
+        },
+        {
+          "index": 44,
+          "value": {
+            "current": null
+          }
+        },
+        {
+          "index": 45,
+          "value": {
+            "current": null
+          }
+        },
+        {
+          "index": 46,
+          "value": {
+            "current": null
+          }
+        },
+        {
+          "index": 47,
+          "value": {
+            "current": null
+          }
+        },
+        {
+          "index": 48,
+          "value": {
+            "current": []
+          }
+        },
+        {
+          "index": 49,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchStoryboardAssets"
+            ]
+          ]
+        },
+        {
+          "index": 50,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchStoryboardAssets"
+            ]
+          ]
+        },
+        {
+          "index": 51,
+          "value": []
+        },
+        {
+          "index": 52,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 53,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchStoryboardAssets"
+            ]
+          ]
+        },
+        {
+          "index": 54,
+          "value": {
+            "current": []
+          }
+        },
+        {
+          "index": 55,
+          "value": {
+            "current": {
+              "type": "Object",
+              "keys": []
+            }
+          }
+        },
+        {
+          "index": 56,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "storyboardAssetGroupPositions"
+            ]
+          ]
+        },
+        {
+          "index": 57,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "storyboardAssetGroupPositions"
+            ]
+          ]
+        },
+        {
+          "index": 58,
+          "value": {
+            "type": "Object",
+            "keys": []
+          }
+        },
+        {
+          "index": 59,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 60,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "storyboardAssetGroupPositions"
+            ]
+          ]
+        },
+        {
+          "index": 61,
+          "value": {
+            "current": {
+              "type": "Object",
+              "keys": []
+            }
+          }
+        },
+        {
+          "index": 62,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "detachedStoryboardImages"
+            ]
+          ]
+        },
+        {
+          "index": 63,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "detachedStoryboardImages"
+            ]
+          ]
+        },
+        {
+          "index": 64,
+          "value": {
+            "type": "Object",
+            "keys": []
+          }
+        },
+        {
+          "index": 65,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 66,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "detachedStoryboardImages"
+            ]
+          ]
+        },
+        {
+          "index": 67,
+          "value": [
+            [],
+            [
+              [
+                {
+                  "id": "n",
+                  "text": "# 合成正文\n\nfirst middle last\n",
+                  "path": "sources/text/n-op-005a44253096d8ea.md",
+                  "kind": "text"
+                },
+                {
+                  "id": "basic-text-mvhqyg2u-ya25",
+                  "text": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+                  "path": "sources/text/basic-text-mvhqyg2u-ya25.md",
+                  "kind": "text"
+                }
+              ],
+              [],
+              [],
+              {
+                "type": "Object",
+                "keys": []
+              },
+              {
+                "type": "Object",
+                "keys": []
+              }
+            ]
+          ]
+        },
+        {
+          "index": 68
+        },
+        {
+          "index": 69,
+          "value": [
+            "[function]",
+            []
+          ]
+        },
+        {
+          "index": 70,
+          "value": [
+            "[function]",
+            []
+          ]
+        },
+        {
+          "index": 71,
+          "value": [
+            "[function]",
+            []
+          ]
+        },
+        {
+          "index": 72,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 73,
+          "value": {
+            "current": {
+              "type": "Set",
+              "values": []
+            }
+          }
+        },
+        {
+          "index": 74,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 75,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 76,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 77,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 78,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 79,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 80,
+          "value": {
+            "current": "[function]"
+          }
+        },
+        {
+          "index": 81,
+          "value": {
+            "current": "browser-p"
+          }
+        },
+        {
+          "index": 82,
+          "value": {
+            "current": false
+          }
+        },
+        {
+          "index": 83,
+          "value": {
+            "current": {
+              "type": "Map",
+              "entries": []
+            }
+          }
+        },
+        {
+          "index": 84,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 85,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 86,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 87,
+          "value": ""
+        },
+        {
+          "index": 88,
+          "value": {
+            "current": {
+              "type": "Object",
+              "keys": []
+            }
+          }
+        },
+        {
+          "index": 89,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchWorkflowStagePositionsV2"
+            ]
+          ]
+        },
+        {
+          "index": 90,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchWorkflowStagePositionsV2"
+            ]
+          ]
+        },
+        {
+          "index": 91,
+          "value": {
+            "type": "Object",
+            "keys": []
+          }
+        },
+        {
+          "index": 92,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 93,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchWorkflowStagePositionsV2"
+            ]
+          ]
+        },
+        {
+          "index": 94,
+          "value": {
+            "type": "Object",
+            "keys": []
+          }
+        },
+        {
+          "index": 95,
+          "value": false
+        },
+        {
+          "index": 96,
+          "value": "hand"
+        },
+        {
+          "index": 97,
+          "value": {
+            "current": true
+          }
+        },
+        {
+          "index": 98,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchCanvasEdgesVisible"
+            ]
+          ]
+        },
+        {
+          "index": 99,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchCanvasEdgesVisible"
+            ]
+          ]
+        },
+        {
+          "index": 100,
+          "value": true
+        },
+        {
+          "index": 101,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 102,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchCanvasEdgesVisible"
+            ]
+          ]
+        },
+        {
+          "index": 103,
+          "value": {
+            "current": "dots"
+          }
+        },
+        {
+          "index": 104,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchCanvasBackground"
+            ]
+          ]
+        },
+        {
+          "index": 105,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchCanvasBackground"
+            ]
+          ]
+        },
+        {
+          "index": 106,
+          "value": "dots"
+        },
+        {
+          "index": 107,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 108,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchCanvasBackground"
+            ]
+          ]
+        },
+        {
+          "index": 109,
+          "value": {
+            "current": "default"
+          }
+        },
+        {
+          "index": 110,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchCanvasTone"
+            ]
+          ]
+        },
+        {
+          "index": 111,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchCanvasTone"
+            ]
+          ]
+        },
+        {
+          "index": 112,
+          "value": "default"
+        },
+        {
+          "index": 113,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 114,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchCanvasTone"
+            ]
+          ]
+        },
+        {
+          "index": 115,
+          "value": {
+            "current": null
+          }
+        },
+        {
+          "index": 116,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchPriorLayoutV1"
+            ]
+          ]
+        },
+        {
+          "index": 117,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchPriorLayoutV1"
+            ]
+          ]
+        },
+        {
+          "index": 118,
+          "value": null
+        },
+        {
+          "index": 119,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 120,
+          "value": [
+            "[function]",
+            [
+              "[function]",
+              "workbenchPriorLayoutV1"
+            ]
+          ]
+        },
+        {
+          "index": 121,
+          "value": false
+        },
+        {
+          "index": 122,
+          "value": false
+        },
+        {
+          "index": 123,
+          "value": false
+        },
+        {
+          "index": 124,
+          "value": {
+            "current": null
+          }
+        },
+        {
+          "index": 125,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 126,
+          "value": false
+        },
+        {
+          "index": 127,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 128,
+          "value": {
+            "type": "Object",
+            "keys": []
+          }
+        },
+        {
+          "index": 129,
+          "value": {
+            "current": []
+          }
+        },
+        {
+          "index": 130,
+          "value": {
+            "current": [
+              {
+                "id": "n",
+                "text": "# 合成正文\n\nfirst middle last\n",
+                "path": "sources/text/n-op-005a44253096d8ea.md",
+                "kind": "text"
+              },
+              {
+                "id": "basic-text-mvhqyg2u-ya25",
+                "text": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+                "path": "sources/text/basic-text-mvhqyg2u-ya25.md",
+                "kind": "text"
+              }
+            ]
+          }
+        },
+        {
+          "index": 131,
+          "value": {
+            "current": []
+          }
+        },
+        {
+          "index": 132,
+          "value": {
+            "current": []
+          }
+        },
+        {
+          "index": 133,
+          "value": {
+            "current": []
+          }
+        },
+        {
+          "index": 134,
+          "value": {
+            "current": []
+          }
+        },
+        {
+          "index": 135,
+          "value": {
+            "current": {
+              "type": "HTMLElement",
+              "keys": [
+                "__reactFiber$hgy80rgoik",
+                "__reactProps$hgy80rgoik"
+              ]
+            }
+          }
+        },
+        {
+          "index": 136,
+          "value": {
+            "current": {
+              "type": "Object",
+              "keys": [
+                "getSelectedNodeIds",
+                "zoomIn",
+                "zoomOut",
+                "zoomTo",
+                "fitView",
+                "activateNode",
+                "focusNode",
+                "focusNodes",
+                "screenToFlow",
+                "sortByConnections",
+                "sortByTaskType",
+                "revertLayout"
+              ]
+            }
+          }
+        },
+        {
+          "index": 137,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 138,
+          "value": {
+            "current": {
+              "type": "Object",
+              "keys": []
+            }
+          }
+        },
+        {
+          "index": 139,
+          "value": {
+            "current": {
+              "type": "Object",
+              "keys": []
+            }
+          }
+        },
+        {
+          "index": 140,
+          "value": {
+            "current": {
+              "type": "Object",
+              "keys": []
+            }
+          }
+        },
+        {
+          "index": 141,
+          "value": {
+            "current": {
+              "type": "Object",
+              "keys": []
+            }
+          }
+        },
+        {
+          "index": 142,
+          "value": {
+            "current": {
+              "type": "Object",
+              "keys": []
+            }
+          }
+        },
+        {
+          "index": 143,
+          "value": {
+            "current": {
+              "type": "Object",
+              "keys": []
+            }
+          }
+        },
+        {
+          "index": 144,
+          "value": {
+            "current": {
+              "type": "Object",
+              "keys": []
+            }
+          }
+        },
+        {
+          "index": 145,
+          "value": {
+            "current": {
+              "type": "Set",
+              "values": []
+            }
+          }
+        },
+        {
+          "index": 146,
+          "value": {
+            "current": {
+              "type": "Set",
+              "values": []
+            }
+          }
+        },
+        {
+          "index": 147,
+          "value": {
+            "current": "[[],[],[[\"n\",null],[\"basic-text-mvhqyg2u-ya25\",null]]]"
+          }
+        },
+        {
+          "index": 148,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 149,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "GI",
+      "tag": 0,
+      "key": null,
+      "provider": false,
+      "flow": false,
+      "editor": true,
+      "props": {
+        "markdown": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+        "editable": true,
+        "onChange": "function"
+      },
+      "hooks": [
+        {
+          "index": 0,
+          "value": {
+            "current": "[function]"
+          }
+        },
+        {
+          "index": 1,
+          "value": {
+            "current": "<h1>KEYBOARD IMMEDIATE COPY EDIT</h1><p></p>"
+          }
+        },
+        {
+          "index": 2,
+          "value": 3
+        },
+        {
+          "index": 3,
+          "value": false
+        },
+        {
+          "index": 4,
+          "value": ""
+        },
+        {
+          "index": 5,
+          "value": ""
+        },
+        {
+          "index": 6,
+          "value": null
+        },
+        {
+          "index": 7,
+          "value": false
+        },
+        {
+          "index": 8,
+          "value": ""
+        },
+        {
+          "index": 9,
+          "value": {
+            "current": false
+          }
+        },
+        {
+          "index": 10,
+          "value": {
+            "current": null
+          }
+        },
+        {
+          "index": 11,
+          "value": [
+            "<h1>KEYBOARD IMMEDIATE COPY EDIT</h1>",
+            [
+              "# KEYBOARD IMMEDIATE COPY EDIT\n"
+            ]
+          ]
+        },
+        {
+          "index": 12,
+          "value": {
+            "current": {
+              "type": "Object",
+              "keys": [
+                "extensions",
+                "content",
+                "editable",
+                "immediatelyRender",
+                "autofocus",
+                "editorProps",
+                "onCreate",
+                "onTransaction",
+                "onSelectionUpdate",
+                "onBlur",
+                "onUpdate"
+              ]
+            }
+          }
+        },
+        {
+          "index": 13,
+          "value": {
+            "type": "e",
+            "keys": [
+              "editor",
+              "subscriptions",
+              "isComponentMounted",
+              "previousDeps",
+              "instanceId",
+              "options",
+              "scheduledDestructionTimeout",
+              "getEditor",
+              "getServerSnapshot",
+              "subscribe",
+              "refreshEditorInstance",
+              "scheduleDestroy",
+              "onRender",
+              "createEditor"
+            ],
+            "editor": {
+              "type": "Editor",
+              "isInitialized": true,
+              "isDestroyed": false,
+              "dom": "KEYBOARD IMMEDIATE COPY EDIT",
+              "editorDoc": "KEYBOARD IMMEDIATE COPY EDIT",
+              "optionsContent": "<h1>KEYBOARD IMMEDIATE COPY EDIT</h1>"
+            }
+          }
+        },
+        {
+          "index": 14,
+          "value": {
+            "type": "Editor",
+            "isInitialized": true,
+            "isDestroyed": false,
+            "dom": "KEYBOARD IMMEDIATE COPY EDIT",
+            "editorDoc": "KEYBOARD IMMEDIATE COPY EDIT",
+            "optionsContent": "<h1>KEYBOARD IMMEDIATE COPY EDIT</h1>"
+          }
+        },
+        {
+          "index": 15,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 16,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 17,
+          "value": {
+            "type": "AB",
+            "keys": [
+              "transactionNumber",
+              "lastTransactionNumber",
+              "subscribers",
+              "editor",
+              "lastSnapshot",
+              "getSnapshot",
+              "getServerSnapshot",
+              "watch",
+              "subscribe"
+            ],
+            "editor": {
+              "type": "Editor",
+              "isInitialized": true,
+              "isDestroyed": false,
+              "dom": "KEYBOARD IMMEDIATE COPY EDIT",
+              "editorDoc": "KEYBOARD IMMEDIATE COPY EDIT",
+              "optionsContent": "<h1>KEYBOARD IMMEDIATE COPY EDIT</h1>"
+            }
+          }
+        },
+        {
+          "index": 18,
+          "value": {
+            "current": {
+              "type": "Object",
+              "keys": [
+                "hasValue",
+                "value"
+              ],
+              "value": null
+            }
+          }
+        },
+        {
+          "index": 19,
+          "value": [
+            [
+              "[function]",
+              "[function]"
+            ],
+            [
+              "[function]",
+              "[function]",
+              "[function]",
+              "[function]"
+            ]
+          ]
+        },
+        {
+          "index": 20,
+          "value": null
+        },
+        {
+          "index": 21,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 22,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 23,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 24,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 25,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 26,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 27,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 28,
+          "value": [
+            "[function]",
+            [
+              true,
+              {
+                "type": "Editor",
+                "isInitialized": true,
+                "isDestroyed": false,
+                "dom": "KEYBOARD IMMEDIATE COPY EDIT",
+                "editorDoc": "KEYBOARD IMMEDIATE COPY EDIT",
+                "optionsContent": "<h1>KEYBOARD IMMEDIATE COPY EDIT</h1>"
+              }
+            ]
+          ]
+        },
+        {
+          "index": 29,
+          "value": [
+            "[function]",
+            [
+              true,
+              {
+                "type": "Editor",
+                "isInitialized": true,
+                "isDestroyed": false,
+                "dom": "KEYBOARD IMMEDIATE COPY EDIT",
+                "editorDoc": "KEYBOARD IMMEDIATE COPY EDIT",
+                "optionsContent": "<h1>KEYBOARD IMMEDIATE COPY EDIT</h1>"
+              }
+            ]
+          ]
+        },
+        {
+          "index": 30,
+          "value": [
+            "[function]",
+            [
+              true,
+              {
+                "type": "Editor",
+                "isInitialized": true,
+                "isDestroyed": false,
+                "dom": "KEYBOARD IMMEDIATE COPY EDIT",
+                "editorDoc": "KEYBOARD IMMEDIATE COPY EDIT",
+                "optionsContent": "<h1>KEYBOARD IMMEDIATE COPY EDIT</h1>"
+              },
+              ""
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "GI",
+      "tag": 0,
+      "key": null,
+      "provider": false,
+      "flow": false,
+      "editor": true,
+      "props": {
+        "markdown": "# 合成正文\n\nfirst middle last\n",
+        "editable": true,
+        "onChange": "function"
+      },
+      "hooks": [
+        {
+          "index": 0,
+          "value": {
+            "current": "[function]"
+          }
+        },
+        {
+          "index": 1,
+          "value": {
+            "current": null
+          }
+        },
+        {
+          "index": 2,
+          "value": 1
+        },
+        {
+          "index": 3,
+          "value": false
+        },
+        {
+          "index": 4,
+          "value": ""
+        },
+        {
+          "index": 5,
+          "value": ""
+        },
+        {
+          "index": 6,
+          "value": null
+        },
+        {
+          "index": 7,
+          "value": false
+        },
+        {
+          "index": 8,
+          "value": ""
+        },
+        {
+          "index": 9,
+          "value": {
+            "current": false
+          }
+        },
+        {
+          "index": 10,
+          "value": {
+            "current": null
+          }
+        },
+        {
+          "index": 11,
+          "value": [
+            "<h1>合成正文</h1><p>first middle last</p>",
+            [
+              "# 合成正文\n\nfirst middle last\n"
+            ]
+          ]
+        },
+        {
+          "index": 12,
+          "value": {
+            "current": {
+              "type": "Object",
+              "keys": [
+                "extensions",
+                "content",
+                "editable",
+                "immediatelyRender",
+                "autofocus",
+                "editorProps",
+                "onCreate",
+                "onTransaction",
+                "onSelectionUpdate",
+                "onBlur",
+                "onUpdate"
+              ]
+            }
+          }
+        },
+        {
+          "index": 13,
+          "value": {
+            "type": "e",
+            "keys": [
+              "editor",
+              "subscriptions",
+              "isComponentMounted",
+              "previousDeps",
+              "instanceId",
+              "options",
+              "scheduledDestructionTimeout",
+              "getEditor",
+              "getServerSnapshot",
+              "subscribe",
+              "refreshEditorInstance",
+              "scheduleDestroy",
+              "onRender",
+              "createEditor"
+            ],
+            "editor": {
+              "type": "Editor",
+              "isInitialized": true,
+              "isDestroyed": false,
+              "dom": "合成正文first middle last",
+              "editorDoc": "合成正文first middle last",
+              "optionsContent": "<h1>合成正文</h1><p>first middle last</p>"
+            }
+          }
+        },
+        {
+          "index": 14,
+          "value": {
+            "type": "Editor",
+            "isInitialized": true,
+            "isDestroyed": false,
+            "dom": "合成正文first middle last",
+            "editorDoc": "合成正文first middle last",
+            "optionsContent": "<h1>合成正文</h1><p>first middle last</p>"
+          }
+        },
+        {
+          "index": 15,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 16,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 17,
+          "value": {
+            "type": "AB",
+            "keys": [
+              "transactionNumber",
+              "lastTransactionNumber",
+              "subscribers",
+              "editor",
+              "lastSnapshot",
+              "getSnapshot",
+              "getServerSnapshot",
+              "watch",
+              "subscribe"
+            ],
+            "editor": {
+              "type": "Editor",
+              "isInitialized": true,
+              "isDestroyed": false,
+              "dom": "合成正文first middle last",
+              "editorDoc": "合成正文first middle last",
+              "optionsContent": "<h1>合成正文</h1><p>first middle last</p>"
+            }
+          }
+        },
+        {
+          "index": 18,
+          "value": {
+            "current": {
+              "type": "Object",
+              "keys": [
+                "hasValue",
+                "value"
+              ],
+              "value": null
+            }
+          }
+        },
+        {
+          "index": 19,
+          "value": [
+            [
+              "[function]",
+              "[function]"
+            ],
+            [
+              "[function]",
+              "[function]",
+              "[function]",
+              "[function]"
+            ]
+          ]
+        },
+        {
+          "index": 20,
+          "value": null
+        },
+        {
+          "index": 21,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 22,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 23,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 24,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 25,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 26,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 27,
+          "value": {
+            "type": "Object",
+            "keys": [
+              "tag",
+              "create",
+              "deps",
+              "inst",
+              "next"
+            ]
+          }
+        },
+        {
+          "index": 28,
+          "value": [
+            "[function]",
+            [
+              true,
+              {
+                "type": "Editor",
+                "isInitialized": true,
+                "isDestroyed": false,
+                "dom": "合成正文first middle last",
+                "editorDoc": "合成正文first middle last",
+                "optionsContent": "<h1>合成正文</h1><p>first middle last</p>"
+              }
+            ]
+          ]
+        },
+        {
+          "index": 29,
+          "value": [
+            "[function]",
+            [
+              true,
+              {
+                "type": "Editor",
+                "isInitialized": true,
+                "isDestroyed": false,
+                "dom": "合成正文first middle last",
+                "editorDoc": "合成正文first middle last",
+                "optionsContent": "<h1>合成正文</h1><p>first middle last</p>"
+              }
+            ]
+          ]
+        },
+        {
+          "index": 30,
+          "value": [
+            "[function]",
+            [
+              true,
+              {
+                "type": "Editor",
+                "isInitialized": true,
+                "isDestroyed": false,
+                "dom": "合成正文first middle last",
+                "editorDoc": "合成正文first middle last",
+                "optionsContent": "<h1>合成正文</h1><p>first middle last</p>"
+              },
+              ""
+            ]
+          ]
+        }
+      ]
+    }
+  ]
+}

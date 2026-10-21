@@ -1,6 +1,8 @@
 # App 开发规范（通用）
 
 > 给要**从零开发一个新 App** 的人或 Agent。参考实现：`designai-app-doc`。
+> **先读 [零背景开发手册](app-development-handbook.zh-CN.md)**：定义 App/卡包/surface/包装层/CLI、责任、ID、环境与完整开发验收流程；本文件保留具体协议。COI 与 MA 是不同 profile；P1–P24 按提供方分工，不要求每个 App 实现宿主所有路由。旧运行样例仅证明当时范围，不能当生产就绪结论。
+> **正文接入增补（2026-10-21）**：[双入口版本编辑、持久同步与资产复制合同](<document-sync-contract.zh-CN.md>)。doc 既有正文变更必须带基线/版本；使用资产为独立复制，镜像确认不能重新广播成本地用户修改。此增补优先于下面的旧式无版本写示例；生产就绪程度以实际验收记录为准。
 > 配套：`canvas-app-interop.zh-CN.md`（画布↔App 协议）、`canvas-card-pack.zh-CN.md`（卡包契约）、根 `SKILL.md`。
 
 ---
@@ -48,7 +50,7 @@ designai-app-<appId>/
 |---|---|---|
 | appId | 小写单词，全局唯一 | `doc` |
 | 仓库名 | `designai-app-<appId>` | `designai-app-doc` |
-| 组件包名 | `@<appId>/surface` | `@doc/surface` |
+| 组件包名 | 发布清单确定有权限的 npm scope；appId 不决定 scope 所有权 | 当前 `@doc/surface`，不代表已发布 |
 | 服务端口 | 每个 App 一个，登记 | `19000` |
 | Appwrite 库 | `<appId>_app_dev` | `doc_app_dev` |
 | Appwrite 桶 | `<appId>_assets_v2` | `doc_assets_v2` |
@@ -60,14 +62,14 @@ designai-app-<appId>/
 
 ### 1.1 从零起步：以 doc 为参考实现
 
-零上下文接手时**不要空写**——`designai-app-doc` 是唯一完整参考实现，照它的骨架替换业务部分：
+零上下文接手时先填 [App 合同模板](../templates/APP_CONTRACT.template.md)。`designai-app-doc` 是现有领域参考，不是所有端点都经生产验收的模板；复用接口与结构，按自己的业务/部署验证：
 
 | doc 文件 | 干什么 | 新 App 怎么抄 |
 |---|---|---|
 | `apps/server/src/protocol.ts` | **manifest 真源**——动作清单、editorKinds、tenancy 声明、注册体 | 原样抄结构，换成你的 appId/动作 |
 | `apps/server/src/app.ts` | **协议路由全集**——actions 分发、instances/state/files、REST 镜像端点、回执、租户中间件 | 抄路由骨架，把 store 调用换成你的业务 |
 | `apps/server/src/store.ts` + `local-store.ts` + `appwrite-store.ts` | 存储接口 + 本地实现 + 云实现（同接口双后端） | 抄接口形状（list/create/read/write/rename/archive + 租户过滤） |
-| `apps/server/src/tenant.ts` | 租户头解析 | 原样抄，不改 |
+| `apps/server/src/tenant.ts` | 本地身份与部署认证边界 | 按目标可信身份合同适配；不能只抄头解析就声明认证完成 |
 | `apps/server/src/index.ts` | 启动 + 自注册 + **30s 心跳重注册** | 抄，`DOC_*` 环境变量改前缀 |
 | `packages/doc-surface/` | 详情页组件包（编辑器 + api-types 注入接口） | 抄包结构，换成你的编辑器组件 |
 | `apps/web/` | 独立壳页面 | 最小壳：一个页面挂你的 surface |
@@ -179,7 +181,7 @@ doc 是模板——其他卡种的 App 按同一形状补齐自己的词表。�
 
 ### 3.1 卡内容的存储归属（宿主卡 vs App 自有数据）
 
-**卡正文的唯一真相 = App 自己的存储**。画布侧的一切卡内容都是镜像：
+**已绑定业务 App 的正文真相在该 App**；不是要求所有纯卡包自建存储。下文以 doc 文字卡为例，不能推广到全部卡种；画布信封与纯卡片 JSON 仍由画布保存：
 
 - **正文真相 = App 私有库的文档**（doc 文档）。卡详情打开的文档与 App 页签打开的文档是同一份、同一个组件——卡上「放大」按 `nodeId` 绑定/找回 App 文档（`doc.create {nodeId}` 幂等，不重复建）
 - **出生即绑定（资产沉淀）**：卡**第一次有内容**保存时，画布自动 `doc.create {nodeId, name:卡标题, content, mirrorCanvasId, mirrorPath}` 建绑定文档——不等用户点开详情；之后每次保存推 `doc.write`（服务端文本同步钩子，UI 与 API 操作全覆盖）。由此用户资产自然全部落到 App 库，无任何上传入口
@@ -192,7 +194,7 @@ doc 是模板——其他卡种的 App 按同一形状补齐自己的词表。�
 - **索引集合**：Appwrite collection 存元数据（`{ name, path, fileId, size, updatedAt }`）
 - **桶**：Appwrite bucket 存内容字节，fileId 用内容 hash 派生，天然去重
 
-**本地降级**：没配 `APPWRITE_ENDPOINT` 时用本地文件存储也能跑，不许报错、不许假装上了云。
+**本地模式**：本地独立开发可显式选择文件存储，数据根由入口注入。部署 profile 要求云存储时，配置缺失应失败/503，不能静默落到本地目录；更不能假装上了云。
 
 连接配置（固定环境变量名）：
 
@@ -214,7 +216,7 @@ App 自己领域的接口（doc 的 `/api/documents` 列表/读写/导出）。�
 
 ### 4.2 统一协议合同（v1，唯一标准）
 
-这是整个体系的**唯一 API 标准**——画布和所有 App 用同一副骨架，管理侧 Agent 学会一套就会调全部。画布、doc、sketch、browser、未来的 App 一律按此实现；历史 DA 交付形状（`/api/canvases`）作废，能力由本合同吸收。
+这是**我们维护的 Canvas COI profile**，画布和业务 App 按角色复用同一骨架。它不取代外部 MA open-platform 合同（§4.5），也不表示旧客户端已完成迁移。新增实现按此合同；兼容撤除需另验。
 
 **目录与接入**
 
@@ -271,7 +273,7 @@ App 自己领域的接口（doc 的 `/api/documents` 列表/读写/导出）。�
 | P24 | `GET/PUT/DELETE /api/apps/entitlements`、`GET /api/apps/entitlements/check?appId=`、`GET /api/apps/audit` | 宿主实现 | 治理面：显隐表（scope×appId×effect）、App 自校验口、审计尾日志 |
 
 > 「必须」= 没有它插不进体系；「应当」= Agent 的统一调用面；「可」= 有就给、没有不强求；「二期」= 可缓但要诚实标注。
-> CLI：`canvas-server apps list|call|state|bindings|entitlements|audit` 是上述端点的命令行包装（`--server-url`/`--tenant`/`--actor`），一涵 Agent 直接调它即可。
+> CLI：`canvas-server apps list|call|state|bindings|entitlements|audit` 是 COI 的源码命令行包装。独立安装包、真实命令名、MA 环境安装/网络/认证/实例上下文仍需按发布清单与手册 §8 验收；不能从本机命令存在推断远端可调用。当前 `apps call` 的 body-file 是 input，不承诺支持全部顶层版本/幂等字段。
 
 ### 命名与包格式（钉死）
 
@@ -280,7 +282,7 @@ App 自己领域的接口（doc 的 `/api/documents` 列表/读写/导出）。�
 - 成功包：`{ "requestId": "req_<uuid>", "data": {...} }`
 - 失败包：`{ "error": { "code", "message", "retryable", "details?" }, "requestId": "req_<uuid>" }`
 - 写操作认 `idempotency-key` 头：同一个键重发返回原结果，不重复执行
-- 共享资源的写建议认 `expectedRevision`：冲突回 `409`；一期可放宽但要在文档写明「最后写赢」
+- 共享可编辑资源写应携带目标合同规定的版本/基线；冲突回 `409`，缺前提可回 `428`。doc 既有正文遵守正文增补合同，不允许以“一期放宽”为由恢复最后写赢。
 
 **诚实铁律**：没配置、没接入的能力返回显式 `501/503`，**永不假成功、永不编造端点**。
 
@@ -306,8 +308,8 @@ App 自己领域的接口（doc 的 `/api/documents` 列表/读写/导出）。�
 - **新增卡间联动入口必须走声明，不许硬编码**：以后想在卡与卡之间加绑定关系按钮（如「文本→分镜」「图→视频」），以动作记录声明 `{源卡种, 目标卡种, 入口位置(初始面板/卡边/锚点菜单), 图标, 文案}`，由宿主统一渲染、统一按目标卡可用性过滤——不许再在具体卡组件里写死按钮；存量硬编码入口（文字卡的三连）随卡包化逐步迁成声明
 - **Agent 面向的动作**：小按钮（如工具栏「发给 AI」）**默认展示**（无内容置灰不可点），无执行通道时点击返回明确的不可用报错（不静默失败）；大输入面板（AI 操作条那种整段表单）才在无通道时整条隐藏
 - **详情入口 = 同一组件 + 同一数据源**：卡上「放大/详情」和页签「+」打开的 App 页面必须挂**同一个 surface 组件、读写同一份 App 文档**（§3.1——App 存真相，画布文件只是渲染镜像）。宿主不许再开一套自己的查看器/编辑器做「详情」
-- **App 页签 ↔ 卡 一一绑定**：从页签「+」开 App 详情必须同时在画布建一张绑定卡（App 文档按 `nodeId` 绑卡、详情页签带 `mirrorPath` 指回卡的镜像文件）——详情页和卡是同一实体的两个视角，不许出现「有页签没卡」的游离详情
-- **打开时对账**：详情打开前，若卡镜像与 App 文档内容不一致，以卡镜像为准推入 App 文档（因为详情编辑永远双写镜像，分叉只可能来自卡内编辑更晚）。已知缺口：管理侧直接写 App 文档（绕过镜像）不会同步到卡——要等 App 事件通道
+- **绑定详情与独立文档分开**：从已有卡片打开详情必须找到同一绑定；独立 App/外部 MA-V 创建文档允许无卡。画布工作台某个创建入口若要求同时建卡，作为该入口明确约定，不升级为所有宿主/所有文档的一一绑定规则。
+- **打开时只读对账**：不因为卡镜像与正文不同就推卡稿覆盖 App。按正文增补合同读取真实版本、显示待同步/冲突，并通过有基线的写和显式恢复处理；不能把缓存 `preferContent` 当覆盖授权。
 - **空卡初始面板自适应**：卡存的尺寸小于初始面板所需时必须自动补到完整尺寸，不许把初始动作裁掉一半
 - **AI 生成操作条**（提示词输入、「拆分镜/生图/文生视频」这类跨卡生成）：**管理侧 Agent 执行通道**——它不是「卡的部件」，是借卡的位置放的 Agent 入口。宿主 manifest 的 `agentRuntime.available` 声明执行通道是否接入；**未接入时整条生成 UI 必须隐藏**，不许放一个能输入但没人执行的假框（诚实铁律）
 
@@ -348,22 +350,40 @@ POST {provider.baseUrl}/open-platform/v1/instances/{providerInstanceId}/actions/
   "protocolVersion": "1.0",
   "actionId": "doc.write",
   "providerInstanceId": "ma-test-1",
-  "revision": 1792561765116,      // 正整数、safe int —— 用资产 updatedAt 毫秒时间戳，天然持久且单调
+  "revision": 1792561765116,      // Provider 正整数 safe int；语义由该 Provider 定义，不等于正文 hash/画布 core revision
   "summary": "文档「x」已写入",   // ≤2000 字的人类可读一句话
   "data": { /* 原 action 返回，网关原样透传给 Agent */ }
 }
 ```
 
-适配语义（doc 已实现，抄 `apps/server/src/open-platform.ts`）：
+适配语义（doc 的 `apps/server/src/open-platform.ts` 可作领域参考，不作为已验证的通用生产模板）：
 
-- **身份**：`actor.tenantId/userId` → 内部租户，网关已验过票，`userVerified:true`；不设信任就拒绝。
+- **身份**：Provider 必须先验证来自约定可信网关的调用/委托，再使用 actor 映射内部租户。actor 本身不是认证。doc 当前依赖可信上游前提，画布当前显式 local-only；未补可信入口前不能公开部署。
 - **providerInstanceId → 实例**：本口建的文档绑 `ma:<pid>` 合成节点键——`doc.create` 幂等（同 pid 返回同一文档），后续动作按别名解析；普通实例 ID 也直通。
-- **版本**：`expectedRevision` 拿上次响应的 `revision`；不匹配回 `409 PROVIDER_REVISION_CONFLICT`。内部存储要求 read-before-write 基线的（如 doc 的 `baseContent/expectedRevision`），由适配层读当前快照补上——不把这个负担传给 Agent。
-- **幂等**：`requestId/idempotencyKey` 前缀 `ma-` 进回执表，重试返回旧凭条。
+- **版本**：Provider 外层 `expectedRevision` 用上次 Provider 响应，不匹配回409。正文基线/hash是业务内层语义；适配器不得先取得新基线再盲盖过时稿。若依据外层整数版本补内层基线，必须在同一原子检查/提交边界证明安全，不能只靠先 check 后 write。当前 doc 的实现需单独验证该竞争窗口。
+- **幂等**：一次逻辑操作保留稳定 idempotencyKey/输入；公开回执持久范围。doc 当前动作回执为进程会话级，不能宣称重启后仍能去重；画布有自己的持久操作日志，不推导其他 Provider 同样支持。
 - **动作面**：只开 manifest 声明过的动作；未知动作 404、实例不存在 404、版本不符 400/409、`protocolVersion ≠ 1.0` 400。
-- **部署面**：Express 服务和 Appwrite 函数入口都要挂这一条——MA 网关打的是 `provider.baseUrl`，云上 provider 地址就是函数执行地址。
+- **部署面**：部署哪个入口就测试哪个入口。函数 executions 可能有额外传输外壳，必须核对网关/函数的 path/method/body 映射，不能简单在函数执行 URL 后拼业务路由。
 
 应用登记（他的后端那行数据）：`manifest.slug` = appId、`provider.baseUrl` = 你的 endpoint、`actions[]` 按 `{id,title,description,effect,inputSchema,requiredPermissions}` 逐个列、`frontend:{moduleId,exportName}` 指 surface 组件注册位（见 §七）。**登记前先实测本口——他网关对响应形状是硬校验，形状不对整单失败。**
+
+### 4.6 外部基座接入：应用侧适配与登记验收（2026-10-21 用户确认）
+
+**责任边界**：我们适配目标基座已经公开的合同；基座源码、公共 SDK、菜单、会话和 Agent 调度由其所有者维护。不得把修改目标基座作为 App 的安装步骤或“接入成功”前提。合同确实缺项时记录缺口与适用范围，不私自加宿主参数来证明兼容。
+
+目标基座当前核对基线：`design-ai-client/yihan-dev-ma` 的 `fa9475183`，其中 `packages/contracts/src/api/ma-applications.ts`、`ma-v/src/session-apps/types.ts`、`resolver.ts`、`SessionAppSurface.tsx` 及 Plugin Kit SDK 1.0.0。它是外部兼容性基线，后续按目标正式版本更新，不复制成我们的平台真源，也不据此宣称全部生产链路已完善。
+
+交付与验收必须区分三层：
+
+1. **组件可安装**：提供独立可安装包、版本、CSS、真实命名导出与依赖闭包。`frontend.moduleId/exportName` 是宿主编译注册身份，版本要与后端 `currentVersion`、manifest 和实例 `applicationVersion` 一致；源码软链、Preview 能渲染不等于可移植交付。
+2. **后端可登记**：交付部署 manifest，按目标正式登记/发布入口安装。MA profile 的 `provider.baseUrl` 必须是完整 URL；`/canvas-provider` 只是本机 Preview 路由，不能作为正式登记值。不得自造 `app_`/`ai_` ID、用我们的 `/api/apps/register` 冒充 MA 登记，也不向目标数据库直接塞行。云端目录被 503 门禁拒绝时，记录为目标服务未就绪，不能改菜单假装注册成功。
+3. **可打开调用**：从目标目录创建、关联并打开真实实例；Agent 经其正式工具通道调用公开动作，回执、App 存储与 UI 读回一致。前端关键词预执行、模型复述脚本结果和只在 Kit Preview 点击均不得算真实 Agent 调用通过。
+
+前端适配只消费目标已承诺的 props。当前 MA-V 会传 `context/fileClient/conversation`；`providerClient` 虽在 SDK 类型中可选，宿主实际没有传，不能当成必需项；`registerBeforeLeave` 和画布私有 `transport` 也不是该宿主已承诺的接口。应用自己的发布配置/包装层负责接入现有通道，不能要求基座新增这些参数。缺少必要能力时如实报不支持并给出所需公开合同，不静默连到开发者电脑。
+
+所有地址按部署 profile 配置，不能把 `127.0.0.1:19000`、`17463`、绝对工作目录或另一个仓库源码路径写成通用运行依赖。联调 manifest 可使用明确的本机 URL，但必须与生产登记产物区分；远端服务上的 loopback 不指向用户电脑。用户与团队身份由约定的认证/委托通道证明，actor 字段本身不是认证凭据。前端共用宿主渲染器，遵守本仓 React 18 约束并独立核验真实宿主运行兼容性，不靠捆绑另一份 React 规避冲突。
+
+最小交付包包括：组件安装包、按环境生成的 manifest、Provider 协议/版本/错误说明、认证与网络依赖、声明动作的参数 schema、在未修改目标基座上完成的安装/打开/调用/持久化证据及未通过项。规范与能力声明只记录实际通过的范围。
 
 ## 五、能力清单 manifest
 
@@ -397,12 +417,12 @@ POST {provider.baseUrl}/open-platform/v1/instances/{providerInstanceId}/actions/
 | 口 | 干什么 |
 |---|---|
 | **自注册** | 启动时向画布 `POST /api/apps/register` 登记 `{appId, name, endpoint, manifest}`；失败只告警不退出。**必须带心跳**：每 30s 查 `GET /api/apps` 里有没有自己，没有就重注册——宿主重启会清注册表，只在启动时注册一次 = 宿主重启后永久失联 |
-| **镜像写透传** | 卡内编辑 → 画布存镜像 → 自动调你的 `<app>.create`/`write`（带 `nodeId/mirrorCanvasId/mirrorPath`，幂等）；你侧写入 → 顺手 PUT 画布 `files` 通道回写 `mirrorPath`。**两边各存各的，写完推给对方**——用户视角一次编辑，资产侧永远是真相 |
+| **镜像同步** | 卡内/业务App两个入口通过版本、共同基线和持久投递协调；正文已保存与镜像送达分别报告。不得把写完“顺手 PUT”当成可靠双写，正文按增补合同 |
 | **open-editor** | 画布把「这张卡归你编辑」的请求发过来：`{nodeId, filePath, canvasId?}`，你返回能打开编辑器的 `openUrl` |
-| **文件通道** | 卡片里存的 `filePath` 是内容锚点；读写它走画布的 `GET/PUT /api/apps/canvas/instances/:id/files?path=`——这是和画布交换内容的**唯一通道**，可以经你后端 P9 转发 |
+| **画布文件通道** | 卡片里的 `filePath` 为画布侧逻辑锚点；交换画布工程文件用 `GET/PUT /api/apps/canvas/instances/:id/files?path=`，可经业务 App 的 P17 转发。App 自有正文/资源另走自己的 API，不把 filePath 当全局资产主键 |
 | **事件订阅（半个）** | 可选：订画布的卡片增删改事件流，卡变了你能知道 |
 
-关联语义（钉死）：**卡 ↔ App 的关联键是 `filePath`**。卡是画布的，文件是共享的锚点，你的 App 用 filePath 找到该编辑的内容。两边不互查对方的数据库。
+关联语义：文件路径是有实例作用域的内容定位符，不是唯一绑定身份。doc 当前绑定域为 `teamId + mirrorCanvasId + nodeId`，解析出明确 docId；其他 App 在自身合同中定义。两边不互查对方私有数据库。
 
 ## 七、前端交付形态
 
@@ -416,6 +436,8 @@ import { DocumentEditorPane } from '@doc/surface';
 **同时要有一个独立壳** `apps/web`：同一套组件放进一个能独立打开的页面里（验证自闭环用）。组件和壳共用同一套数据接口（如 doc 的 `DocDocumentApi`），只是挂载环境不同。
 
 **宿主挂载缝（新 App 进「+」菜单/页签的口子）**：包发出去后在宿主侧登记一行——画布仓 `apps/web/src/app-surfaces/index.tsx` 的 `APP_SURFACES` 表加 `{appId, label, icon, surface}` 条目 + `openTab` 映射（点「+」时怎么建卡、怎么开详情页签）。这是唯一需要碰宿主代码的地方；登记后加卡菜单、页签、详情打开全部由目录自动驱动，App 被 deny/注销时入口自动消失。
+
+上段仅指我们自己维护的画布工作台；不适用于外部 MA 基座。外部宿主遵守 §4.6，由其所有者按既有安装/发布机制接收交付包，我们不修改其挂载逻辑。
 
 ## 八、环境变量规范
 
@@ -438,9 +460,9 @@ import { DocumentEditorPane } from '@doc/surface';
 
 ## 十、交付自检表（Definition of Done）
 
-逐条**实测**，「写了」不算，「跑通了」才算：
+逐条**实测**，「写了」不算，「跑通了」才算。按角色/目标 profile 判定适用项；N/A 写原因。包安装、模拟宿主、正式登记、Agent、staging 分开验收，详见手册 §11：
 
-- [ ] `pnpm -r build` / `test` / `typecheck` 全绿
+- [ ] 按实际仓库规则执行安装（依赖变化时）、guard/typecheck、包级测试/构建和真实运行；不使用本仓禁止的根 build/test 别名；已有失败记录原因和范围
 - [ ] 不配任何画布变量，App 能独立启动、核心功能可用（自闭环）
 - [ ] 设 `<APP>_REGISTER_TO` 重启后，`GET <画布>/api/apps` 能看到自己
 - [ ] `GET /api/apps/<appId>` 返回 manifest，声明的动作都有实现
@@ -449,13 +471,15 @@ import { DocumentEditorPane } from '@doc/surface';
 - [ ] 经文件通道写入 → 画布侧读回内容一致（双向实测）
 - [ ] 响应都带 `requestId`，错误都带 `code/message/retryable`
 - [ ] 未配置的能力全部显式 501/503
-- [ ] **租户**：`X-Team-Id` 换值后列表隔离、跨租户读/写 403、新资产带 `teamId+createdBy`
+- [ ] **租户**：本地 header 测试验证过滤；部署另用已验证身份测试团队/资源授权和绕过菜单直调拒绝。新资产带正确 teamId/actor，自报头不算生产认证
 - [ ] **MA Provider 口**：`/open-platform/v1/instances/:pid/actions/:actionId` 走通 create→read→write 一轮：create 幂等（同 pid 同实例）、`expectedRevision` 过期返回 409、响应形状过网关校验（protocolVersion/revision 正整数/summary）
 - [ ] **注册韧性**：宿主重启后 30s 内心跳自动重注册，`GET /api/apps` 重新出现且 manifest 随注册入目录
 - [ ] **绑定**：带 `nodeId` 建资产 → `GET .../bindings` 出现 active 行；归档资产 → 绑定转 archived
 - [ ] README 写明：结构、自闭环验证方法、环境变量、启动命令、未实现清单
 
-## 十一、doc 合规状态（2026-10-20，按统一合同 P 编号）
+## 十一、doc 历史核对状态（2026-10-20，不作当前合规证明）
+
+下表仅保留当日范围；其中旧 P 引用与当前 §4.2 编号不完全对应，查接口用当前 P1–P24 表。正文并发已被 2026-10-21 增补合同替换；实际状态/限制见仓库运行证据。
 
 | 项 | 合同条目 | 状态 |
 |---|---|---|
@@ -464,16 +488,16 @@ import { DocumentEditorPane } from '@doc/surface';
 | 回执查询 | P14 | ✅ 实现（会话级，重启清空——已在 manifest 标注） |
 | `/events` | P18（二期） | manifest 如实标 `available:false` |
 | `/snapshots` | P20（二期） | 如实标 `available:false` |
-| 文件写无版本冲突控制 | P16 | 一期放宽：最后写赢，文档已写明 |
+| 正文并发 | P16 | 旧“最后写赢”已废止；按正文增补合同版本/基线、428/409 验收 |
 | open-editor 会话存内存 | P4 | 一期接受，重启即丢已写明 |
 
-> doc 目前是体系里**第一个全合规参考实现**（必须项 100%，应当项除二期全实现）。
+> doc 是参考实现，不宣称“必须项100%/全合规”；独立安装、生产身份、Provider 竞争窗口、重启幂等及正式 MA 接入仍分别验收。
 
 ---
 
 ## 附录 A：API 格式参考（实测样例，可直接抄）
 
-以下全部是 2026-10-20 在 canvas `17462` + doc `19000` 上真实跑过的调用。
+以下保留 2026-10-20 本地调用样例，不是当前通用可复制模板或全量验收。P 编号以 §4.2 为准；正文版本以前述增补为准；注册 endpoint 应为具体协议根（doc 为 `/api/apps/doc`），不能将裸 origin 与协议根混用。
 
 ### A.1 自注册（P2）
 

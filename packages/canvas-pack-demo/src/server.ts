@@ -5,7 +5,7 @@ const demoPackServer = {
   packId: 'demo',
   name: '@bezier/canvas-pack-demo',
   cards: [
-    { kind: 'card.demo.memo' },
+    { kind: 'card.demo.memo', agent: { read: ['title', 'data'], write: {} } },
   ],
 };
 

@@ -1,0 +1,37 @@
+NEXT Canvas web ready: http://127.0.0.1:50464
+
+URLS {"canvas":"http://127.0.0.1:50468","doc":"http://127.0.0.1:50469","web":"http://127.0.0.1:50464","docUrl":"http://127.0.0.1:50469/?doc=合成正文-6cc4609e","root":"/var/folders/h4/2lhtpkgj43s9d8gfg3x6knc00000gn/T/canvas-doc-browser-data-q89OX3"}
+BROWSER 155.0.8059.85
+CANVAS BUTTONS [
+  '',         '拆分镜', '生成图片',
+  '文生视频', '',       '',
+  '',         '',       '',
+  '',         '',       '',
+  '',         '',       '',
+  '',         '',       '',
+  '',         '',       '100%',
+  '',         '',       '',
+  '',         '',       ''
+]
+PASS open existing canonical doc without overwrite
+PASS standalone UI save propagates to embedded live editor
+PASS embedded UI save propagates to standalone live editor
+FAIL both entry reloads retain shared body locator.click: Timeout 15000ms exceeded.
+Call log:
+  - waiting for getByRole('tab', { name: '代码', exact: true })
+
+    at <anonymous> (/private/tmp/canvas-doc-browser-KXH8y7/browser.ts:59:307)
+    at async check (/private/tmp/canvas-doc-browser-KXH8y7/browser.ts:22:61)
+    at async <anonymous> (/private/tmp/canvas-doc-browser-KXH8y7/browser.ts:59:2) {
+  name: 'TimeoutError'
+}
+locator.click: Timeout 15000ms exceeded.
+Call log:
+  - waiting for getByRole('tab', { name: '代码', exact: true })
+
+    at <anonymous> (/private/tmp/canvas-doc-browser-KXH8y7/browser.ts:59:307)
+    at async check (/private/tmp/canvas-doc-browser-KXH8y7/browser.ts:22:61)
+    at async <anonymous> (/private/tmp/canvas-doc-browser-KXH8y7/browser.ts:59:2) {
+  name: 'TimeoutError'
+}
+CLEANED temporary listeners and /var/folders/h4/2lhtpkgj43s9d8gfg3x6knc00000gn/T/canvas-doc-browser-data-q89OX3

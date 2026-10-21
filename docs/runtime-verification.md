@@ -2,7 +2,38 @@
 
 本记录按阶段保留独立仓库的样式、中文化与三入口恢复证据。原代码基线为 `319e5eee556a3641d2ee68a6111a36ddc7a1eff7`，中文化基于恢复提交 `6e2d96ae36afc74bb9d249461190bc377c737311`。功能范围见 [功能对照](<feature-parity.md>)；最新样式修复以以下专项记录为准。
 
-## 画布与文档 App 关系收口（2026-10-21）
+## 双入口并发、复制与持久恢复（2026-10-21，本轮验收中）
+
+Node 24.19.0 / pnpm 10.33.2。本轮实现正文 hash 版本与有界三方合并、冲突双方保留、画布 commit 前持久 intent、文档持久 mirror queue、版本化显式解决、独立复制和条件解绑。规范见 [正文同步增补合同](<../.devin/skills/canvas-app-platform/docs/document-sync-contract.zh-CN.md>)，产品归属和限制见 [关系及状态报告](<canvas-doc-relationship-and-status.zh-CN.md>)。
+
+截至本轮最近检查：
+
+| 范围 | 实际结果 |
+| --- | --- |
+| Canvas server | 313 通过，1 Appwrite 真环境测试跳过；source/tests typecheck、build通过 |
+| Canvas Web | 407 通过；typecheck通过 |
+| Canvas workbench | 232 通过；source/tests typecheck、声明build通过 |
+| Doc server | 65 通过；typecheck、build通过 |
+| Doc surface / 独立Web | 两者typecheck通过；Web production build通过 |
+| 宿主 Next | 独立构建目录生产build通过；不是原有运行服务已更新 |
+| 真实双服务 HTTP | 下述8组通过，所有临时进程和数据已清理 |
+| 真实浏览器 | **未全过**：双入口和冲突主链7组通过；复制卡后立即输入仍显示了新稿但没有保存，正在定位。不可用等待后编辑的通过代替此失败；末尾统一刷新验收尚未完成 |
+
+运行 [真实双进程检查](<../e2e/canvas-doc-runtime.ts>)：
+
+```sh
+node --import tsx e2e/canvas-doc-runtime.ts run /absolute/canvas-workspace /absolute/designai-app-doc
+```
+
+8组内容：出生绑定与mirror确认；独立文字变化三方合并；同范围409保留双方及校验双方版本的解决；Doc离线连写并重启恢复；Canvas投递失败后重启恢复；UI式复制请求立即分离文件/Doc身份；独立doc.copy去绑定及独立生命周期；显式archive/restore及迟到解绑不能归档新绑定。均使用真实两个服务进程、临时根、随机端口和合成正文；日志中的503/409是注入离线/冲突的预期结果。**这不等于已通过真实UI复制后立即输入**。
+
+浏览器验收明确揭示并修复了页签appTabs被丢弃、旧文字通知重放回滚、服务端允许迟到PATCH重新别名等问题。客户端receipt发布/路径重整回归已增加，但实际浏览器仍有立即输入未保存的缺陷，按 [逐次真实浏览器报告](<verification/canvas-doc-browser-20261021-1410/REPORT.md>)保留失败证据，不以单测或一次refresh掩盖。
+
+安全收尾额外覆盖：权限策略损坏/IO错误不再default allow；同步状态/retry/resolve校验Doc App访问权限；替换文档身份后不能继承旧文档基线；旧JSON/base64/multipart文件覆盖接口不得绕过版本写入活动Doc镜像，返回428，需使用卡片/Doc或版本化App files。普通新上传和独立复制不受该限制。
+
+**门禁和部署限制**：vendor仓内常规tgz的可移植file依赖已纳入guard；MF React/ReactDOM配对及既有未登记JS、根e2e缺失fixture仍使全仓门禁失败。单服务进程写同一根，Appwrite不提供真CAS；正文→日志间隙需要安全对账；真实身份/团队provider、Appwrite权限及生产部署未验收。未重启原有Canvas/Doc服务、迁移真实数据或清理历史绑定。
+
+## 画布与文档 App 关系收口（2026-10-21，此前批次）
 
 Node 24.19.0 / pnpm 10.33.2。画布服务端 **214 通过、1 Appwrite 集成跳过**；Web **381 通过**；两包类型检查及 diff 检查通过。文档服务端 **27 通过**，server/web/surface 类型检查与 server/web/function 构建通过。
 
