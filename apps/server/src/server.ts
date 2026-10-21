@@ -56,7 +56,7 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
  const sketchEndpoint=async()=>{const app=await appRegistry.get('sketch');return app&&app.status==='active'&&/^https?:\/\//.test(app.endpoint)?app.endpoint:null;};
  const sketchStore=async(projectId:string)=>{const endpoint=await sketchEndpoint();return endpoint?new SketchAppSketchStore(new SketchAppFiles(endpoint),projectId):null;};
  const docBindingCache=new Map<string,string>();
- const textDocumentSynced=async(_projectId:string,node:Record<string,unknown>)=>{
+ const textDocumentSynced=async(projectId:string,node:Record<string,unknown>)=>{
   const nodeId=typeof node.id==='string'?node.id:'';const text=typeof node.text==='string'?node.text:null;
   if(!nodeId||text===null)return;
   const apps=await appRegistry.list().catch(()=>[]);
@@ -65,11 +65,19 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
   const base=docApp.endpoint.replace(/\/+$/,'');
   let docId=docBindingCache.get(nodeId);
   if(!docId){
-   const res=await fetch(`${base}/instances`);if(!res.ok)return;
-   const items=((await res.json()) as {data?:{items?:{id:string;nodeId?:string}[]}}).data?.items??[];
-   const bound=items.find(i=>i.nodeId===nodeId);if(!bound)return;
-   docId=bound.id;docBindingCache.set(nodeId,docId);
+   // Eager binding: first content save creates the App document bound to
+   // this card (idempotent — a doc already bound by another path is reused).
+   const mirrorPath=typeof node.projectFilePath==='string'?node.projectFilePath:undefined;
+   const title=typeof node.title==='string'&&node.title.trim()?node.title:undefined;
+   const res=await fetch(`${base}/actions/doc.create`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({input:{nodeId,name:title,content:text,mirrorCanvasId:projectId,...(mirrorPath?{mirrorPath}:{})}})});
+   if(!res.ok)return;
+   const result=((await res.json()) as {data?:{result?:{instanceId?:string}}}).data?.result;
+   docId=result?.instanceId;if(!docId)return;
+   docBindingCache.set(nodeId,docId);
   }
+  // doc.write follows doc.create too — a deduped document may hold older
+  // content (created empty or seeded earlier), so always converge to the
+  // card's latest text.
   await fetch(`${base}/instances/${encodeURIComponent(docId)}/actions/doc.write`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({input:{content:text}})});
  };
  const canvas=new CanvasStateService(id=>registry.resolveProjectRoot(id),undefined,assetLibrary,appwriteStorage?{...appwriteStorage,sketchStore,textDocumentSynced}:{sketchStore,textDocumentSynced});
