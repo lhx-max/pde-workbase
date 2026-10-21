@@ -23,7 +23,7 @@ if ! up 19000; then
     DOC_REGISTER_TO=http://127.0.0.1:17462 \
     CANVAS_ORIGIN=http://127.0.0.1:17462 \
     DOC_PUBLIC_WEB_ORIGIN=http://127.0.0.1:19001 \
-    DOC_DATA_DIR=/tmp/doc-app-data \
+    DOC_DATA_DIR="$DOC_APP/apps/server/.data" \
     nohup node dist/index.js </dev/null >/tmp/doc-19000.log 2>&1 &)
   echo "doc-server starting on 19000"
 fi
