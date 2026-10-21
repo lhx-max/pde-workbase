@@ -143,8 +143,23 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
           });
           return;
         }
-        blockedRef.current = true;
-        setSaveConflict('Recovered an unsaved canvas draft. Export it before discarding or reloading.');
+        // No replayable request — the draft may be stale bookkeeping whose
+        // edits already landed. Compare against the server snapshot; equal
+        // means nothing is actually pending and the draft can be dropped
+        // without blocking saves. Only a real divergence keeps the banner.
+        void request<{ state?: CanvasState; revision?: number }>(requestContext, '/api/canvas/state', { method: 'GET' })
+          .then(payload => {
+            if (payload?.state && draft.state && sameValue(payload.state, draft.state)) {
+              try { localStorage.removeItem(draftKey); } catch { /* Storage unavailable. */ }
+              return;
+            }
+            blockedRef.current = true;
+            setSaveConflict('Recovered an unsaved canvas draft. Export it before discarding or reloading.');
+          })
+          .catch(() => {
+            blockedRef.current = true;
+            setSaveConflict('Recovered an unsaved canvas draft. Export it before discarding or reloading.');
+          });
       }
     } catch { /* Storage unavailable: retain in-memory edits. */ }
   }, [draftKey]);
