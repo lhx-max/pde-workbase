@@ -662,6 +662,9 @@ function applyCanvasTextCopyOnWrite(
   const nextById = new Map(boundNodes.map(node => [node.id, node]));
   return boundNodes.map(node => {
     const current = currentById.get(node.id);
+    if (node.kind === 'text' && !current && boundNodes.some(other => other.id !== node.id && other.kind === 'text' && canvasTextDocumentPath(other) === canvasTextDocumentPath(node))) {
+      return { ...node, projectFilePath: canvasTextForkPath(boundNodes, node, `copy:${String(node.id)}`) };
+    }
     if (
       node.kind !== 'text'
       || current?.kind !== 'text'

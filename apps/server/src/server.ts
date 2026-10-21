@@ -66,9 +66,10 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
  const entitlements=new AppEntitlementStore(dataRoot);
  const bindings=new BindingStore(dataRoot);
  const audit=new AuditLog(dataRoot);
- const textDocumentSynced=createDocSynchronizer({registry:appRegistry,bindings,audit,entitlements,project:id=>registry.get(id)});
+ const textDocumentSynced=createDocSynchronizer({dataRoot,registry:appRegistry,bindings,audit,entitlements,project:id=>registry.get(id)});
  const documentNodesChanged=(projectId:string,nodes:readonly Record<string,unknown>[])=>bindings.reconcileNodes(projectId,nodes);
- const canvas=new CanvasStateService(id=>registry.resolveProjectRoot(id),undefined,assetLibrary,{...appwriteStorage,sketchStore,textDocumentSynced,documentNodesChanged});
+ const canvas=new CanvasStateService(id=>registry.resolveProjectRoot(id),undefined,assetLibrary,{...appwriteStorage,sketchStore,textDocumentSynced,documentNodesChanged,textDocumentPrepared:textDocumentSynced.prepare,documentMirrorSaved:textDocumentSynced.confirmMirror});
+ textDocumentSynced.attach(canvas);
  const db=new Database(path.join(dataRoot,'workspace.sqlite'));
  db.exec('CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY)');
  for(const project of registry.list())db.prepare('INSERT OR IGNORE INTO projects(id) VALUES (?)').run(project.id);
@@ -130,9 +131,9 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
  registerAssetRoutes(app,{registry,library:assetLibrary,...(options.assets?{adapter:options.assets}:{})});
  registerAssetLibraryRoutes(app,{...options.assetLibrary,service:assetLibrary,registry,authorizeProject:authorizeProjectRequest});
  app.use((error:unknown,_req:express.Request,res:Response,_next:express.NextFunction)=>{const value=error as {status?:number;code?:string;message?:string};sendApiError(res,value.status??500,value.code??'SERVER_ERROR',value.message??'Internal server error');});
- const ready=withProjectLedgerRecorder(input=>{ledger.record(input);},async()=>{await media.ready();});
+ const ready=withProjectLedgerRecorder(input=>{ledger.record(input);},async()=>{await media.ready();textDocumentSynced.start();});
  const handleUpgrade=(_req:IncomingMessage,socket:Duplex,_head:Buffer):void=>{
   socket.end('HTTP/1.1 403 Forbidden\r\n\r\n');
  };
- return {app,registry,canvas,ledger,media,assetLibrary,db,ready,handleUpgrade,close:async()=>{await media.close();await assetLibrary.close?.();db.close();}};
+ return {app,registry,canvas,ledger,media,assetLibrary,db,ready,handleUpgrade,close:async()=>{await textDocumentSynced.close();await media.close();await assetLibrary.close?.();db.close();}};
 }
