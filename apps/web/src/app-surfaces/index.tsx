@@ -27,23 +27,30 @@ export interface RegisteredAppEntry {
 }
 
 /** doc-server-backed Api — the embedded tab edits the App's own documents
- * through its standard REST surface (`/api/documents/:id`). */
+ * through the unified /api/apps protocol actions (doc.read / doc.write). */
 function httpDocApi(endpoint: string, docId: string): DocDocumentApi {
-  const base = `${endpoint.replace(/\/+$/, '')}/api/documents/${encodeURIComponent(docId)}`;
+  const base = endpoint.replace(/\/+$/, '');
+  const call = async (action: string, input: Record<string, unknown>) => {
+    const res = await fetch(`${base}/instances/${encodeURIComponent(docId)}/actions/${action}`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ input }),
+    });
+    const body = await res.json() as { data?: { result?: Record<string, unknown> }; error?: { message?: string } };
+    if (!res.ok) throw new Error(body?.error?.message ?? `doc ${action} ${res.status}`);
+    return body.data?.result ?? {};
+  };
   return {
     async read() {
-      const res = await fetch(`${base}/file`);
-      if (!res.ok) throw new Error(`doc read ${res.status}`);
-      return res.text();
+      const result = await call('doc.read', {});
+      return typeof result.content === 'string' ? result.content : '';
     },
     async write(content) {
-      const res = await fetch(`${base}/file`, { method: 'PUT', headers: { 'content-type': 'text/plain' }, body: content });
-      if (!res.ok) throw new Error(`doc write ${res.status}`);
-      const body = await res.json() as { data?: DocMeta };
-      return body.data ?? { id: docId, name: '', path: '', size: content.length, updatedAt: new Date().toISOString() };
+      const result = await call('doc.write', { content });
+      const meta = result.meta as DocMeta | undefined;
+      return meta ?? { id: docId, name: '', path: '', size: content.length, updatedAt: new Date().toISOString() };
     },
     async exportDocument(format, content, title) {
-      const res = await fetch(`${endpoint}/api/documents/export`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ format, markdown: content, title }) });
+      const origin = base.replace(/\/api\/apps\/[^/]+$/, '');
+      const res = await fetch(`${origin}/api/documents/export`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ format, markdown: content, title }) });
       return res.ok ? { ok: true } : { ok: false, error: `export ${res.status}` };
     },
   };
@@ -52,13 +59,13 @@ function httpDocApi(endpoint: string, docId: string): DocDocumentApi {
 /** Ask the App to create whatever a fresh tab needs; returns what to persist. */
 export async function createAppTab(app: RegisteredAppEntry): Promise<ProjectAppWorkspaceTab> {
   if (app.appId === 'doc') {
-    const res = await fetch(`${app.endpoint}/api/documents`, {
+    const res = await fetch(`${app.endpoint}/actions/doc.create`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name: '未命名文档' }),
+      body: JSON.stringify({ input: { name: '未命名文档' } }),
     });
     if (!res.ok) throw new Error(`doc create ${res.status}`);
-    const meta = (await res.json() as { data: DocMeta }).data;
-    return { id: `app:doc:${meta.id}`, appId: app.appId, target: meta.id, label: meta.name || app.name };
+    const result = (await res.json() as { data: { result: { instanceId: string; meta: DocMeta } } }).data.result;
+    return { id: `app:doc:${result.instanceId}`, appId: app.appId, target: result.instanceId, label: result.meta.name || app.name };
   }
   // Apps without a dedicated surface handler still get a tab — the surface
   // render reports the missing mount honestly.
