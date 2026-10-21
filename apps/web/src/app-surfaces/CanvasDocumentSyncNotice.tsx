@@ -38,7 +38,7 @@ export function CanvasDocumentSyncNotice({ canvasId, enabled = true }: { canvasI
       headers: { ...tenantHeaders(), ...(input ? { 'content-type': 'application/json' } : {}) },
       ...(input ? { method: 'POST', body: JSON.stringify(input) } : { cache: 'no-store' as const }),
     });
-    const body = await response.json() as { data?: { entries?: CanvasDocumentSyncEntry[] }; error?: { code?: string; message?: string } };
+    const body = await response.json().catch(() => ({})) as { data?: { entries?: CanvasDocumentSyncEntry[] }; error?: { code?: string; message?: string } };
     if (!response.ok) throw Object.assign(new Error(body.error?.message ?? `文档同步检查失败（HTTP ${response.status}）`), { status: response.status, code: body.error?.code });
     if (!Array.isArray(body.data?.entries) || body.data.entries.some(entry => !entry || typeof entry.nodeId !== 'string' || typeof entry.content !== 'string' || !Object.hasOwn(labels, entry.status))) {
       throw new Error('文档同步服务未返回有效状态；已保留上次结果');

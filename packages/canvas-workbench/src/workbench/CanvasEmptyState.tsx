@@ -6,7 +6,9 @@ export function CanvasEmptyState(_props: { canDropFiles: boolean }) {
   const copy = xy();
   return (
     <div className={styles.empty} data-testid="canvas-empty-state">
-      <p className={styles.hint}>{copy.emptyHint}</p>
+      <div className={styles.instruction}>
+        <span>{copy.emptyHint}</span>
+      </div>
     </div>
   );
 }
