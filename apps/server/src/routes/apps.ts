@@ -65,6 +65,13 @@ export function registerAppsRoutes(app: Express, deps: RegisterAppsRoutesDeps): 
       res.json({ requestId: requestId(), data: { removed: { scope, appId } } });
     } catch (error) { sendAppError(res, error); }
   });
+  /** Governance audit tail — who did what to which asset, most recent last. */
+  app.get('/api/apps/audit', async (req, res) => {
+    try {
+      res.json({ requestId: requestId(), data: { entries: deps.audit?.list({ teamId: tenantOf(req).teamId, ...(typeof req.query.limit === 'string' ? { limit: Number(req.query.limit) } : {}) }) ?? [] } });
+    } catch (error) { sendAppError(res, error); }
+  });
+
   /** Access check — Apps call this to gate their own actions for a tenant
    * (catalogue visibility alone can't stop direct endpoint calls). */
   app.get('/api/apps/entitlements/check', async (req, res) => {
@@ -78,17 +85,48 @@ export function registerAppsRoutes(app: Express, deps: RegisterAppsRoutesDeps): 
 
   app.post('/api/apps/register', async (req, res) => {
     try {
-      const { appId, name, endpoint, webUrl, description, scope } = (req.body ?? {}) as { appId?: string; name?: string; endpoint?: string; webUrl?: string; description?: string; scope?: 'platform' | 'team' };
+      const { appId, name, endpoint, webUrl, description, scope, manifest } = (req.body ?? {}) as { appId?: string; name?: string; endpoint?: string; webUrl?: string; description?: string; scope?: 'platform' | 'team'; manifest?: Record<string, unknown> };
       if (!appId || !name || !endpoint) throw new CanvasStateError(400, 'BAD_REQUEST', 'appId, name and endpoint are required');
       if (!/^https?:\/\//.test(endpoint)) throw new CanvasStateError(400, 'BAD_REQUEST', 'endpoint must be an http(s) URL');
       if (webUrl !== undefined && !/^https?:\/\//.test(webUrl)) throw new CanvasStateError(400, 'BAD_REQUEST', 'webUrl must be an http(s) URL when provided');
       const cleanWebUrl = webUrl?.replace(/\/+$/, '');
       // Team-scoped apps belong to the registering tenant's catalogue only.
-      const row = await deps.registry.register({ appId, name, endpoint: endpoint.replace(/\/+$/, ''), ...(cleanWebUrl ? { webUrl: cleanWebUrl } : {}), description, status: 'active', scope: scope === 'team' ? 'team' : 'platform', ...(scope === 'team' ? { teamId: tenantOf(req).teamId } : {}) });
+      const row = await deps.registry.register({ appId, name, endpoint: endpoint.replace(/\/+$/, ''), ...(cleanWebUrl ? { webUrl: cleanWebUrl } : {}), description, status: 'active', scope: scope === 'team' ? 'team' : 'platform', ...(scope === 'team' ? { teamId: tenantOf(req).teamId } : {}), ...(manifest && typeof manifest === 'object' ? { manifest } : {}) });
       deps.audit?.record({ actor: tenantOf(req), action: 'app.register', appId, targetId: appId, status: 'succeeded', summary: `${name} ${endpoint}` });
       res.status(201).json({ requestId: requestId(), data: { app: row } });
     } catch (error) { sendAppError(res, error); }
   });
+
+  /** Unified agent doorway: ONE entry point proxies to whichever App is
+   * registered — agents never need per-app base URLs. Tenant headers and the
+   * idempotency key are forwarded; entitlement deny short-circuits. */
+  const proxyToApp = async (req: Request, res: Response, appId: string, suffix: string) => {
+    try {
+      const app = await deps.registry.get(appId);
+      if (!app) throw new CanvasStateError(404, 'APP_NOT_FOUND', `app ${appId} is not registered`);
+      if (app.status !== 'active') throw new CanvasStateError(403, 'APP_DISABLED', `app ${appId} is disabled`);
+      const tenant = tenantOf(req);
+      if (deps.entitlements?.resolve(appId, tenant) === 'deny') throw new CanvasStateError(403, 'TENANT_FORBIDDEN', 'App denied for this tenant');
+      const url = `${app.endpoint.replace(/\/+$/, '')}${suffix}${typeof req.query === 'object' && req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''}`;
+      const upstream = await fetch(url, {
+        method: req.method,
+        headers: {
+          'content-type': 'application/json',
+          'x-team-id': tenant.teamId, 'x-user-id': tenant.userId,
+          ...(req.get('idempotency-key') ? { 'idempotency-key': req.get('idempotency-key')! } : {}),
+        },
+        ...(req.method !== 'GET' ? { body: JSON.stringify(req.body ?? {}) } : {}),
+      });
+      const body = await upstream.json().catch(() => ({}));
+      res.status(upstream.status).json(body);
+    } catch (error) { sendAppError(res, error); }
+  };
+  // canvas owns its own routes under the same prefix — let them through.
+  const external = (appId: string) => appId !== 'canvas';
+  app.post('/api/apps/:appId/actions/:actionId', (req, res, next) => { if (!external(req.params.appId)) return next(); return proxyToApp(req, res, req.params.appId, `/actions/${encodeURIComponent(req.params.actionId)}`); });
+  app.post('/api/apps/:appId/instances/:instanceId/actions/:actionId', (req, res, next) => { if (!external(req.params.appId)) return next(); return proxyToApp(req, res, req.params.appId, `/instances/${encodeURIComponent(req.params.instanceId)}/actions/${encodeURIComponent(req.params.actionId)}`); });
+  app.get('/api/apps/:appId/instances/:instanceId/state', (req, res, next) => { if (!external(req.params.appId)) return next(); return proxyToApp(req, res, req.params.appId, `/instances/${encodeURIComponent(req.params.instanceId)}/state`); });
+  app.get('/api/apps/:appId/instances', (req, res, next) => { if (!external(req.params.appId)) return next(); return proxyToApp(req, res, req.params.appId, '/instances'); });
 
   app.delete('/api/apps/:appId', async (req, res) => {
     try {

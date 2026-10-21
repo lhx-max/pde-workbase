@@ -26,6 +26,7 @@ import {AppwriteCanvasFileContent, AppwriteCanvasPersistence} from './storage/ca
 import {appwriteCanvasEffects,readLocalProjectFile} from './storage/canvas-appwrite-effects.js';
 import {CardRegistryStore} from './storage/card-registry.js';
 import {AppRegistryStore} from './storage/app-registry.js';
+import {canvasManifest} from './canvas-manifest.js';
 import {AppEntitlementStore} from './storage/app-entitlements.js';
 import {BindingStore} from './storage/bindings.js';
 import {AuditLog} from './storage/audit-log.js';
@@ -54,7 +55,7 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
  const resolveProjectRoot=(id:string)=>registry.resolveProjectRoot(id);
  const appContent=options.appwrite&&appwriteClient?new AppwriteCanvasFileContent(appwriteClient,options.appwrite.databaseId,options.appwrite.bucketId,'canvas_files',(pid,rel)=>readLocalProjectFile(resolveProjectRoot,pid,rel)):new FileCanvasContent(resolveProjectRoot);
  const appRegistry=new AppRegistryStore(appwriteClient,options.appwrite?.databaseId);
- appRegistry.register({appId:'canvas',name:'画布',endpoint:'/api/apps/canvas',status:'active'}).catch(err=>console.warn('[app-registry] canvas self-register failed:',err));
+ appRegistry.register({appId:'canvas',name:'画布',endpoint:'/api/apps/canvas',status:'active',manifest:canvasManifest()}).catch(err=>console.warn('[app-registry] canvas self-register failed:',err));
  const appwriteStorage=options.appwrite&&appwriteClient?(()=>{const client=appwriteClient;const resolveRoot=(id:string)=>registry.resolveProjectRoot(id);const cardRegistry=new CardRegistryStore(client,options.appwrite!.databaseId);syncCardPackRegistry(cardRegistry).catch(err=>console.warn('[card-registry] pack sync failed:',err));return {persistence:new AppwriteCanvasPersistence(client,options.appwrite!.databaseId),content:appContent!,effects:appwriteCanvasEffects(client,options.appwrite!.databaseId,options.appwrite!.bucketId,resolveRoot),cardEntitlement:(projectId:string)=>cardRegistry.resolveAllowedKinds({projectId})};})():undefined;
  const sketchEndpoint=async()=>{const app=await appRegistry.get('sketch');return app&&app.status==='active'&&/^https?:\/\//.test(app.endpoint)?app.endpoint:null;};
  const sketchStore=async(projectId:string)=>{const endpoint=await sketchEndpoint();return endpoint?new SketchAppSketchStore(new SketchAppFiles(endpoint),projectId):null;};

@@ -18,6 +18,9 @@ export interface RegisteredApp {
   /** platform = every tenant sees it; team = only its own team's catalogue. */
   scope?: 'platform' | 'team';
   teamId?: string;
+  /** Capability manifest the app announced at registration — discovery
+   * serves it verbatim so agents learn actions/kinds without probing. */
+  manifest?: Record<string, unknown>;
   registeredAt: string;
 }
 

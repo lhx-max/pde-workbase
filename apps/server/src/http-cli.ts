@@ -2,7 +2,7 @@ import { open, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 
 const MAX_JSON_BYTES = 64 * 1024 * 1024;
-const VALUE_FLAGS = new Set(['server-url', 'body-file', 'prompt-file', 'output', 'file', 'mime', 'project', 'session', 'token', 'id', 'navigation', 'scope', 'ids', 'version', 'name', 'kind', 'text-file', 'filename', 'path']);
+const VALUE_FLAGS = new Set(['server-url', 'body-file', 'prompt-file', 'output', 'file', 'mime', 'project', 'session', 'token', 'id', 'navigation', 'scope', 'ids', 'version', 'name', 'kind', 'text-file', 'filename', 'path', 'instance']);
 const HELP = `canvas-server request METHOD /api/path [--body-file JSON_PATH|-] [--prompt-file TEXT_PATH|-]
 canvas-server assets info|list|get|create|upload|patch|batch|versions|content|export|spaces|uses|metadata|analysis|prompt|import|save
 canvas-server browser preferences [--body-file REVISION_PATCH_JSON|-]
@@ -112,6 +112,31 @@ export async function buildHttpCliRequest(args: string[]): Promise<{ url: URL; i
       else if (['versions', 'uses', 'analysis', 'prompt'].includes(action!) && bodyFile) method = 'POST';
       if (action === 'content' && flag('version')) endpoint += `?${new URLSearchParams({ version: flag('version')! })}`;
     } else throw new Error('Invalid assets action; use assets --help');
+  } else if (args[0] === 'apps') {
+    const action = args[1];
+    if (action === 'list') endpoint = '/api/apps';
+    else if (action === 'call') {
+      const appId = args[2], actionId = args[3];
+      if (!appId || !actionId) throw new Error('apps call APP_ID ACTION_ID [--instance ID] [--body-file INPUT_JSON]');
+      const instance = flag('instance');
+      endpoint = instance
+        ? `/api/apps/${encodeURIComponent(appId)}/instances/${encodeURIComponent(instance)}/actions/${encodeURIComponent(actionId)}`
+        : `/api/apps/${encodeURIComponent(appId)}/actions/${encodeURIComponent(actionId)}`;
+      method = 'POST';
+      if (body === undefined) body = JSON.stringify({ input: {} });
+      else setBody({ input: bodyObject() });
+    }
+    else if (action === 'state') {
+      const appId = args[2];
+      if (!appId) throw new Error('apps state APP_ID --instance ID');
+      endpoint = `/api/apps/${encodeURIComponent(appId)}/instances/${encodeURIComponent(required('instance'))}/state`;
+    }
+    else if (action === 'bindings') {
+      endpoint = `/api/apps/canvas/instances/${encodeURIComponent(required('project'))}/bindings${flag('scope') === 'all' ? '?all=1' : ''}`;
+    }
+    else if (action === 'entitlements') endpoint = `/api/apps/entitlements${flag('id') ? `?appId=${encodeURIComponent(flag('id')!)}` : ''}`;
+    else if (action === 'audit') endpoint = '/api/apps/audit';
+    else throw new Error('Expected apps list|call|state|bindings|entitlements|audit');
   } else if (args[0] === 'request') {
     method = (args[1] ?? '').toUpperCase(); endpoint = args[2] ?? '';
     if (!['GET', 'POST', 'PATCH', 'PUT', 'DELETE'].includes(method) || !endpoint.startsWith('/api/')) throw new Error('request METHOD /api/path [--body-file JSON_PATH|-]');

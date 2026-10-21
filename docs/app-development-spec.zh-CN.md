@@ -73,6 +73,37 @@ designai-app-<appId>/
 
 **你的数据存你自己的地方。** 每个 App 有自己的 Appwrite 库和桶，画布的数据存在画布自己的库和桶里——两边不互相进对方的数据库，要交换内容只走 API（文件通道，见 §七）。
 
+### 2.9 动作归属规则（卡操作 vs App 操作）
+
+**数据在谁手里，动作就归谁。** Agent 和所有调用方按这条路由请求：
+
+| 操作类型 | 归属 | 通道 |
+|---|---|---|
+| 建/删/移/改名卡、连线、画布实例生命周期 | **画布** | `/api/apps/canvas/instances/{id}/operations` + 实例 actions |
+| 写正文、改生成参数、触发 App 能力 | **绑定的 App** | `/api/apps/<appId>/instances/{id}/actions/{actionId}` |
+| 查卡绑的是哪个 App 实例 | 画布 bindings 索引 | `GET .../bindings` |
+| 发现能力 | 目录 manifest | `GET /api/apps`（画布自己也带 manifest） |
+
+收敛规则：卡的镜像字段也允许经 `node.update` 写（画布会推给绑定 App）——两个入口落到同一份真相，但**改内容优先走 App 动作**。
+
+**能力清单（manifest）统一形状**——注册时声明、发现时原样返回：
+
+```json
+{
+  "appId", "name", "version", "protocolVersion",
+  "cardKinds":   ["能提供的卡种"],
+  "editorKinds": ["负责编辑哪些卡种"],
+  "actions":     [{"actionId","mode":"app|instance","async","available?"}],
+  "operations":  ["实例级批处理操作（画布的卡 API）"],
+  "endpoints":   {"路由模板"},
+  "events":      {"available","types"},
+  "tenancy":     "required",
+  "execution":   "synchronous|receipt"
+}
+```
+
+Agent 工作流：`GET /api/apps` 看清单 → 画布侧 `operations` 做编排 → 按 bindings 找 App 实例 → App `actions` 做内容。CLI `apps call` 对两边是同一条门道。
+
 ### 3.0 租户与资产归属（所有 App 通用，强制）
 
 **每条资产出生就带租户指纹，每个查询都被租户过滤。** 这是未来所有 App 的统一规则——资产必须能回答「哪个团队的、谁的」。
