@@ -6,6 +6,9 @@ const config: NextConfig = {
   ...(buildDirectory ? { distDir: buildDirectory } : {}),
   transpilePackages: ['@bezier/components', '@bezier/contracts', '@bezier/canvas-workbench', '@bezier/workbench-core', '@bezier/workbench-ui', '@bezier/host', '@doc/surface'],
   turbopack: { root: resolve(process.cwd(), '../..') },
+  // Dev previews (tunnels/proxies) arrive under foreign origins; dev assets like
+  // webpack-hmr are origin-checked by Next and would 403 without this list.
+  allowedDevOrigins: ['127.0.0.1', 'localhost', '*.devin.cli', '*.devinapps.com', '*.devin.com'],
   // API/artifact/frame route handlers resolve the explicitly configured origin at runtime.
 };
 export default config;
