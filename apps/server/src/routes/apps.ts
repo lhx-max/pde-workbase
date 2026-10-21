@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Express, Request, Response } from 'express';
 import type { AppRegistryStore } from '../storage/app-registry.js';
 import type { AppEntitlementStore } from '../storage/app-entitlements.js';
+import type { AuditLog } from '../storage/audit-log.js';
 import { CanvasStateError } from '../canvas/errors.js';
 
 const requestId = () => `req_${randomUUID()}`;
@@ -14,6 +15,7 @@ function sendAppError(res: Response, error: unknown): void {
 export interface RegisterAppsRoutesDeps {
   registry: AppRegistryStore;
   entitlements?: AppEntitlementStore;
+  audit?: AuditLog;
   /** Local-daemon request check (same seam the canvas routes use). */
   authorizeProjectRequest?: (req: Request, res: Response, projectId: string, access?: { mode: 'read' | 'write' }) => Promise<boolean>;
 }
@@ -50,7 +52,9 @@ export function registerAppsRoutes(app: Express, deps: RegisterAppsRoutesDeps): 
       const { scope, appId, effect } = (req.body ?? {}) as { scope?: string; appId?: string; effect?: 'allow' | 'deny' };
       if (!scope || !appId || (effect !== 'allow' && effect !== 'deny')) throw new CanvasStateError(400, 'BAD_REQUEST', 'scope, appId and effect(allow|deny) are required');
       if (scope !== '*' && !/^team:[A-Za-z0-9_-]+$|^user:[A-Za-z0-9_-]+$/.test(scope)) throw new CanvasStateError(400, 'BAD_REQUEST', 'scope must be * | team:<id> | user:<id>');
-      res.json({ requestId: requestId(), data: { rule: deps.entitlements.put({ scope, appId, effect, updatedBy: tenantOf(req).userId }) } });
+      const rule = deps.entitlements.put({ scope, appId, effect, updatedBy: tenantOf(req).userId });
+      deps.audit?.record({ actor: tenantOf(req), action: 'entitlement.put', appId, targetId: rule.id, status: 'succeeded', summary: `${scope} ${effect}` });
+      res.json({ requestId: requestId(), data: { rule } });
     } catch (error) { sendAppError(res, error); }
   });
   app.delete('/api/apps/entitlements', async (req, res) => {
@@ -81,6 +85,7 @@ export function registerAppsRoutes(app: Express, deps: RegisterAppsRoutesDeps): 
       const cleanWebUrl = webUrl?.replace(/\/+$/, '');
       // Team-scoped apps belong to the registering tenant's catalogue only.
       const row = await deps.registry.register({ appId, name, endpoint: endpoint.replace(/\/+$/, ''), ...(cleanWebUrl ? { webUrl: cleanWebUrl } : {}), description, status: 'active', scope: scope === 'team' ? 'team' : 'platform', ...(scope === 'team' ? { teamId: tenantOf(req).teamId } : {}) });
+      deps.audit?.record({ actor: tenantOf(req), action: 'app.register', appId, targetId: appId, status: 'succeeded', summary: `${name} ${endpoint}` });
       res.status(201).json({ requestId: requestId(), data: { app: row } });
     } catch (error) { sendAppError(res, error); }
   });
@@ -91,6 +96,7 @@ export function registerAppsRoutes(app: Express, deps: RegisterAppsRoutesDeps): 
       if (!appId || appId === 'canvas') throw new CanvasStateError(400, 'BAD_REQUEST', 'cannot unregister canvas itself');
       const existed = await deps.registry.unregister(appId);
       if (!existed) throw new CanvasStateError(404, 'APP_NOT_FOUND', `app ${appId} is not registered`);
+      deps.audit?.record({ actor: tenantOf(req), action: 'app.unregister', appId, targetId: appId, status: 'succeeded' });
       res.json({ requestId: requestId(), data: { unregistered: appId } });
     } catch (error) { sendAppError(res, error); }
   });

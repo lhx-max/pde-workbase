@@ -27,6 +27,8 @@ import {appwriteCanvasEffects,readLocalProjectFile} from './storage/canvas-appwr
 import {CardRegistryStore} from './storage/card-registry.js';
 import {AppRegistryStore} from './storage/app-registry.js';
 import {AppEntitlementStore} from './storage/app-entitlements.js';
+import {BindingStore} from './storage/bindings.js';
+import {AuditLog} from './storage/audit-log.js';
 import {registerAppsRoutes} from './routes/apps.js';
 import {syncCardPackRegistry} from './card-packs.js';
 export interface CanvasServerOptions {
@@ -57,6 +59,8 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
  const sketchEndpoint=async()=>{const app=await appRegistry.get('sketch');return app&&app.status==='active'&&/^https?:\/\//.test(app.endpoint)?app.endpoint:null;};
  const sketchStore=async(projectId:string)=>{const endpoint=await sketchEndpoint();return endpoint?new SketchAppSketchStore(new SketchAppFiles(endpoint),projectId):null;};
  const entitlements=new AppEntitlementStore(dataRoot);
+ const bindings=new BindingStore(dataRoot);
+ const audit=new AuditLog(dataRoot);
  const docBindingCache=new Map<string,string>();
  const textDocumentSynced=async(projectId:string,node:Record<string,unknown>)=>{
   const nodeId=typeof node.id==='string'?node.id:'';const text=typeof node.text==='string'?node.text:null;
@@ -81,6 +85,7 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
    const result=((await res.json()) as {data?:{result?:{instanceId?:string}}}).data?.result;
    docId=result?.instanceId;if(!docId)return;
    docBindingCache.set(nodeId,docId);
+   bindings.upsert({canvasInstanceId:projectId,nodeId,kind:'text',appId:'doc',appInstanceId:docId,...(mirrorPath?{mirrorPath}:{}) ,teamId:tenant.teamId});
   }
   // doc.write follows doc.create too — a deduped document may hold older
   // content (created empty or seeded earlier), so always converge to the
@@ -131,8 +136,8 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
  app.use((_req,_res,next)=>withProjectLedgerRecorder(input=>{ledger.record(input);},next));
  app.get('/api/health',(_req,res)=>res.json({ok:true,service:'canvas-workspace'}));
  registerCanvasStateRoutes(app,{canvasState:canvas,ledger,resolveProjectRoot:id=>registry.resolveProjectRoot(id),authorizeProjectRequest});
- registerAppsRoutes(app,{registry:appRegistry,entitlements});
- registerAppCanvasRoutes(app,{canvasState:canvas,registry,authorizeProjectRequest,appRegistry,content:appContent,ledger});
+ registerAppsRoutes(app,{registry:appRegistry,entitlements,audit});
+ registerAppCanvasRoutes(app,{canvasState:canvas,registry,authorizeProjectRequest,appRegistry,content:appContent,ledger,bindings,audit});
  registerProjectFileRoutes(app,{registry,canvasFiles:canvas,authorize:authorizeProjectRequest,sketchDocuments:{
   async read(filePath){const endpoint=await sketchEndpoint();if(!endpoint||!isSketchDocumentPath(filePath))return undefined;return new SketchAppFiles(endpoint).read(filePath);},
   async write(filePath,content){const endpoint=await sketchEndpoint();if(!endpoint||!isSketchDocumentPath(filePath))return undefined;const saved=await new SketchAppFiles(endpoint).write(filePath,content);return {name:saved.path,path:saved.path,size:saved.size,mtime:Date.parse(saved.updatedAt)||Date.now(),kind:'sketch',mime:'application/json',type:'file'};},

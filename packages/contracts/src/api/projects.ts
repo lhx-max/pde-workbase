@@ -252,6 +252,9 @@ export interface Project {
    * filtering and cross-tenant access checks. Absent = 'local'. */
   teamId?: string;
   createdBy?: string;
+  /** Asset lifecycle (spec §3.0) — deletion archives, never hard-deletes:
+   * instance files stay recoverable and the audit trail stays whole. */
+  archivedAt?: number;
   /**
    * The daemon-authoritative visibility from this project's
    * `workspace_projects` row.

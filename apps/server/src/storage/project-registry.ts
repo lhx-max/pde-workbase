@@ -62,7 +62,18 @@ export function createProjectRegistry(dataRoot: string) {
   };
   return {
     dataRoot, projectsRoot, get,
-    list: (): Project[] => load().projects.sort((a, b) => b.updatedAt - a.updatedAt),
+    list: (): Project[] => load().projects.filter(p => !p.archivedAt).sort((a, b) => b.updatedAt - a.updatedAt),
+    /** Archive — assets are never physically deleted (spec §3.0). */
+    archive(id: string): Project {
+      const project = requireProject(id);
+      const state = load();
+      const index = state.projects.findIndex(p => p.id === project.id);
+      project.archivedAt = Date.now();
+      project.updatedAt = Date.now();
+      state.projects[index] = project;
+      save(state);
+      return project;
+    },
     create(input: CreateProjectInput): Project {
       if (typeof input.name !== 'string' || !input.name.trim()) throw new Error('name required');
       const id = input.id ?? randomUUID();

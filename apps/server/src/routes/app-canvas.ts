@@ -7,6 +7,8 @@ import { listCardOps, listRegisteredCardKinds, listRegisteredCardApps, listRegis
 import { CARD_CAPABILITY_MATRIX, CARD_CREATE_ACTIONS } from '../canvas/card-capability-matrix.js';
 import { canvasCardChangesAfter, subscribeCanvasCardChanges, type CanvasCardChange } from '../canvas/card-events.js';
 import type { AppRegistryStore } from '../storage/app-registry.js';
+import type { BindingStore } from '../storage/bindings.js';
+import type { AuditLog } from '../storage/audit-log.js';
 import type { CanvasFileContent } from '../canvas/persistence.js';
 
 type Authorize = (req: Request, res: Response, projectId: string, access?: { mode: 'read' | 'write'; capability?: string }) => Promise<boolean>;
@@ -14,6 +16,7 @@ type Authorize = (req: Request, res: Response, projectId: string, access?: { mod
 interface Registry {
   create(input: { id?: string; name: string; metadata?: unknown; teamId?: string; createdBy?: string }): { id: string };
   get?(id: string): { id: string; teamId?: string } | null;
+  archive?(id: string): { id: string };
   list?(): { id: string; name: string; createdAt: number; updatedAt: number; teamId?: string }[];
   update?(id: string, input: { name?: string }): { id: string; name: string };
   delete?(id: string): void;
@@ -47,6 +50,9 @@ export interface RegisterAppCanvasRoutesDeps {
   authorizeProjectRequest?: Authorize;
   /** App catalog — resolves kind→app→endpoint for open-editor. */
   appRegistry?: AppRegistryStore;
+  /** Central card↔App binding index (data-model §三). */
+  bindings?: BindingStore;
+  audit?: AuditLog;
   /** Canvas-owned file channel — external Apps read/write the same files
    * the cards point at (`projectFilePath`). Text payloads in v1. */
   content?: CanvasFileContent;
@@ -131,6 +137,7 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
       if (!await authorize(req, res, id, { mode: 'write' })) return;
       const tenant = tenantOf(req);
       const project = deps.registry.create({ id, name: name ?? '新画布', teamId: tenant.teamId, createdBy: tenant.userId });
+      deps.audit?.record({ actor: tenant, action: 'canvas.create', appId: 'canvas', targetId: project.id, status: 'succeeded', summary: name ?? '新画布' });
       res.status(201).json({ requestId: requestId(), data: { receiptId: req.get('idempotency-key') ?? null, status: 'succeeded', result: { instanceId: project.id } } });
     } catch (error) { sendAppError(res, error); }
   });
@@ -205,6 +212,31 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
     } catch (error) { sendAppError(res, error); }
   });
 
+  /** Card↔App binding index (data-model §三). Apps report their bindings
+   * here; governance reads this instead of scraping App-side metadata. */
+  app.get<{ instanceId: string }>('/api/apps/canvas/instances/:instanceId/bindings', async (req, res) => {
+    try {
+      if (!await authorize(req, res, req.params.instanceId, { mode: 'read' })) return;
+      res.json({ requestId: requestId(), data: { bindings: deps.bindings?.list({ canvasInstanceId: req.params.instanceId, includeArchived: req.query.all === '1' }) ?? [] } });
+    } catch (error) { sendAppError(res, error); }
+  });
+  app.put<{ instanceId: string }>('/api/apps/canvas/instances/:instanceId/bindings', async (req, res) => {
+    try {
+      if (!await authorize(req, res, req.params.instanceId, { mode: 'write' })) return;
+      if (!deps.bindings) throw new CanvasStateError(501, 'BINDINGS_UNAVAILABLE', 'binding store not configured');
+      const body = (req.body ?? {}) as { nodeId?: string; kind?: string; appId?: string; appInstanceId?: string; mirrorPath?: string };
+      if (!body.nodeId || !body.appId || !body.appInstanceId) throw new CanvasStateError(400, 'BAD_REQUEST', 'nodeId, appId and appInstanceId are required');
+      const row = deps.bindings.upsert({
+        canvasInstanceId: req.params.instanceId, nodeId: body.nodeId,
+        ...(body.kind ? { kind: body.kind } : {}), appId: body.appId, appInstanceId: body.appInstanceId,
+        ...(body.mirrorPath ? { mirrorPath: body.mirrorPath } : {}),
+        teamId: tenantOf(req).teamId,
+      });
+      deps.audit?.record({ actor: tenantOf(req), action: 'binding.upsert', appId: body.appId, targetId: row.bindingId, status: 'succeeded', summary: `${req.params.instanceId}/${body.nodeId}→${body.appInstanceId}` });
+      res.json({ requestId: requestId(), data: { binding: row } });
+    } catch (error) { sendAppError(res, error); }
+  });
+
   /** Revision only (P8). */
   app.get<{ instanceId: string }>('/api/apps/canvas/instances/:instanceId/revision', async (req, res) => {
     try {
@@ -256,6 +288,8 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
       const projectId = resolveInstanceId(req.params.instanceId);
       if (!await authorize(req, res, projectId, { mode: 'write', capability: 'writeFiles' })) return;
       const response = await deps.canvasState.applyOperations(projectId, req.body);
+      const ops = (req.body as { operations?: { type?: string; nodeId?: string }[] } | undefined)?.operations ?? [];
+      for (const op of ops) if (op.type === 'node.delete' && op.nodeId) deps.bindings?.archive(projectId, op.nodeId);
       res.json({ requestId: requestId(), data: { receipt: response.receipt, revision: response.revision, state: response.state, replayed: response.replayed, eventCursor: String(response.revision) } });
     } catch (error) { sendAppError(res, error); }
   });
@@ -285,8 +319,12 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
           res.json({ requestId: requestId(), data: { receiptId: req.get('idempotency-key') ?? null, status: 'succeeded', result: { instanceId: project.id, name: project.name } } });
           return;
         }
-        deps.registry.delete?.(projectId);
-        res.json({ requestId: requestId(), data: { receiptId: req.get('idempotency-key') ?? null, status: 'succeeded', result: { instanceId: projectId, deleted: true } } });
+        // Archive — never physically delete an instance (spec §3.0); its
+        // files and bindings stay recoverable. Its card↔App bindings archive too.
+        deps.registry.archive ? deps.registry.archive(projectId) : deps.registry.delete?.(projectId);
+        deps.bindings?.archive(projectId);
+        deps.audit?.record({ actor: tenantOf(req), action: 'canvas.archive', appId: 'canvas', targetId: projectId, status: 'succeeded' });
+        res.json({ requestId: requestId(), data: { receiptId: req.get('idempotency-key') ?? null, status: 'succeeded', result: { instanceId: projectId, archived: true } } });
         return;
       }
       if (actionId === 'canvas.duplicate') throw new CanvasStateError(501, 'CANVAS_ACTION_UNAVAILABLE', 'canvas.duplicate is not implemented yet');
