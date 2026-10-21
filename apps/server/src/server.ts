@@ -54,7 +54,7 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
  const appwriteClient=options.appwrite?new AppwriteClient(options.appwrite):undefined;
  const resolveProjectRoot=(id:string)=>registry.resolveProjectRoot(id);
  const appContent=options.appwrite&&appwriteClient?new AppwriteCanvasFileContent(appwriteClient,options.appwrite.databaseId,options.appwrite.bucketId,'canvas_files',(pid,rel)=>readLocalProjectFile(resolveProjectRoot,pid,rel)):new FileCanvasContent(resolveProjectRoot);
- const appRegistry=new AppRegistryStore(appwriteClient,options.appwrite?.databaseId);
+ const appRegistry=new AppRegistryStore(appwriteClient,options.appwrite?.databaseId,path.join(dataRoot,'app-registry.json'));
  appRegistry.register({appId:'canvas',name:'画布',endpoint:'/api/apps/canvas',status:'active',manifest:canvasManifest()}).catch(err=>console.warn('[app-registry] canvas self-register failed:',err));
  const appwriteStorage=options.appwrite&&appwriteClient?(()=>{const client=appwriteClient;const resolveRoot=(id:string)=>registry.resolveProjectRoot(id);const cardRegistry=new CardRegistryStore(client,options.appwrite!.databaseId);syncCardPackRegistry(cardRegistry).catch(err=>console.warn('[card-registry] pack sync failed:',err));return {persistence:new AppwriteCanvasPersistence(client,options.appwrite!.databaseId),content:appContent!,effects:appwriteCanvasEffects(client,options.appwrite!.databaseId,options.appwrite!.bucketId,resolveRoot),cardEntitlement:(projectId:string)=>cardRegistry.resolveAllowedKinds({projectId})};})():undefined;
  const sketchEndpoint=async()=>{const app=await appRegistry.get('sketch');return app&&app.status==='active'&&/^https?:\/\//.test(app.endpoint)?app.endpoint:null;};
