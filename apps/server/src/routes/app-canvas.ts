@@ -236,6 +236,16 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
       res.json({ requestId: requestId(), data: { binding: row } });
     } catch (error) { sendAppError(res, error); }
   });
+  /** Archive bindings for a card — Apps call this when their bound asset is
+   * archived (doc.archive), or the host uses it internally on node.delete. */
+  app.delete<{ instanceId: string }>('/api/apps/canvas/instances/:instanceId/bindings', async (req, res) => {
+    try {
+      if (!await authorize(req, res, req.params.instanceId, { mode: 'write' })) return;
+      const nodeId = typeof req.query.nodeId === 'string' ? req.query.nodeId : undefined;
+      const count = deps.bindings?.archive(req.params.instanceId, nodeId) ?? 0;
+      res.json({ requestId: requestId(), data: { archived: count } });
+    } catch (error) { sendAppError(res, error); }
+  });
 
   /** Revision only (P8). */
   app.get<{ instanceId: string }>('/api/apps/canvas/instances/:instanceId/revision', async (req, res) => {
@@ -410,6 +420,24 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
       if (content === null) throw new CanvasStateError(400, 'BAD_REQUEST', 'content (string) is required');
       const path = filePath(req);
       await deps.content.write(projectId, path, content);
+      // File→state mirror: a text file written through this channel backs a
+      // card — push the body into the node's `text` so card previews/state
+      // converge (the App store is truth; state.text is the render mirror).
+      // Best-effort: the file write already succeeded; a revision race just
+      // leaves state one step behind until the next save.
+      try {
+        const snapshot = await deps.canvasState.read(projectId);
+        const nodes = snapshot.state?.workbenchBasicNodes;
+        const node = Array.isArray(nodes) ? nodes.find((n): n is { id: string; kind?: string; projectFilePath?: string; text?: string } =>
+          typeof n === 'object' && n !== null && n.kind === 'text' && n.projectFilePath === path && n.text !== content) : undefined;
+        if (node) {
+          await deps.canvasState.applyOperations(projectId, {
+            operationId: `mirror-${randomUUID()}`,
+            baseRevision: snapshot.revision,
+            operations: [{ type: 'node.update', nodeId: node.id, set: { text: content } }],
+          });
+        }
+      } catch { /* state mirror is best-effort — never fail the file write */ }
       res.json({ requestId: requestId(), data: { path, status: 'written' } });
     } catch (error) { sendAppError(res, error); }
   });
