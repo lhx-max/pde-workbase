@@ -447,9 +447,9 @@ const ZH = {
   itemCount: (n: number) => `${n} 项`,
   versionCount: (n: number) => `${n} 个版本`,
   apply: '应用',
-  compatLoadFail: '[安全-agent] 加载兼容状态失败',
-  compatCheckFail: '[安全-agent] 检查兼容状态失败',
-  compatSaveFail: '[安全-agent] 批量保存状态失败',
+  compatLoadFail: '画布兼容状态加载失败',
+  compatCheckFail: '画布兼容状态检查失败',
+  compatSaveFail: '画布批量保存状态失败',
   presentationAgentPrompt: (input: {
     lengthLabel: string;
     lengthDetail: string;
