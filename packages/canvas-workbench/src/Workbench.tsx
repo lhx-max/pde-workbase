@@ -1623,6 +1623,7 @@ function FlowHome({
     artifactFormat?: 'html' | 'presentation',
     requestedPosition?: { x: number; y: number },
     collisionDirection: 'forward' | 'backward' | 'none' = 'forward',
+    titleOverride?: string,
   ): string {
     const host = canvasHostRef.current;
     const rect = host?.getBoundingClientRect();
@@ -1630,7 +1631,7 @@ function FlowHome({
     const screenY = rect ? rect.top + rect.height / 2 : window.innerHeight / 2;
     const world = toFlowPoint(screenX, screenY);
     const id = `basic-${kind}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-    const title = kind.startsWith('card.') ? kind.split('.').pop() ?? kind : canvasNodeDefaultTitle(canvasLocale, kind as CanvasNodeCreationKind | 'artifact', artifactFormat);
+    const title = titleOverride ?? (kind.startsWith('card.') ? kind.split('.').pop() ?? kind : canvasNodeDefaultTitle(canvasLocale, kind as CanvasNodeCreationKind | 'artifact', artifactFormat));
     const defaultVideoFrame = getVideoFrameSize();
     const width = kind === 'sketch' ? 420 : kind === 'video' ? defaultVideoFrame.width : kind === 'text' ? TEXT_CARD_DEFAULT_WIDTH : kind === 'storyboard' ? STORYBOARD_CARD_DEFAULT_WIDTH : kind === 'page' ? HTML_PAGE_CARD_SIZE.width : 320;
     const height = kind === 'sketch' ? 300 : kind === 'video' ? defaultVideoFrame.height : kind === 'text' ? TEXT_CARD_DEFAULT_HEIGHT : kind === 'storyboard' ? STORYBOARD_CARD_DEFAULT_HEIGHT : kind === 'page' ? HTML_PAGE_CARD_SIZE.height : 220;
@@ -1672,11 +1673,11 @@ function FlowHome({
     return history.run(() => addNodeFromCatalogImpl(...args));
   }
 
-  function addNodeFromCatalogImpl(kind: CanvasNodeCreationKind, position?: { x: number; y: number }): string {
+  function addNodeFromCatalogImpl(kind: CanvasNodeCreationKind, position?: { x: number; y: number }, titleOverride?: string): string {
     // The pointer shortcut supplies canvas coordinates captured at double-click;
     // the dock keeps its existing automatic placement in the visible viewport.
     const addBasic = (nodeKind: CanvasBasicNodeKind, format?: 'html' | 'presentation') =>
-      addBasicNode(nodeKind, format, position, position ? 'none' : 'forward');
+      addBasicNode(nodeKind, format, position, position ? 'none' : 'forward', titleOverride);
     if (kind === 'sketch') return addBasic('sketch');
     const nodeId = kind === 'video'
         ? addBasic('video')
@@ -1698,7 +1699,7 @@ function FlowHome({
   React.useEffect(() => {
     if (!nodeCreationRequest) return;
     if (consumedNodeCreationNonceRef.current === nodeCreationRequest.nonce) return;
-    const nodeId = addNodeFromCatalog(nodeCreationRequest.kind, nodeCreationRequest.position);
+    const nodeId = addNodeFromCatalog(nodeCreationRequest.kind, nodeCreationRequest.position, nodeCreationRequest.title);
     if (!nodeId) return;
     consumedNodeCreationNonceRef.current = nodeCreationRequest.nonce;
     onNodeCreationConsumed?.(nodeCreationRequest.nonce, nodeId);

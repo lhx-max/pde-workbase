@@ -224,10 +224,10 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
         return () => { cancelled = true; clearInterval(timer); };
     }, []);
     const cardWaiters = useRef(new Map<string, (nodeId: string) => void>());
-    const requestCanvasCard = useCallback((kind: 'text', position?: { x: number; y: number }) => new Promise<string>((resolve, reject) => {
+    const requestCanvasCard = useCallback((kind: 'text', position?: { x: number; y: number }, title?: string) => new Promise<string>((resolve, reject) => {
         const nonce = crypto.randomUUID();
         cardWaiters.current.set(nonce, resolve);
-        setNodeCreationRequest({ nonce, kind, ...(position ? { position } : {}) });
+        setNodeCreationRequest({ nonce, kind, ...(position ? { position } : {}), ...(title ? { title } : {}) });
         setTimeout(() => { if (cardWaiters.current.delete(nonce)) reject(new Error('card create timeout')); }, 8000);
     }), []);
     const openAppTab = useCallback((app: RegisteredAppEntry) => {
@@ -269,7 +269,7 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
                     continue;
                 }
                 const title = documentDropTitle(file.name);
-                const nodeId = await requestCanvasCard('text', position);
+                const nodeId = await requestCanvasCard('text', position, title);
                 // mirrorPath is a hint, not required input — doc-side mirror
                 // resolves the card's current file by nodeId on every write.
                 let mirrorPath: string | undefined;
@@ -306,8 +306,8 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
                     written = await callDocAction(docApp.endpoint, 'doc.write', { content }, tenantHeaders(), document.instanceId);
                 }
                 if (written.mirror?.status && written.mirror.status !== 'synced') reportError(new Error('文档已导入，但画布副本同步未确认。请保留文档正文后再试。'));
-                // Dedupe may return the synchronizer's card-named doc — take
-                // the file's name so the doc reads like the dropped file.
+                // A dedupe-hit doc created before the title landed can still
+                // carry the generic card title — take the file's name.
                 if (document.name && document.name !== title) {
                     await callDocAction(docApp.endpoint, 'doc.rename', { name: title }, tenantHeaders(), document.instanceId).catch(() => null);
                 }

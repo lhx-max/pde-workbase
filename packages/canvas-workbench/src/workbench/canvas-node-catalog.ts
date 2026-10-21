@@ -8,6 +8,9 @@ export type CanvasNodeCreationRequest = {
   nonce: string;
   kind: CanvasNodeCreationKind;
   position?: { x: number; y: number };
+  /** Optional title override (e.g. a dropped file's name); default is the
+   * locale catalogue title. The doc synchronizer names bound docs after it. */
+  title?: string;
 };
 
 export type CanvasNodeCreationOption = {
