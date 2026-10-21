@@ -104,6 +104,22 @@ designai-app-<appId>/
 
 Agent 工作流：`GET /api/apps` 看清单 → 画布侧 `operations` 做编排 → 按 bindings 找 App 实例 → App `actions` 做内容。CLI `apps call` 对两边是同一条门道。
 
+### 2.9.1 文档类 API 模板（第一个完成的 App 类别）
+
+doc 是模板——其他卡种的 App 按同一形状补齐自己的词表。一个「文档类」App 必须实现：
+
+| 动作 | scope | 作用 | 级联 |
+|---|---|---|---|
+| `doc.list` | app | 列本租户文档 | — |
+| `doc.create` | app | 建文档；`input.nodeId` 绑定画布卡 | 上报 bindings 索引（幂等） |
+| `doc.read` | instance | 读 meta+正文 | — |
+| `doc.write` | instance | 改正文 | 自动回写画布镜像 |
+| `doc.rename` | instance | 改名 | — |
+| `doc.archive` | instance | 归档（不物理删） | 级联归档画布 binding |
+| `doc.open` | instance | 返回详情页 openUrl | — |
+
+通用配套：REST 镜像端点（GET/POST/PATCH/DELETE `/api/documents`）、instances/state、action-receipts、files 通道、租户过滤与越权 403、`archivedAt` 生命周期字段。后续类别（生图/视频/分镜）按此骨架：list/create/read/write/archive/open 必备 + 类别专属动作（如 `image.generate`）。
+
 ### 3.0 租户与资产归属（所有 App 通用，强制）
 
 **每条资产出生就带租户指纹，每个查询都被租户过滤。** 这是未来所有 App 的统一规则——资产必须能回答「哪个团队的、谁的」。
