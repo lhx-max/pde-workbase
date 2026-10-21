@@ -27,7 +27,7 @@
 ```
 GET /api/apps/canvas/instances/<bizId>/state        → 卡列表（含信封与 data 黑盒）
 GET /api/apps/canvas                                → 能力清单（卡 kind、动作、每种卡能不能做）
-每种核心卡对每个动作是支持还是不适用，见 `cardCapabilities`，对照表在 `docs/canvas-card-capability-matrix.zh-CN.md`。
+每种核心卡对每个动作是支持还是不适用，见 `cardCapabilities`，对照表在 `canvas-card-capability-matrix.zh-CN.md`。
 ```
 
 App 读卡 = 读画布 state，拿到节点 id/kind/geometry/data/projectFilePath。
@@ -125,6 +125,11 @@ interface OpenEditorRequest {
 | **跨 App 文件通道** | ✅ `GET/PUT /api/apps/canvas/instances/:id/files?path=`——App 读写卡里存的同一份文件（一期文本负载） |
 | **变化订阅** | ✅ `GET /api/apps/canvas/instances/:id/events`——卡片增删改；游标掉出缓冲时 `ready.resync`，调用方重读 state |
 | **统一合同补全**（2026-10-20） | ✅ 实例列表 `GET .../instances`、批量 `POST .../instances/:id/operations`（原子多操作、operationId 幂等、baseRevision 冲突 409）、回执 `GET .../operations/:operationId`、`/revision`、`/context`、`/nodes/:nodeId`、`/nodes/:nodeId/history`、生命周期动作 `canvas.rename`/`canvas.delete`（`canvas.duplicate` 501 未实现）。完整合同见 `app-development-spec.zh-CN.md` §4.2 |
+| **租户与治理**（2026-10-21） | ✅ `X-Team-Id/X-User-Id` 头、资产 `teamId/createdBy` 打标、查询过滤、越权 403；`app_entitlements` 显隐表（`GET/PUT/DELETE`）；审计 `audit.jsonl` + `GET /api/apps/audit`；实例/资产一律归档不物理删 |
+| **绑定索引** | ✅ `GET/PUT/DELETE /api/apps/canvas/instances/:id/bindings`——卡↔App 资产映射中心表；doc.create 带 `nodeId+mirrorCanvasId` 自动上报；删卡/归档级联 |
+| **Agent 代理口 + CLI** | ✅ `POST /api/apps/<appId>/(instances/:iid/)actions/:aid` 宿主代理转发（租户头/幂等键透传，entitlement 短路）；`canvas-server apps list|call|state|bindings|entitlements|audit` |
+| **能力清单注册** | ✅ register body 带 `manifest`，目录 `GET /api/apps` 原样返回；画布自己也带 manifest（28 个 operations + 生命周期动作） |
+| **文档类生命周期** | ✅ doc 模板：`doc.list/create/read/write/rename/archive/open` + 镜像回写 + 归档级联——后续卡种照此骨架 |
 | App 独立仓/独立部署 | ⏳ 拆出中 |
 
 ## 6. 待定（二期）

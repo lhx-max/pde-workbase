@@ -205,7 +205,7 @@ App 自己领域的接口（doc 的 `/api/documents` 列表/读写/导出）。�
 | # | 端点 | 级别 | 干什么 |
 |---|---|---|---|
 | P1 | `GET /api/apps` | 必须 | 目录：列出所有已注册 App（调用方在宿主/画布侧调） |
-| P2 | 启动时 `POST <宿主>/api/apps/register` `{appId,name,endpoint,webUrl?,description?}` | 必须 | 自注册：告诉宿主「我上线了，在这个地址」。`endpoint` 是协议/API 面地址；`webUrl` 是**你自己前端页面的地址**（宿主「打开 App 详情页」时跳它，不填退化到 endpoint）。**注销**：宿主侧 `DELETE /api/apps/<appId>` 把 App 从目录移除——此后它的卡片从所有「+」菜单消失、页签「+」不再列出它；`canvas` 自身不可注销 |
+| P2 | 启动时 `POST <宿主>/api/apps/register` `{appId,name,endpoint,webUrl?,description?,scope?,manifest}` | 必须 | 自注册：告诉宿主「我上线了，在这个地址」。`endpoint` 是协议/API 面地址；`webUrl` 是**你自己前端页面的地址**（宿主「打开 App 详情页」时跳它，不填退化到 endpoint）。**`manifest` 必填**——能力清单随注册入目录（见 §五），Agent 靠它发现你的动作；`scope:'team'` 时只进注册者团队目录。**注销**：宿主侧 `DELETE /api/apps/<appId>` 把 App 从目录移除——此后它的卡片从所有「+」菜单消失、页签「+」不再列出它；`canvas` 自身不可注销 |
 | P3 | `GET /api/apps/<appId>` | 必须 | 能力清单：我是谁、我编辑什么卡、我有哪些动作、事件流在哪 |
 | P4 | `POST /api/apps/<appId>/open-editor` `{nodeId,filePath,canvasId?}` → `{openUrl}` | 编辑器 App 必须 | 收「打开我编辑这张卡」的请求；配套 `GET ?nodeId=` 可查回话 |
 
@@ -245,7 +245,17 @@ App 自己领域的接口（doc 的 `/api/documents` 列表/读写/导出）。�
 | P19 | `GET /api/apps/<appId>/permissions` | 必须 | 团队权限口；未接入返回 `501 + {available:false, reason}`，**不许编造权限服务** |
 | P20 | `.../instances/:id/snapshots*` | 二期 | 快照 CRUD+恢复；未实现时 manifest 标 `available:false` |
 
+**租户与代理（Agent 统一入口）**
+
+| # | 端点 | 级别 | 干什么 |
+|---|---|---|---|
+| P21 | 请求头 `X-Team-Id` / `X-User-Id` | 必须 | 租户上下文（§3.0）：本地默认 `local/local`；部署态由 SSO 网关注入，客户端不可伪造。**每个 App 必须校验并过滤** |
+| P22 | `POST <宿主>/api/apps/<appId>/(instances/:iid/)actions/:aid`、`GET <宿主>/api/apps/<appId>/instances(/:iid/state)` | 宿主实现 | **Agent 统一代理口**：按 appId 查注册表转发到 App 端点，自动带租户头/幂等键，entitlement deny 短路。Agent/CLI 只需知道宿主地址，不记各 App 地址；`canvas` 自身路由不经过代理 |
+| P23 | `GET/PUT/DELETE /api/apps/canvas/instances/:id/bindings[?nodeId=]` | 画布实现 | 卡↔App 绑定中心索引（data-model §三）：App 建绑定时 PUT 上报，资产归档时 DELETE 级联归档，治理/Agent 用 GET 查 |
+| P24 | `GET/PUT/DELETE /api/apps/entitlements`、`GET /api/apps/entitlements/check?appId=`、`GET /api/apps/audit` | 宿主实现 | 治理面：显隐表（scope×appId×effect）、App 自校验口、审计尾日志 |
+
 > 「必须」= 没有它插不进体系；「应当」= Agent 的统一调用面；「可」= 有就给、没有不强求；「二期」= 可缓但要诚实标注。
+> CLI：`canvas-server apps list|call|state|bindings|entitlements|audit` 是上述端点的命令行包装（`--server-url`/`--tenant`/`--actor`），一涵 Agent 直接调它即可。
 
 ### 命名与包格式（钉死）
 
