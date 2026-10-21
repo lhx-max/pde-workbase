@@ -69,10 +69,12 @@ export async function createAppTab(app: RegisteredAppEntry): Promise<ProjectAppW
 export function AppTabSurface({ tab, app }: { tab: ProjectAppWorkspaceTab; app?: RegisteredAppEntry }) {
   if (!app) return <div className="app-tab-missing" style={{ padding: 32 }}>App「{tab.appId}」未注册或已下线</div>;
   if (app.appId === 'doc' && tab.target) {
-    return <DocumentEditorPane
+    // doc-surface styles are scoped to .doc-surface-root so its design tokens
+    // never leak into the host page's global variables.
+    return <div className="doc-surface-root" style={{ height: '100%', overflow: 'auto' }}><DocumentEditorPane
       api={httpDocApi(app.endpoint, tab.target)}
       document={{ id: tab.target, name: tab.label, path: tab.target, size: 0, updatedAt: '' }}
-    />;
+    /></div>;
   }
   return <div className="app-tab-missing" style={{ padding: 32 }}>App「{tab.appId}」尚未提供可挂载的页面组件</div>;
 }
