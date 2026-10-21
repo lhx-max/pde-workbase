@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Express, Request, Response } from 'express';
 import type { AppRegistryStore } from '../storage/app-registry.js';
+import type { AppEntitlementStore } from '../storage/app-entitlements.js';
 import { CanvasStateError } from '../canvas/errors.js';
 
 const requestId = () => `req_${randomUUID()}`;
@@ -12,6 +13,7 @@ function sendAppError(res: Response, error: unknown): void {
 
 export interface RegisterAppsRoutesDeps {
   registry: AppRegistryStore;
+  entitlements?: AppEntitlementStore;
   /** Local-daemon request check (same seam the canvas routes use). */
   authorizeProjectRequest?: (req: Request, res: Response, projectId: string, access?: { mode: 'read' | 'write' }) => Promise<boolean>;
 }
@@ -27,10 +29,46 @@ export function registerAppsRoutes(app: Express, deps: RegisterAppsRoutesDeps): 
 
   app.get('/api/apps', async (req, res) => {
     try {
-      const teamId = tenantOf(req).teamId;
+      const tenant = tenantOf(req);
       const apps = (await deps.registry.list())
-        .filter(a => (a.scope ?? 'platform') === 'platform' || a.teamId === teamId);
+        .filter(a => (a.scope ?? 'platform') === 'platform' || a.teamId === tenant.teamId)
+        .filter(a => !deps.entitlements || deps.entitlements.resolve(a.appId, tenant) === 'allow');
       res.json({ requestId: requestId(), data: { apps } });
+    } catch (error) { sendAppError(res, error); }
+  });
+
+  /** Entitlement governance table (spec §3.0): operators write rows, hosts
+   * and Apps check access. Visibility filter already applies to /api/apps. */
+  app.get('/api/apps/entitlements', async (req, res) => {
+    try {
+      res.json({ requestId: requestId(), data: { rules: deps.entitlements?.list(typeof req.query.appId === 'string' ? req.query.appId : undefined) ?? [] } });
+    } catch (error) { sendAppError(res, error); }
+  });
+  app.put('/api/apps/entitlements', async (req, res) => {
+    try {
+      if (!deps.entitlements) throw new CanvasStateError(501, 'ENTITLEMENTS_UNAVAILABLE', 'entitlement store not configured');
+      const { scope, appId, effect } = (req.body ?? {}) as { scope?: string; appId?: string; effect?: 'allow' | 'deny' };
+      if (!scope || !appId || (effect !== 'allow' && effect !== 'deny')) throw new CanvasStateError(400, 'BAD_REQUEST', 'scope, appId and effect(allow|deny) are required');
+      if (scope !== '*' && !/^team:[A-Za-z0-9_-]+$|^user:[A-Za-z0-9_-]+$/.test(scope)) throw new CanvasStateError(400, 'BAD_REQUEST', 'scope must be * | team:<id> | user:<id>');
+      res.json({ requestId: requestId(), data: { rule: deps.entitlements.put({ scope, appId, effect, updatedBy: tenantOf(req).userId }) } });
+    } catch (error) { sendAppError(res, error); }
+  });
+  app.delete('/api/apps/entitlements', async (req, res) => {
+    try {
+      const { scope, appId } = (req.body ?? {}) as { scope?: string; appId?: string };
+      if (!scope || !appId) throw new CanvasStateError(400, 'BAD_REQUEST', 'scope and appId are required');
+      if (!deps.entitlements?.remove(scope, appId)) throw new CanvasStateError(404, 'ENTITLEMENT_NOT_FOUND', 'rule not found');
+      res.json({ requestId: requestId(), data: { removed: { scope, appId } } });
+    } catch (error) { sendAppError(res, error); }
+  });
+  /** Access check — Apps call this to gate their own actions for a tenant
+   * (catalogue visibility alone can't stop direct endpoint calls). */
+  app.get('/api/apps/entitlements/check', async (req, res) => {
+    try {
+      const appId = String(req.query.appId ?? '');
+      const tenant = tenantOf(req);
+      const allowed = !deps.entitlements || deps.entitlements.resolve(appId, tenant) === 'allow';
+      res.json({ requestId: requestId(), data: { appId, teamId: tenant.teamId, userId: tenant.userId, allowed } });
     } catch (error) { sendAppError(res, error); }
   });
 

@@ -106,6 +106,12 @@ designai-app-<appId>/
 - 资产删除走**归档**（标 `archived: true`）不物理删除——离职/解散可恢复可审计
 - 事件/回执记录带 `actor: { teamId, userId }`
 
+**APP 显隐治理表（`app_entitlements`）**：注册表管「App 存在」，治理表管「谁看得见、用得了」。行结构 `{ scope, appId, effect, updatedBy, updatedAt }`，`scope = * | team:<id> | user:<id>`，`effect = allow | deny`。**匹配：精确者优先 user > team > *；无规则 = 默认放行**。
+
+- 显隐：`GET /api/apps` 自动按表过滤——被 deny 的 App 从目录消失，加卡菜单/页签入口联动消失
+- 可用：App 自校验 `GET /api/apps/entitlements/check?appId=<id>`（带租户头）→ `{allowed}`——防绕过目录直调端点
+- 管理：`GET/PUT/DELETE /api/apps/entitlements` 读写表行，管理侧可做成一张运维表格
+
 用大白话说：各管各的仓库，要货走传送带（API），不许直接去对方仓库搬。
 
 ### 3.1 卡内容的存储归属（宿主卡 vs App 自有数据）

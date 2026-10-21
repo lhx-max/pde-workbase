@@ -26,6 +26,7 @@ import {AppwriteCanvasFileContent, AppwriteCanvasPersistence} from './storage/ca
 import {appwriteCanvasEffects,readLocalProjectFile} from './storage/canvas-appwrite-effects.js';
 import {CardRegistryStore} from './storage/card-registry.js';
 import {AppRegistryStore} from './storage/app-registry.js';
+import {AppEntitlementStore} from './storage/app-entitlements.js';
 import {registerAppsRoutes} from './routes/apps.js';
 import {syncCardPackRegistry} from './card-packs.js';
 export interface CanvasServerOptions {
@@ -55,6 +56,7 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
  const appwriteStorage=options.appwrite&&appwriteClient?(()=>{const client=appwriteClient;const resolveRoot=(id:string)=>registry.resolveProjectRoot(id);const cardRegistry=new CardRegistryStore(client,options.appwrite!.databaseId);syncCardPackRegistry(cardRegistry).catch(err=>console.warn('[card-registry] pack sync failed:',err));return {persistence:new AppwriteCanvasPersistence(client,options.appwrite!.databaseId),content:appContent!,effects:appwriteCanvasEffects(client,options.appwrite!.databaseId,options.appwrite!.bucketId,resolveRoot),cardEntitlement:(projectId:string)=>cardRegistry.resolveAllowedKinds({projectId})};})():undefined;
  const sketchEndpoint=async()=>{const app=await appRegistry.get('sketch');return app&&app.status==='active'&&/^https?:\/\//.test(app.endpoint)?app.endpoint:null;};
  const sketchStore=async(projectId:string)=>{const endpoint=await sketchEndpoint();return endpoint?new SketchAppSketchStore(new SketchAppFiles(endpoint),projectId):null;};
+ const entitlements=new AppEntitlementStore(dataRoot);
  const docBindingCache=new Map<string,string>();
  const textDocumentSynced=async(projectId:string,node:Record<string,unknown>)=>{
   const nodeId=typeof node.id==='string'?node.id:'';const text=typeof node.text==='string'?node.text:null;
@@ -62,10 +64,12 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
   const apps=await appRegistry.list().catch(()=>[]);
   const docApp=apps.find(a=>a.appId==='doc'&&a.status==='active'&&/^https?:\/\//.test(a.endpoint));
   if(!docApp)return;
+  const project=registry.get(projectId);
+  const tenant={teamId:project?.teamId??'local',userId:project?.createdBy??'local'};
+  if(entitlements.resolve('doc',tenant)==='deny')return;
   const base=docApp.endpoint.replace(/\/+$/,'');
   // Bound docs inherit the canvas instance's tenant (spec §3.0).
-  const project=registry.get(projectId);
-  const headers={'content-type':'application/json','x-team-id':project?.teamId??'local','x-user-id':project?.createdBy??'local'};
+  const headers={'content-type':'application/json','x-team-id':tenant.teamId,'x-user-id':tenant.userId};
   let docId=docBindingCache.get(nodeId);
   if(!docId){
    // Eager binding: first content save creates the App document bound to
@@ -127,7 +131,7 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
  app.use((_req,_res,next)=>withProjectLedgerRecorder(input=>{ledger.record(input);},next));
  app.get('/api/health',(_req,res)=>res.json({ok:true,service:'canvas-workspace'}));
  registerCanvasStateRoutes(app,{canvasState:canvas,ledger,resolveProjectRoot:id=>registry.resolveProjectRoot(id),authorizeProjectRequest});
- registerAppsRoutes(app,{registry:appRegistry});
+ registerAppsRoutes(app,{registry:appRegistry,entitlements});
  registerAppCanvasRoutes(app,{canvasState:canvas,registry,authorizeProjectRequest,appRegistry,content:appContent,ledger});
  registerProjectFileRoutes(app,{registry,canvasFiles:canvas,authorize:authorizeProjectRequest,sketchDocuments:{
   async read(filePath){const endpoint=await sketchEndpoint();if(!endpoint||!isSketchDocumentPath(filePath))return undefined;return new SketchAppFiles(endpoint).read(filePath);},
