@@ -85,6 +85,10 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
         events: { method: 'GET', path: '/api/apps/canvas/instances/{instanceId}/events', query: { after: 'eventCursor' }, types: ['card.created', 'card.updated', 'card.deleted'] },
         requestSchema: canvasOperationsJsonSchema,
         requiresExpectedRevision: true, maxBatchSize: 100, execution: 'synchronous',
+        // Agent task execution belongs to the manage side. Until a real
+        // executor channel is wired, report unavailable so hosts hide card
+        // AI composers instead of accepting input nobody can run.
+        agentRuntime: { available: false, reason: '未接入管理侧 Agent 执行通道（任务提交端点未挂载）' },
       } });
     } catch (error) { sendAppError(res, error); }
   });

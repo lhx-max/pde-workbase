@@ -29,8 +29,8 @@ const NATIVE_CARD_KINDS = new Set(['image', 'video', 'storyboard']);
  * show while their editor App is registered and active; native kinds always
  * show). Fetches the canvas manifest + the app catalogue once per mount and
  * revalidates every 15s so freshly-registered Apps appear without a reload. */
-function useRegisteredKindAvailability(): ReadonlySet<string> | null {
-    const [allowed, setAllowed] = useState<ReadonlySet<string> | null>(null);
+function useRegisteredKindAvailability(): { kinds: ReadonlySet<string> | null; agentAvailable: boolean } {
+    const [state, setState] = useState<{ kinds: ReadonlySet<string> | null; agentAvailable: boolean }>({ kinds: null, agentAvailable: false });
     useEffect(() => {
         let cancelled = false;
         const load = async () => {
@@ -48,19 +48,19 @@ function useRegisteredKindAvailability(): ReadonlySet<string> | null {
                     const appId = editorApps[kind];
                     if (NATIVE_CARD_KINDS.has(kind) || (appId && activeApps.has(appId))) next.add(kind);
                 }
-                if (!cancelled) setAllowed(next);
+                if (!cancelled) setState({ kinds: next, agentAvailable: manifest?.agentRuntime?.available === true });
             } catch { /* registry unreachable → keep the full catalogue */ }
         };
         void load();
         const timer = setInterval(load, 15000);
         return () => { cancelled = true; clearInterval(timer); };
     }, []);
-    return allowed;
+    return state;
 }
 
 export function CanvasWorkspace({ uiHost,referenceAdapter, ...props }: CanvasWorkspaceProps) {
     const { locale,t } = useI18n();
-    const kindAvailability = useRegisteredKindAvailability();
+    const { kinds: kindAvailability, agentAvailable } = useRegisteredKindAvailability();
     const referenceSelection=useRef<AbortController|null>(null);
     useEffect(()=>()=>{referenceSelection.current?.abort();referenceSelection.current=null;},[props.projectId,props.workspaceContext]);
     const resolvedReferenceAdapter=useMemo(()=>referenceAdapter??createAssetLibraryReferenceAdapter(props.projectId),[referenceAdapter,props.projectId]);
@@ -72,6 +72,7 @@ export function CanvasWorkspace({ uiHost,referenceAdapter, ...props }: CanvasWor
         renderArtifactThumbnail: preview => <CanvasArtifactThumbnail key={preview.src} {...preview}/>,
         cacheArtifactThumbnail: cacheCanvasArtifactThumbnail,
         renderTextEditor: editor => <MarkdownWordDocument markdown={editor.markdown} onChange={editor.onChange} editable inline onOpenDetail={editor.onOpenDetail} renderToolbar={editor.renderToolbar}/>,
+        agentTasksAvailable: agentAvailable,
         renderPopover: renderCanvasWorkbenchPopover, renderHoverCard: renderCanvasWorkbenchHoverCard, renderDialog: renderCanvasWorkbenchDialog, renderMenu: renderCanvasWorkbenchMenu, renderTabs: renderCanvasWorkbenchTabs, renderTemplateCategories: renderCanvasWorkbenchTemplateCategories,
         downloadResource: input => downloadProjectResource(props.projectId, input, props.workspaceContext),
         saveResource: async input => {
@@ -88,7 +89,7 @@ export function CanvasWorkspace({ uiHost,referenceAdapter, ...props }: CanvasWor
           return ()=>controller.abort();
         },
         ...uiHost,
-    }), [uiHost, props.projectId, props.workspaceContext,resolvedReferenceAdapter,t,locale]);
+    }), [uiHost, props.projectId, props.workspaceContext,resolvedReferenceAdapter,t,locale,agentAvailable]);
     return <CanvasKindAvailability.Provider value={kindAvailability}><CanvasWorkbenchSurface {...props} uiHost={host} locale={locale}/></CanvasKindAvailability.Provider>;
 }
 export default CanvasWorkspace;

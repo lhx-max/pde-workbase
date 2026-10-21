@@ -58,7 +58,6 @@ import {
 } from './StoryboardCanvasNode';
 import { VideoCanvasNode } from './VideoCanvasNode';
 import { CanvasOutputFrame, CanvasOutputNode, CanvasOutputStatus } from './CanvasOutputNode';
-import { CanvasNodeStarter } from './CanvasNodeStarter';
 import { excludedCanvasDownstreamKinds } from './canvas-node-catalog';
 import { resolveVideoFrameSize } from './video-frame-size';
 import { HTML_PAGE_CARD_SIZE } from './visual-node-size';
@@ -375,6 +374,11 @@ function TextArtifactNode({
 
   const isEmpty = !item.text?.trim();
   const showInlineEditor = editingInline || item.textEntryMode === 'edit';
+  // An empty card's content region belongs to the text App's surface — mount
+  // its editor directly instead of canvas-owned starter actions. Generation
+  // still takes precedence so an in-flight write shows the generating frame.
+  const showEditor = showInlineEditor || (isEmpty && !running);
+  const canGenerate = Boolean(textUiHost?.agentTasksAvailable);
   // Editing mode persists after leaving a card; only the active selection owns its toolbar.
   const showInlineToolbar = selected;
   const contextActions = (
@@ -424,7 +428,7 @@ function TextArtifactNode({
           <Icon name="edit" size={16} /><span>{bn().actions.editText}</span>
         </Button>
       )}
-      {showInlineEditor ? (
+      {showEditor ? (
         <div ref={inlineEditorRef} className="basic-text-inline-editor nodrag nopan nowheel"
           onFocusCapture={() => { setEditingInline(true); if (!selected) selectText(); }}
           onPointerDown={event => { if (!selected) selectText(); event.stopPropagation(); }}
@@ -465,18 +469,6 @@ function TextArtifactNode({
         <CanvasOutputFrame state="generating">
           <CanvasOutputStatus />
         </CanvasOutputFrame>
-      ) : isEmpty ? (
-        <div className="basic-text-starter-card node-drag-surface">
-          <CanvasNodeStarter
-            icon="text"
-            actions={<>
-              <Button type="button" variant="ghost" onDoubleClick={event => event.stopPropagation()} onClick={event => { event.stopPropagation(); beginInlineEditing(); }}><Icon name="edit" size={18} /><span>{bn().panels.writeYourself}</span></Button>
-              <Button type="button" variant="ghost" onClick={event => { event.stopPropagation(); startConnected('storyboard'); }}><Icon name="storyboard" size={18} /><span>{bn().actions.splitStoryboard}</span></Button>
-              <Button type="button" variant="ghost" onClick={event => { event.stopPropagation(); startConnected('image'); }}><Icon name="image" size={18} /><span>{bn().actions.generateImage}</span></Button>
-              <Button type="button" variant="ghost" onClick={event => { event.stopPropagation(); startConnected('video'); }}><Icon name="video" size={18} /><span>{bn().actions.textToVideo}</span></Button>
-            </>}
-          />
-        </div>
       ) : (
         <div className="basic-text-result article-review-node node-drag-surface">
           <ResultCard
@@ -490,7 +482,7 @@ function TextArtifactNode({
         </div>
       )}
       {item.generation?.status === 'failed' && <CanvasErrorNotice placement="card" title={bn().status.genFailed} error={item.generation.error || bn().status.genFailed}>{textUiHost?.openExecutionSettings && <Button type="button" variant="ghost" onClick={textUiHost.openExecutionSettings}>{bn().errors.openExecutionSettings}</Button>}</CanvasErrorNotice>}
-      {selected && !showInlineEditor && (
+      {selected && !showInlineEditor && canGenerate && (
         <CanvasComposerShell
           ownerId={item.id}
           expanded={composerExpanded}

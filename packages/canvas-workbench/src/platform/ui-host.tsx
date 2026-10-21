@@ -159,6 +159,10 @@ export interface CanvasUiHost {
   /** Product-owned image template catalogue capability. */
   imageTemplatesEnabled?: boolean;
   renderTextEditor?: (props: { markdown: string; onChange: (value: string) => void; onOpenDetail: () => void; renderToolbar: (toolbar: React.ReactNode) => React.ReactNode }) => React.ReactNode;
+  /** Whether a management-side agent executor is reachable. When falsy,
+   * card AI composers must hide entirely — never show a prompt box that
+   * can accept input but has nobody to execute it. */
+  agentTasksAvailable?: boolean;
   renderPopover: CanvasPopoverRenderer;
   renderHoverCard: CanvasHoverCardRenderer;
   renderDialog: CanvasDialogRenderer;
