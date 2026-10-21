@@ -82,6 +82,17 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
     const [stagedReferences,setStagedReferences]=useState<ChatAttachment[]>([]);
     const cancelAssetSelection=useCallback(()=>{const current=assetRequestRef.current;current?.selection?.controller.abort();if(current?.selection){assetRequestRef.current=null;setAssetRequest(null);}},[]);
     const closeAssetLibrary=useCallback(()=>{cancelAssetSelection();assetRequestRef.current=null;setAssetRequest(null);setFullLibraryOpen(false);setFilesDrawerOpen(false);},[cancelAssetSelection]);
+    // One-click draft recovery for support: ?clearDraft=1 drops the canvas's
+    // parked unsaved draft and reloads clean.
+    useEffect(() => {
+        try {
+            const url = new URL(window.location.href);
+            if (url.searchParams.get('clearDraft') !== '1') return;
+            localStorage.removeItem(`canvas-unsaved:${projectId}`);
+            url.searchParams.delete('clearDraft');
+            window.location.replace(url.toString());
+        } catch { /* ignore */ }
+    }, [projectId]);
     useEffect(()=>{setStagedReferences([]);setFullLibraryOpen(false);cancelAssetSelection();assetRequestRef.current=null;setAssetRequest(null);return()=>assetRequestRef.current?.selection?.controller.abort();},[projectId,ports.workspaceContext,cancelAssetSelection]);
     const [filesDrawerWidth, setFilesDrawerWidth] = useState(() => { try {
         const width = Number(localStorage.getItem('bezier-design:canvas-assets-sidebar-width'));
