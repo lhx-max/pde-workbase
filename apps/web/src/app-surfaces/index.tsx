@@ -138,6 +138,10 @@ export function AppTabSurface({ tab, app, canvasId, onMirrorSaved, onDirtyChange
     } } satisfies DocDocumentApi;
   }, [app?.appId, app?.endpoint, tab.target, tab.mirrorPath, canvasId, onMirrorSaved, reportDirty]);
   if (!app) return <div className="app-tab-missing" style={{ padding: 32 }}>App「{tab.appId}」未注册或已下线</div>;
+  // Pending tab: the launcher opens the detail surface immediately while the
+  // bound card+document are created in the background — never show a card
+  // flash on canvas first.
+  if (app.appId === 'doc' && !tab.target) return <div className="app-tab-missing" style={{ padding: 32 }}>正在准备文档…</div>;
   if (app.appId === 'doc' && tab.target && trackedApi) {
     // doc-surface styles are scoped to .doc-surface-root so its design tokens
     // never leak into the host page's global variables.

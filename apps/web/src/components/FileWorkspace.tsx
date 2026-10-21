@@ -37,6 +37,7 @@ import { buildLauncherActions, type LauncherContext } from './workspace/tab-laun
 import { AppTabSurface, createAppTab, createAppDocTab, tenantHeaders, type RegisteredAppEntry } from '../app-surfaces';
 import { openBoundDoc, callDocAction } from '../app-surfaces/doc-protocol';
 import { documentFileToMarkdown, documentDropTitle } from '../utils/document-import';
+import type { ProjectAppWorkspaceTab } from '@bezier/contracts';
 import { SketchWorkspaceTab } from './workspace/SketchWorkspaceTab';
 import { CanvasSketchCard } from './workspace/CanvasSketchCard';
 import { SketchEnginePrewarm } from './SketchEnginePrewarm';
@@ -232,23 +233,31 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
     }), []);
     const openAppTab = useCallback((app: RegisteredAppEntry) => {
         void (async () => {
-            // Tab ↔ card pairing goes through the canvas's own creation
-            // channel — the card lands at viewport center and stays on the
-            // workbench's revision chain (deletes/edits keep working).
-            let tab;
+            // doc: open the detail surface FIRST — the bound card+document are
+            // created silently in the background so the user never watches a
+            // card flash onto the canvas before the editor appears.
             if (app.appId === 'doc') {
-                const nodeId = await requestCanvasCard('text');
-                const stRes = await fetch(`/api/apps/canvas/instances/${encodeURIComponent(projectId)}/state`, { headers: tenantHeaders() });
-                if (!stRes.ok) throw new Error(`canvas state ${stRes.status}`);
-                const st = await stRes.json() as { data?: { state?: { workbenchBasicNodes?: { id: string; projectFilePath?: string }[] } } };
-                const mirrorPath = st.data?.state?.workbenchBasicNodes?.find(n => n.id === nodeId)?.projectFilePath;
-                const res = await fetch(`${app.endpoint}/actions/doc.create`, { method: 'POST', headers: { 'content-type': 'application/json', ...tenantHeaders() }, body: JSON.stringify({ input: { nodeId, name: '未命名文档', mirrorCanvasId: projectId, ...(mirrorPath ? { mirrorPath } : {}) } }) });
-                if (!res.ok) throw new Error(`doc create ${res.status}`);
-                const { instanceId } = (await res.json() as { data: { result: { instanceId: string } } }).data.result;
-                tab = createAppDocTab('doc', instanceId, '未命名文档', mirrorPath);
-            } else {
-                tab = await createAppTab(app);
+                const pendingId = `app:doc:pending:${crypto.randomUUID()}`;
+                const pendingTab: ProjectAppWorkspaceTab = { id: pendingId, appId: 'doc', label: app.name };
+                await navigate(() => updateTabs(state => ({ ...state, tabs: state.tabs.includes(pendingId) ? state.tabs : [...state.tabs, pendingId], active: pendingId, appTabs: [...(state.appTabs ?? []).filter(item => item.id !== pendingId), pendingTab] })));
+                try {
+                    const nodeId = await requestCanvasCard('text');
+                    const stRes = await fetch(`/api/apps/canvas/instances/${encodeURIComponent(projectId)}/state`, { headers: tenantHeaders() });
+                    if (!stRes.ok) throw new Error(`canvas state ${stRes.status}`);
+                    const st = await stRes.json() as { data?: { state?: { workbenchBasicNodes?: { id: string; projectFilePath?: string }[] } } };
+                    const mirrorPath = st.data?.state?.workbenchBasicNodes?.find(n => n.id === nodeId)?.projectFilePath;
+                    const res = await fetch(`${app.endpoint}/actions/doc.create`, { method: 'POST', headers: { 'content-type': 'application/json', ...tenantHeaders() }, body: JSON.stringify({ input: { nodeId, name: '未命名文档', mirrorCanvasId: projectId, ...(mirrorPath ? { mirrorPath } : {}) } }) });
+                    if (!res.ok) throw new Error(`doc create ${res.status}`);
+                    const { instanceId } = (await res.json() as { data: { result: { instanceId: string } } }).data.result;
+                    const tab = createAppDocTab('doc', instanceId, '未命名文档', mirrorPath);
+                    await navigate(() => updateTabs(state => ({ ...state, tabs: state.tabs.map(id => id === pendingId ? tab.id : id), active: state.active === pendingId ? tab.id : state.active, appTabs: (state.appTabs ?? []).map(item => item.id === pendingId ? tab : item) })));
+                } catch (error) {
+                    await navigate(() => updateTabs(state => ({ ...state, tabs: state.tabs.filter(id => id !== pendingId), active: state.active === pendingId ? DESIGN_FILES_TAB : state.active, appTabs: (state.appTabs ?? []).filter(item => item.id !== pendingId) })));
+                    throw error;
+                }
+                return;
             }
+            const tab = await createAppTab(app);
             await navigate(() => updateTabs(state => ({ ...state, tabs: state.tabs.includes(tab.id) ? state.tabs : [...state.tabs, tab.id], active: tab.id, appTabs: [...(state.appTabs ?? []).filter(item => item.id !== tab.id), tab] })));
         })().catch(reportError);
     }, [navigate, updateTabs, reportError, requestCanvasCard, projectId]);
