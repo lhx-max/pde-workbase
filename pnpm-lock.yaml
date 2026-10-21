@@ -620,7 +620,7 @@ packages:
     engines: {node: '>=20.19.0'}
 
   '@doc/surface@file:vendor/doc-surface-0.1.1.tgz':
-    resolution: {integrity: sha512-ZcpCHcMBEbu9Mc9fpSI7DqnUNKz0/FtXIVrG60FuaoCgYJBTcbHo+yEAAiGkw9vkeM12eCwuQ40iZEadGD/8VQ==, tarball: file:vendor/doc-surface-0.1.1.tgz}
+    resolution: {integrity: sha512-WL4X4cNKNOk556w+Q0HzPTlAvm5F97xLIWADVltBYDYkseiprpWMhi3UXiixiSnsRj9l1/WGjWyQXtKujF/ZXw==, tarball: file:vendor/doc-surface-0.1.1.tgz}
     version: 0.1.1
     peerDependencies:
       react: ^18.3.1
