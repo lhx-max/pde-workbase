@@ -117,8 +117,32 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
     try {
       const raw = localStorage.getItem(draftKey);
       if (raw) {
-        const draft = JSON.parse(raw) as { state?: CanvasState };
+        const draft = JSON.parse(raw) as { state?: CanvasState; request?: unknown };
         if (draft.state && typeof draft.state === 'object' && !Array.isArray(draft.state)) recoveredDraftRef.current = draft.state;
+        const stored = draft.request;
+        if (stored && typeof stored === 'object' && !Array.isArray(stored)) {
+          // Replay the persisted request once before locking — canvas ops are
+          // idempotent on operationId, so a re-submit is safe; if it lands,
+          // the draft is cleared and saves stay unblocked. Only a real failure
+          // (conflict, unreachable) falls back to the manual export/discard UI.
+          const isOps = Array.isArray((stored as { operations?: unknown }).operations);
+          void request<{ state?: CanvasState; revision?: number }>(requestContext, isOps ? '/api/canvas/operations' : '/api/canvas/state', {
+            method: isOps ? 'POST' : 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(stored),
+          }).then(payload => {
+            if (payload?.state && typeof payload.revision === 'number') {
+              revisionRef.current = Math.max(revisionRef.current, payload.revision);
+              stateRef.current = payload.state;
+              setState(payload.state);
+            }
+            try { localStorage.removeItem(draftKey); } catch { /* Storage unavailable. */ }
+          }).catch(() => {
+            blockedRef.current = true;
+            setSaveConflict('Recovered an unsaved canvas draft. Export it before discarding or reloading.');
+          });
+          return;
+        }
         blockedRef.current = true;
         setSaveConflict('Recovered an unsaved canvas draft. Export it before discarding or reloading.');
       }
