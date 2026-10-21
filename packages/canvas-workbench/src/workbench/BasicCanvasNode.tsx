@@ -20,6 +20,7 @@ import { CanvasNodeRenderBoundary, useCanvasRenderDetail } from './CanvasRenderP
 import { CANVAS_INPUT_SELECTOR, releaseCanvasInputFocus } from './canvas-interaction';
 import { Button } from '@bezier/components';
 import { useCanvasUiHost } from '../platform/ui-host';
+import { useCanvasKindAvailability } from '../platform/kind-availability';
 import type { ArtifactDescriptor } from '@bezier/contracts';
 import { canvasArtifactProjection } from '@bezier/contracts';
 import { Icon, type IconName } from '../ui/Icon';
@@ -376,15 +377,22 @@ function TextArtifactNode({
   const isEmpty = !item.text?.trim();
   const showInlineEditor = editingInline || item.textEntryMode === 'edit';
   const canGenerate = Boolean(textUiHost?.agentTasksAvailable);
+  // Cross-card actions ("build a connected X card") follow the same registry
+  // gate as every add-node entry — an unregistered target kind must not
+  // appear as a starter/context action either.
+  const kindAvailable = useCanvasKindAvailability();
+  const downstreamActions = ([
+    { kind: 'storyboard', icon: 'storyboard', label: bn().actions.splitStoryboard },
+    { kind: 'image', icon: 'image', label: bn().actions.generateImage },
+    { kind: 'video', icon: 'video', label: bn().actions.textToVideo },
+  ] as const).filter(action => kindAvailable(action.kind));
   // Editing mode persists after leaving a card; only the active selection owns its toolbar.
   const showInlineToolbar = selected;
-  const contextActions = (
+  const contextActions = downstreamActions.length ? (
     <div className="basic-text-context-actions nodrag nopan nowheel" role="group" aria-label={bn().actions.continueFromText} onDoubleClick={event => event.stopPropagation()}>
-      <Button type="button" variant="ghost" onClick={event => { event.stopPropagation(); startConnected('storyboard'); }}><Icon name="storyboard" size={16} /><span>{bn().actions.splitStoryboard}</span></Button>
-      <Button type="button" variant="ghost" onClick={event => { event.stopPropagation(); startConnected('image'); }}><Icon name="image" size={16} /><span>{bn().actions.generateImage}</span></Button>
-      <Button type="button" variant="ghost" onClick={event => { event.stopPropagation(); startConnected('video'); }}><Icon name="video" size={16} /><span>{bn().actions.textToVideo}</span></Button>
+      {downstreamActions.map(action => <Button key={action.kind} type="button" variant="ghost" onClick={event => { event.stopPropagation(); startConnected(action.kind); }}><Icon name={action.icon} size={16} /><span>{action.label}</span></Button>)}
     </div>
-  );
+  ) : null;
 
   return (
     <article
@@ -472,9 +480,7 @@ function TextArtifactNode({
             icon="text"
             actions={<>
               <Button type="button" variant="ghost" onDoubleClick={event => event.stopPropagation()} onClick={event => { event.stopPropagation(); beginInlineEditing(); }}><Icon name="edit" size={18} /><span>{bn().panels.writeYourself}</span></Button>
-              <Button type="button" variant="ghost" onClick={event => { event.stopPropagation(); startConnected('storyboard'); }}><Icon name="storyboard" size={18} /><span>{bn().actions.splitStoryboard}</span></Button>
-              <Button type="button" variant="ghost" onClick={event => { event.stopPropagation(); startConnected('image'); }}><Icon name="image" size={18} /><span>{bn().actions.generateImage}</span></Button>
-              <Button type="button" variant="ghost" onClick={event => { event.stopPropagation(); startConnected('video'); }}><Icon name="video" size={18} /><span>{bn().actions.textToVideo}</span></Button>
+              {downstreamActions.map(action => <Button key={action.kind} type="button" variant="ghost" onClick={event => { event.stopPropagation(); startConnected(action.kind); }}><Icon name={action.icon} size={18} /><span>{action.label}</span></Button>)}
             </>}
           />
         </div>
