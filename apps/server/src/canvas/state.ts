@@ -109,19 +109,24 @@ export class CanvasStateService {
   private readonly sketchStore: ((projectId: string) => Promise<CanvasSketchStore | null>) | undefined;
 
   private readonly imageAssets: AssetLibraryAdapter | undefined;
+  private readonly textDocumentSynced: ((projectId: string, node: Record<string, unknown>) => Promise<void>) | undefined;
   constructor(private readonly resolveProjectRoot: ResolveCanvasProjectRoot,
     private readonly readUsage?: (projectId: string) => import('@bezier/contracts').CanvasContextSummary['recentUsage'],
     imageAssets?: AssetLibraryAdapter,
     storage?: { persistence?: CanvasPersistence; content?: CanvasFileContent; effects?: CanvasEffectsFactory;
       cardEntitlement?: (projectId: string) => Promise<string[] | undefined>;
       /** When the sketch App is registered, sketch bytes go there. Null keeps the canvas store. */
-      sketchStore?: (projectId: string) => Promise<CanvasSketchStore | null> }) {
+      sketchStore?: (projectId: string) => Promise<CanvasSketchStore | null>;
+      /** Mirror push: runs after a text node's file mirror is written so a
+       * bound editor App (doc) gets the fresh content — App store is truth. */
+      textDocumentSynced?: (projectId: string, node: Record<string, unknown>) => Promise<void> }) {
     this.imageAssets = imageAssets;
     this.persistence = storage?.persistence ?? new FileCanvasPersistence(resolveProjectRoot);
     this.content = storage?.content ?? new FileCanvasContent(resolveProjectRoot);
     this.effectsFactory = storage?.effects;
     this.cardEntitlement = storage?.cardEntitlement;
     this.sketchStore = storage?.sketchStore;
+    this.textDocumentSynced = storage?.textDocumentSynced;
   }
   get hasOperationImageAssets(): boolean { return Boolean(this.imageAssets); }
 
@@ -486,6 +491,7 @@ export class CanvasStateService {
       const current = await this.content.read(projectId, documentPath);
       if (current === node.text) continue;
       await this.content.write(projectId, documentPath, node.text);
+      try { await this.textDocumentSynced?.(projectId, node); } catch { /* mirror push must never break the state save */ }
     }
   }
 }

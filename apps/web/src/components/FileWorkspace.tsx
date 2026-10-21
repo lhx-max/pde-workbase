@@ -210,12 +210,33 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
         const timer = setInterval(load, 15000);
         return () => { cancelled = true; clearInterval(timer); };
     }, []);
+    const cardWaiters = useRef(new Map<string, (nodeId: string) => void>());
+    const requestCanvasCard = useCallback((kind: 'text') => new Promise<string>((resolve, reject) => {
+        const nonce = crypto.randomUUID();
+        cardWaiters.current.set(nonce, resolve);
+        setNodeCreationRequest({ nonce, kind });
+        setTimeout(() => { if (cardWaiters.current.delete(nonce)) reject(new Error('card create timeout')); }, 8000);
+    }), []);
     const openAppTab = useCallback((app: RegisteredAppEntry) => {
         void (async () => {
-            const tab = await createAppTab(app, projectId);
+            // Tab ↔ card pairing goes through the canvas's own creation
+            // channel — the card lands at viewport center and stays on the
+            // workbench's revision chain (deletes/edits keep working).
+            let tab;
+            if (app.appId === 'doc') {
+                const nodeId = await requestCanvasCard('text');
+                const st = await fetch(`/api/apps/canvas/instances/${encodeURIComponent(projectId)}/state`).then(r => r.json()) as { data: { state: { workbenchBasicNodes?: { id: string; projectFilePath?: string }[] } } };
+                const mirrorPath = st.data.state.workbenchBasicNodes?.find(n => n.id === nodeId)?.projectFilePath;
+                const res = await fetch(`${app.endpoint}/actions/doc.create`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ input: { nodeId, name: '未命名文档', mirrorCanvasId: projectId, ...(mirrorPath ? { mirrorPath } : {}) } }) });
+                if (!res.ok) throw new Error(`doc create ${res.status}`);
+                const { instanceId } = (await res.json() as { data: { result: { instanceId: string } } }).data.result;
+                tab = createAppDocTab('doc', instanceId, '未命名文档', mirrorPath);
+            } else {
+                tab = await createAppTab(app);
+            }
             await navigate(() => updateTabs(state => ({ ...state, tabs: state.tabs.includes(tab.id) ? state.tabs : [...state.tabs, tab.id], active: tab.id, appTabs: [...(state.appTabs ?? []).filter(item => item.id !== tab.id), tab] })));
         })().catch(reportError);
-    }, [navigate, updateTabs, reportError]);
+    }, [navigate, updateTabs, reportError, requestCanvasCard, projectId]);
     const appTabs = tabs.appTabs ?? [];
     const launcherContext: LauncherContext = { projectId, openTab: openFile, apps: registeredApps, openAppTab, createBrowser: () => {void navigate(()=>{const id=`__browser__:${crypto.randomUUID()}`;updateTabs(state=>({...state,tabs:[...state.tabs,id],active:id,browserTabs:[...(state.browserTabs||[]),{id,label:t('workspace.newBrowser')}]}));}).catch(reportError);}, createSketch: () => void createFile('sketch').catch(reportError), createDocument: () => void createFile('text').catch(reportError), };
     const sketchCallbacks = useMemo(() => Object.fromEntries(tabs.tabs.map(name => [name, { onDirtyChange: (dirty: boolean) => setDirtyTabs(current => current[name] === dirty ? current : { ...current, [name]: dirty }), registerFlush: (flush: (() => Promise<boolean>) | null) => { if (flush)
@@ -289,7 +310,7 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
     catch { /* Optional local preference storage. */ } }} onRefreshFiles={refreshFiles} onOpenFile={openFile} onRenameFile={rename} onDeleteFiles={removeFiles} onDeleteFile={name => { if (window.confirm(t('entry.canvasAssets.deleteBatchBody')))
         void removeFiles([name]).catch(reportError); }} onUpload={() => fileInput.current?.click()} onLocateFile={name => window.dispatchEvent(new CustomEvent('bezier-design:locate-project-file', { detail: { projectId, fileName: name } }))} onSaveToLibrary={saveToLibrary} onRevealInFinder={ports.revealFile}/></div>
     </div>
-    <div className="design-files-canvas-wrap"><div className="design-files-canvas-slot"><CanvasWorkspace onStageCanvasObject={undefined} onStageChatAttachments={undefined} referenceAdapter={ports.referenceAdapter} projectId={projectId} workspaceContext={ports.workspaceContext} transport={ports.transport} onSubmitAgentTask={submitAgentTask} textGenerationResults={textResults} artifactGenerationResults={artifactResults} textDocumentChange={textDocumentChange} nodeCreationRequest={nodeCreationRequest} onNodeCreationConsumed={(nonce, id) => { setNodeCreationRequest(current => current?.nonce === nonce ? null : current); }} onOpenArtifact={async (resource) => { if (resource.kind !== 'project-file')
+    <div className="design-files-canvas-wrap"><div className="design-files-canvas-slot"><CanvasWorkspace onStageCanvasObject={undefined} onStageChatAttachments={undefined} referenceAdapter={ports.referenceAdapter} projectId={projectId} workspaceContext={ports.workspaceContext} transport={ports.transport} onSubmitAgentTask={submitAgentTask} textGenerationResults={textResults} artifactGenerationResults={artifactResults} textDocumentChange={textDocumentChange} nodeCreationRequest={nodeCreationRequest} onNodeCreationConsumed={(nonce, id) => { setNodeCreationRequest(current => current?.nonce === nonce ? null : current); cardWaiters.current.get(nonce)?.(id); cardWaiters.current.delete(nonce); }} onOpenArtifact={async (resource) => { if (resource.kind !== 'project-file')
         throw new Error(tRef.current('workspace.externalArtifactRequired')); await refreshFiles(); openFile(resource.path); }} onOpenTextDocument={async (request) => { let content: string | null = null; try {
         content = await fetchProjectFileText(projectId, request.path, { workspaceContext: ports.workspaceContext });
     }
@@ -301,7 +322,7 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
         content = request.content;
     } setTextDocumentChange({ path: request.path, content, revision: Date.now() }); await refreshFiles(); const docApp = registeredApps.find(app => app.appId === 'doc' && (!app.status || app.status === 'active'));
     if (docApp) {
-        const res = await fetch(`${docApp.endpoint}/actions/doc.create`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ input: { ...(request.nodeId ? { nodeId: request.nodeId } : {}), name: request.title, content } }) });
+        const res = await fetch(`${docApp.endpoint}/actions/doc.create`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ input: { ...(request.nodeId ? { nodeId: request.nodeId } : {}), name: request.title, content, mirrorCanvasId: projectId, mirrorPath: request.path } }) });
         if (!res.ok) throw new Error(`doc bind ${res.status}`);
         const { instanceId, meta } = (await res.json() as { data: { result: { instanceId: string; meta?: { name?: string } } } }).data.result;
         // Reconcile: if the card mirror diverged from the App document (e.g.

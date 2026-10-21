@@ -55,7 +55,24 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
  const appwriteStorage=options.appwrite&&appwriteClient?(()=>{const client=appwriteClient;const resolveRoot=(id:string)=>registry.resolveProjectRoot(id);const cardRegistry=new CardRegistryStore(client,options.appwrite!.databaseId);syncCardPackRegistry(cardRegistry).catch(err=>console.warn('[card-registry] pack sync failed:',err));return {persistence:new AppwriteCanvasPersistence(client,options.appwrite!.databaseId),content:appContent!,effects:appwriteCanvasEffects(client,options.appwrite!.databaseId,options.appwrite!.bucketId,resolveRoot),cardEntitlement:(projectId:string)=>cardRegistry.resolveAllowedKinds({projectId})};})():undefined;
  const sketchEndpoint=async()=>{const app=await appRegistry.get('sketch');return app&&app.status==='active'&&/^https?:\/\//.test(app.endpoint)?app.endpoint:null;};
  const sketchStore=async(projectId:string)=>{const endpoint=await sketchEndpoint();return endpoint?new SketchAppSketchStore(new SketchAppFiles(endpoint),projectId):null;};
- const canvas=new CanvasStateService(id=>registry.resolveProjectRoot(id),undefined,assetLibrary,appwriteStorage?{...appwriteStorage,sketchStore}:{sketchStore});
+ const docBindingCache=new Map<string,string>();
+ const textDocumentSynced=async(_projectId:string,node:Record<string,unknown>)=>{
+  const nodeId=typeof node.id==='string'?node.id:'';const text=typeof node.text==='string'?node.text:null;
+  if(!nodeId||text===null)return;
+  const apps=await appRegistry.list().catch(()=>[]);
+  const docApp=apps.find(a=>a.appId==='doc'&&a.status==='active'&&/^https?:\/\//.test(a.endpoint));
+  if(!docApp)return;
+  const base=docApp.endpoint.replace(/\/+$/,'');
+  let docId=docBindingCache.get(nodeId);
+  if(!docId){
+   const res=await fetch(`${base}/instances`);if(!res.ok)return;
+   const items=((await res.json()) as {data?:{items?:{id:string;nodeId?:string}[]}}).data?.items??[];
+   const bound=items.find(i=>i.nodeId===nodeId);if(!bound)return;
+   docId=bound.id;docBindingCache.set(nodeId,docId);
+  }
+  await fetch(`${base}/instances/${encodeURIComponent(docId)}/actions/doc.write`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({input:{content:text}})});
+ };
+ const canvas=new CanvasStateService(id=>registry.resolveProjectRoot(id),undefined,assetLibrary,appwriteStorage?{...appwriteStorage,sketchStore,textDocumentSynced}:{sketchStore,textDocumentSynced});
  const db=new Database(path.join(dataRoot,'workspace.sqlite'));
  db.exec('CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY)');
  for(const project of registry.list())db.prepare('INSERT OR IGNORE INTO projects(id) VALUES (?)').run(project.id);
