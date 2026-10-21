@@ -37,7 +37,6 @@ import { buildLauncherActions, type LauncherContext } from './workspace/tab-laun
 import { AppTabSurface, createAppTab, createAppDocTab, tenantHeaders, type RegisteredAppEntry } from '../app-surfaces';
 import { openBoundDoc, callDocAction } from '../app-surfaces/doc-protocol';
 import { documentFileToMarkdown, documentDropTitle } from '../utils/document-import';
-import type { ProjectAppWorkspaceTab } from '@bezier/contracts';
 import { SketchWorkspaceTab } from './workspace/SketchWorkspaceTab';
 import { CanvasSketchCard } from './workspace/CanvasSketchCard';
 import { SketchEnginePrewarm } from './SketchEnginePrewarm';
@@ -253,13 +252,13 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
             await navigate(() => updateTabs(state => ({ ...state, tabs: state.tabs.includes(tab.id) ? state.tabs : [...state.tabs, tab.id], active: tab.id, appTabs: [...(state.appTabs ?? []).filter(item => item.id !== tab.id), tab] })));
         })().catch(reportError);
     }, [navigate, updateTabs, reportError, requestCanvasCard, projectId]);
-    /** OS document drop: each file becomes a bound doc (App-owned truth) +
-     * text card at the drop point + an open editor tab. md/txt pass through;
-     * .docx is converted to markdown in the browser first. */
+    /** OS document drop: each file becomes a text card holding the imported
+     * text AT THE DROP POINT — the doc App binding happens silently in the
+     * background; no editor tab opens. md/txt pass through; .docx is
+     * converted to markdown in the browser first. */
     const handleDocumentsDrop = useCallback((files: File[], flowPosition: { x: number; y: number }) => {
         void (async () => {
             const docApp = registeredApps.find(app => app.appId === 'doc' && (!app.status || app.status === 'active'));
-            const createdTabs: ProjectAppWorkspaceTab[] = [];
             for (const [index, file] of files.entries()) {
                 const position = { x: flowPosition.x + index * 24, y: flowPosition.y + index * 24 };
                 const content = await documentFileToMarkdown(file);
@@ -284,6 +283,9 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
                         }
                     } catch { /* state fetch is best-effort; the doc App re-resolves */ }
                 }
+                // Card shows the imported text right away — binding the doc
+                // below stays invisible to whoever is watching the canvas.
+                if (mirrorPath) setTextDocumentChange({ path: mirrorPath, content, revision: Date.now() });
                 if (!docApp?.endpoint) {
                     // Doc app offline: honour the drop by writing straight into
                     // the card file so the import still lands on canvas.
@@ -304,28 +306,11 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
                     written = await callDocAction(docApp.endpoint, 'doc.write', { content }, tenantHeaders(), document.instanceId);
                 }
                 if (written.mirror?.status && written.mirror.status !== 'synced') reportError(new Error('文档已导入，但画布副本同步未确认。请保留文档正文后再试。'));
-                // Push the imported text into the still-local card so it shows
-                // content immediately — the server round-trip would take a
-                // visible beat otherwise.
-                if (mirrorPath) setTextDocumentChange({ path: mirrorPath, content, revision: Date.now() });
                 // Dedupe may return the synchronizer's card-named doc — take
-                // the file's name so the doc/tab reads like the dropped file.
+                // the file's name so the doc reads like the dropped file.
                 if (document.name && document.name !== title) {
                     await callDocAction(docApp.endpoint, 'doc.rename', { name: title }, tenantHeaders(), document.instanceId).catch(() => null);
                 }
-                createdTabs.push(createAppDocTab('doc', document.instanceId, title, mirrorPath));
-            }
-            if (createdTabs.length) {
-                await navigate(() => updateTabs(state => {
-                    const tabIds = [...state.tabs];
-                    const appTabs = [...(state.appTabs ?? [])];
-                    for (const tab of createdTabs) {
-                        if (!tabIds.includes(tab.id)) tabIds.push(tab.id);
-                        const existing = appTabs.findIndex(item => item.id === tab.id);
-                        if (existing >= 0) appTabs[existing] = tab; else appTabs.push(tab);
-                    }
-                    return { ...state, tabs: tabIds, active: createdTabs[createdTabs.length - 1]!.id, appTabs };
-                }));
             }
         })().catch(reportError);
     }, [navigate, updateTabs, reportError, requestCanvasCard, projectId, registeredApps]);
