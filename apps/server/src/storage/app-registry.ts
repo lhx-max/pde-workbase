@@ -1,3 +1,4 @@
+import { readFileSync, writeFileSync } from 'node:fs';
 import { AppwriteClient } from './appwrite-client.js';
 import { CanvasStateError } from '../canvas/errors.js';
 
@@ -35,7 +36,21 @@ function isMissing(error: unknown): boolean {
 export class AppRegistryStore {
   private readonly memory = new Map<string, RegisteredApp>();
 
-  constructor(private readonly client?: AppwriteClient, private readonly databaseId?: string) {}
+  constructor(private readonly client?: AppwriteClient, private readonly databaseId?: string, private readonly localPath?: string) {
+    // Without Appwrite the registry must still survive restarts — a dropped
+    // catalogue silently disables every mounted App until it re-registers.
+    if (this.localPath) {
+      try {
+        const rows = JSON.parse(readFileSync(this.localPath, 'utf8')) as RegisteredApp[];
+        for (const row of Array.isArray(rows) ? rows : []) if (row?.appId && row.endpoint) this.memory.set(row.appId, row);
+      } catch { /* missing/corrupt file → start empty */ }
+    }
+  }
+
+  private persistLocal(): void {
+    if (!this.localPath) return;
+    try { writeFileSync(this.localPath, JSON.stringify([...this.memory.values()], null, 1)); } catch { /* best-effort */ }
+  }
 
   private path(): string { return this.client!.docsPath(this.databaseId!, APPS); }
 
@@ -51,6 +66,7 @@ export class AppRegistryStore {
         else throw error;
       }
     }
+    this.persistLocal();
     return row;
   }
 
@@ -87,6 +103,7 @@ export class AppRegistryStore {
       try { await this.client.call('DELETE', `${this.path()}/${appId}`); }
       catch (error) { if (!isMissing(error)) throw error; }
     }
+    this.persistLocal();
     return existed;
   }
 }

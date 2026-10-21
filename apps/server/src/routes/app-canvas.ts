@@ -420,25 +420,26 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
       if (content === null) throw new CanvasStateError(400, 'BAD_REQUEST', 'content (string) is required');
       const path = filePath(req);
       await deps.content.write(projectId, path, content);
-      // File→state mirror: a text file written through this channel backs a
-      // card — push the body into the node's `text` so card previews/state
-      // converge (the App store is truth; state.text is the render mirror).
-      // Best-effort: the file write already succeeded; a revision race just
-      // leaves state one step behind until the next save.
-      try {
-        const snapshot = await deps.canvasState.read(projectId);
-        const nodes = snapshot.state?.workbenchBasicNodes;
-        const node = Array.isArray(nodes) ? nodes.find((n): n is { id: string; kind?: string; projectFilePath?: string; text?: string } =>
-          typeof n === 'object' && n !== null && n.kind === 'text' && n.projectFilePath === path && n.text !== content) : undefined;
-        if (node) {
-          await deps.canvasState.applyOperations(projectId, {
-            operationId: `mirror-${randomUUID()}`,
-            baseRevision: snapshot.revision,
-            operations: [{ type: 'node.update', nodeId: node.id, set: { text: content } }],
-          });
-        }
-      } catch { /* state mirror is best-effort — never fail the file write */ }
       res.json({ requestId: requestId(), data: { path, status: 'written' } });
+      // File→state mirror, scheduled AFTER responding: syncing runs
+      // applyOperations which takes the project lock — awaiting it inside this
+      // request deadlocks the card→app push chain (hook → app write → this
+      // PUT → applyOperations would wait on the lock its own chain holds).
+      setImmediate(() => {
+        void (async () => {
+          const snapshot = await deps.canvasState.read(projectId);
+          const nodes = snapshot.state?.workbenchBasicNodes;
+          const node = Array.isArray(nodes) ? nodes.find((n): n is { id: string; kind?: string; projectFilePath?: string; text?: string } =>
+            typeof n === 'object' && n !== null && n.kind === 'text' && n.projectFilePath === path && n.text !== content) : undefined;
+          if (node) {
+            await deps.canvasState.applyOperations(projectId, {
+              operationId: `mirror-${randomUUID()}`,
+              baseRevision: snapshot.revision,
+              operations: [{ type: 'node.update', nodeId: node.id, set: { text: content } }],
+            });
+          }
+        })().catch(() => { /* state mirror is best-effort — never fail the file write */ });
+      });
     } catch (error) { sendAppError(res, error); }
   });
 }

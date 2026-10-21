@@ -324,10 +324,6 @@ function TextArtifactNode({
     input.focus({ preventScroll: true });
   }, [editingInline, selected]);
 
-  const enterTextEditing = (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    beginInlineEditing();
-  };
   const [openingDocument, setOpeningDocument] = React.useState(false);
 
   const documentPath = canvasTextDocumentPath(item);
@@ -429,18 +425,6 @@ function TextArtifactNode({
           />
         )}
       />
-      {!isEmpty && !showInlineEditor && !running && (
-        <Button
-          type="button"
-          variant="ghost"
-          className="minimax-image-upload basic-output-edit nodrag nopan"
-          onPointerDown={event => event.stopPropagation()}
-          onDoubleClick={event => event.stopPropagation()}
-          onClick={enterTextEditing}
-        >
-          <Icon name="edit" size={16} /><span>{bn().actions.editText}</span>
-        </Button>
-      )}
       {showInlineEditor ? (
         <div ref={inlineEditorRef} className="basic-text-inline-editor nodrag nopan nowheel"
           onFocusCapture={() => { setEditingInline(true); if (!selected) selectText(); }}
@@ -499,7 +483,7 @@ function TextArtifactNode({
             showHeader={false}
             showFooter={false}
             openLabel={bn().actions.selectTextCard}
-            onOpen={event => { event.stopPropagation(); selectText(); }}
+            onOpen={event => { event.stopPropagation(); beginInlineEditing(); }}
           />
           {contextActions}
         </div>

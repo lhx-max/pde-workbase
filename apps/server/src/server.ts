@@ -65,10 +65,11 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
  const docBindingCache=new Map<string,string>();
  const textDocumentSynced=async(projectId:string,node:Record<string,unknown>)=>{
   const nodeId=typeof node.id==='string'?node.id:'';const text=typeof node.text==='string'?node.text:null;
+  console.warn('[textDocumentSynced] enter',projectId,nodeId,text===null?'null':`${text.length}chars`);
   if(!nodeId||text===null)return;
   const apps=await appRegistry.list().catch(()=>[]);
   const docApp=apps.find(a=>a.appId==='doc'&&a.status==='active'&&/^https?:\/\//.test(a.endpoint));
-  if(!docApp)return;
+  if(!docApp){console.warn('[textDocumentSynced] doc app not registered/active');return;}
   const project=registry.get(projectId);
   const tenant={teamId:project?.teamId??'local',userId:project?.createdBy??'local'};
   if(entitlements.resolve('doc',tenant)==='deny')return;
@@ -82,7 +83,7 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
    const mirrorPath=typeof node.projectFilePath==='string'?node.projectFilePath:undefined;
    const title=typeof node.title==='string'&&node.title.trim()?node.title:undefined;
    const res=await fetch(`${base}/actions/doc.create`,{method:'POST',headers,body:JSON.stringify({input:{nodeId,name:title,content:text,mirrorCanvasId:projectId,...(mirrorPath?{mirrorPath}:{})}})});
-   if(!res.ok)return;
+   if(!res.ok){console.warn('[textDocumentSynced] doc.create failed',res.status,await res.text().catch(()=>''));return;}
    const result=((await res.json()) as {data?:{result?:{instanceId?:string}}}).data?.result;
    docId=result?.instanceId;if(!docId)return;
    docBindingCache.set(nodeId,docId);

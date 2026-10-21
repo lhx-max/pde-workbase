@@ -491,7 +491,7 @@ export class CanvasStateService {
       const current = await this.content.read(projectId, documentPath);
       if (current === node.text) continue;
       await this.content.write(projectId, documentPath, node.text);
-      try { await this.textDocumentSynced?.(projectId, node); } catch { /* mirror push must never break the state save */ }
+      try { await this.textDocumentSynced?.(projectId, node); } catch (e) { console.warn('[textDocumentSynced] push failed', e); /* mirror push must never break the state save */ }
     }
   }
 }
