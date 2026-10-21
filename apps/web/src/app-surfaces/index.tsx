@@ -65,17 +65,35 @@ function httpDocApi(endpoint: string, docId: string, mirror?: { canvasId: string
 }
 
 /** Ask the App to create whatever a fresh tab needs; returns what to persist.
- * One data source rule: the mounted surface edits the App's own documents —
- * App storage is truth. doc's new tab = a new doc document. */
-export async function createAppTab(app: RegisteredAppEntry): Promise<ProjectAppWorkspaceTab> {
+ * Tab ↔ card pairing: opening a doc detail creates a bound canvas card +
+ * a bound doc document (nodeId), so the detail page and the card are the
+ * same entity seen from two sides — card mirror keeps the preview live. */
+export async function createAppTab(app: RegisteredAppEntry, canvasId: string): Promise<ProjectAppWorkspaceTab> {
   if (app.appId === 'doc') {
+    const nodeId = `t-${crypto.randomUUID().slice(0, 8)}`;
+    // 1. Create the paired card through the canonical operations write.
+    const stateRes = await fetch(`/api/apps/canvas/instances/${encodeURIComponent(canvasId)}/state`);
+    if (!stateRes.ok) throw new Error(`canvas state ${stateRes.status}`);
+    const state = (await stateRes.json()) as { data: { revision: number; state: { workbenchBasicNodes?: unknown[] } } };
+    const offset = (state.data.state.workbenchBasicNodes?.length ?? 0) * 40;
+    const opsRes = await fetch(`/api/apps/canvas/instances/${encodeURIComponent(canvasId)}/operations`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        operationId: `op-${crypto.randomUUID().slice(0, 8)}`, baseRevision: state.data.revision,
+        operations: [{ type: 'node.create', node: { id: nodeId, kind: 'text', x: 240 + offset, y: 240 + offset, title: '未命名文档' } }],
+      }),
+    });
+    if (!opsRes.ok) throw new Error(`card create ${opsRes.status}`);
+    const mirrorPath = (((await opsRes.json()) as { data: { state?: { workbenchBasicNodes?: { id: string; projectFilePath?: string }[] } } }).data.state?.workbenchBasicNodes ?? [])
+      .find(n => n.id === nodeId)?.projectFilePath;
+    // 2. Bind the App-owned document to the card (truth lives in doc).
     const res = await fetch(`${app.endpoint}/actions/doc.create`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ input: { name: '未命名文档' } }),
+      body: JSON.stringify({ input: { nodeId, name: '未命名文档', content: '' } }),
     });
     if (!res.ok) throw new Error(`doc create ${res.status}`);
     const result = (await res.json() as { data: { result: { instanceId: string; meta: DocMeta } } }).data.result;
-    return createAppDocTab(app.appId, result.instanceId, result.meta.name || app.name);
+    return createAppDocTab(app.appId, result.instanceId, '未命名文档', mirrorPath);
   }
   // Apps without a dedicated surface handler still get a tab — the surface
   // render reports the missing mount honestly.

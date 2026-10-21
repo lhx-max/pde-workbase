@@ -212,7 +212,7 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
     }, []);
     const openAppTab = useCallback((app: RegisteredAppEntry) => {
         void (async () => {
-            const tab = await createAppTab(app);
+            const tab = await createAppTab(app, projectId);
             await navigate(() => updateTabs(state => ({ ...state, tabs: state.tabs.includes(tab.id) ? state.tabs : [...state.tabs, tab.id], active: tab.id, appTabs: [...(state.appTabs ?? []).filter(item => item.id !== tab.id), tab] })));
         })().catch(reportError);
     }, [navigate, updateTabs, reportError]);
@@ -304,6 +304,14 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
         const res = await fetch(`${docApp.endpoint}/actions/doc.create`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ input: { ...(request.nodeId ? { nodeId: request.nodeId } : {}), name: request.title, content } }) });
         if (!res.ok) throw new Error(`doc bind ${res.status}`);
         const { instanceId, meta } = (await res.json() as { data: { result: { instanceId: string; meta?: { name?: string } } } }).data.result;
+        // Reconcile: if the card mirror diverged from the App document (e.g.
+        // the user typed inline in the card), the mirror is the newer edit —
+        // push it into the App document before opening the detail.
+        const readRes = await fetch(`${docApp.endpoint}/instances/${encodeURIComponent(instanceId)}/actions/doc.read`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ input: {} }) });
+        const docContent = readRes.ok ? String(((await readRes.json()) as { data?: { result?: { content?: string } } }).data?.result?.content ?? '') : '';
+        if (docContent !== content) {
+            await fetch(`${docApp.endpoint}/instances/${encodeURIComponent(instanceId)}/actions/doc.write`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ input: { content } }) });
+        }
         const detailTab = createAppDocTab('doc', instanceId, meta?.name || request.title, request.path);
         updateTabs(state => ({ ...state, tabs: state.tabs.includes(detailTab.id) ? state.tabs : [...state.tabs, detailTab.id], active: detailTab.id, appTabs: [...(state.appTabs ?? []).filter(item => item.id !== detailTab.id), detailTab] }));
         return { content };
