@@ -181,24 +181,11 @@ doc 是模板——其他卡种的 App 按同一形状补齐自己的词表。�
 
 **卡正文的唯一真相 = App 自己的存储**。画布侧的一切卡内容都是镜像：
 
-- **正文真相 = App 私有库的文档**（doc 文档）。卡详情打开的文档与 App 页签打开的文档是同一份、同一个组件——卡上「放大」按 **teamId + mirrorCanvasId + nodeId** 绑定/找回 App 文档（仅 `nodeId` 不足以跨团队/画布唯一识别；归档文档拒绝自动重建）
+- **正文真相 = App 私有库的文档**（doc 文档）。卡详情打开的文档与 App 页签打开的文档是同一份、同一个组件——卡上「放大」按 `nodeId` 绑定/找回 App 文档（`doc.create {nodeId}` 幂等，不重复建）
 - **出生即绑定（资产沉淀）**：卡**第一次有内容**保存时，画布自动 `doc.create {nodeId, name:卡标题, content, mirrorCanvasId, mirrorPath}` 建绑定文档——不等用户点开详情；之后每次保存推 `doc.write`（服务端文本同步钩子，UI 与 API 操作全覆盖）。由此用户资产自然全部落到 App 库，无任何上传入口
 - **画布侧存镜像**：卡 JSON 的 `text` 和 `projectFilePath` 指向的文件都只是**渲染/实时操作镜像**——卡预览、连线、快照、离线渲染靠它。App 编辑保存时画布把同样内容写回镜像文件（`mirrorPath`），经既有的文件→state 通道让卡预览实时跟上
 - **镜像可过期**——真相在 App 侧；App 未注册/下线时镜像仍可显示但不再更新，详情入口随之不可用
 - App 私有库里因此有两大类东西：画布卡绑定的文档（meta.nodeId 指回卡）、App 独立使用形态的自有文档
-
-**生命周期与同步安全（2026-10-21 收口）**：
-
-- 卡是关联，不是文档所有权：删卡/归档画布只归档 binding，保留文档；只有 App 的 `doc.archive` 归档正文资产。撤销删卡只能恢复 `card_removed` 绑定，不能复活 `asset_archived` 文档。归档画布禁止写入，归档文档禁止写入/自动重绑，读取保留。
-- 卡标题与文档名分属两个实体，不强制级联改名；不能把不联动当成数据缺失。
-- 画布事务先提交并释放项目锁，再调文档 API；文档回写镜像文件和 node.text 在同一项目锁下完成，不再次向文档回推。
-- 画布发起 `doc.write` 携带 `input.mirrorRevision`（来源画布提交版本）；文档自行保存则读取当前画布版本。镜像 PUT 携带 `expectedRevision`，旧版本在写文件前冲突拒绝，不允许迟到更新覆盖新卡片。
-- 已绑定节点的镜像路径必须从当前画布状态解析；节点不存在/不是文本时返回 unbound，不能回退写旧路径。每次同步更新 App 的镜像元数据。
-- `doc.write` 的 `data.result={meta,mirror}`；`mirror.status` 为 synced/pending/conflict/unavailable/unbound。HTTP 200 仅说明正文保存结果，只有 synced 才能宣称镜像同步成功。画布保存后的 App 同步失败返回 `syncWarnings` 并记审计；不回滚已保存的本地编辑。
-- 详情打开不得默认镜像更新，不自动把画布副本覆盖到 App。读取缺少正文必须报错，不能降级成空串。编辑页签必须注册脏状态和离开前 flush。
-- 自动化权限检查/审计必须带实际请求 userId，不能对所有编辑者套用资产创建者身份；teamId 仍以目标画布归属为准。
-
-**实现边界**：以上为本地在线基础闭环；尚无持久 outbox/自动补偿、文档正文 CAS、跨进程本地写锁和真实生产团队服务/Appwrite 验收。接口存在或测试通过不能等同这些能力已完成。
 
 存储两层模式：
 
@@ -324,6 +311,60 @@ App 自己领域的接口（doc 的 `/api/documents` 列表/读写/导出）。�
 - **空卡初始面板自适应**：卡存的尺寸小于初始面板所需时必须自动补到完整尺寸，不许把初始动作裁掉一半
 - **AI 生成操作条**（提示词输入、「拆分镜/生图/文生视频」这类跨卡生成）：**管理侧 Agent 执行通道**——它不是「卡的部件」，是借卡的位置放的 Agent 入口。宿主 manifest 的 `agentRuntime.available` 声明执行通道是否接入；**未接入时整条生成 UI 必须隐藏**，不许放一个能输入但没人执行的假框（诚实铁律）
 
+### 4.5 MA open-platform Provider 口（管理侧 Agent 网关，必接）
+
+管理侧 Agent（一寒的 MA 网关）不直连我们的统一 API——它走自己的
+**open-platform 协议**打进来。每个 App 都必须另外暴露这个适配口，
+否则 Agent 目录里的应用登记了也调不动：
+
+```
+POST {provider.baseUrl}/open-platform/v1/instances/{providerInstanceId}/actions/{actionId}
+```
+
+请求（网关固定信封，全字段照抄，不得增删语义）：
+
+```json
+{
+  "protocolVersion": "1.0",
+  "requestId": "req_xxx",            // 网关每次调用唯一
+  "idempotencyKey": "req_xxx",
+  "applicationId": "app_...",        // 网关注册的应用 ID
+  "applicationVersion": "0.1.0",
+  "applicationInstanceId": "ai_...", // 网关侧实例 ID
+  "providerInstanceId": "<path 参数>",// 我们侧实例 ID（doc: 文档 ID/别名）
+  "bizId": "biz_...",                // 业务/项目 ID
+  "sessionId": "s_...",
+  "actor": { "userId": "u_...", "tenantId": "t_..." },
+  "actionId": "doc.write",
+  "expectedRevision": 1792561755466, // 可选，整数乐观锁
+  "input": { "content": "..." }      // 各 action 自己的入参
+}
+```
+
+响应（网关逐字段校验，形状不对整单判失败）：
+
+```json
+{
+  "protocolVersion": "1.0",
+  "actionId": "doc.write",
+  "providerInstanceId": "ma-test-1",
+  "revision": 1792561765116,      // 正整数、safe int —— 用资产 updatedAt 毫秒时间戳，天然持久且单调
+  "summary": "文档「x」已写入",   // ≤2000 字的人类可读一句话
+  "data": { /* 原 action 返回，网关原样透传给 Agent */ }
+}
+```
+
+适配语义（doc 已实现，抄 `apps/server/src/open-platform.ts`）：
+
+- **身份**：`actor.tenantId/userId` → 内部租户，网关已验过票，`userVerified:true`；不设信任就拒绝。
+- **providerInstanceId → 实例**：本口建的文档绑 `ma:<pid>` 合成节点键——`doc.create` 幂等（同 pid 返回同一文档），后续动作按别名解析；普通实例 ID 也直通。
+- **版本**：`expectedRevision` 拿上次响应的 `revision`；不匹配回 `409 PROVIDER_REVISION_CONFLICT`。内部存储要求 read-before-write 基线的（如 doc 的 `baseContent/expectedRevision`），由适配层读当前快照补上——不把这个负担传给 Agent。
+- **幂等**：`requestId/idempotencyKey` 前缀 `ma-` 进回执表，重试返回旧凭条。
+- **动作面**：只开 manifest 声明过的动作；未知动作 404、实例不存在 404、版本不符 400/409、`protocolVersion ≠ 1.0` 400。
+- **部署面**：Express 服务和 Appwrite 函数入口都要挂这一条——MA 网关打的是 `provider.baseUrl`，云上 provider 地址就是函数执行地址。
+
+应用登记（他的后端那行数据）：`manifest.slug` = appId、`provider.baseUrl` = 你的 endpoint、`actions[]` 按 `{id,title,description,effect,inputSchema,requiredPermissions}` 逐个列、`frontend:{moduleId,exportName}` 指 surface 组件注册位（见 §七）。**登记前先实测本口——他网关对响应形状是硬校验，形状不对整单失败。**
+
 ## 五、能力清单 manifest
 
 `GET /api/apps/<appId>` 返回的样子：
@@ -409,6 +450,7 @@ import { DocumentEditorPane } from '@doc/surface';
 - [ ] 响应都带 `requestId`，错误都带 `code/message/retryable`
 - [ ] 未配置的能力全部显式 501/503
 - [ ] **租户**：`X-Team-Id` 换值后列表隔离、跨租户读/写 403、新资产带 `teamId+createdBy`
+- [ ] **MA Provider 口**：`/open-platform/v1/instances/:pid/actions/:actionId` 走通 create→read→write 一轮：create 幂等（同 pid 同实例）、`expectedRevision` 过期返回 409、响应形状过网关校验（protocolVersion/revision 正整数/summary）
 - [ ] **注册韧性**：宿主重启后 30s 内心跳自动重注册，`GET /api/apps` 重新出现且 manifest 随注册入目录
 - [ ] **绑定**：带 `nodeId` 建资产 → `GET .../bindings` 出现 active 行；归档资产 → 绑定转 archived
 - [ ] README 写明：结构、自闭环验证方法、环境变量、启动命令、未实现清单
