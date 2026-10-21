@@ -271,10 +271,19 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
                 }
                 const title = documentDropTitle(file.name);
                 const nodeId = await requestCanvasCard('text', position);
-                const stRes = await fetch(`/api/apps/canvas/instances/${encodeURIComponent(projectId)}/state`, { headers: tenantHeaders() });
-                if (!stRes.ok) throw new Error(`canvas state ${stRes.status}`);
-                const st = await stRes.json() as { data?: { state?: { workbenchBasicNodes?: { id: string; projectFilePath?: string }[] } } };
-                const mirrorPath = st.data?.state?.workbenchBasicNodes?.find(n => n.id === nodeId)?.projectFilePath;
+                // mirrorPath is a hint, not required input — doc-side mirror
+                // resolves the card's current file by nodeId on every write.
+                let mirrorPath: string | undefined;
+                for (let attempt = 0; attempt < 2 && !mirrorPath; attempt++) {
+                    if (attempt) await new Promise(resolve => setTimeout(resolve, 600));
+                    try {
+                        const stRes = await fetch(`/api/apps/canvas/instances/${encodeURIComponent(projectId)}/state`, { headers: tenantHeaders() });
+                        if (stRes.ok) {
+                            const st = await stRes.json() as { data?: { state?: { workbenchBasicNodes?: { id: string; projectFilePath?: string }[] } } };
+                            mirrorPath = st.data?.state?.workbenchBasicNodes?.find(n => n.id === nodeId)?.projectFilePath;
+                        }
+                    } catch { /* state fetch is best-effort; the doc App re-resolves */ }
+                }
                 if (!docApp?.endpoint) {
                     // Doc app offline: honour the drop by writing straight into
                     // the card file so the import still lands on canvas.
@@ -284,17 +293,23 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
                     continue;
                 }
                 const document = await openBoundDoc(docApp.endpoint, { nodeId, name: title, content, mirrorCanvasId: projectId, ...(mirrorPath ? { mirrorPath } : {}) }, tenantHeaders());
-                // doc.create stores the content but the mirror only pushes on
-                // write — one doc.write puts the imported text onto the card.
-                let written = await callDocAction(docApp.endpoint, 'doc.write', { content: document.content }, tenantHeaders(), document.instanceId);
+                // Write the IMPORTED text, not the dedupe-hit doc body — the
+                // canvas-side doc synchronizer may have already bound an empty
+                // doc (named after the card) to this fresh node.
+                let written = await callDocAction(docApp.endpoint, 'doc.write', { content }, tenantHeaders(), document.instanceId);
                 if (written.mirror?.status && written.mirror.status !== 'synced') {
                     // The fresh card's canvas op may still be in the persist
                     // queue — one delayed retry covers that sub-second race.
                     await new Promise(resolve => setTimeout(resolve, 800));
-                    written = await callDocAction(docApp.endpoint, 'doc.write', { content: document.content }, tenantHeaders(), document.instanceId);
+                    written = await callDocAction(docApp.endpoint, 'doc.write', { content }, tenantHeaders(), document.instanceId);
                 }
                 if (written.mirror?.status && written.mirror.status !== 'synced') reportError(new Error('文档已导入，但画布副本同步未确认。请保留文档正文后再试。'));
-                createdTabs.push(createAppDocTab('doc', document.instanceId, document.name || title, mirrorPath));
+                // Dedupe may return the synchronizer's card-named doc — take
+                // the file's name so the doc/tab reads like the dropped file.
+                if (document.name && document.name !== title) {
+                    await callDocAction(docApp.endpoint, 'doc.rename', { name: title }, tenantHeaders(), document.instanceId).catch(() => null);
+                }
+                createdTabs.push(createAppDocTab('doc', document.instanceId, title, mirrorPath));
             }
             if (createdTabs.length) {
                 await navigate(() => updateTabs(state => {
