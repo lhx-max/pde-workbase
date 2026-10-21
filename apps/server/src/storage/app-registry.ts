@@ -56,9 +56,8 @@ export class AppRegistryStore {
 
   async register(app: Omit<RegisteredApp, 'registeredAt'>): Promise<RegisteredApp> {
     const row: RegisteredApp = { ...app, registeredAt: new Date().toISOString() };
-    this.memory.set(row.appId, row);
     if (this.client && this.databaseId) {
-      const data = { appId: row.appId, name: row.name, endpoint: row.endpoint, webUrl: row.webUrl ?? '', description: row.description ?? '', status: row.status, registeredAt: row.registeredAt };
+      const data = { appId: row.appId, name: row.name, endpoint: row.endpoint, webUrl: row.webUrl ?? '', description: row.description ?? '', status: row.status, registeredAt: row.registeredAt, scope: row.scope ?? 'platform', teamId: row.teamId ?? '', manifest: JSON.stringify(row.manifest ?? {}) };
       try {
         await this.client.call('PATCH', `${this.path()}/${row.appId}`, { data });
       } catch (error) {
@@ -66,6 +65,7 @@ export class AppRegistryStore {
         else throw error;
       }
     }
+    this.memory.set(row.appId, row);
     this.persistLocal();
     return row;
   }
@@ -76,7 +76,18 @@ export class AppRegistryStore {
       const body = await this.client.call<{ documents: Record<string, unknown>[] }>('GET', `${this.path()}?${AppwriteClient.query([AppwriteClient.limit(100)])}`);
       const rows = body.documents.map(doc => {
         const webUrl = String(doc.webUrl ?? '');
+        const cached = this.memory.get(String(doc.appId ?? ''));
+        // Older cloud schemas did not carry tenancy. Never downgrade a known
+        // team registration to platform when refreshing that legacy row.
+        const scope: RegisteredApp['scope'] = doc.scope === 'platform' ? 'platform' : doc.scope === undefined ? cached?.scope ?? 'platform' : 'team';
+        const teamId = typeof doc.teamId === 'string' ? doc.teamId : cached?.teamId;
+        let manifest: Record<string, unknown> | undefined = cached?.manifest;
+        try {
+          const value: unknown = typeof doc.manifest === 'string' ? JSON.parse(doc.manifest) : doc.manifest;
+          if (value && typeof value === 'object' && !Array.isArray(value)) manifest = value as Record<string, unknown>;
+        } catch { /* malformed optional manifest is not an identity fallback */ }
         return {
+          scope, ...(teamId ? { teamId } : {}), ...(manifest ? { manifest } : {}),
           appId: String(doc.appId ?? ''), name: String(doc.name ?? ''), endpoint: String(doc.endpoint ?? ''),
           ...(webUrl ? { webUrl } : {}),
           description: String(doc.description ?? ''), status: (doc.status === 'disabled' ? 'disabled' : 'active') as RegisteredApp['status'],

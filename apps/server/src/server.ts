@@ -6,6 +6,7 @@ import path from 'node:path';
 import { mkdirSync } from 'node:fs';
 import { createProjectRegistry } from './storage/project-registry.js';
 import { CanvasStateService } from './canvas/state.js';
+import { createDocSynchronizer } from './canvas/doc-sync.js';
 import { FileCanvasContent } from './canvas/persistence.js';
 import { isSketchDocumentPath, SketchAppFiles, SketchAppSketchStore } from './storage/sketch-app-files.js';
 import { ProjectLedger } from './project-ledger/service.js';
@@ -32,6 +33,7 @@ import {BindingStore} from './storage/bindings.js';
 import {AuditLog} from './storage/audit-log.js';
 import {registerAppsRoutes} from './routes/apps.js';
 import {syncCardPackRegistry} from './card-packs.js';
+import {ownsTenantAsset,tenantOf,type AuthorizeAppManagement} from './tenant.js';
 export interface CanvasServerOptions {
  dataRoot:string; host?:string; authToken?:string; allowedOrigins?:string[]; assets?:AssetAdapter;
  media?:MediaAdapter; capabilities?:CapabilityAdapter; assetLibrary?:AssetLibraryOptions;
@@ -40,6 +42,8 @@ export interface CanvasServerOptions {
  * file-based this phase. */
  appwrite?:{endpoint:string;projectId:string;databaseId:string;bucketId:string;sessionCookie?:string;sessionSecret?:string};
  authorize?:RequestHandler;
+ /** Verified operator-role adapter. Authenticated deployments default to no governance access. */
+ authorizeAppManagement?:AuthorizeAppManagement;
  authorizeProject?:(req:express.Request,res:Response,projectId:string,access:{mode:'read'|'write';capability?:string})=>boolean|Promise<boolean>;
 }
 export interface CanvasServer {
@@ -62,39 +66,9 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
  const entitlements=new AppEntitlementStore(dataRoot);
  const bindings=new BindingStore(dataRoot);
  const audit=new AuditLog(dataRoot);
- const docBindingCache=new Map<string,string>();
- const textDocumentSynced=async(projectId:string,node:Record<string,unknown>)=>{
-  const nodeId=typeof node.id==='string'?node.id:'';const text=typeof node.text==='string'?node.text:null;
-  console.warn('[textDocumentSynced] enter',projectId,nodeId,text===null?'null':`${text.length}chars`);
-  if(!nodeId||text===null)return;
-  const apps=await appRegistry.list().catch(()=>[]);
-  const docApp=apps.find(a=>a.appId==='doc'&&a.status==='active'&&/^https?:\/\//.test(a.endpoint));
-  if(!docApp){console.warn('[textDocumentSynced] doc app not registered/active');return;}
-  const project=registry.get(projectId);
-  const tenant={teamId:project?.teamId??'local',userId:project?.createdBy??'local'};
-  if(entitlements.resolve('doc',tenant)==='deny')return;
-  const base=docApp.endpoint.replace(/\/+$/,'');
-  // Bound docs inherit the canvas instance's tenant (spec §3.0).
-  const headers={'content-type':'application/json','x-team-id':tenant.teamId,'x-user-id':tenant.userId};
-  let docId=docBindingCache.get(nodeId);
-  if(!docId){
-   // Eager binding: first content save creates the App document bound to
-   // this card (idempotent — a doc already bound by another path is reused).
-   const mirrorPath=typeof node.projectFilePath==='string'?node.projectFilePath:undefined;
-   const title=typeof node.title==='string'&&node.title.trim()?node.title:undefined;
-   const res=await fetch(`${base}/actions/doc.create`,{method:'POST',headers,body:JSON.stringify({input:{nodeId,name:title,content:text,mirrorCanvasId:projectId,...(mirrorPath?{mirrorPath}:{})}})});
-   if(!res.ok){console.warn('[textDocumentSynced] doc.create failed',res.status,await res.text().catch(()=>''));return;}
-   const result=((await res.json()) as {data?:{result?:{instanceId?:string}}}).data?.result;
-   docId=result?.instanceId;if(!docId)return;
-   docBindingCache.set(nodeId,docId);
-   bindings.upsert({canvasInstanceId:projectId,nodeId,kind:'text',appId:'doc',appInstanceId:docId,...(mirrorPath?{mirrorPath}:{}) ,teamId:tenant.teamId});
-  }
-  // doc.write follows doc.create too — a deduped document may hold older
-  // content (created empty or seeded earlier), so always converge to the
-  // card's latest text.
-  await fetch(`${base}/instances/${encodeURIComponent(docId)}/actions/doc.write`,{method:'POST',headers,body:JSON.stringify({input:{content:text}})});
- };
- const canvas=new CanvasStateService(id=>registry.resolveProjectRoot(id),undefined,assetLibrary,appwriteStorage?{...appwriteStorage,sketchStore,textDocumentSynced}:{sketchStore,textDocumentSynced});
+ const textDocumentSynced=createDocSynchronizer({registry:appRegistry,bindings,audit,entitlements,project:id=>registry.get(id)});
+ const documentNodesChanged=(projectId:string,nodes:readonly Record<string,unknown>[])=>bindings.reconcileNodes(projectId,nodes);
+ const canvas=new CanvasStateService(id=>registry.resolveProjectRoot(id),undefined,assetLibrary,{...appwriteStorage,sketchStore,textDocumentSynced,documentNodesChanged});
  const db=new Database(path.join(dataRoot,'workspace.sqlite'));
  db.exec('CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY)');
  for(const project of registry.list())db.prepare('INSERT OR IGNORE INTO projects(id) VALUES (?)').run(project.id);
@@ -122,7 +96,10 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
  const authorizeProjectRequest=async(req:express.Request,res:Response,projectId:string,access:{mode:'read'|'write';capability?:string}={mode:'read'})=>{
   const creating=req.method==='POST'&&(req.path==='/api/projects'||req.path==='/api/apps/canvas/actions/canvas.create');
   if(!creating&&!registry.get(projectId)){sendApiError(res,404,'PROJECT_NOT_FOUND','Project not found');return false;}
-  return options.authorizeProject?await options.authorizeProject(req,res,projectId,access):true;
+  const project=registry.get(projectId);
+   if(project&&!ownsTenantAsset(project,tenantOf(req))){sendApiError(res,403,'TENANT_FORBIDDEN','Asset belongs to another team');return false;}
+   if(entitlements.resolve('canvas',tenantOf(req))==='deny'){sendApiError(res,403,'TENANT_FORBIDDEN','App denied for this tenant');return false;}
+   return options.authorizeProject?await options.authorizeProject(req,res,projectId,access):true;
  };
  app.use(authorize);
  if(options.authorize)app.use(options.authorize);
@@ -138,8 +115,8 @@ export function createCanvasServer(options:CanvasServerOptions):CanvasServer {
  app.use((_req,_res,next)=>withProjectLedgerRecorder(input=>{ledger.record(input);},next));
  app.get('/api/health',(_req,res)=>res.json({ok:true,service:'canvas-workspace'}));
  registerCanvasStateRoutes(app,{canvasState:canvas,ledger,resolveProjectRoot:id=>registry.resolveProjectRoot(id),authorizeProjectRequest});
- registerAppsRoutes(app,{registry:appRegistry,entitlements,audit});
- registerAppCanvasRoutes(app,{canvasState:canvas,registry,authorizeProjectRequest,appRegistry,content:appContent,ledger,bindings,audit});
+ registerAppsRoutes(app,{registry:appRegistry,entitlements,audit,...(options.authorizeAppManagement?{authorizeAppManagement:options.authorizeAppManagement}:(options.authToken||options.authorize)?{authorizeAppManagement:()=>false}:{})});
+ registerAppCanvasRoutes(app,{canvasState:canvas,registry,authorizeProjectRequest,appRegistry,content:appContent,ledger,bindings,audit,entitlements});
  registerProjectFileRoutes(app,{registry,canvasFiles:canvas,authorize:authorizeProjectRequest,sketchDocuments:{
   async read(filePath){const endpoint=await sketchEndpoint();if(!endpoint||!isSketchDocumentPath(filePath))return undefined;return new SketchAppFiles(endpoint).read(filePath);},
   async write(filePath,content){const endpoint=await sketchEndpoint();if(!endpoint||!isSketchDocumentPath(filePath))return undefined;const saved=await new SketchAppFiles(endpoint).write(filePath,content);return {name:saved.path,path:saved.path,size:saved.size,mtime:Date.parse(saved.updatedAt)||Date.now(),kind:'sketch',mime:'application/json',type:'file'};},

@@ -19,6 +19,7 @@ import { listFiles, listProjectFolders, createProjectFolder, deleteProjectFolder
 import { subscribe } from '../project-watchers.js';
 import type { ProjectRegistry } from '../storage/project-registry.js';
 import { assertProjectPathHasNoSymlinks } from '../project-layout.js';
+import { ownsTenantAsset, tenantOf } from '../tenant.js';
 
 export interface RegisterProjectFileRoutesDeps {
   registry: ProjectRegistry;
@@ -71,7 +72,7 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
     },
   };
   app.get('/api/projects', async (req, res) => {
-    const projects = registry.list();
+    const projects = registry.list().filter(project => ownsTenantAsset(project, tenantOf(req)));
     for (const project of projects) if (!await authorizeProjectRequest(req, res, project.id, { mode: 'read' })) return;
     res.json({ projects });
   });
@@ -82,7 +83,8 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
         if (!res.headersSent) sendApiError(res, 403, 'FORBIDDEN', 'project creation denied');
         return;
       }
-      const project = registry.create({ ...req.body, id });
+      const tenant = tenantOf(req);
+      const project = registry.create({ ...req.body, id, teamId: tenant.teamId, createdBy: tenant.userId });
       res.json({ project });
     } catch (error) { sendApiError(res, 400, 'BAD_REQUEST', String(error)); }
   });

@@ -58,6 +58,22 @@ designai-app-<appId>/
 
 技术栈固定：TypeScript + React 18 + Express + Node 24 + pnpm 10.33.2。
 
+### 1.1 从零起步：以 doc 为参考实现
+
+零上下文接手时**不要空写**——`designai-app-doc` 是唯一完整参考实现，照它的骨架替换业务部分：
+
+| doc 文件 | 干什么 | 新 App 怎么抄 |
+|---|---|---|
+| `apps/server/src/protocol.ts` | **manifest 真源**——动作清单、editorKinds、tenancy 声明、注册体 | 原样抄结构，换成你的 appId/动作 |
+| `apps/server/src/app.ts` | **协议路由全集**——actions 分发、instances/state/files、REST 镜像端点、回执、租户中间件 | 抄路由骨架，把 store 调用换成你的业务 |
+| `apps/server/src/store.ts` + `local-store.ts` + `appwrite-store.ts` | 存储接口 + 本地实现 + 云实现（同接口双后端） | 抄接口形状（list/create/read/write/rename/archive + 租户过滤） |
+| `apps/server/src/tenant.ts` | 租户头解析 | 原样抄，不改 |
+| `apps/server/src/index.ts` | 启动 + 自注册 + **30s 心跳重注册** | 抄，`DOC_*` 环境变量改前缀 |
+| `packages/doc-surface/` | 详情页组件包（编辑器 + api-types 注入接口） | 抄包结构，换成你的编辑器组件 |
+| `apps/web/` | 独立壳页面 | 最小壳：一个页面挂你的 surface |
+
+**顺序**：① 抄仓骨架改名 → ② `protocol.ts` 定你的动作词表（先定再写码）→ ③ `store` 接口 + 本地实现先跑通 → ④ `app.ts` 路由全通 → ⑤ surface + 壳 → ⑥ 挂进宿主 → ⑦ 按 §十自检表实测。
+
 ## 二、前后端自闭环（硬性要求）
 
 **App 不依赖画布就能跑，这是底线。** 验收方式：把 App 单独启动，不配置任何画布相关的环境变量，它的核心功能必须可用（doc 不配画布也能建文档、编辑、保存）。
@@ -326,7 +342,8 @@ App 自己领域的接口（doc 的 `/api/documents` 列表/读写/导出）。�
 
 | 口 | 干什么 |
 |---|---|
-| **自注册** | 启动时向画布 `POST /api/apps/register` 登记 `{appId, name, endpoint}`；失败只告警不退出 |
+| **自注册** | 启动时向画布 `POST /api/apps/register` 登记 `{appId, name, endpoint, manifest}`；失败只告警不退出。**必须带心跳**：每 30s 查 `GET /api/apps` 里有没有自己，没有就重注册——宿主重启会清注册表，只在启动时注册一次 = 宿主重启后永久失联 |
+| **镜像写透传** | 卡内编辑 → 画布存镜像 → 自动调你的 `<app>.create`/`write`（带 `nodeId/mirrorCanvasId/mirrorPath`，幂等）；你侧写入 → 顺手 PUT 画布 `files` 通道回写 `mirrorPath`。**两边各存各的，写完推给对方**——用户视角一次编辑，资产侧永远是真相 |
 | **open-editor** | 画布把「这张卡归你编辑」的请求发过来：`{nodeId, filePath, canvasId?}`，你返回能打开编辑器的 `openUrl` |
 | **文件通道** | 卡片里存的 `filePath` 是内容锚点；读写它走画布的 `GET/PUT /api/apps/canvas/instances/:id/files?path=`——这是和画布交换内容的**唯一通道**，可以经你后端 P9 转发 |
 | **事件订阅（半个）** | 可选：订画布的卡片增删改事件流，卡变了你能知道 |
@@ -343,6 +360,8 @@ import { DocumentEditorPane } from '@doc/surface';
 ```
 
 **同时要有一个独立壳** `apps/web`：同一套组件放进一个能独立打开的页面里（验证自闭环用）。组件和壳共用同一套数据接口（如 doc 的 `DocDocumentApi`），只是挂载环境不同。
+
+**宿主挂载缝（新 App 进「+」菜单/页签的口子）**：包发出去后在宿主侧登记一行——画布仓 `apps/web/src/app-surfaces/index.tsx` 的 `APP_SURFACES` 表加 `{appId, label, icon, surface}` 条目 + `openTab` 映射（点「+」时怎么建卡、怎么开详情页签）。这是唯一需要碰宿主代码的地方；登记后加卡菜单、页签、详情打开全部由目录自动驱动，App 被 deny/注销时入口自动消失。
 
 ## 八、环境变量规范
 
@@ -376,6 +395,9 @@ import { DocumentEditorPane } from '@doc/surface';
 - [ ] 经文件通道写入 → 画布侧读回内容一致（双向实测）
 - [ ] 响应都带 `requestId`，错误都带 `code/message/retryable`
 - [ ] 未配置的能力全部显式 501/503
+- [ ] **租户**：`X-Team-Id` 换值后列表隔离、跨租户读/写 403、新资产带 `teamId+createdBy`
+- [ ] **注册韧性**：宿主重启后 30s 内心跳自动重注册，`GET /api/apps` 重新出现且 manifest 随注册入目录
+- [ ] **绑定**：带 `nodeId` 建资产 → `GET .../bindings` 出现 active 行；归档资产 → 绑定转 archived
 - [ ] README 写明：结构、自闭环验证方法、环境变量、启动命令、未实现清单
 
 ## 十一、doc 合规状态（2026-10-20，按统一合同 P 编号）

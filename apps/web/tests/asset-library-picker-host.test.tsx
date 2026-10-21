@@ -4,7 +4,10 @@ import { cleanup, render } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { CanvasUiHost } from '@bezier/canvas-workbench';
 const state=vi.hoisted(()=>({host:null as CanvasUiHost|null,picker:vi.fn(()=>null)}));
-vi.mock('@bezier/canvas-workbench',()=>({CanvasWorkbenchSurface:({uiHost}:any)=>{state.host=uiHost;return null;}}));
+vi.mock('@bezier/canvas-workbench',async()=>{
+ const {createContext}=await import('react');
+ return {CanvasKindAvailability:createContext({}),CanvasWorkbenchSurface:({uiHost}:any)=>{state.host=uiHost;return null;}};
+});
 vi.mock('../src/components/asset-library/WorkspaceAssetPicker',()=>({renderWorkspaceAssetPicker:state.picker}));
 vi.mock('../src/components/asset-library/SelectableImageMasonry',()=>({SelectableTemplateGrid:()=>null}));
 vi.mock('../src/providers/registry',()=>({projectFileUrl:vi.fn()}));

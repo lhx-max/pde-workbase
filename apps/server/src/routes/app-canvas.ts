@@ -10,6 +10,8 @@ import type { AppRegistryStore } from '../storage/app-registry.js';
 import type { BindingStore } from '../storage/bindings.js';
 import type { AuditLog } from '../storage/audit-log.js';
 import type { CanvasFileContent } from '../canvas/persistence.js';
+import type { AppEntitlementStore } from '../storage/app-entitlements.js';
+import { appVisibleToTenant, ownsTenantAsset, tenantOf } from '../tenant.js';
 
 type Authorize = (req: Request, res: Response, projectId: string, access?: { mode: 'read' | 'write'; capability?: string }) => Promise<boolean>;
 
@@ -53,6 +55,7 @@ export interface RegisterAppCanvasRoutesDeps {
   /** Central card↔App binding index (data-model §三). */
   bindings?: BindingStore;
   audit?: AuditLog;
+  entitlements?: AppEntitlementStore;
   /** Canvas-owned file channel — external Apps read/write the same files
    * the cards point at (`projectFilePath`). Text payloads in v1. */
   content?: CanvasFileContent;
@@ -61,18 +64,28 @@ export interface RegisterAppCanvasRoutesDeps {
 }
 
 export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRoutesDeps): void {
-  /** Tenant context (spec §3.0) — dev mode reads X-Team-Id/X-User-Id, default
-   * 'local'; deployed mode a gateway injects verified identity. */
-  const tenantOf = (req: Request): { teamId: string; userId: string } => ({
-    teamId: typeof req.headers['x-team-id'] === 'string' && req.headers['x-team-id'] ? req.headers['x-team-id'] : 'local',
-    userId: typeof req.headers['x-user-id'] === 'string' && req.headers['x-user-id'] ? req.headers['x-user-id'] : 'local',
+  const requireAppAccess = async (req: Request, appId: string) => {
+    const registered = await deps.appRegistry?.get(appId);
+    if (registered && !appVisibleToTenant(registered, tenantOf(req))) {
+      throw new CanvasStateError(403, 'TENANT_FORBIDDEN', 'App belongs to another team');
+    }
+    if (deps.entitlements?.resolve(appId, tenantOf(req)) === 'deny') {
+      throw new CanvasStateError(403, 'TENANT_FORBIDDEN', 'App denied for this tenant');
+    }
+  };
+  app.use('/api/apps/canvas', (req, res, next) => {
+    if (deps.entitlements?.resolve('canvas', tenantOf(req)) === 'deny') {
+      sendAppError(res, new CanvasStateError(403, 'TENANT_FORBIDDEN', 'App denied for this tenant'));
+      return;
+    }
+    next();
   });
   /** Every instance-scoped route is tenant-gated: an asset owned by another
    * team is a 403, not a leak. Projects without a stamped tenant belong to
    * 'local'. */
   app.use('/api/apps/canvas/instances/:instanceId', (req, res, next) => {
     const project = deps.registry.get?.(req.params.instanceId) ?? null;
-    if (project && (project.teamId ?? 'local') !== tenantOf(req).teamId) {
+    if (project && !ownsTenantAsset(project, tenantOf(req))) {
       sendAppError(res, new CanvasStateError(403, 'TENANT_FORBIDDEN', 'Asset belongs to another team'));
       return;
     }
@@ -226,6 +239,7 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
       if (!deps.bindings) throw new CanvasStateError(501, 'BINDINGS_UNAVAILABLE', 'binding store not configured');
       const body = (req.body ?? {}) as { nodeId?: string; kind?: string; appId?: string; appInstanceId?: string; mirrorPath?: string };
       if (!body.nodeId || !body.appId || !body.appInstanceId) throw new CanvasStateError(400, 'BAD_REQUEST', 'nodeId, appId and appInstanceId are required');
+      await requireAppAccess(req, body.appId);
       const row = deps.bindings.upsert({
         canvasInstanceId: req.params.instanceId, nodeId: body.nodeId,
         ...(body.kind ? { kind: body.kind } : {}), appId: body.appId, appInstanceId: body.appInstanceId,
@@ -298,8 +312,6 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
       const projectId = resolveInstanceId(req.params.instanceId);
       if (!await authorize(req, res, projectId, { mode: 'write', capability: 'writeFiles' })) return;
       const response = await deps.canvasState.applyOperations(projectId, req.body);
-      const ops = (req.body as { operations?: { type?: string; nodeId?: string }[] } | undefined)?.operations ?? [];
-      for (const op of ops) if (op.type === 'node.delete' && op.nodeId) deps.bindings?.archive(projectId, op.nodeId);
       res.json({ requestId: requestId(), data: { receipt: response.receipt, revision: response.revision, state: response.state, replayed: response.replayed, eventCursor: String(response.revision) } });
     } catch (error) { sendAppError(res, error); }
   });
@@ -332,7 +344,7 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
         // Archive — never physically delete an instance (spec §3.0); its
         // files and bindings stay recoverable. Its card↔App bindings archive too.
         deps.registry.archive ? deps.registry.archive(projectId) : deps.registry.delete?.(projectId);
-        deps.bindings?.archive(projectId);
+        deps.bindings?.archive(projectId, undefined, 'canvas_archived');
         deps.audit?.record({ actor: tenantOf(req), action: 'canvas.archive', appId: 'canvas', targetId: projectId, status: 'succeeded' });
         res.json({ requestId: requestId(), data: { receiptId: req.get('idempotency-key') ?? null, status: 'succeeded', result: { instanceId: projectId, archived: true } } });
         return;
@@ -384,6 +396,7 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
       if (!appId) throw new CanvasStateError(404, 'APP_NOT_INSTALLED', `Kind ${kind} has no editor App`);
       const app = deps.appRegistry ? await deps.appRegistry.get(appId) : null;
       if (!app || app.status !== 'active') throw new CanvasStateError(404, 'APP_NOT_INSTALLED', `Editor App '${appId}' is not registered`);
+      await requireAppAccess(req, appId);
       const filePath = node.projectFilePath
         ?? (typeof node.data?.projectFilePath === 'string' ? node.data.projectFilePath : undefined);
       const sketchId = kind === 'sketch' && typeof node.data?.sketchId === 'string' ? node.data.sketchId : undefined;
@@ -419,27 +432,12 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
       const content = typeof req.body?.content === 'string' ? req.body.content : null;
       if (content === null) throw new CanvasStateError(400, 'BAD_REQUEST', 'content (string) is required');
       const path = filePath(req);
-      await deps.content.write(projectId, path, content);
-      res.json({ requestId: requestId(), data: { path, status: 'written' } });
-      // File→state mirror, scheduled AFTER responding: syncing runs
-      // applyOperations which takes the project lock — awaiting it inside this
-      // request deadlocks the card→app push chain (hook → app write → this
-      // PUT → applyOperations would wait on the lock its own chain holds).
-      setImmediate(() => {
-        void (async () => {
-          const snapshot = await deps.canvasState.read(projectId);
-          const nodes = snapshot.state?.workbenchBasicNodes;
-          const node = Array.isArray(nodes) ? nodes.find((n): n is { id: string; kind?: string; projectFilePath?: string; text?: string } =>
-            typeof n === 'object' && n !== null && n.kind === 'text' && n.projectFilePath === path && n.text !== content) : undefined;
-          if (node) {
-            await deps.canvasState.applyOperations(projectId, {
-              operationId: `mirror-${randomUUID()}`,
-              baseRevision: snapshot.revision,
-              operations: [{ type: 'node.update', nodeId: node.id, set: { text: content } }],
-            });
-          }
-        })().catch(() => { /* state mirror is best-effort — never fail the file write */ });
-      });
+      const expectedRevision: unknown = req.body?.expectedRevision;
+      if (expectedRevision !== undefined && (typeof expectedRevision !== 'number' || !Number.isSafeInteger(expectedRevision) || expectedRevision < 0)) {
+        throw new CanvasStateError(400, 'BAD_REQUEST', 'expectedRevision must be a nonnegative safe integer');
+      }
+      const snapshot = await deps.canvasState.writeTextMirror(projectId, path, content, expectedRevision as number | undefined);
+      res.json({ requestId: requestId(), data: { path, status: 'written', revision: snapshot.revision } });
     } catch (error) { sendAppError(res, error); }
   });
 }
