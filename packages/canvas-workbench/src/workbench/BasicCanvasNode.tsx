@@ -350,6 +350,7 @@ function TextArtifactNode({
     try {
       const result = await openTextDocument({
         preferContent: true,
+        nodeId: item.id,
         path: documentPath,
         title: item.title || bn().labels.text,
         content: item.text || '',
@@ -388,6 +389,13 @@ function TextArtifactNode({
   ] as const).filter(action => kindAvailable(action.kind));
   // Editing mode persists after leaving a card; only the active selection owns its toolbar.
   const showInlineToolbar = selected;
+  // A card stored smaller than its starter panel must grow back — never
+  // render the initial actions clipped mid-button.
+  React.useEffect(() => {
+    if (!isEmpty || showInlineEditor || running) return;
+    if ((item.height ?? 0) < TEXT_CARD_DEFAULT_HEIGHT) data.onPatch(item.id, { height: TEXT_CARD_DEFAULT_HEIGHT });
+  }, [isEmpty, showInlineEditor, running, item.height, item.id, data]);
+
   const contextActions = downstreamActions.length ? (
     <div className="basic-text-context-actions nodrag nopan nowheel" role="group" aria-label={bn().actions.continueFromText} onDoubleClick={event => event.stopPropagation()}>
       {downstreamActions.map(action => <Button key={action.kind} type="button" variant="ghost" onClick={event => { event.stopPropagation(); startConnected(action.kind); }}><Icon name={action.icon} size={16} /><span>{action.label}</span></Button>)}
@@ -787,25 +795,30 @@ function PageBody({ node, selected, generationProgress, versions, onRemoveRefere
   );
 }
 
-function CanvasSendToChatButton({ node, className }: { node: CanvasBasicNode; className?: string }) {
+function CanvasSendToChatButton({ node, className, disabled }: { node: CanvasBasicNode; className?: string; disabled?: boolean }) {
   const [error, setError] = React.useState('');
   const stage = () => {
     try { stageCanvasObject(canvasObjectReference(getCanvasHostContext().projectId, node, 'reference')); setError(''); }
     catch (cause) { setError(cause instanceof Error ? cause.message : bn().status.cannotConnectChat); }
   };
   return <>
-    <Button type="button" variant="ghost" className={`bezier-tooltip ${className || ''} `} data-tooltip={bn().actions.addToChat} aria-label={bn().actions.sendToChat} title={error || bn().actions.sendToChat} onClick={stage}><ChatAddIcon /></Button>
+    <Button type="button" variant="ghost" className={`bezier-tooltip ${className || ''} `} data-tooltip={bn().actions.addToChat} aria-label={bn().actions.sendToChat} title={error || bn().actions.sendToChat} disabled={disabled} onClick={stage}><ChatAddIcon /></Button>
     {error ? <span className="sr-only" role="alert">{error}</span> : null}
   </>;
 }
 
 function TextToolbarWithChat({ toolbar, node }: { toolbar: React.ReactNode; node: CanvasBasicNode }) {
   if (!React.isValidElement<{ children?: React.ReactNode }>(toolbar)) return <>{toolbar}</>;
+  // Appended actions stay visible in every state — greyed until the card has
+  // content worth saving/sending, never hidden.
+  const noContent = !node.text?.trim();
   return React.cloneElement(toolbar, undefined,
     <>
       {toolbar.props.children}
       <span className="markdown-word-toolbar-divider" aria-hidden="true" />
-      {node.text?.trim() ? <><CanvasSaveAssetButton nodeId={node.id} className="markdown-word-tool" /><span className="markdown-word-toolbar-divider" aria-hidden="true" /><CanvasSendToChatButton node={node} className="markdown-word-tool" /></> : null}
+      <CanvasSaveAssetButton nodeId={node.id} className="markdown-word-tool" disabled={noContent} />
+      <span className="markdown-word-toolbar-divider" aria-hidden="true" />
+      <CanvasSendToChatButton node={node} className="markdown-word-tool" disabled={noContent} />
     </>,
   );
 }

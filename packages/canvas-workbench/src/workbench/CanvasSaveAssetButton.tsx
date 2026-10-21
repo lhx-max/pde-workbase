@@ -6,12 +6,12 @@ import { useCanvasUiHost } from '../platform/ui-host';
 import { cr } from '../locales/canvas-remainder';
 
 /** Only mount when the caller has an actual result. */
-export function CanvasSaveAssetButton({ nodeId, className = '', draft }: { nodeId?: string; className?: string; draft?: Parameters<NonNullable<NonNullable<ReturnType<typeof useCanvasUiHost>>['saveResource']>>[0] }) {
+export function CanvasSaveAssetButton({ nodeId, className = '', draft, disabled }: { nodeId?: string; className?: string; disabled?: boolean; draft?: Parameters<NonNullable<NonNullable<ReturnType<typeof useCanvasUiHost>>['saveResource']>>[0] }) {
   const host = useCanvasUiHost();
   const [busy, setBusy] = React.useState(false);
   const [status, setStatus] = React.useState('');
   if (!host?.saveResource) return null;
-  return <><Button variant="ghost" size="icon" className={`bezier-tooltip ${className}`} data-tooltip={status || cr().saveToAssets} aria-label={cr().saveToAssets} disabled={busy} onPointerDown={event => event.stopPropagation()} onClick={event => {
+  return <><Button variant="ghost" size="icon" className={`bezier-tooltip ${className}`} data-tooltip={status || cr().saveToAssets} aria-label={cr().saveToAssets} disabled={busy || disabled} onPointerDown={event => event.stopPropagation()} onClick={event => {
     event.stopPropagation();
     if (busy) return;
     setBusy(true); setStatus('');

@@ -34,7 +34,7 @@ import { DesignBrowserPanel } from './DesignBrowserPanel';
 import { CanvasWorkspace } from './workspace/CanvasWorkspace';
 import { TabLauncherMenu } from './workspace/TabLauncherMenu';
 import { buildLauncherActions, type LauncherContext } from './workspace/tab-launcher';
-import { AppTabSurface, createAppTab, type RegisteredAppEntry } from '../app-surfaces';
+import { AppTabSurface, createAppTab, createAppDocTab, type RegisteredAppEntry } from '../app-surfaces';
 import { SketchWorkspaceTab } from './workspace/SketchWorkspaceTab';
 import { CanvasSketchCard } from './workspace/CanvasSketchCard';
 import { SketchEnginePrewarm } from './SketchEnginePrewarm';
@@ -280,7 +280,7 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
    <div className="ws-body">
    {error && <div className="df-upload-banner" data-testid="upload-error-banner" role="alert"><span>{error}</span><Button onClick={() => setError('')} aria-label={t('entry.canvasAssets.close')}><Icon name="close" size={14}/></Button></div>}
    {browserTabs.filter(browser => browser.id === active || mountedBrowserTabs.includes(browser.id)).map(browser => <div key={browser.id} className={`ws-browser-panel ${active === browser.id ? 'active' : ''}`} aria-hidden={active !== browser.id || undefined}><DesignBrowserPanel {...ports.previewAnnotations} workspaceContext={ports.workspaceContext} onExtractPage={extractPage} onSendBoardCommentAttachments={sendComments} onAddImageToChat={sendImageReference} projectId={projectId} browserTabId={browser.id} initialUrl={browser.url} initialTitle={browser.title} initialIconUrl={browser.iconUrl} onOpenFile={openFile} onBezierFiles={() => openFile(DESIGN_FILES_TAB)} onRefreshFiles={refreshFiles} onPageInfoChange={browserInfoCallbacks[browser.id]}/></div>)}
-   {appTabs.filter(tab => tab.id === active).map(tab => <div key={tab.id} className="ws-app-panel" style={{ display: active === tab.id ? undefined : 'none', height: '100%', overflow: 'auto' }}><AppTabSurface tab={tab} app={registeredApps.find(app => app.appId === tab.appId)}/></div>)}
+   {appTabs.filter(tab => tab.id === active).map(tab => <div key={tab.id} className="ws-app-panel" style={{ display: active === tab.id ? undefined : 'none', height: '100%', overflow: 'auto' }}><AppTabSurface tab={tab} app={registeredApps.find(app => app.appId === tab.appId)} canvasId={projectId} onMirrorSaved={(path, content) => { setTextDocumentChange({ path, content, revision: Date.now() }); }}/></div>)}
    <div className="design-files-shell" data-testid="design-files-shell" style={{ display: active === DESIGN_FILES_TAB ? undefined : 'none' }}>
     <div className={`design-files-panel${filesDrawerOpen ? ' is-open' : ''}`} data-resizable-file-panel="true" style={{ ['--design-files-panel-width' as string]: `${filesDrawerWidth}px` }} role="region" aria-label={t('workspace.designFiles')} data-testid="design-files-panel" aria-hidden={!filesDrawerOpen || undefined}>
      <div className="design-files-panel-body"><CanvasAssetsSidebar {...ports.assetCatalogue} openRequest={assetRequest} onCancelSelection={cancelAssetSelection} onOpenAssetLibrary={showAssetLibrary} onExtractPage={extractPage} projectId={projectId} projectName={projectName} active={filesDrawerOpen} files={visibleFiles} onClose={closeAssetLibrary} width={filesDrawerWidth} onWidthChange={width => { setFilesDrawerWidth(width); try {
@@ -299,7 +299,16 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
     } if (content === null || (request.preferContent && content !== request.content)) {
         await writeProjectTextFile(projectId, request.path, request.content, undefined, ports.workspaceContext);
         content = request.content;
-    } setTextDocumentChange({ path: request.path, content, revision: Date.now() }); await refreshFiles(); openFile(request.path); return { content }; }} uiHost={{ ...ports.uiHost, renderSketch: ({ path, selected, pending, onCreated }) => <CanvasSketchCard path={path} projectId={projectId} selected={selected} file={files.find(file => file.name === path)} onOpen={async (path) => { try {
+    } setTextDocumentChange({ path: request.path, content, revision: Date.now() }); await refreshFiles(); const docApp = registeredApps.find(app => app.appId === 'doc' && (!app.status || app.status === 'active'));
+    if (docApp) {
+        const res = await fetch(`${docApp.endpoint}/actions/doc.create`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ input: { ...(request.nodeId ? { nodeId: request.nodeId } : {}), name: request.title, content } }) });
+        if (!res.ok) throw new Error(`doc bind ${res.status}`);
+        const { instanceId, meta } = (await res.json() as { data: { result: { instanceId: string; meta?: { name?: string } } } }).data.result;
+        const detailTab = createAppDocTab('doc', instanceId, meta?.name || request.title, request.path);
+        updateTabs(state => ({ ...state, tabs: state.tabs.includes(detailTab.id) ? state.tabs : [...state.tabs, detailTab.id], active: detailTab.id, appTabs: [...(state.appTabs ?? []).filter(item => item.id !== detailTab.id), detailTab] }));
+        return { content };
+    }
+    openFile(request.path); return { content }; }} uiHost={{ ...ports.uiHost, renderSketch: ({ path, selected, pending, onCreated }) => <CanvasSketchCard path={path} projectId={projectId} selected={selected} file={files.find(file => file.name === path)} onOpen={async (path) => { try {
             const content = await fetchProjectFileText(projectId, path, { workspaceContext: ports.workspaceContext });
             readSketchWorkspaceDocument(content, tRef.current);
         }

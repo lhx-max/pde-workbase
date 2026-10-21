@@ -298,6 +298,10 @@ export interface ProjectAppWorkspaceTab {
   /** App-scoped target the surface opens — doc id for doc, url for browser… */
   target?: string;
   label: string;
+  /** When the tab edits an App-owned document that a canvas file mirrors:
+   * the mirror's canvas-relative path — writes propagate so the card's
+   * preview stays live (App storage is truth, canvas file is the mirror). */
+  mirrorPath?: string;
 }
 
 export interface ProjectTabsState {

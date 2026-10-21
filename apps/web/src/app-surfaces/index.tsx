@@ -26,9 +26,11 @@ export interface RegisteredAppEntry {
   status?: string;
 }
 
-/** doc-server-backed Api — the embedded tab edits the App's own documents
- * through the unified /api/apps protocol actions (doc.read / doc.write). */
-function httpDocApi(endpoint: string, docId: string): DocDocumentApi {
+/** doc-server-backed Api — the mounted editor edits the App's own document
+ * through the unified /api/apps protocol actions (doc.read / doc.write).
+ * `mirror` writes the same content to a canvas file so the card's preview
+ * stays live — App storage is truth, the canvas file is a render mirror. */
+function httpDocApi(endpoint: string, docId: string, mirror?: { canvasId: string; path: string; onSaved?: (path: string, content: string) => void }): DocDocumentApi {
   const base = endpoint.replace(/\/+$/, '');
   const call = async (action: string, input: Record<string, unknown>) => {
     const res = await fetch(`${base}/instances/${encodeURIComponent(docId)}/actions/${action}`, {
@@ -45,6 +47,12 @@ function httpDocApi(endpoint: string, docId: string): DocDocumentApi {
     },
     async write(content) {
       const result = await call('doc.write', { content });
+      if (mirror) {
+        const res = await fetch(`/api/apps/canvas/instances/${encodeURIComponent(mirror.canvasId)}/files?path=${encodeURIComponent(mirror.path)}`, {
+          method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content }),
+        });
+        if (res.ok) mirror.onSaved?.(mirror.path, content);
+      }
       const meta = result.meta as DocMeta | undefined;
       return meta ?? { id: docId, name: '', path: '', size: content.length, updatedAt: new Date().toISOString() };
     },
@@ -56,7 +64,9 @@ function httpDocApi(endpoint: string, docId: string): DocDocumentApi {
   };
 }
 
-/** Ask the App to create whatever a fresh tab needs; returns what to persist. */
+/** Ask the App to create whatever a fresh tab needs; returns what to persist.
+ * One data source rule: the mounted surface edits the App's own documents —
+ * App storage is truth. doc's new tab = a new doc document. */
 export async function createAppTab(app: RegisteredAppEntry): Promise<ProjectAppWorkspaceTab> {
   if (app.appId === 'doc') {
     const res = await fetch(`${app.endpoint}/actions/doc.create`, {
@@ -65,21 +75,28 @@ export async function createAppTab(app: RegisteredAppEntry): Promise<ProjectAppW
     });
     if (!res.ok) throw new Error(`doc create ${res.status}`);
     const result = (await res.json() as { data: { result: { instanceId: string; meta: DocMeta } } }).data.result;
-    return { id: `app:doc:${result.instanceId}`, appId: app.appId, target: result.instanceId, label: result.meta.name || app.name };
+    return createAppDocTab(app.appId, result.instanceId, result.meta.name || app.name);
   }
   // Apps without a dedicated surface handler still get a tab — the surface
   // render reports the missing mount honestly.
   return { id: `app:${app.appId}:${crypto.randomUUID()}`, appId: app.appId, label: app.name };
 }
 
+/** A tab bound to an App-owned document. `mirrorPath` marks the canvas file
+ * that mirrors the document for card previews/realtime canvas rendering. */
+export function createAppDocTab(appId: string, docId: string, label: string, mirrorPath?: string): ProjectAppWorkspaceTab {
+  return { id: `app:${appId}:${docId}`, appId, target: docId, label, ...(mirrorPath ? { mirrorPath } : {}) };
+}
+
 /** The mounted surface for a persisted App tab. */
-export function AppTabSurface({ tab, app }: { tab: ProjectAppWorkspaceTab; app?: RegisteredAppEntry }) {
+export function AppTabSurface({ tab, app, canvasId, onMirrorSaved }: { tab: ProjectAppWorkspaceTab; app?: RegisteredAppEntry; canvasId?: string; onMirrorSaved?: (path: string, content: string) => void }) {
   if (!app) return <div className="app-tab-missing" style={{ padding: 32 }}>App「{tab.appId}」未注册或已下线</div>;
   if (app.appId === 'doc' && tab.target) {
+    const mirror = tab.mirrorPath && canvasId ? { canvasId, path: tab.mirrorPath, onSaved: onMirrorSaved } : undefined;
     // doc-surface styles are scoped to .doc-surface-root so its design tokens
     // never leak into the host page's global variables.
     return <div className="doc-surface-root" style={{ height: '100%', overflow: 'auto' }}><DocumentEditorPane
-      api={httpDocApi(app.endpoint, tab.target)}
+      api={httpDocApi(app.endpoint, tab.target, mirror)}
       document={{ id: tab.target, name: tab.label, path: tab.target, size: 0, updatedAt: '' }}
     /></div>;
   }

@@ -7,6 +7,9 @@ export type ArtifactOpener = (resource: ArtifactResource) => void | Promise<void
 
 export type TextDocumentOpenRequest = {
   preferContent?: boolean;
+  /** Card node id — the editor App binds its document to this so reopening
+   * detail finds the same App-owned document (App store is truth). */
+  nodeId?: string;
   path: string;
   title: string;
   content: string;
