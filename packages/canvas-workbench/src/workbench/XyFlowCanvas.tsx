@@ -1097,6 +1097,9 @@ type CanvasSurfaceProps = {
   onPriorLayoutPersist?: (positions: CanvasLayoutPosition[] | null) => void;
   onViewportPersist: (viewport: CanvasViewport) => void;
   onFilesDrop?: (files: File[], flowPosition: { x: number; y: number }) => void;
+  /** OS document drops (markdown/text/word) — routed to the host so a bound
+   * doc-app document + card + editor tab open instead of a bare file card. */
+  onDocumentsDrop?: (files: File[], flowPosition: { x: number; y: number }) => void;
   onProjectFileDrop?: (file: ProjectFileDragPayload, flowPosition: { x: number; y: number }) => void;
   onAddNode?: (kind: CanvasNodeCreationKind, flowPosition: { x: number; y: number }) => void;
   onGroupSelectedImages?: (imageIds: string[], geometry?: GroupMemberGeometry[]) => string | void;
@@ -1116,6 +1119,14 @@ type LocateProjectFileEvent = {
   fileName?: string;
 };
 
+/** OS file drops that carry text content the doc app can own. Legacy .doc is
+ * binary and not readable without a converter — only .docx is offered here. */
+const DOCUMENT_DROP_EXTENSIONS = /\.(md|markdown|txt|docx)$/i;
+function isDocumentDropFile(file: File): boolean {
+  if (DOCUMENT_DROP_EXTENSIONS.test(file.name)) return true;
+  return /^text\/(plain|markdown)/i.test(file.type) || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+}
+
 function CanvasSurface({
   nodes: desiredNodes,
   edges: desiredEdges,
@@ -1129,6 +1140,7 @@ function CanvasSurface({
   onPriorLayoutPersist,
   onViewportPersist,
   onFilesDrop,
+  onDocumentsDrop,
   onProjectFileDrop,
   onAddNode,
   onGroupSelectedImages,
@@ -1980,11 +1992,18 @@ function CanvasSurface({
       onProjectFileDrop?.(projectFile, flow);
       return;
     }
+    const dropped = Array.from(event.dataTransfer?.files || []);
+    const images = dropped.filter(file => file.type.startsWith('image/'));
+    const documents = dropped.filter(file => !file.type.startsWith('image/') && isDocumentDropFile(file));
+    if (documents.length && onDocumentsDrop) {
+      onDocumentsDrop(documents, flow);
+      if (images.length && onFilesDrop) onFilesDrop(images, flow);
+      return;
+    }
     if (!onFilesDrop) return;
-    const files = Array.from(event.dataTransfer?.files || []).filter(file => file.type.startsWith('image/'));
-    if (!files.length) return;
-    onFilesDrop(files, flow);
-  }, [onFilesDrop, onProjectFileDrop, screenToFlowPosition]);
+    if (!images.length) return;
+    onFilesDrop(images, flow);
+  }, [onFilesDrop, onDocumentsDrop, onProjectFileDrop, screenToFlowPosition]);
 
   const onSelectionChange = React.useCallback((params: OnSelectionChangeParams) => {
     selectedNodeIdsRef.current = new Set(params.nodes.map(node => node.id));

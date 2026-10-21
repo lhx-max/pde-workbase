@@ -35,6 +35,9 @@ import { CanvasWorkspace } from './workspace/CanvasWorkspace';
 import { TabLauncherMenu } from './workspace/TabLauncherMenu';
 import { buildLauncherActions, type LauncherContext } from './workspace/tab-launcher';
 import { AppTabSurface, createAppTab, createAppDocTab, tenantHeaders, type RegisteredAppEntry } from '../app-surfaces';
+import { openBoundDoc, callDocAction } from '../app-surfaces/doc-protocol';
+import { documentFileToMarkdown, documentDropTitle } from '../utils/document-import';
+import type { ProjectAppWorkspaceTab } from '@bezier/contracts';
 import { SketchWorkspaceTab } from './workspace/SketchWorkspaceTab';
 import { CanvasSketchCard } from './workspace/CanvasSketchCard';
 import { SketchEnginePrewarm } from './SketchEnginePrewarm';
@@ -222,10 +225,10 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
         return () => { cancelled = true; clearInterval(timer); };
     }, []);
     const cardWaiters = useRef(new Map<string, (nodeId: string) => void>());
-    const requestCanvasCard = useCallback((kind: 'text') => new Promise<string>((resolve, reject) => {
+    const requestCanvasCard = useCallback((kind: 'text', position?: { x: number; y: number }) => new Promise<string>((resolve, reject) => {
         const nonce = crypto.randomUUID();
         cardWaiters.current.set(nonce, resolve);
-        setNodeCreationRequest({ nonce, kind });
+        setNodeCreationRequest({ nonce, kind, ...(position ? { position } : {}) });
         setTimeout(() => { if (cardWaiters.current.delete(nonce)) reject(new Error('card create timeout')); }, 8000);
     }), []);
     const openAppTab = useCallback((app: RegisteredAppEntry) => {
@@ -250,6 +253,57 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
             await navigate(() => updateTabs(state => ({ ...state, tabs: state.tabs.includes(tab.id) ? state.tabs : [...state.tabs, tab.id], active: tab.id, appTabs: [...(state.appTabs ?? []).filter(item => item.id !== tab.id), tab] })));
         })().catch(reportError);
     }, [navigate, updateTabs, reportError, requestCanvasCard, projectId]);
+    /** OS document drop: each file becomes a bound doc (App-owned truth) +
+     * text card at the drop point + an open editor tab. md/txt pass through;
+     * .docx is converted to markdown in the browser first. */
+    const handleDocumentsDrop = useCallback((files: File[], flowPosition: { x: number; y: number }) => {
+        void (async () => {
+            const docApp = registeredApps.find(app => app.appId === 'doc' && (!app.status || app.status === 'active'));
+            const createdTabs: ProjectAppWorkspaceTab[] = [];
+            for (const [index, file] of files.entries()) {
+                const position = { x: flowPosition.x + index * 24, y: flowPosition.y + index * 24 };
+                const content = await documentFileToMarkdown(file);
+                const title = documentDropTitle(file.name);
+                const nodeId = await requestCanvasCard('text', position);
+                const stRes = await fetch(`/api/apps/canvas/instances/${encodeURIComponent(projectId)}/state`, { headers: tenantHeaders() });
+                if (!stRes.ok) throw new Error(`canvas state ${stRes.status}`);
+                const st = await stRes.json() as { data?: { state?: { workbenchBasicNodes?: { id: string; projectFilePath?: string }[] } } };
+                const mirrorPath = st.data?.state?.workbenchBasicNodes?.find(n => n.id === nodeId)?.projectFilePath;
+                if (!docApp?.endpoint) {
+                    // Doc app offline: honour the drop by writing straight into
+                    // the card file so the import still lands on canvas.
+                    if (mirrorPath) {
+                        await fetch(`/api/apps/canvas/instances/${encodeURIComponent(projectId)}/files?path=${encodeURIComponent(mirrorPath)}`, { method: 'PUT', headers: { 'content-type': 'application/json', ...tenantHeaders() }, body: JSON.stringify({ content }) });
+                    }
+                    continue;
+                }
+                const document = await openBoundDoc(docApp.endpoint, { nodeId, name: title, content, mirrorCanvasId: projectId, ...(mirrorPath ? { mirrorPath } : {}) }, tenantHeaders());
+                // doc.create stores the content but the mirror only pushes on
+                // write — one doc.write puts the imported text onto the card.
+                let written = await callDocAction(docApp.endpoint, 'doc.write', { content: document.content }, tenantHeaders(), document.instanceId);
+                if (written.mirror?.status && written.mirror.status !== 'synced') {
+                    // The fresh card's canvas op may still be in the persist
+                    // queue — one delayed retry covers that sub-second race.
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                    written = await callDocAction(docApp.endpoint, 'doc.write', { content: document.content }, tenantHeaders(), document.instanceId);
+                }
+                if (written.mirror?.status && written.mirror.status !== 'synced') reportError(new Error('文档已导入，但画布副本同步未确认。请保留文档正文后再试。'));
+                createdTabs.push(createAppDocTab('doc', document.instanceId, document.name || title, mirrorPath));
+            }
+            if (createdTabs.length) {
+                await navigate(() => updateTabs(state => {
+                    const tabIds = [...state.tabs];
+                    const appTabs = [...(state.appTabs ?? [])];
+                    for (const tab of createdTabs) {
+                        if (!tabIds.includes(tab.id)) tabIds.push(tab.id);
+                        const existing = appTabs.findIndex(item => item.id === tab.id);
+                        if (existing >= 0) appTabs[existing] = tab; else appTabs.push(tab);
+                    }
+                    return { ...state, tabs: tabIds, active: createdTabs[createdTabs.length - 1]!.id, appTabs };
+                }));
+            }
+        })().catch(reportError);
+    }, [navigate, updateTabs, reportError, requestCanvasCard, projectId, registeredApps]);
     const appTabs = tabs.appTabs ?? [];
     const launcherContext: LauncherContext = { projectId, openTab: openFile, apps: registeredApps, openAppTab, createBrowser: () => {void navigate(()=>{const id=`__browser__:${crypto.randomUUID()}`;updateTabs(state=>({...state,tabs:[...state.tabs,id],active:id,browserTabs:[...(state.browserTabs||[]),{id,label:t('workspace.newBrowser')}]}));}).catch(reportError);}, createSketch: () => void createFile('sketch').catch(reportError), createDocument: () => void createFile('text').catch(reportError), };
     const sketchCallbacks = useMemo(() => Object.fromEntries(tabs.tabs.map(name => [name, { onDirtyChange: (dirty: boolean) => setDirtyTabs(current => current[name] === dirty ? current : { ...current, [name]: dirty }), registerFlush: (flush: (() => Promise<boolean>) | null) => { if (flush)
@@ -314,7 +368,7 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
    <div className="ws-body">
    {error && <div className="df-upload-banner" data-testid="upload-error-banner" role="alert"><span>{error}</span><Button onClick={() => setError('')} aria-label={t('entry.canvasAssets.close')}><Icon name="close" size={14}/></Button></div>}
    {browserTabs.filter(browser => browser.id === active || mountedBrowserTabs.includes(browser.id)).map(browser => <div key={browser.id} className={`ws-browser-panel ${active === browser.id ? 'active' : ''}`} aria-hidden={active !== browser.id || undefined}><DesignBrowserPanel {...ports.previewAnnotations} workspaceContext={ports.workspaceContext} onExtractPage={extractPage} onSendBoardCommentAttachments={sendComments} onAddImageToChat={sendImageReference} projectId={projectId} browserTabId={browser.id} initialUrl={browser.url} initialTitle={browser.title} initialIconUrl={browser.iconUrl} onOpenFile={openFile} onBezierFiles={() => openFile(DESIGN_FILES_TAB)} onRefreshFiles={refreshFiles} onPageInfoChange={browserInfoCallbacks[browser.id]}/></div>)}
-   {appTabs.filter(tab => tab.id === active).map(tab => <div key={tab.id} className="ws-app-panel" style={{ display: active === tab.id ? undefined : 'none', height: '100%', overflow: 'auto' }}><AppTabSurface tab={tab} app={registeredApps.find(app => app.appId === tab.appId)} canvasId={projectId} onMirrorSaved={(path, content) => { setTextDocumentChange({ path, content, revision: Date.now() }); }}/></div>)}
+   {appTabs.filter(tab => tab.id === active).map(tab => <div key={tab.id} className="ws-app-panel" style={{ display: active === tab.id ? undefined : 'none', height: '100%', overflow: 'auto' }}><AppTabSurface tab={tab} app={registeredApps.find(app => app.appId === tab.appId)} canvasId={projectId} {...sketchCallbacks[tab.id]} onMirrorSaved={(path, content) => { setTextDocumentChange({ path, content, revision: Date.now() }); }}/></div>)}
    <div className="design-files-shell" data-testid="design-files-shell" style={{ display: active === DESIGN_FILES_TAB ? undefined : 'none' }}>
     <div className={`design-files-panel${filesDrawerOpen ? ' is-open' : ''}`} data-resizable-file-panel="true" style={{ ['--design-files-panel-width' as string]: `${filesDrawerWidth}px` }} role="region" aria-label={t('workspace.designFiles')} data-testid="design-files-panel" aria-hidden={!filesDrawerOpen || undefined}>
      <div className="design-files-panel-body"><CanvasAssetsSidebar {...ports.assetCatalogue} openRequest={assetRequest} onCancelSelection={cancelAssetSelection} onOpenAssetLibrary={showAssetLibrary} onExtractPage={extractPage} projectId={projectId} projectName={projectName} active={filesDrawerOpen} files={visibleFiles} onClose={closeAssetLibrary} width={filesDrawerWidth} onWidthChange={width => { setFilesDrawerWidth(width); try {
@@ -323,7 +377,7 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
     catch { /* Optional local preference storage. */ } }} onRefreshFiles={refreshFiles} onOpenFile={openFile} onRenameFile={rename} onDeleteFiles={removeFiles} onDeleteFile={name => { if (window.confirm(t('entry.canvasAssets.deleteBatchBody')))
         void removeFiles([name]).catch(reportError); }} onUpload={() => fileInput.current?.click()} onLocateFile={name => window.dispatchEvent(new CustomEvent('bezier-design:locate-project-file', { detail: { projectId, fileName: name } }))} onSaveToLibrary={saveToLibrary} onRevealInFinder={ports.revealFile}/></div>
     </div>
-    <div className="design-files-canvas-wrap"><div className="design-files-canvas-slot"><CanvasWorkspace onStageCanvasObject={undefined} onStageChatAttachments={undefined} referenceAdapter={ports.referenceAdapter} projectId={projectId} workspaceContext={ports.workspaceContext} transport={ports.transport} onSubmitAgentTask={submitAgentTask} textGenerationResults={textResults} artifactGenerationResults={artifactResults} textDocumentChange={textDocumentChange} nodeCreationRequest={nodeCreationRequest} onNodeCreationConsumed={(nonce, id) => { setNodeCreationRequest(current => current?.nonce === nonce ? null : current); cardWaiters.current.get(nonce)?.(id); cardWaiters.current.delete(nonce); }} onOpenArtifact={async (resource) => { if (resource.kind !== 'project-file')
+    <div className="design-files-canvas-wrap"><div className="design-files-canvas-slot"><CanvasWorkspace onStageCanvasObject={undefined} onStageChatAttachments={undefined} referenceAdapter={ports.referenceAdapter} projectId={projectId} workspaceContext={ports.workspaceContext} transport={ports.transport} onSubmitAgentTask={submitAgentTask} textGenerationResults={textResults} artifactGenerationResults={artifactResults} textDocumentChange={textDocumentChange} nodeCreationRequest={nodeCreationRequest} onDocumentsDrop={handleDocumentsDrop} onNodeCreationConsumed={(nonce, id) => { setNodeCreationRequest(current => current?.nonce === nonce ? null : current); cardWaiters.current.get(nonce)?.(id); cardWaiters.current.delete(nonce); }} onOpenArtifact={async (resource) => { if (resource.kind !== 'project-file')
         throw new Error(tRef.current('workspace.externalArtifactRequired')); await refreshFiles(); openFile(resource.path); }} onOpenTextDocument={async (request) => { let content: string | null = null; try {
         content = await fetchProjectFileText(projectId, request.path, { workspaceContext: ports.workspaceContext });
     }
@@ -335,18 +389,11 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
         content = request.content;
     } setTextDocumentChange({ path: request.path, content, revision: Date.now() }); await refreshFiles(); const docApp = registeredApps.find(app => app.appId === 'doc' && (!app.status || app.status === 'active'));
     if (docApp) {
-        const res = await fetch(`${docApp.endpoint}/actions/doc.create`, { method: 'POST', headers: { 'content-type': 'application/json', ...tenantHeaders() }, body: JSON.stringify({ input: { ...(request.nodeId ? { nodeId: request.nodeId } : {}), name: request.title, content, mirrorCanvasId: projectId, mirrorPath: request.path } }) });
-        if (!res.ok) throw new Error(`doc bind ${res.status}`);
-        const { instanceId, meta } = (await res.json() as { data: { result: { instanceId: string; meta?: { name?: string } } } }).data.result;
-        // Reconcile: if the card mirror diverged from the App document (e.g.
-        // the user typed inline in the card), the mirror is the newer edit —
-        // push it into the App document before opening the detail.
-        const readRes = await fetch(`${docApp.endpoint}/instances/${encodeURIComponent(instanceId)}/actions/doc.read`, { method: 'POST', headers: { 'content-type': 'application/json', ...tenantHeaders() }, body: JSON.stringify({ input: {} }) });
-        const docContent = readRes.ok ? String(((await readRes.json()) as { data?: { result?: { content?: string } } }).data?.result?.content ?? '') : '';
-        if (docContent !== content) {
-            await fetch(`${docApp.endpoint}/instances/${encodeURIComponent(instanceId)}/actions/doc.write`, { method: 'POST', headers: { 'content-type': 'application/json', ...tenantHeaders() }, body: JSON.stringify({ input: { content } }) });
-        }
-        const detailTab = createAppDocTab('doc', instanceId, meta?.name || request.title, request.path);
+        const document = await openBoundDoc(docApp.endpoint, { ...(request.nodeId ? { nodeId: request.nodeId } : {}), name: request.title, content, mirrorCanvasId: projectId, mirrorPath: request.path }, tenantHeaders());
+        // Read-only reconciliation: opening a tab must never decide that a
+        // stale canvas mirror is newer than the App-owned document.
+        if (document.content !== content) reportError(new Error('文档与画布副本尚未同步，已保留两边内容。详情显示文档 App 的正文，请确认内容后保存；不会自动覆盖。'));
+        const detailTab = createAppDocTab('doc', document.instanceId, document.name || request.title, request.path);
         updateTabs(state => ({ ...state, tabs: state.tabs.includes(detailTab.id) ? state.tabs : [...state.tabs, detailTab.id], active: detailTab.id, appTabs: [...(state.appTabs ?? []).filter(item => item.id !== detailTab.id), detailTab] }));
         return { content };
     }

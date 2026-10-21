@@ -50,6 +50,9 @@ import { CanvasLocaleProvider } from './platform/canvas-locale';
 export type CanvasWorkbenchSurfaceProps = {
   nodeCreationRequest?: CanvasNodeCreationRequest | null;
   onNodeCreationConsumed?: (nonce: string, nodeId: string) => void;
+  /** OS document drops (md/txt/docx) — host opens the doc app bound to a new
+   * card at the drop position; images keep their own drop channel. */
+  onDocumentsDrop?: (files: File[], flowPosition: { x: number; y: number }) => void;
   projectId: string;
   /** Independently configurable transport, auth and resource URLs. Never persisted. */
   transport?: CanvasTransport;
@@ -151,6 +154,7 @@ export function CanvasWorkbenchSurface({
   onOpenTextDocument,
   nodeCreationRequest,
   onNodeCreationConsumed,
+  onDocumentsDrop,
   textDocumentChange,
   textGenerationResults,
   artifactGenerationResults,
@@ -212,6 +216,7 @@ export function CanvasWorkbenchSurface({
             activeAgentId={activeAgentId}
             nodeCreationRequest={nodeCreationRequest}
             onNodeCreationConsumed={onNodeCreationConsumed}
+            onDocumentsDrop={onDocumentsDrop}
             workflowPendingRequest={workflowPendingRequest}
             artifactLaunchRequest={artifactLaunchRequest}
             onArtifactLaunchConsumed={onArtifactLaunchConsumed}

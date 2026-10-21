@@ -1,10 +1,13 @@
 import { canvasNodeCopy } from '../locales/node-catalog';
 export type CanvasNodeCreationKind = 'image' | 'text' | 'sketch' | 'storyboard' | 'video' | 'page' | 'presentation';
 
-/** One-shot host request to create a real node through the canvas state path. */
+/** One-shot host request to create a real node through the canvas state path.
+ * `position` is a flow-space coordinate — drops place the card where it
+ * landed, launcher-created cards keep automatic viewport placement. */
 export type CanvasNodeCreationRequest = {
   nonce: string;
   kind: CanvasNodeCreationKind;
+  position?: { x: number; y: number };
 };
 
 export type CanvasNodeCreationOption = {

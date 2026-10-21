@@ -455,6 +455,7 @@ function FlowHome({
   workflowPendingRequest,
   nodeCreationRequest,
   onNodeCreationConsumed,
+  onDocumentsDrop,
   artifactLaunchRequest,
   onArtifactLaunchConsumed,
   imageGenerationLaunchRequest,
@@ -489,6 +490,7 @@ function FlowHome({
   workflowPendingRequest?: CanvasWorkflowPendingRequest | null;
   nodeCreationRequest?: CanvasNodeCreationRequest | null;
   onNodeCreationConsumed?: (nonce: string, nodeId: string) => void;
+  onDocumentsDrop?: (files: File[], flowPosition: { x: number; y: number }) => void;
   artifactLaunchRequest?: CanvasArtifactLaunchRequest | null;
   onArtifactLaunchConsumed?: (nonce: string) => void;
   imageGenerationLaunchRequest?: CanvasImageGenerationLaunchRequest | null;
@@ -1696,7 +1698,7 @@ function FlowHome({
   React.useEffect(() => {
     if (!nodeCreationRequest) return;
     if (consumedNodeCreationNonceRef.current === nodeCreationRequest.nonce) return;
-    const nodeId = addNodeFromCatalog(nodeCreationRequest.kind);
+    const nodeId = addNodeFromCatalog(nodeCreationRequest.kind, nodeCreationRequest.position);
     if (!nodeId) return;
     consumedNodeCreationNonceRef.current = nodeCreationRequest.nonce;
     onNodeCreationConsumed?.(nodeCreationRequest.nonce, nodeId);
@@ -4585,6 +4587,7 @@ function FlowHome({
           priorLayout={canvasPriorLayout}
           onPriorLayoutPersist={setCanvasPriorLayout}
           onFilesDrop={(files, flowPosition) => { void addImagesFromFiles(files, flowPosition); }}
+          onDocumentsDrop={onDocumentsDrop}
           onProjectFileDrop={(file, flowPosition) => { void addProjectFileToCanvas(file, flowPosition); }}
           onAddNode={addNodeFromCatalog}
           onGroupSelectedImages={groupSelectedImages}
@@ -4701,6 +4704,7 @@ export default function Workbench({
   workflowPendingRequest,
   nodeCreationRequest,
   onNodeCreationConsumed,
+  onDocumentsDrop,
   artifactLaunchRequest,
   onArtifactLaunchConsumed,
   imageGenerationLaunchRequest,
@@ -4720,6 +4724,7 @@ export default function Workbench({
   workflowPendingRequest?: CanvasWorkflowPendingRequest | null;
   nodeCreationRequest?: CanvasNodeCreationRequest | null;
   onNodeCreationConsumed?: (nonce: string, nodeId: string) => void;
+  onDocumentsDrop?: (files: File[], flowPosition: { x: number; y: number }) => void;
   artifactLaunchRequest?: CanvasArtifactLaunchRequest | null;
   onArtifactLaunchConsumed?: (nonce: string) => void;
   imageGenerationLaunchRequest?: CanvasImageGenerationLaunchRequest | null;
@@ -4773,6 +4778,7 @@ export default function Workbench({
           workflowPendingRequest={workflowPendingRequest}
           nodeCreationRequest={nodeCreationRequest}
           onNodeCreationConsumed={onNodeCreationConsumed}
+          onDocumentsDrop={onDocumentsDrop}
           artifactLaunchRequest={artifactLaunchRequest}
           onArtifactLaunchConsumed={onArtifactLaunchConsumed}
           imageGenerationLaunchRequest={imageGenerationLaunchRequest}
