@@ -21,6 +21,7 @@
 | 仓库、branch、commit | <值> | <核对命令> |
 | appId / MA slug | <值或映射> | <我们> |
 | surface 包名、版本、导出/CSS | <值> | <发布清单> |
+| npm repository / directory、源码 commit、tag、tarball SHA256 / registry 读回 | <实际公司 Git URL、子包路径与不可变摘要> | <发布前核对、从 registry 下载同版本比对> |
 | 宿主包装层包/模块、exportName、应用版本 | <值> | <交付清单/目标 registry> |
 | card kind / pack / dataVersion | <值或N/A> | <卡包> |
 | CLI 包、bin、版本、Skill 路径 | <值或N/A> | <发布清单，不能只写源码路径> |
