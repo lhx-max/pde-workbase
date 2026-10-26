@@ -5,6 +5,7 @@ import { realpath, stat } from 'node:fs/promises';
 import { withCanvasResultHistory } from '@bezier/contracts';
 import { CanvasStateService } from '../canvas/state.js';
 import { getMediaTask, type MediaTaskRow } from './tasks.js';
+import type { ImageFileStorage } from '../storage/cloud-image-files.js';
 
 type Target = { nodeId: string; kind: 'image' | 'video'; basePath: string; baseVersion: string; fileUrl: string };
 type Row = { taskId: string; projectId: string; targetJson: string; status: string };
@@ -15,7 +16,7 @@ const list = (value: unknown): Record<string, any>[] => Array.isArray(value) ? v
 export class MediaCanvasDelivery {
   private settling = new Set<string>();
   constructor(private db: Database, private canvas: CanvasStateService,
-    private root: (projectId: string) => string | null) {
+    private root: (projectId: string) => string | null, private readonly imageFiles?: ImageFileStorage) {
     db.exec(`CREATE TABLE IF NOT EXISTS media_canvas_deliveries (
       task_id TEXT PRIMARY KEY REFERENCES media_tasks(id) ON DELETE CASCADE,
       project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -105,18 +106,44 @@ export class MediaCanvasDelivery {
       let failure = task.error?.message || '';
       if (task.status !== 'done' && !failure) failure = '媒体生成中断';
       let dimensions: { naturalWidth?: number; naturalHeight?: number } = {};
+      // Extra image artifacts from a complete tool result; JSON edit-state
+      // stays in storage records and never becomes a canvas image node.
+      const extras = list(file.outputs).filter(item => item.storage === 'image' && typeof item.index === 'number' && item.index > 0 && typeof item.path === 'string' && item.path);
+      const extraDims = new Map<string, { naturalWidth?: number; naturalHeight?: number }>();
+      const verifyImage = async (name: string, declared: { w?: number|undefined; h?: number|undefined }): Promise<{ naturalWidth?: number; naturalHeight?: number } | null> => {
+        try {
+          if (this.imageFiles) {
+            const remote = await this.imageFiles.read(row.projectId, name);
+            if (!remote) return null;
+            if(target.kind!=='image')return {};
+            const metadata=await sharp(remote.buffer,{limitInputPixels:32_000_000}).metadata();
+            if(!metadata.width||!metadata.height)return null;
+            if(declared.w!==undefined&&declared.w!==metadata.width||declared.h!==undefined&&declared.h!==metadata.height)return null;
+            return {naturalWidth:metadata.width,naturalHeight:metadata.height};
+          }
+          const [realRoot, realFile] = await Promise.all([realpath(rootForVerify!), realpath(path.resolve(rootForVerify!, name))]);
+          if (!realFile.startsWith(`${realRoot}${path.sep}`) || !(await stat(realFile)).isFile() || !(await stat(realFile)).size) return null;
+          if(target.kind!=='image')return {};
+          const metadata=await sharp(realFile,{limitInputPixels:32_000_000}).metadata();
+          if(!metadata.width||!metadata.height)return null;
+          if(declared.w!==undefined&&declared.w!==metadata.width||declared.h!==undefined&&declared.h!==metadata.height)return null;
+          return {naturalWidth:metadata.width,naturalHeight:metadata.height};
+        } catch { return null; }
+      };
+      const rootForVerify = this.root(row.projectId);
       if (task.status === 'done') {
-        const root = this.root(row.projectId);
-        if (!root || !output || file.stub || file.intentionalStub || file.usedStubFallback) failure = '任务未返回真实媒体文件';
+        if ((!rootForVerify && !this.imageFiles) || !output || file.stub || file.intentionalStub || file.usedStubFallback) failure = '任务未返回真实媒体文件';
         else {
-          try {
-            const [realRoot, realFile] = await Promise.all([realpath(root), realpath(path.resolve(root, output))]);
-            if (!realFile.startsWith(`${realRoot}${path.sep}`) || !(await stat(realFile)).isFile() || !(await stat(realFile)).size) failure = '媒体文件不可用';
-            else if (target.kind === 'image') {
-              const metadata = await sharp(realFile, { limitInputPixels: 80_000_000 }).metadata();
-              dimensions = { naturalWidth: metadata.width, naturalHeight: metadata.height };
-            }
-          } catch { failure = '媒体文件不可用'; }
+          const primary = await verifyImage(output, {});
+          if (!primary) failure = '媒体文件不可用';
+          else if (target.kind === 'image') dimensions = primary;
+          // A missing extra means the durable record lied; fail visibly rather
+          // than delivering a silently truncated batch.
+          for (const item of extras) {
+            const dims = await verifyImage(item.path, { w: typeof item.width === 'number' ? item.width : undefined, h: typeof item.height === 'number' ? item.height : undefined });
+            if (!dims) { failure = '媒体文件不可用'; break; }
+            extraDims.set(item.path, dims);
+          }
         }
       }
       let status = 'delivered';
@@ -162,8 +189,28 @@ export class MediaCanvasDelivery {
           next = withCanvasResultHistory(historySource, { ...dimensions, path: output, src: `${url.pathname}${url.search}`, status: 'ready', error: undefined,
             name: output.split('/').at(-1), cutoutTaskId: undefined }, ['path', 'src', 'naturalWidth', 'naturalHeight']) as typeof next;
         } else next = { ...next, status: node.path ? node.status : 'failed', error: failure || '媒体生成中断', cutoutTaskId: undefined };
-        return { ...state, [key]: nodes.map(item => item.id === node.id ? next
-          : node.cutoutSourceImageId === item.id && item.cutoutTaskId === taskId ? { ...item, cutoutTaskId: undefined } : item) };
+        const mapped = nodes.map(item => item.id === node.id ? next
+          : node.cutoutSourceImageId === item.id && item.cutoutTaskId === taskId ? { ...item, cutoutTaskId: undefined } : item);
+        // Extra tool artifacts become their own image nodes exactly once:
+        // stable task-derived ids make a replayed settle a no-op.
+        if (target.kind === 'image' && !failure && task.status === 'done' && extras.length) {
+          for (const [offset, item] of extras.entries()) {
+            const extraId = `media-extra-${taskId}-${item.index}`;
+            if (mapped.some(existing => existing.id === extraId)) continue;
+            const url = new URL(target.fileUrl, 'http://canvas.local');
+            url.pathname = `/api/projects/${encodeURIComponent(row.projectId)}/files/${String(item.path).split('/').map(encodeURIComponent).join('/')}`;
+            const dims = extraDims.get(item.path) ?? {};
+            mapped.push({ ...node, id: extraId, path: item.path, src: `${url.pathname}${url.search}`,
+              naturalWidth: dims.naturalWidth, naturalHeight: dims.naturalHeight,
+              name: typeof item.name === 'string' ? item.name : String(item.path).split('/').at(-1),
+              status: 'ready', error: undefined, taskId: undefined, mediaDelivery: undefined,
+              replacementRequestId: undefined, cutoutTaskId: undefined, cutoutSourceImageId: node.id,
+              slotId: undefined, embeddedInSource: false, assetKind: 'generated', model: task.model,
+              outputIndex: item.index, role: item.role, mediaToolTaskId: taskId,
+              x: typeof node.x === 'number' ? node.x + 480 + (offset + 1) * 400 : node.x, y: node.y });
+          }
+        }
+        return { ...state, [key]: mapped };
       });
       this.db.prepare('UPDATE media_canvas_deliveries SET status = ?, error = ? WHERE task_id = ?')
         .run(status, failure || null, taskId);

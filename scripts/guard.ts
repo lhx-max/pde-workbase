@@ -5,7 +5,9 @@ import ts from 'typescript';
 
 const root = path.resolve(fileURLToPath(new URL('../', import.meta.url)));
 const errors: string[] = [];
-const excluded = new Set(['node_modules', 'dist', '.git', '.next', '.tmp', 'test-results', 'playwright-report']);
+// Generated upload closures and immutable evidence have their own manifest
+// checks; only maintained source participates in source/import governance.
+const excluded = new Set(['node_modules', 'dist', '.git', '.next', '.tmp', '.deploy', 'artifacts', 'test-results', 'playwright-report']);
 const files: string[] = [];
 function visit(directory: string) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
@@ -36,7 +38,11 @@ for (const { file, value } of manifests) {
   }
 }
 for (const [file, version] of [['apps/web/package.json', '18.3.1'], ['apps/mf-ui/package.json', '19.2.3']] as const) {
-  const dependencies = manifests.find(item => item.file === file)?.value.dependencies;
+  const manifest = manifests.find(item => item.file === file);
+  // Historical optional documents can be absent after extraction. If present,
+  // their renderer pair remains mandatory; canvas web itself is required.
+  if (!manifest && file === 'apps/mf-ui/package.json') continue;
+  const dependencies = manifest?.value.dependencies;
   if (dependencies?.react !== version || dependencies?.['react-dom'] !== version) errors.push(`${file}: expected an explicitly paired React/ReactDOM ${version} runtime`);
 }
 const rootManifest = manifests.find(item => item.file === 'package.json')!.value;
@@ -46,7 +52,11 @@ for (const name of ['dev', 'dev:all', 'start', 'preview', 'daemon', 'build', 'te
 // The original asset-library renderer is allowed for the user-approved local source;
 // the original chat/team/account runtime remains excluded. MF is a separate-origin React19 document.
 const bannedApps = /(?:^|\/)(?:ChatPane|ChatComposer|ChatInput|AssistantMessage|SideChatTab|HomeDashboard|TeamWorkbench)\.(?:tsx?|jsx?)$/;
-const javascriptCompatibility = new Set(['packages/contracts/esbuild.config.mjs', 'packages/host/esbuild.config.mjs']);
+const javascriptCompatibility = new Set([
+  'packages/contracts/esbuild.config.mjs', 'packages/host/esbuild.config.mjs',
+  // Retained upstream/package build configurations, not new runtime JS source.
+  'packages/canvas-core/esbuild.config.mjs', 'functions/canvas-coi/esbuild.config.mjs',
+]);
 for (const file of files) {
   if (bannedApps.test(file)) errors.push(`${file}: excluded product runtime component`);
   if (/\/src\/.*\.(?:test|spec)\.tsx?$/.test(file)) errors.push(`${file}: tests belong in sibling tests directory`);

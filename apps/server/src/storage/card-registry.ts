@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { AppwriteClient } from './appwrite-client.js';
 import { CanvasStateError } from '../canvas/errors.js';
 
@@ -81,14 +82,23 @@ export class CardRegistryStore {
   }
 
   /** Appwrite document ids reject `:`/`*` — scope stays in the attribute. */
-  private grantDocId(scope: string): string { return scope.replace(/[^a-zA-Z0-9._-]/g, '_'); }
+  private grantDocId(scope: string): string { return scope === '*' ? 'default' : `scope-${createHash('sha256').update(scope).digest('hex').slice(0, 28)}`; }
 
   async getGrant(scope: string): Promise<CardGrant | null> {
-    const doc = await this.client.getOrNull<Record<string, unknown>>(`${this.grantsPath()}/${this.grantDocId(scope)}`).catch(() => null);
+    let doc = await this.client.getOrNull<Record<string, unknown>>(`${this.grantsPath()}/${this.grantDocId(scope)}`);
+    // Preserve existing short IDs during migration. Never send an invalid
+    // (>36-char) legacy ID to Appwrite, which returns 400 rather than 404.
+    const legacy = scope.replace(/[^a-zA-Z0-9._-]/g, '_');
+    if (!doc && scope !== '*' && legacy.length <= 36) {
+      doc = await this.client.getOrNull<Record<string, unknown>>(`${this.grantsPath()}/${legacy}`);
+    }
     if (!doc) return null;
+    if (doc.scope !== scope) throw new CanvasStateError(503, 'CARD_POLICY_INVALID', 'Card grant scope does not match its lookup');
+    const allowedKinds: unknown = JSON.parse(String(doc.allowedKinds ?? '[]'));
+    if (!Array.isArray(allowedKinds) || allowedKinds.some(kind => typeof kind !== 'string' || !kind)) throw new CanvasStateError(503, 'CARD_POLICY_INVALID', 'Invalid card grant');
     return {
       scope: String(doc.scope ?? scope),
-      allowedKinds: JSON.parse(String(doc.allowedKinds ?? '[]')) as string[],
+      allowedKinds: allowedKinds as string[],
       source: doc.source === 'ma' ? 'ma' : 'local',
     };
   }

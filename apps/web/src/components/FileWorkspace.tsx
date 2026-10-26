@@ -2,7 +2,7 @@
 /** Standalone composition of the original FileWorkspace tabs, file panel and canvas. */
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ComponentProps,type DragEvent as ReactDragEvent } from 'react';
 import type { ProjectFile, ProjectTabsState as OpenTabsState, WorkspaceCollabContext } from '@bezier/contracts';
-import { createCanvasTaskSubmitter, type CanvasNodeCreationRequest, type CanvasTextGenerationResult, type CanvasArtifactGenerationResult, type TextDocumentChange, type CanvasUiHost } from '@bezier/canvas-workbench';
+import { flushCanvasForProject, createCanvasTaskSubmitter, type CanvasNodeCreationRequest, type CanvasTextGenerationResult, type CanvasArtifactGenerationResult, type TextDocumentChange, type CanvasUiHost } from '@bezier/canvas-workbench';
 import { Button } from './ui';
 import { Icon, type IconName } from './Icon';
 import { useT } from '../i18n';
@@ -11,7 +11,7 @@ import { QuickSwitcher } from './QuickSwitcher';
 import {visibleProjectFiles} from '../state/visible-project-files';
 import { nextMarkdownDocumentPath, initialMarkdownDocument } from '../state/file-creation';
 import type { TrackingProjectKind } from '@bezier/contracts/analytics';
-import { workspaceResourceUrl, workspaceProjectHeaders } from '../collab/workspace-identity';
+import { workspaceIdentityCacheKey, workspaceResourceUrl, workspaceProjectHeaders } from '../collab/workspace-identity';
 import { requestJson, projectFileUrl } from '../providers/registry';
 import { messageContentWithCommentAttachments } from '../comments';
 import { browserPageExtractionTurn } from './browser-page-extraction';
@@ -34,7 +34,7 @@ import { DesignBrowserPanel } from './DesignBrowserPanel';
 import { CanvasWorkspace } from './workspace/CanvasWorkspace';
 import { TabLauncherMenu } from './workspace/TabLauncherMenu';
 import { buildLauncherActions, type LauncherContext } from './workspace/tab-launcher';
-import { AppTabSurface, createAppTab, createAppDocTab, tenantHeaders, type RegisteredAppEntry } from '../app-surfaces';
+import { AppTabSurface, createAppTab, createAppDocTab, openBoundSketch, tenantHeaders, type RegisteredAppEntry } from '../app-surfaces';
 import { CanvasDocumentSyncNotice } from '../app-surfaces/CanvasDocumentSyncNotice';
 import { openBoundDoc, callDocAction } from '../app-surfaces/doc-protocol';
 import { readOrSeedCanvasDocument, preserveCanvasOpenDraft } from '../app-surfaces/canvas-document-open';
@@ -74,6 +74,12 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
     const t = useT();
     const tRef = useRef(t);
     tRef.current = t;
+    const previewScope=JSON.stringify([tenantHeaders(),workspaceIdentityCacheKey(ports.workspaceContext)]);
+    const [keptSketchTabs,setKeptSketchTabs]=useState<string[]>([]);
+    const bindingScope=`${previewScope}:${projectId}`;
+    const sketchBindings=useRef<{scope:string;items:Map<string,{id:string;path:string}>}>({scope:bindingScope,items:new Map()});
+    if(sketchBindings.current.scope!==bindingScope)sketchBindings.current={scope:bindingScope,items:new Map()};
+    useEffect(()=>{let alive=true;void fetch(`/api/apps/canvas/instances/${encodeURIComponent(projectId)}/bindings`,{headers:tenantHeaders()}).then(async response=>{if(!response.ok)return;const body=await response.json() as {data?:{bindings?:Array<{nodeId:string;appId:string;appInstanceId:string;mirrorPath?:string;status:string}>}};if(alive&&sketchBindings.current.scope===bindingScope)sketchBindings.current.items=new Map((body.data?.bindings??[]).filter(item=>item.appId==='sketch'&&item.status==='active'&&item.mirrorPath).map(item=>[item.nodeId,{id:item.appInstanceId,path:item.mirrorPath!}]));}).catch(()=>{});return()=>{alive=false;};},[bindingScope,projectId]);
     const [files, setFiles] = useState<ProjectFile[]>([]);
     const visibleFiles=useMemo(()=>visibleProjectFiles(files),[files]);
     const [tabs, setTabs] = useState<OpenTabsState>({ tabs: [], active: DESIGN_FILES_TAB });
@@ -142,7 +148,17 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
     const renderScope=`${projectId}:${JSON.stringify(ports.workspaceContext??null)}`;const currentScope=useRef(renderScope);currentScope.current=renderScope;
     const refreshFiles = useCallback(async () => { const next = await fetchProjectFiles(projectId, { fresh: true, requireAuthoritative: true, workspaceContext: ports.workspaceContext }); if(currentScope.current===renderScope)setFiles(next); }, [projectId, ports.workspaceContext,renderScope]);
     useEffect(() => { let alive = true; setReady(false);setTextResults([]);setArtifactResults([]);setMountedBrowserTabs([]);setMountedFileTabs([]);setError(''); Promise.all([fetchProjectFiles(projectId, { requireAuthoritative: true, workspaceContext: ports.workspaceContext }), loadTabs(projectId, ports.workspaceContext)]).then(([nextFiles, nextTabs]) => { if (!alive)
-        return; setFiles(nextFiles); tabsRef.current = nextTabs; setTabs(nextTabs); setReady(true); }).catch(reportError); return () => { alive = false; }; }, [projectId, ports.workspaceContext, reportError]);
+        return; setFiles(nextFiles);
+        // A browser pending marker that survived a reload can never finish —
+        // its creator died with the old page. Sweep it on load instead of
+        // pinning the workspace on "正在准备浏览器" forever.
+        const pendingBrowser = new Set((nextTabs.appTabs ?? []).filter(tab => tab.appId === 'browser' && tab.id.includes(':pending:')).map(tab => tab.id));
+        const cleanTabs = pendingBrowser.size ? { ...nextTabs, tabs: nextTabs.tabs.filter(id => !pendingBrowser.has(id)), appTabs: (nextTabs.appTabs ?? []).filter(tab => !pendingBrowser.has(tab.id)), active: nextTabs.active && pendingBrowser.has(nextTabs.active) ? DESIGN_FILES_TAB : nextTabs.active } : nextTabs;
+        // A swept state goes back through the shared write path so the dead
+        // marker is gone from cache and server, not just this render.
+        if (cleanTabs !== nextTabs) updateTabs(() => cleanTabs);
+        else { tabsRef.current = cleanTabs; setTabs(cleanTabs); }
+        setReady(true); }).catch(reportError); return () => { alive = false; }; }, [projectId, ports.workspaceContext, reportError]);
     useEffect(() => { const receive = (event: Event) => { if ((event as CustomEvent<{
         projectId: string;
     }>).detail?.projectId === projectId)
@@ -227,12 +243,48 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
         return () => { cancelled = true; clearInterval(timer); };
     }, []);
     const cardWaiters = useRef(new Map<string, (nodeId: string) => void>());
-    const requestCanvasCard = useCallback((kind: 'text', position?: { x: number; y: number }, title?: string) => new Promise<string>((resolve, reject) => {
+    const requestCanvasCard = useCallback((kind: 'text' | 'sketch', position?: { x: number; y: number }, title?: string) => new Promise<string>((resolve, reject) => {
         const nonce = crypto.randomUUID();
         cardWaiters.current.set(nonce, resolve);
         setNodeCreationRequest({ nonce, kind, ...(position ? { position } : {}), ...(title ? { title } : {}) });
         setTimeout(() => { if (cardWaiters.current.delete(nonce)) reject(new Error('card create timeout')); }, 8000);
     }), []);
+    // browser.create is the App-level action on the registered browser
+    // endpoint — the canvas COI doorway forwards it untouched. A canvas card
+    // is never part of this contract; only the legacy node deep-link below
+    // still passes its nodeId context.
+    const createBrowserInstance = useCallback(async (input: { name: string; canvasId?: string; nodeId?: string }) => {
+        const res = await fetch('/api/apps/browser/actions/browser.create', {
+            method: 'POST', headers: { 'content-type': 'application/json', ...tenantHeaders() },
+            body: JSON.stringify({ input }),
+        });
+        const body = await res.json().catch(() => null) as ({ data?: { instanceId?: string; name?: string }; error?: { message?: string } } | null);
+        if (res.status === 404) throw new Error('浏览器还没登记到画布');
+        if (!res.ok || !body?.data?.instanceId) throw new Error(body?.error?.message ?? `browser create ${res.status}`);
+        return { instanceId: body.data.instanceId, name: body.data.name || input.name };
+    }, []);
+    const openBrowserInstanceTab = useCallback(async (instance: { instanceId: string; name: string }) => {
+        const tab = createAppDocTab('browser', instance.instanceId, instance.name);
+        await navigate(() => updateTabs(state => ({
+            ...state,
+            tabs: state.tabs.includes(tab.id) ? state.tabs : [...state.tabs, tab.id],
+            active: tab.id,
+            appTabs: [...(state.appTabs ?? []).filter(item => item.id !== tab.id), tab],
+        })));
+    }, [navigate, updateTabs]);
+    const openBoundBrowser = useCallback(async (nodeId: string) => {
+        const instance = await createBrowserInstance({ name: '浏览器', nodeId, canvasId: projectId });
+        await openBrowserInstanceTab(instance);
+    }, [createBrowserInstance, openBrowserInstanceTab, projectId]);
+    useEffect(() => {
+        const onOpen = (event: Event) => {
+            const nodeId = (event as CustomEvent<{ nodeId?: string }>).detail?.nodeId;
+            if (!nodeId) return;
+            void openBoundBrowser(nodeId).catch(reportError);
+        };
+        window.addEventListener('bezier-design:open-browser-node', onOpen);
+        return () => window.removeEventListener('bezier-design:open-browser-node', onOpen);
+    }, [openBoundBrowser, reportError]);
     const openAppTab = useCallback((app: RegisteredAppEntry) => {
         void (async () => {
             // doc: open the detail surface FIRST — the bound card+document are
@@ -259,10 +311,93 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
                 }
                 return;
             }
+            if (app.appId === 'sketch') {
+                const pendingId = `app:sketch:pending:${crypto.randomUUID()}`;
+                const pendingTab: ProjectAppWorkspaceTab = { id: pendingId, appId: 'sketch', label: app.name };
+                await navigate(() => updateTabs(state => ({ ...state, tabs: state.tabs.includes(pendingId) ? state.tabs : [...state.tabs, pendingId], active: pendingId, appTabs: [...(state.appTabs ?? []).filter(item => item.id !== pendingId), pendingTab] })));
+                let instanceId = '';
+                try {
+                    const res = await fetch(`${app.endpoint}/actions/sketch.create`, { method: 'POST', headers: { 'content-type': 'application/json', ...tenantHeaders() }, body: JSON.stringify({ input: { name: '未命名草图' } }) });
+                    if (!res.ok) {
+                        const body = await res.json().catch(() => null) as { error?: { message?: string } } | null;
+                        throw new Error(body?.error?.message ?? `sketch create ${res.status}`);
+                    }
+                    instanceId = (await res.json() as { data: { result: { instanceId: string } } }).data.result.instanceId;
+                    const tab = createAppDocTab('sketch', instanceId, '未命名草图');
+                    await navigate(() => updateTabs(state => ({ ...state, tabs: state.tabs.map(id => id === pendingId ? tab.id : id), active: state.active === pendingId ? tab.id : state.active, appTabs: (state.appTabs ?? []).map(item => item.id === pendingId ? tab : item) })));
+                } catch (error) {
+                    await navigate(() => updateTabs(state => ({ ...state, tabs: state.tabs.filter(id => id !== pendingId), active: state.active === pendingId ? DESIGN_FILES_TAB : state.active, appTabs: (state.appTabs ?? []).filter(item => item.id !== pendingId) })));
+                    throw error;
+                }
+                const sketchId = instanceId;
+                void (async () => {
+                    const nodeId = await requestCanvasCard('sketch', undefined, '未命名草图');
+                    await flushCanvasForProject(projectId);
+                    let mirrorPath: string | undefined;
+                    try {
+                        const stRes = await fetch(`/api/apps/canvas/instances/${encodeURIComponent(projectId)}/state`, { headers: tenantHeaders() });
+                        if (stRes.ok) {
+                            const st = await stRes.json() as { data?: { state?: { workbenchBasicNodes?: { id: string; projectFilePath?: string }[] } } };
+                            mirrorPath = st.data?.state?.workbenchBasicNodes?.find(n => n.id === nodeId)?.projectFilePath;
+                        }
+                    } catch { /* the card exists; the mirror path can arrive on a later save */ }
+                    const bound = await fetch(`${app.endpoint}/instances/${encodeURIComponent(sketchId)}/actions/sketch.bind`, { method: 'POST', headers: { 'content-type': 'application/json', ...tenantHeaders() }, body: JSON.stringify({ input: { nodeId, mirrorCanvasId: projectId, ...(mirrorPath ? { mirrorPath } : {}) } }) });
+                    if (!bound.ok) {
+                        const body = await bound.json().catch(() => null) as { error?: { message?: string } } | null;
+                        throw new Error(body?.error?.message ?? `sketch bind ${bound.status}`);
+                    }
+                    void refreshFiles();
+                    if (mirrorPath) updateTabs(state => ({ ...state, appTabs: (state.appTabs ?? []).map(item => item.id === `app:sketch:${sketchId}` ? { ...item, mirrorPath } : item) }));
+                })().catch(reportError);
+                return;
+            }
+            if (app.appId === 'browser') {
+                // The "+" menu creates a standalone browser instance — no
+                // canvas card, no node binding. The tab stores the App-scoped
+                // instanceId, so refresh/reactivation restores the same
+                // browser instead of creating a new one.
+                //
+                // Reuse first: an already-live browser tab (or one still
+                // pending) is activated in place — the create round-trip only
+                // runs when this workspace genuinely has none. Reading
+                // tabsRef at call time keeps this scoped to THIS project's
+                // latest state; closed tabs are gone from tabs/appTabs so a
+                // stale entry can never be resurrected, and no cross-project
+                // or global cache is consulted.
+                const live = (tabsRef.current.appTabs ?? []).find(tab => tab.appId === 'browser' && tabsRef.current.tabs.includes(tab.id) && (Boolean(tab.target?.trim()) || tab.id.startsWith('app:browser:pending:')));
+                if (live) {
+                    await navigate(() => updateTabs(state => state.active === live.id ? state : { ...state, active: live.id }));
+                    return;
+                }
+                const pendingId = `app:browser:pending:${crypto.randomUUID()}`;
+                const pendingTab: ProjectAppWorkspaceTab = { id: pendingId, appId: 'browser', label: app.name };
+                const added = await navigate(() => updateTabs(state => ({ ...state, tabs: state.tabs.includes(pendingId) ? state.tabs : [...state.tabs, pendingId], active: pendingId, appTabs: [...(state.appTabs ?? []).filter(item => item.id !== pendingId), pendingTab] })));
+                // Settle declined or navigation superseded — never create an
+                // instance whose marker tab was never planted.
+                if (!added) return;
+                try {
+                    const instance = await createBrowserInstance({ name: '浏览器', canvasId: projectId });
+                    if (currentScope.current !== renderScope) return;
+                    const tab = createAppDocTab('browser', instance.instanceId, instance.name);
+                    // Keyed swap, not a navigation: the pending marker only
+                    // ever maps to its own real tab, so the update cannot be
+                    // lost to a navigation guard — and if the user moved to
+                    // another tab meanwhile it does not steal focus back.
+                    updateTabs(state => ({ ...state, tabs: state.tabs.map(id => id === pendingId ? tab.id : id), active: state.active === pendingId ? tab.id : state.active, appTabs: (state.appTabs ?? []).map(item => item.id === pendingId ? tab : item) }));
+                } catch (error) {
+                    // Cleanup must not be abortable: removing our own
+                    // pendingId cannot clobber user state, so it never goes
+                    // through the navigation guard.
+                    if (currentScope.current !== renderScope) return;
+                    updateTabs(state => ({ ...state, tabs: state.tabs.filter(id => id !== pendingId), active: state.active === pendingId ? DESIGN_FILES_TAB : state.active, appTabs: (state.appTabs ?? []).filter(item => item.id !== pendingId) }));
+                    throw error;
+                }
+                return;
+            }
             const tab = await createAppTab(app);
             await navigate(() => updateTabs(state => ({ ...state, tabs: state.tabs.includes(tab.id) ? state.tabs : [...state.tabs, tab.id], active: tab.id, appTabs: [...(state.appTabs ?? []).filter(item => item.id !== tab.id), tab] })));
         })().catch(reportError);
-    }, [navigate, updateTabs, reportError, requestCanvasCard, projectId]);
+    }, [navigate, updateTabs, reportError, requestCanvasCard, projectId, createBrowserInstance, renderScope]);
     /** OS document drop: each file becomes a text card holding the imported
      * text AT THE DROP POINT — the doc App binding happens silently in the
      * background; no editor tab opens. md/txt pass through; .docx is
@@ -327,6 +462,7 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
         })().catch(reportError);
     }, [navigate, updateTabs, reportError, requestCanvasCard, projectId, registeredApps]);
     const appTabs = tabs.appTabs ?? [];
+    useEffect(()=>{if(appTabs.some(tab=>tab.id===active&&tab.appId==='sketch'))setKeptSketchTabs(current=>[...current.filter(id=>id!==active),active].slice(-2));},[active,tabs.appTabs]);
     const launcherContext: LauncherContext = { projectId, openTab: openFile, apps: registeredApps, openAppTab, createBrowser: () => {void navigate(()=>{const id=`__browser__:${crypto.randomUUID()}`;updateTabs(state=>({...state,tabs:[...state.tabs,id],active:id,browserTabs:[...(state.browserTabs||[]),{id,label:t('workspace.newBrowser')}]}));}).catch(reportError);}, createSketch: () => void createFile('sketch').catch(reportError), createDocument: () => void createFile('text').catch(reportError), };
     const sketchCallbacks = useMemo(() => Object.fromEntries(tabs.tabs.map(name => [name, { onDirtyChange: (dirty: boolean) => setDirtyTabs(current => current[name] === dirty ? current : { ...current, [name]: dirty }), registerFlush: (flush: (() => Promise<boolean>) | null) => { if (flush)
                 flushers.current.set(name, flush);
@@ -391,7 +527,7 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
    <div className="ws-body">
    {error && <div className="df-upload-banner" data-testid="upload-error-banner" role="alert"><span>{error}</span><Button onClick={() => setError('')} aria-label={t('entry.canvasAssets.close')}><Icon name="close" size={14}/></Button></div>}
    {browserTabs.filter(browser => browser.id === active || mountedBrowserTabs.includes(browser.id)).map(browser => <div key={browser.id} className={`ws-browser-panel ${active === browser.id ? 'active' : ''}`} aria-hidden={active !== browser.id || undefined}><DesignBrowserPanel {...ports.previewAnnotations} workspaceContext={ports.workspaceContext} onExtractPage={extractPage} onSendBoardCommentAttachments={sendComments} onAddImageToChat={sendImageReference} projectId={projectId} browserTabId={browser.id} initialUrl={browser.url} initialTitle={browser.title} initialIconUrl={browser.iconUrl} onOpenFile={openFile} onBezierFiles={() => openFile(DESIGN_FILES_TAB)} onRefreshFiles={refreshFiles} onPageInfoChange={browserInfoCallbacks[browser.id]}/></div>)}
-   {appTabs.filter(tab => tab.id === active).map(tab => <div key={tab.id} className="ws-app-panel" style={{ display: active === tab.id ? undefined : 'none', height: '100%', overflow: 'auto' }}><AppTabSurface tab={tab} app={registeredApps.find(app => app.appId === tab.appId)} canvasId={projectId} {...sketchCallbacks[tab.id]}/></div>)}
+   {appTabs.filter(tab => tab.id === active || tab.appId==='sketch'&&(keptSketchTabs.includes(tab.id)||dirtyTabs[tab.id])).map(tab => <div key={tab.id} className="ws-app-panel" aria-hidden={active!==tab.id||undefined} style={{ display: active === tab.id ? undefined : 'none', height: '100%', overflow: 'auto' }}><AppTabSurface tab={tab} app={registeredApps.find(app => app.appId === tab.appId)} canvasId={projectId} previewScope={previewScope} onMirrorSaved={()=>{void refreshFiles();}} {...sketchCallbacks[tab.id]}/></div>)}
    <div className="design-files-shell" data-testid="design-files-shell" style={{ display: active === DESIGN_FILES_TAB ? undefined : 'none' }}>
     <div className={`design-files-panel${filesDrawerOpen ? ' is-open' : ''}`} data-resizable-file-panel="true" style={{ ['--design-files-panel-width' as string]: `${filesDrawerWidth}px` }} role="region" aria-label={t('workspace.designFiles')} data-testid="design-files-panel" aria-hidden={!filesDrawerOpen || undefined}>
      <div className="design-files-panel-body"><CanvasAssetsSidebar {...ports.assetCatalogue} openRequest={assetRequest} onCancelSelection={cancelAssetSelection} onOpenAssetLibrary={showAssetLibrary} onExtractPage={extractPage} projectId={projectId} projectName={projectName} active={filesDrawerOpen} files={visibleFiles} onClose={closeAssetLibrary} width={filesDrawerWidth} onWidthChange={width => { setFilesDrawerWidth(width); try {
@@ -424,7 +560,21 @@ export function FileWorkspace({ projectId, projectName, projectKind = 'prototype
         // The card deliberately swallows optional-detail errors; surface them here.
         reportError(cause);
         throw cause;
-    } }} uiHost={{ ...ports.uiHost, renderSketch: ({ path, selected, pending, onCreated }) => <CanvasSketchCard path={path} projectId={projectId} selected={selected} file={files.find(file => file.name === path)} onOpen={async (path) => { try {
+    } }} uiHost={{ ...ports.uiHost, renderSketch: ({ path, nodeId, selected, pending, onCreated }) => <CanvasSketchCard previewScope={previewScope} path={path} projectId={projectId} selected={selected} file={files.find(file => file.name === path)} onOpen={async () => {
+            const sketchApp = registeredApps.find(app => app.appId === 'sketch' && (!app.status || app.status === 'active'));
+            const cardNodeId = nodeId || (/^canvas-(basic-sketch-[a-z0-9-]+)\.sketch\.json$/i.exec(path.split('/').pop() || '')?.[1]);
+            if (sketchApp && cardNodeId) {
+                const existing=(tabs.appTabs??[]).find(tab=>tab.appId==='sketch'&&tab.target&&tab.mirrorPath===path);
+                if(existing){updateTabs(state=>({...state,active:existing.id}));return;}
+                const known=sketchBindings.current.items.get(cardNodeId);
+                if(known?.path===path){const tab=createAppDocTab('sketch',known.id,'未命名草图',path);updateTabs(state=>({...state,tabs:state.tabs.includes(tab.id)?state.tabs:[...state.tabs,tab.id],active:tab.id,appTabs:[...(state.appTabs??[]).filter(item=>item.id!==tab.id),tab]}));return;}
+                const sketch = await openBoundSketch(sketchApp.endpoint, { nodeId: cardNodeId, mirrorCanvasId: projectId, mirrorPath: path }, tenantHeaders());
+                const tab = createAppDocTab('sketch', sketch.instanceId, sketch.name, path);
+                updateTabs(state => ({ ...state, tabs: state.tabs.includes(tab.id) ? state.tabs : [...state.tabs, tab.id], active: tab.id, appTabs: [...(state.appTabs ?? []).filter(item => item.id !== tab.id), tab] }));
+                await onCreated();
+                return;
+            }
+            try {
             const content = await fetchProjectFileText(projectId, path, { workspaceContext: ports.workspaceContext });
             readSketchWorkspaceDocument(content, tRef.current);
         }

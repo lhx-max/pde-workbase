@@ -1,7 +1,9 @@
 'use client';
+import {CanvasImageTools} from './CanvasImageTools';
 
 import { xy } from '../locales/xyflow-canvas';
 import { CanvasEmptyState } from './CanvasEmptyState';
+import { CanvasOverview } from './CanvasOverview';
 import { AdaptiveCanvasBackground } from './AdaptiveCanvasBackground';
 import { canvasEdgeNodeStates } from './canvas-edge-geometry';
 import { WorkflowRunGroupNode, WorkflowQuestionNode, type WorkflowRunGroupData } from './WorkflowRunGroupNode';
@@ -58,12 +60,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import {
-  AdjustIcon,
-  AnnotateIcon,
-  ChatAddIcon,
-  CropIcon,
   ImageAssetNode,
-  RotateIcon,
   imageFileUrl,
   resolveImageSrc,
   type ImageAssetData,
@@ -73,8 +70,7 @@ import { CanvasSelectionToolbar } from './CanvasSelectionToolbar';
 import type { GroupMemberGeometry } from './canvas-group-operations';
 import { CanvasNodeSourceHandle } from './CanvasNodeSourceHandle';
 import { CanvasSourceMenuRequest } from './CanvasNodeSourceHandle';
-import CropEditor from './crop/CropEditor';
-import ImageAdjustOverlay from './ImageAdjustOverlay';
+import { ImageCropTool as CropEditor, ImageAdjustTool as ImageAdjustOverlay, ImageTransformTool } from '@ks-designai/image-card-pack/react';
 import ImageEditorView from './ImageEditorView';
 import {
   ImageReferenceResourcePicker,
@@ -256,8 +252,10 @@ function MiniMaxImageGeneratorNode({
   const { setNodes } = useReactFlow();
   const [expanded, setExpanded] = React.useState(false);
   const [resourcePickerMode, setResourcePickerMode] = React.useState<'reference' | 'template' | null>(null);
+  const toolTarget = React.useRef<HTMLElement>(null);
   const [cropping, setCropping] = React.useState(false);
   const [adjusting, setAdjusting] = React.useState(false);
+  const [transforming, setTransforming] = React.useState(false);
   const [annotating, setAnnotating] = React.useState(false);
   const closeResourcePicker = React.useCallback(() => setResourcePickerMode(null), []);
   const selectedPromptImageRef = React.useRef<string | null>(null);
@@ -379,7 +377,7 @@ function MiniMaxImageGeneratorNode({
 
   return (
     <>
-    <article
+    <article ref={toolTarget}
       className={`minimax-image-generator ${selected ? 'is-selected' : ''} ${generating ? 'is-generating' : ''} ${failed ? 'is-failed' : ''} ${displayPrimaryImage ? 'has-result' : ''}`}
       style={{
         width: nodeSize.width,
@@ -401,7 +399,7 @@ function MiniMaxImageGeneratorNode({
         floating
         placement={selected ? 'inside' : 'outside'}
         onDownload={() => { if (imageReady && primaryImage) primaryImageActions.onDownload(primaryImage.id); }}
-        downloadDisabled={!imageReady || !primaryImage || cropping || adjusting || annotating}
+        downloadDisabled={!imageReady || !primaryImage || cropping || adjusting || transforming || annotating}
         downloadLabel={xy().downloadImage}
         onDuplicate={() => onDuplicate(instance)}
         onRemove={() => onRemove(instance)}
@@ -412,23 +410,6 @@ function MiniMaxImageGeneratorNode({
         <span className="minimax-image-title-icon"><MiniMaxImagePlaceholderIcon /></span>
         <span>{instance.label || xy().image}</span>
       </div>
-
-      {!displayPrimaryImage && <label className="minimax-image-upload nodrag nopan" onPointerDown={event => event.stopPropagation()}>
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M8 10.5v-8m0 0L5 5.5m3-3 3 3M3 9.5v3h10v-3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        <span>{xy().uploadImage}</span>
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          disabled={generating}
-          onChange={event => {
-            void onAddAttachments(instance.id, event.currentTarget.files).catch(() => { /* Upload owner renders the error feedback. */ });
-            event.currentTarget.value = '';
-          }}
-        />
-      </label>}
 
       <div
         className="minimax-image-frame minimax-image-drag-handle"
@@ -462,39 +443,26 @@ function MiniMaxImageGeneratorNode({
           </div>
         )}
 
-        {selected && imageReady && primaryImage && !cropping && !adjusting && !annotating && (
-          <div className="image-action-capsule nodrag nopan" onClick={event => event.stopPropagation()}>
-            <Button
-              variant="ghost"
-              className="has-label"
-              aria-label={xy().crop}
-              onClick={() => setCropping(true)}
-            >
-              <CropIcon /><span>{xy().crop}</span>
-            </Button>
-            <Button variant="ghost" className="has-label" aria-label={xy().colorGrade} onClick={() => setAdjusting(true)}>
-              <AdjustIcon /><span>{xy().colorGrade}</span>
-            </Button>
-            <Button variant="ghost" className="has-label" aria-label={xy().rotateRight90} onClick={() => primaryImageActions.onRotate(primaryImage.id)}>
-              <RotateIcon /><span>{xy().rotate}</span>
-            </Button>
-            <span className="image-capsule-divider" />
-            <Button variant="ghost" className="has-label" aria-label={xy().annotate} onClick={() => setAnnotating(true)}><AnnotateIcon /><span>{xy().annotate}</span></Button>
-            <CanvasSaveAssetButton nodeId={primaryImage.id} />
-            <span className="image-capsule-divider" aria-hidden="true" />
-            <Button variant="ghost" size="icon" className="bezier-tooltip" data-tooltip={xy().addToChat} aria-label={xy().addToChat} onClick={() => primaryImageActions.onAddToChat(primaryImage.id)}><ChatAddIcon /></Button>
-          </div>
+        {selected && imageReady && primaryImage && !cropping && !adjusting && !transforming && !annotating && <CanvasImageTools
+          onRender={async(file,meta)=>{if(await primaryImageActions.onAnnotationCommit(primaryImage.id,file,meta)===false)throw Error('图片云端保存失败');}} nodeId={primaryImage.id} src={primaryImageSrc} name={primaryImage.name} width={primaryImage.naturalWidth || 1024} height={primaryImage.naturalHeight || 1024}
+          target={() => toolTarget.current?.querySelector<HTMLElement>('.minimax-image-frame') ?? toolTarget.current}
+          onCrop={() => setCropping(true)} onAdjust={() => setAdjusting(true)} onTransform={() => setTransforming(true)} onAnnotate={() => setAnnotating(true)}
+          onDownload={() => primaryImageActions.onDownload(primaryImage.id)} onAddToChat={() => primaryImageActions.onAddToChat(primaryImage.id)} extra={<CanvasSaveAssetButton presentation="menu-item" nodeId={primaryImage.id}/>}
+        />}
+
+        {transforming && imageReady && primaryImage && (
+          <ImageTransformTool target={() => toolTarget.current?.querySelector<HTMLElement>('.image-asset-frame, .minimax-image-frame') ?? toolTarget.current} src={primaryImageSrc} name={primaryImage.name} busy={primaryImageCropSaving}
+            onCancel={() => setTransforming(false)} onCommit={(file, meta) => primaryImageActions.onCropCommit(primaryImage.id, file, meta)} />
         )}
 
-
         {adjusting && imageReady && primaryImage && (
-          <ImageAdjustOverlay
+          <ImageAdjustOverlay target={() => toolTarget.current?.querySelector<HTMLElement>('.image-asset-frame, .minimax-image-frame') ?? toolTarget.current}
             src={primaryImageSrc}
             name={primaryImage.name}
             busy={primaryImageCropSaving}
             onCancel={() => setAdjusting(false)}
             onCommit={async (file, meta) => {
-              await primaryImageActions.onCropCommit(primaryImage.id, file, meta);
+              if (await primaryImageActions.onCropCommit(primaryImage.id, file, meta) === false) return false;
               setAdjusting(false);
             }}
           />
@@ -519,7 +487,7 @@ function MiniMaxImageGeneratorNode({
         )}
 
         {cropping && imageReady && primaryImage && (
-          <CropEditor
+          <CropEditor target={() => toolTarget.current?.querySelector<HTMLElement>('.image-asset-frame, .minimax-image-frame') ?? toolTarget.current}
             src={primaryImageSrc}
             name={primaryImage.name}
             naturalWidth={primaryImage.naturalWidth || nodeSize.width}
@@ -605,7 +573,6 @@ function MiniMaxImageGeneratorNode({
                 onResolutionChange={resolution => onDraftPatch(instance.id, { imageResolution: resolution as VisualResolution })}
                 count={imageCount}
                 onCountChange={imageCount => onDraftPatch(instance.id, { imageCount })}
-                onTemplateClick={() => setResourcePickerMode('template')}
               />
 
             </div>
@@ -2239,6 +2206,7 @@ function CanvasSurface({
           connectionLineComponent={CanvasConnectionLine}
           connectionLineStyle={FLOW_CONNECTION_LINE_STYLE}
         >
+          <CanvasOverview />
           {background !== 'none' && (
             <AdaptiveCanvasBackground pattern={background} />
           )}

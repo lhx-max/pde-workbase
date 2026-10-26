@@ -1,12 +1,20 @@
 # 画布工作区
 
+四 App 当前部署候选与验收边界见 [2026-10-23 部署交付](deployment/DELIVERY-20261023.md)：固定四服务镜像、Image 0.9.1 组件、私有存储首次初始化和可复现证据；正式 MA/Agent/staging 的未通过项单独列明。
+
+> 2026-10-21 网页采集最新进展：画布内浏览器入口已挂载采集 App；一个 Chrome 扩展合并划词、图片和资源批量采集，真实 Appwrite/Chrome 闭环已验收。安装物、数据归属和未上线边界见 [网页采集接入](docs/web-collector-integration.zh-CN.md)。下文原生桌面浏览器段落属于历史提取能力，不代表当前纯在线产品。
+
 从 Bezier/Loom 原仓库独立抽取的画布创作工作区。保留原画布、组件、样式和交互，包含原 **画布／资产／采集** 三个入口及独立本地资产库，并通过隔离文档接入 **MF 开放对话 UI**；不恢复原聊天产品或原账号／团队平台。
 
 原始版本：`319e5eee556a3641d2ee68a6111a36ddc7a1eff7`。来源与授权见 [NOTICE](NOTICE) 和 [LICENSE](LICENSE)。
 
+本轮画布/文档/草图/生图按 [统一交付合同](docs/four-app-delivery-contract.zh-CN.md) 验收，结果与阻塞见 [统一验收记录](docs/verification/four-app-acceptance-20261021/README.md)。
+
+启动服务必须显式配置 Appwrite；仅隔离测试允许 `CANVAS_STORAGE_MODE=local-test`。MA 写动作配置 `APP_WRITE_GRANTS_JSON`；跨 App 转发 MA 凭据必须配置精确 `CANVAS_TRUSTED_APP_ORIGINS`（逗号分隔，仅 HTTPS 或明确 loopback HTTP），否则拒绝转发。实例可见不自动授予写入权限。
+
 ## 开发规范入口
 
-开发者和 AI Agent 开工前先读仓库内的 [App 平台开发 Skill](.devin/skills/canvas-app-platform/SKILL.md)。没有项目背景时，从其中的 [独立 App 开发手册](.devin/skills/canvas-app-platform/docs/app-development-handbook.zh-CN.md) 开始；新 App 使用 [开发与接入合同模板](.devin/skills/canvas-app-platform/templates/APP_CONTRACT.template.md)。规范覆盖独立前后端、卡包与深编辑、MA-V 接入、CLI/安装交付及分级验收。Agent 入口同时见 [AGENTS.md](AGENTS.md)。
+开发者和 AI Agent 开工前先读仓库内的 [App 平台开发 Skill](.devin/skills/designai-app-platform/SKILL.md)。没有项目背景时，从其中的 [App架构与开发白皮书](.devin/skills/designai-app-platform/docs/app-development-handbook.zh-CN.md) 开始；新 App 使用 [开发与接入合同模板](.devin/skills/designai-app-platform/templates/APP_CONTRACT.template.md)。规范覆盖独立前后端、卡包与深编辑、MA-V 接入、CLI/安装交付及分级验收。仓库负责人、相关文档和Appwrite桶用途/审批见[资源目录](.devin/skills/designai-app-platform/docs/platform-resource-catalog.zh-CN.md)；后续开发涉及规范边界时在同一交付同步更新。Agent 入口同时见 [AGENTS.md](AGENTS.md)。
 
 ## 项目结构与接入关系
 
@@ -25,15 +33,20 @@ MA → CLI或正式工具 → 认证网关/Provider → 同一App后端
 | `apps/server` | 业务、文件、操作回执、COI/Provider与存储；[服务端说明](apps/server/README.md) |
 | `packages/canvas-surface` | 对外画布组件；[安装、props、CSS与限制](packages/canvas-surface/README.md) |
 | `packages/canvas-cli` | 独立HTTP客户端与Skill；[安装与使用](packages/canvas-cli/README.md) |
-| `packages/canvas-card-sdk` / `packages/canvas-pack-*` | 卡包类型、渲染器、纯服务端kind/动作入口；[卡包合同](.devin/skills/canvas-app-platform/docs/canvas-card-pack.zh-CN.md) |
+| `packages/canvas-card-sdk` / `packages/canvas-pack-*` | 卡包类型、渲染器、纯服务端kind/动作入口；[卡包合同](.devin/skills/designai-app-platform/docs/canvas-card-pack.zh-CN.md) |
 | `packages/contracts` | 共享纯类型/协议；前后端不互相导入私有实现 |
 | [独立文档仓 `design/designai-app-doc`](https://git.corp.kuaishou.com/design/designai-app-doc) | 公司Git私有仓，默认main；文档后端、权威正文和 `@ks-designai/doc-surface`。Git权限与npm/数据权限分开；本机未提交改动不等于线上已有 |
+| [独立草图仓 `design/designai-app-sketch`](https://git.corp.kuaishou.com/design/designai-app-sketch) | 草图场景归 `sketch_app_dev` / `sketch_assets_v2`；开发云端闭环及私有存储27项外部CLI/HTTP Provider检查通过，后者身份使用合同fixture；断网恢复及本机卡片/详情同实例读回已验。最新边界见该仓 `docs/readiness-fixes-20261021.zh-CN.md`；`@ks-designai/sketch-surface@0.1.2`已发布内网npm并经registry下载、仓外构建验证；[实时快照与重复打开补验](docs/verification/sketch-live-preview/README.md)，正式MA/staging未验 |
 | 外部MA-V / Plugin Kit | 身份、目录/实例、会话、宿主和MA调度；我们适配已有合同，不修改其内部机制 |
 | `e2e` / `docs/verification` | 集成验收与运行证据 |
 
 画布保存卡片/连线/布局；绑定文档的权威正文归文档App，画布保留可编辑镜像。正文保存与镜像同步分别确认。卡片详情打开原绑定，使用资产则创建独立副本。详见 [架构](docs/architecture.md)、[双App关系与状态](docs/canvas-doc-relationship-and-status.zh-CN.md)。
 
 ## 后端数据与开发者只读访问
+
+租户/团队与卡片权限的实际接入见 [团队云端接入](docs/tenant-cloud-integration.zh-CN.md)：画布/文档归属字段已补入开发云库，App侧支持MA身份验证、团队卡种规则、后端越权拒绝及空缓存恢复。真实MA登录/部署与npm发布尚须另验，不能由隔离身份fixture或旧安装包推断通过。
+
+**开发方向（2026-10-21）**：后续以 Appwrite 云端为默认存储与真实验收环境，缺少云端配置须明确报错，不静默回退本地。本地仅用于显式隔离测试或可丢弃缓存；项目目录和身份沿用基座合同。历史本地路径的启动示例不代表推荐的正式云端运行方式，现有云端缺口见 [本地/云端核对](docs/local-cloud-data-audit-20261021.zh-CN.md)。桌面旧 `canvas-data` 已清理，不重新创建。
 
 文档源码从上面的公司Git仓获取；业务接口由对应App服务提供。Appwrite API `https://frontend-cloud.corp.kuaishou.com/v1`，项目 `grworkspace`；画布库/桶 `canvas_app_dev` / `canvas_assets_v2`，文档库/桶 `doc_app_dev` / `doc_assets_v2`。这些资源已在2026-10-21完成默认只读配置与真实账号验证。
 
@@ -43,12 +56,13 @@ MA → CLI或正式工具 → 认证网关/Provider → 同一App后端
 
 ## 内网 npm 安装与交付状态
 
-2026-10-21 已从快手内网 `https://npm.corp.kuaishou.com/` 查询到三个固定版本。安装需要公司网络和读取权限；升级以实际发布记录为准。
+2026-10-21 已从快手内网 `https://npm.corp.kuaishou.com/` 查询到画布/文档/CLI三个固定版本；草图0.1.2另已发布并从registry读回验证。安装需要公司网络和读取权限；升级以实际发布记录为准。
 
 | 包 | 版本 | 安装位置 / 作用 |
 | --- | --- | --- |
 | `@ks-designai/canvas-surface` | `0.1.2` | 宿主前端项目，画布组件与CSS |
 | `@ks-designai/doc-surface` | `0.1.2` | 宿主前端项目，文档编辑器与CSS |
+| `@ks-designai/sketch-surface` | `0.1.2` | 草图编辑器、`/da`包装与纯Node `/manifest`；后端独立部署 |
 | `@ks-designai/canvas-cli` | `0.1.1` | MA容器/工作区或开发者环境，调用真实App后端 |
 
 前端消费方在自己的项目中安装：
@@ -79,15 +93,20 @@ canvas-cli apps list
 
 | 你要做什么 | 入口 |
 | --- | --- |
-| 零背景开发独立App | [手册](.devin/skills/canvas-app-platform/docs/app-development-handbook.zh-CN.md) → [合同模板](.devin/skills/canvas-app-platform/templates/APP_CONTRACT.template.md) → [API与接入规范](.devin/skills/canvas-app-platform/docs/app-development-spec.zh-CN.md) |
-| 开发卡包、嵌卡与深编辑 | [卡包合同](.devin/skills/canvas-app-platform/docs/canvas-card-pack.zh-CN.md)、[互联协议](.devin/skills/canvas-app-platform/docs/canvas-app-interop.zh-CN.md)、[卡种能力矩阵](.devin/skills/canvas-app-platform/docs/canvas-card-capability-matrix.zh-CN.md) |
-| 查数据、版本、复制和恢复 | [数据模型](.devin/skills/canvas-app-platform/docs/data-model.zh-CN.md)、[正文增补合同](.devin/skills/canvas-app-platform/docs/document-sync-contract.zh-CN.md) |
+| 零背景开发独立App | [白皮书](.devin/skills/designai-app-platform/docs/app-development-handbook.zh-CN.md) → [合同模板](.devin/skills/designai-app-platform/templates/APP_CONTRACT.template.md) → [API与接入规范](.devin/skills/designai-app-platform/docs/app-development-spec.zh-CN.md) |
+| 开发卡包、嵌卡与深编辑 | [卡包合同](.devin/skills/designai-app-platform/docs/canvas-card-pack.zh-CN.md)、[互联协议](.devin/skills/designai-app-platform/docs/canvas-app-interop.zh-CN.md)、[卡种能力矩阵](.devin/skills/designai-app-platform/docs/canvas-card-capability-matrix.zh-CN.md) |
+| 查数据、版本、复制和恢复 | [数据模型](.devin/skills/designai-app-platform/docs/data-model.zh-CN.md)、[正文增补合同](.devin/skills/designai-app-platform/docs/document-sync-contract.zh-CN.md) |
 | 接一涵MA-V基座 | [接入与验收记录](docs/ma-base-integration-acceptance.zh-CN.md) |
 | 看本地模拟登记效果 | [启动与复现](docs/verification/ma-registration-simulation/README.md)：18581代理原宿主18580；只模拟登记相关数据，组件使用真实本地服务，不改云端登记 |
 | 查规范修正与工程缺口 | [规范审计](docs/app-development-standards-audit.zh-CN.md)；包分发部分是审计时快照，最新可发现版本见上表 |
+| 查草图排障、云端深编辑与交付陷阱 | [Skill内草图案例](.devin/skills/designai-app-platform/docs/sketch-integration-cases.zh-CN.md)：规范覆盖核对、根因、解决方案及失败验收 |
 | 查实际通过范围 | [功能对照](docs/feature-parity.md)、[运行记录](docs/runtime-verification.md)、[双App状态](docs/canvas-doc-relationship-and-status.zh-CN.md) |
 
 **验收分开报告**：独立业务 → 卡片互联（适用时）→ 可安装交付 → 模拟宿主 → 正式登记与认证 → MA自主调用 → staging。npm可发现和本地读写不能证明后面各门已通过。以下原独立工作区的能力概览应结合部署profile与最新状态阅读，不代表每个嵌入包都包含整套工作台/原生能力。
+
+### 草图当前交付边界（2026-10-21）
+
+草图源码已推送功能分支，见[草稿MR !1](https://git.corp.kuaishou.com/design/designai-app-sketch/-/merge_requests/1)，不代表已合入main。本机草图服务17612使用云端开发库；私有staging资源为 `grworkspace/sketch_app_staging_v2/sketches` + `sketch_assets_staging`，仅完成资源准备和测试，服务未部署远端。正式MA登记/真实Agent调用、容器实建与staging验收仍待接入。画布侧本轮绑定/权限适配尚在当前工作区，不属于该草图MR；各仓Git状态独立核对。详细配置/复现从[草图仓README](https://git.corp.kuaishou.com/design/designai-app-sketch/-/blob/feat/zhuzhiheng-sketch-cloud-app/README.md)进入，不把本机端口写成生产配置。
 
 ## 原独立工作区的能力概览
 
@@ -268,3 +287,9 @@ pnpm --filter @canvas/e2e test:ui
 ## 公司 npm 交付
 
 画布组件、文档组件与独立 Agent CLI 的固定版本、安装方式、联调证据及验收边界见 [npm 交付记录](docs/verification/npm-distribution/README.md)。
+
+### 浏览器 App 组件接入（2026-10-21）
+
+浏览器通过 `@ks-designai/browser-surface@0.1.1` 组件挂载在画布 App 标签页中，不创建浏览器卡片；数据请求通过 `/api/browser-app` 到浏览器自己的后端与 Appwrite。当前已本地安装 tarball，真实菜单创建、组件渲染及云端实例读回通过；Web 原生采集、正式 MA 授权、registry 发布与 staging 另验。[接入与验收记录](docs/verification/browser-embed-20261021/README.md)。
+
+浏览器重复打开复用本画布已有标签；重复顶栏已移除，采集入口在浏览器菜单中按需加载。[性能与界面验收](docs/verification/browser-open-performance/README.md)。

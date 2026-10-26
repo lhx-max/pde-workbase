@@ -140,6 +140,10 @@ export function registerCanvasStateRoutes(
       // 原版同时支持批量 `changes` 和单键 `key/value`，两种都要接。
       const changes = body.changes ?? (body.key ? { [body.key]: body.value } : undefined);
       if (!changes) throw new CanvasStateError(400, 'CANVAS_INVALID_INPUT', 'missing changes');
+      const hasBase=Boolean(body.base&&typeof body.base==='object'&&!Array.isArray(body.base));
+      const hasRevision=typeof body.expectedRevision==='number'&&Number.isSafeInteger(body.expectedRevision)&&body.expectedRevision>=0;
+      if(body.expectedRevision!==undefined&&!hasRevision)throw new CanvasStateError(400,'CANVAS_INVALID_INPUT','expectedRevision must be a non-negative safe integer');
+      if(!hasBase&&!hasRevision)throw new CanvasStateError(428,'CANVAS_PRECONDITION_REQUIRED','Provide expectedRevision or an explicit merge base before changing canvas state');
       const result = await deps.canvasState.patch(req.params.projectId, changes, {
         ...(Number.isFinite(body.expectedRevision) ? { expectedRevision: body.expectedRevision } : {}),
         ...(body.base && typeof body.base === 'object' && !Array.isArray(body.base)

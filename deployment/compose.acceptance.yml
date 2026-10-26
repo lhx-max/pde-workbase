@@ -1,0 +1,56 @@
+# App-owned Node services. Reverse proxy, MA registration and credentials are owner inputs.
+name: designai-app-acceptance
+x-runtime: &runtime
+  user: node
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  tmpfs: [/tmp:rw,nosuid,nodev,size=1g,uid=1000,gid=1000]
+  init: true
+  stop_grace_period: 30s
+  restart: "no"
+  deploy:
+    replicas: 1
+    update_config:
+      order: stop-first
+services:
+  canvas:
+    <<: *runtime
+    image: designai-canvas:acceptance-20261022
+    build:
+      context: ${CANVAS_SOURCE:-..}
+      dockerfile: Dockerfile.server
+    env_file: ${CANVAS_RUNTIME_ENV:?Provide an absolute path to the private canvas runtime environment}
+    ports: [127.0.0.1:17456:17456]
+  doc:
+    <<: *runtime
+    image: designai-doc:acceptance-20261022
+    build:
+      context: ${DOC_SOURCE:-../../designai-app-doc}
+      dockerfile: Dockerfile
+    env_file: ${DOC_RUNTIME_ENV:?Provide an absolute path to the private document runtime environment}
+    ports: [127.0.0.1:19000:19000]
+  sketch:
+    <<: *runtime
+    image: designai-sketch:acceptance-20261022
+    build:
+      context: ${SKETCH_SOURCE:-../../designai-app-sketch}
+      dockerfile: deploy/Dockerfile
+    env_file: ${SKETCH_RUNTIME_ENV:?Provide an absolute path to the private sketch runtime environment}
+    environment:
+      SKETCH_DATA_DIR: /tmp/sketch-working
+    ports: [127.0.0.1:17610:17610]
+  image:
+    <<: *runtime
+    image: designai-image-independent:acceptance-20261023
+    build:
+      context: ${IMAGE_SOURCE:-../../designai-app-image}
+      dockerfile: Dockerfile.backend
+    env_file: ${IMAGE_RUNTIME_ENV:?Provide an absolute path to the private image runtime environment}
+    environment:
+      IMAGE_PORT: ${IMAGE_PORT:-17466}
+    ports: ["127.0.0.1:${IMAGE_PORT:-17466}:${IMAGE_PORT:-17466}"]
+    volumes:
+      - ${IMAGE_APPWRITE_KEY_SOURCE:?Provide an absolute path to the external image Appwrite key file}:/run/secrets/image-appwrite-api-key:ro
+      - ${IMAGE_WRITE_GRANTS_SOURCE:?Provide an absolute path to the external image write-grants file}:/run/secrets/image-write-grants:ro
+      - ${IMAGE_MODEL_ADAPTER_SOURCE:?Provide an absolute path to the trusted image model adapter module}:/run/adapters/image-model.js:ro

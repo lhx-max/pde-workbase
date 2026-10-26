@@ -21,10 +21,10 @@ function normalizeBrowserWorkspaceTab(value: unknown): ProjectBrowserWorkspaceTa
 }
 
 export interface CreateProjectInput { id?: string; name: string; metadata?: ProjectMetadata; teamId?: string; createdBy?: string }
-interface RegistryState { version: 1; projects: Project[]; tabs: Record<string, ProjectTabsState> }
+export interface RegistryState { version: 1; projects: Project[]; tabs: Record<string, ProjectTabsState> }
 
 /** One registry per resolved runtime root; never infers storage from cwd or environment. */
-export function createProjectRegistry(dataRoot: string) {
+export function createProjectRegistry(dataRoot: string, onSave?: (state: RegistryState) => void) {
   if (!path.isAbsolute(dataRoot)) throw new Error('dataRoot must be explicitly resolved');
   dataRoot = path.resolve(dataRoot);
   mkdirSync(dataRoot, { recursive: true });
@@ -50,6 +50,7 @@ export function createProjectRegistry(dataRoot: string) {
     const temporary = `${file}.${randomUUID()}.tmp`;
     writeFileSync(temporary, JSON.stringify(state, null, 2), { flag: 'wx', mode: 0o600 });
     renameSync(temporary, file);
+    onSave?.(structuredClone(state));
   };
   const get = (id: string): Project | null => {
     if (!isSafeId(id)) return null;

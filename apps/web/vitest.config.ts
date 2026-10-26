@@ -10,7 +10,7 @@ export default defineConfig({
       deps: {
         // This React/CSS package targets browser bundlers, not native Node ESM.
         // Let Vite resolve its extensionless imports and CSS modules in tests.
-        inline: ['@doc/surface'],
+        inline: ['@doc/surface', '@ks-designai/doc-surface', '@sketch/surface', '@ks-designai/sketch-surface'],
       },
     },
   },

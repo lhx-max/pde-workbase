@@ -1,12 +1,18 @@
-import {DatabaseSync, type SQLInputValue} from 'node:sqlite';
+import {createRequire} from 'node:module';
 import path from 'node:path';
 import {mkdirSync} from 'node:fs';
+import type {DatabaseSync as DatabaseSyncType, SQLInputValue} from 'node:sqlite';
+/** node:sqlite is unflagged but still experimental from Node 22.13.0. Loading
+ * the builtin lazily lets runtimes without it (older Node 22 images) fail the
+ * Database constructor with an explicit error instead of crashing the whole
+ * module graph at import time. */
+const DatabaseSync:typeof DatabaseSyncType|undefined=(()=>{try{return (createRequire('/canvas-entry.js')('node:sqlite') as typeof import('node:sqlite')).DatabaseSync;}catch{return undefined;}})();
 /** Narrow synchronous SQL port for the extracted workflow/media engines.
  * Only their domain tables live here; there is no conversation/message database.
  */
 export class Database {
- private readonly database:DatabaseSync;
- constructor(file:string){if(file!==':memory:'&&!path.isAbsolute(file))throw new Error('Database requires an explicit absolute filename');if(file!==':memory:')mkdirSync(path.dirname(file),{recursive:true});this.database=new DatabaseSync(file);this.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON');}
+ private readonly database:DatabaseSyncType;
+ constructor(file:string){if(!DatabaseSync)throw new Error('node:sqlite is unavailable in this runtime (requires Node >=22.13 or the --experimental-sqlite flag)');if(file!==':memory:'&&!path.isAbsolute(file))throw new Error('Database requires an explicit absolute filename');if(file!==':memory:')mkdirSync(path.dirname(file),{recursive:true});this.database=new DatabaseSync(file);this.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON');}
  get inTransaction():boolean{return this.database.isTransaction;}
  prepare(sql:string){const statement=this.database.prepare(sql);return {
   get:(...parameters:SQLInputValue[]):unknown=>statement.get(...parameters),

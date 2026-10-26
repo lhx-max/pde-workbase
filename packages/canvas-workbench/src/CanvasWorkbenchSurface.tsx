@@ -17,6 +17,7 @@ import type { WorkflowResultArtifact, WorkspaceCollabContext } from '@bezier/con
 
 import Workbench from './Workbench';
 import { CanvasCompatProvider } from './platform/canvas-compat';
+import { CanvasTeamKindAvailability } from './platform/kind-availability';
 import { setCanvasHostContext, platformFetchWithContext, type CanvasTransport } from './platform/api-base';
 import { WorkflowApiProvider } from '@bezier/workbench-ui';
 import { setCanvasObjectStager, type CanvasObjectReference } from './platform/object-bridge';
@@ -47,6 +48,7 @@ import './canvas-workbench.css';
 import '@bezier/workbench-ui/styles.css';
 
 import { CanvasLocaleProvider } from './platform/canvas-locale';
+const EMPTY_MODULES: readonly string[] = [];
 export type CanvasWorkbenchSurfaceProps = {
   nodeCreationRequest?: CanvasNodeCreationRequest | null;
   onNodeCreationConsumed?: (nonce: string, nodeId: string) => void;
@@ -166,8 +168,8 @@ export function CanvasWorkbenchSurface({
   onImageGenerationLaunchConsumed,
   presentationGenerationLaunchRequest,
   onPresentationGenerationLaunchConsumed,
-  businessModules = [],
-  disabledMediaProviders = [],
+  businessModules = EMPTY_MODULES,
+  disabledMediaProviders = EMPTY_MODULES,
 }: CanvasWorkbenchSurfaceProps) {
   // 注入发生在**渲染阶段**，而不是 useEffect 里。
   //
@@ -203,6 +205,7 @@ export function CanvasWorkbenchSurface({
       <WorkflowApiProvider request={workflowRequest}>
       <CanvasLocaleProvider locale={locale}>
       <CanvasUiHostProvider value={uiHost}>
+      <CanvasTeamKindAvailability context={canvasHostContext}>
         <CanvasCompatProvider
           key={projectId}
           requestContext={canvasHostContext}
@@ -230,6 +233,7 @@ export function CanvasWorkbenchSurface({
             artifactGenerationProgress={artifactGenerationProgress}
           />
         </CanvasCompatProvider>
+      </CanvasTeamKindAvailability>
       </CanvasUiHostProvider>
       </CanvasLocaleProvider>
       </WorkflowApiProvider>

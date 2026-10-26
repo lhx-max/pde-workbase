@@ -19,3 +19,39 @@ describe('original three-tab sidebar',()=>{
  it('keeps the collector mounted and its capture state intact across tab switches',()=>{render(<CanvasAssetsSidebar {...props}/>);expect(mocks.collect).not.toHaveBeenCalled();fireEvent.click(screen.getByRole('tab',{name:'entry.canvasAssets.tab.collectShort'}));fireEvent.change(screen.getByRole('textbox',{name:'Collector URL'}),{target:{value:'https://capture.test'}});fireEvent.click(screen.getByRole('tab',{name:'entry.canvasAssets.tab.canvas'}));expect(screen.queryByRole('textbox',{name:'Collector URL'})).toBeNull();fireEvent.click(screen.getByRole('tab',{name:'entry.canvasAssets.tab.collectShort'}));expect((screen.getByRole('textbox',{name:'Collector URL'}) as HTMLInputElement).value).toBe('https://capture.test');expect(mocks.collect.mock.lastCall?.[0]).toMatchObject({projectId:'p',onSaveToAssetSource:expect.any(Function)});});
  it('opens the requested library type for a target-owned reference picker',async()=>{const controller=new AbortController();render(<CanvasAssetsSidebar {...props} openRequest={{spaceId:'default-project',kind:'text',selection:{controller,onSelect:vi.fn()}}}/>);await screen.findByRole('tab',{name:'Fixture library'});expect(screen.getByRole('button',{name:'entry.canvasAssets.assetType.text'}).getAttribute('aria-pressed')).toBe('true');});
 });
+
+it('adds an existing image through the same canvas import contract and waits for completion',async()=>{
+ const receive=vi.fn((event:Event)=>(event as CustomEvent).detail.onComplete(true));
+ window.addEventListener('bezier-design:add-project-file-to-canvas',receive);
+ try{
+  render(<CanvasAssetsSidebar {...props} files={[{name:'outputs/photo.png',size:24,mtime:1,kind:'image',mime:'image/png'}]}/>);
+  fireEvent.click(screen.getByRole('button',{name:'entry.canvasAssets.moreActionsAria'}));
+  fireEvent.click(screen.getByRole('menuitem',{name:'entry.canvasAssets.addToCanvas'}));
+  await screen.findByText('entry.canvasAssets.addedToCanvas');
+  expect(receive).toHaveBeenCalledTimes(1);
+  expect((receive.mock.calls[0]![0] as CustomEvent).detail).toMatchObject({projectId:'p',name:'outputs/photo.png',kind:'image'});
+ }finally{window.removeEventListener('bezier-design:add-project-file-to-canvas',receive);}
+});
+it('reports a rejected canvas import instead of showing success',async()=>{
+ const receive=(event:Event)=>(event as CustomEvent).detail.onComplete(false);
+ window.addEventListener('bezier-design:add-project-file-to-canvas',receive);
+ try{
+  render(<CanvasAssetsSidebar {...props} files={[{name:'outputs/photo.png',size:24,mtime:1,kind:'image',mime:'image/png'}]}/>);
+  fireEvent.click(screen.getByRole('button',{name:'entry.canvasAssets.moreActionsAria'}));
+  fireEvent.click(screen.getByRole('menuitem',{name:'entry.canvasAssets.addToCanvas'}));
+  await screen.findByText('asset.error.canvasAddFailed');
+  expect(screen.queryByText('entry.canvasAssets.addedToCanvas')).toBeNull();
+ }finally{window.removeEventListener('bezier-design:add-project-file-to-canvas',receive);}
+});
+
+it('has no desktop Finder action in the cloud resource list or its hover preview',async()=>{
+ const reveal=vi.fn();
+ render(<CanvasAssetsSidebar {...props} onRevealInFinder={reveal} files={[{name:'outputs/photo.png',size:24,mtime:1,kind:'image',mime:'image/png'}]}/>);
+ expect(screen.queryByRole('button',{name:'entry.canvasAssets.finderOpen'})).toBeNull();
+ const item=screen.getByTestId('canvas-sidebar-file-outputs/photo.png');
+ fireEvent.doubleClick(item);
+ expect(reveal).not.toHaveBeenCalled();
+ fireEvent.mouseEnter(item);
+ await screen.findByRole('complementary');
+ expect(screen.queryByRole('button',{name:'entry.canvasAssets.finderOpen'})).toBeNull();
+});

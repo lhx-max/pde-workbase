@@ -3,6 +3,8 @@ import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { createCanvasServer } from './server.js';
 
+if (process.env.NODE_ENV === 'production') throw new Error('The isolated local Provider runner is unavailable in production');
+
 const { values } = parseArgs({ options: { 'data-dir': { type: 'string' }, port: { type: 'string', default: '17463' } }, strict: true });
 const dataRoot = values['data-dir'];
 const port = Number(values.port);

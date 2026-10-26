@@ -4,7 +4,7 @@ import type { AppRegistryStore } from '../storage/app-registry.js';
 import type { AppEntitlementStore } from '../storage/app-entitlements.js';
 import type { AuditLog } from '../storage/audit-log.js';
 import { CanvasStateError } from '../canvas/errors.js';
-import { appVisibleToTenant, isLocalAppOperator, tenantOf, type AuthorizeAppManagement } from '../tenant.js';
+import { appVisibleToTenant, isLocalAppOperator, tenantOf, forwardedAuthorityHeaders, type AuthorizeAppManagement } from '../tenant.js';
 
 const requestId = () => `req_${randomUUID()}`;
 
@@ -116,6 +116,7 @@ export function registerAppsRoutes(app: Express, deps: RegisterAppsRoutesDeps): 
       const { appId, name, endpoint, webUrl, description, scope, manifest } = (req.body ?? {}) as { appId?: string; name?: string; endpoint?: string; webUrl?: string; description?: string; scope?: 'platform' | 'team'; manifest?: Record<string, unknown> };
       if (!appId || !name || !endpoint) throw new CanvasStateError(400, 'BAD_REQUEST', 'appId, name and endpoint are required');
       if (!/^https?:\/\//.test(endpoint)) throw new CanvasStateError(400, 'BAD_REQUEST', 'endpoint must be an http(s) URL');
+      try{const target=new URL(endpoint);if(target.username||target.password||target.search||target.hash)throw Error();}catch{throw new CanvasStateError(400,'BAD_REQUEST','App endpoint must be a credential-free URL without query or fragment');}
       if (webUrl !== undefined && !/^https?:\/\//.test(webUrl)) throw new CanvasStateError(400, 'BAD_REQUEST', 'webUrl must be an http(s) URL when provided');
       if (appId === 'canvas') throw new CanvasStateError(400, 'BAD_REQUEST', 'cannot replace canvas itself');
       if (scope !== undefined && scope !== 'team' && scope !== 'platform') throw new CanvasStateError(400, 'BAD_REQUEST', 'scope must be platform or team');
@@ -142,9 +143,11 @@ export function registerAppsRoutes(app: Express, deps: RegisterAppsRoutesDeps): 
       const url = `${app.endpoint.replace(/\/+$/, '')}${suffix}${typeof req.query === 'object' && req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''}`;
       const upstream = await fetch(url, {
         method: req.method,
+        redirect:'error',
         headers: {
           'content-type': 'application/json',
           'x-team-id': tenant.teamId, 'x-user-id': tenant.userId,
+          ...forwardedAuthorityHeaders(url),
           ...(req.get('idempotency-key') ? { 'idempotency-key': req.get('idempotency-key')! } : {}),
         },
         ...(req.method !== 'GET' ? { body: JSON.stringify(req.body ?? {}) } : {}),

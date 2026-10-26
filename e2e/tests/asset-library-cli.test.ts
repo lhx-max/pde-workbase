@@ -6,7 +6,8 @@ import { describe, expect, it } from 'vitest';
 import { api, createProject, projectText } from '@/api';
 import { useToolsDev } from '@/vitest/suite';
 import { repositoryRoot } from '@/tools-dev/runtime';
-import { pngBytes } from '@/tools-dev/browser-fixture';
+// One synthetic 1px PNG; this CLI test has no browser fixture dependency.
+const pngBytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a9e8AAAAASUVORK5CYII=', 'base64');
 
 const exec = promisify(execFile);
 describe('real CLI and canonical asset-library HTTP closure', () => {

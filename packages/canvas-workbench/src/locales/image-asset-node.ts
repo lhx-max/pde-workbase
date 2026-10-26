@@ -8,6 +8,8 @@ export function imageAssetNodeCopy(locale?: string | null) {
 export function ian() { return imageAssetNodeCopy(getCanvasActiveLocale()); }
 
 const EN = {
+  openImageApp: 'Open image mode',
+  imageAppUnavailable: 'Image mode is not connected yet. Your image is preserved.',
   invalidImage: (name: string) => `${name} is empty or cannot be decoded as an image. Choose another file.`,
   signInRequired: 'Sign in to your image provider in execution settings, then retry. Your previous image is preserved.',
   quotaError: 'The provider limit was reached. Check your account allowance or retry later.',
@@ -64,6 +66,8 @@ const ZH = {
   downloadImage: '下载图片',
   duplicateImage: '复制图片',
   removeImage: '删除图片',
+  openImageApp: '进入图片模式',
+  imageAppUnavailable: '图片模式尚未接入，当前图片已保留',
   generating: '生成中',
   outputIndex: (n: number) => `第 ${n} 张`,
   generateFailedTitle: '生成失败',

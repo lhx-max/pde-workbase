@@ -66,6 +66,7 @@ export async function startToolsDev(options: { target?: RuntimeTarget; label?: s
   const env: NodeJS.ProcessEnv = { ...process.env, NEXT_TELEMETRY_DISABLED: '1' };
   // Never borrow an ambient data root, native grant secret or external adapter/account.
   for (const key of Object.keys(env)) if (key.startsWith('CANVAS_')) delete env[key];
+  env.CANVAS_STORAGE_MODE='local-test';
   delete env.ELECTRON_RUN_AS_NODE;
   // Only this invocation's fixture trust/configuration survives isolation. Never disable TLS.
   delete env.NODE_EXTRA_CA_CERTS;

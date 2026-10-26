@@ -66,10 +66,18 @@ describe('shared canvas persistence routes', () => {
     expect(saved.state.test).toBeUndefined();
   });
 
+  it('rejects blind state patches and preserves an explicit merge base',async()=>{
+    const patch=(body:unknown)=>fetch(`${base}/canvas/state`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+    expect((await patch({changes:{title:'blind'}})).status).toBe(428);
+    expect((await patch({expectedRevision:-1,changes:{title:'invalid'}})).status).toBe(400);
+    expect((await patch({base:{},changes:{workbenchViewport:{x:1,y:2,scale:1}}})).status).toBe(200);
+    expect((await patch({expectedRevision:0,changes:{workbenchViewport:{x:3,y:4,scale:1}}})).status).toBe(409);
+  });
+
   it('exposes compact context and per-node history through the same authorized surface', async () => {
     await fetch(`${base}/canvas/state`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ changes: { workbenchBasicNodes: [{ id: 'page-1', kind: 'page', title: 'Deck', projectFilePath: 'deck.html' }] } }),
+      body: JSON.stringify({ expectedRevision:0, changes: { workbenchBasicNodes: [{ id: 'page-1', kind: 'page', title: 'Deck', projectFilePath: 'deck.html' }] } }),
     });
     const context = await (await fetch(`${base}/canvas/context`)).json() as { summary: { nodeCount: number; nodes: Array<{ id: string }> } };
     expect(context.summary).toMatchObject({ nodeCount: 1, nodes: [{ id: 'page-1' }] });

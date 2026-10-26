@@ -22,6 +22,7 @@ export * from './api/execution-snapshot.js';
 export * from './api/canvas-context.js';
 export * from './api/canvas-workspace.js';
 export * from './api/canvas-operations.js';
+export * from './api/canvas-image-editor.js';
 export * from './api/canvas-cards.js';
 export * from './api/canvas-management.js';
 export * from './api/canvas-embed.js';
@@ -125,3 +126,4 @@ export * from './workflow-editing.js';
 export * from './deck-template/schemas.js';
 
 export * from './api/creation-preferences.js';
+export type {CanvasImageReference} from './api/canvas-image-reference.js';

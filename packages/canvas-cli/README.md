@@ -34,3 +34,7 @@ MA runtime's documented skill loader. Installing npm does not register an Agent
 tool or grant execution permissions automatically. Nonzero exit means failure;
 successful API responses go to stdout. The same client can call registered doc
 App actions through the canvas App gateway.
+
+### 图片 App（0.1.2）
+
+支持 `apps call image image.create/configure/generate/regenerate/status/cancel`，动作与参数从 `request GET /api/apps/image` 发现。写操作使用 `--expected-revision N --idempotency-key KEY`；回执使用 `apps receipt image --instance CANVAS_ID --id KEY`。此阶段图片工作区 ID 等于画布 ID，卡片 ID 放在 input.nodeId。配置、任务和权限细节见画布仓 `docs/image-cli-contract.zh-CN.md`。本次版本先本地打包，不能把旧 registry 版本当作已升级。

@@ -1,4 +1,5 @@
 'use client';
+import {CanvasImageTools} from './CanvasImageTools';
 import { CanvasErrorNotice } from './CanvasErrorNotice';
 import { defaultVisualModel, isVisualModelEnabled } from './visual-model-routing';
 import { useCanvasImageModels } from '../platform/media-catalog';
@@ -7,17 +8,17 @@ import { CanvasSaveAssetButton } from './CanvasSaveAssetButton';
 import { ian } from '../locales/image-asset-node';
 
 import React from 'react';
+import { ImageCanvasCard } from '@ks-designai/image-card-pack/react';
 import { Icon } from '../ui/Icon';
 import { ImageReferenceResourcePicker, type CanvasReferenceResource } from './ImageReferenceResourcePicker';
-import type { CanvasResultSnapshot } from '@bezier/contracts';
+import type { CanvasResultSnapshot,CanvasImageReference } from '@bezier/contracts';
 import { ImageGenerationError } from './ImageGenerationError';
 import { CanvasPreviewImage } from './CanvasPreviewImage';
 import { Button, Select } from '@bezier/components';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
-import { projectScopedUrl, projectFileUrl } from '../platform/api-base';
+import { resolveCanvasImageSrc, projectFileUrl } from '../platform/api-base';
 import { setImageGroupHot, scheduleClearImageGroupHot } from './imageGroupHot';
-import CropEditor from './crop/CropEditor';
-import ImageAdjustOverlay from './ImageAdjustOverlay';
+import { ImageCropTool as CropEditor, ImageAdjustTool as ImageAdjustOverlay, ImageTransformTool, ImageLayerTool } from '@ks-designai/image-card-pack/react';
 import ImageEditorView from './ImageEditorView';
 import type { CanvasNodeCreationKind } from './canvas-node-catalog';
 import { CanvasNodeSourceHandle } from './CanvasNodeSourceHandle';
@@ -34,6 +35,10 @@ const MAX_W = 420;
 const MAX_H = 360;
 
 export type WorkbenchImage = {
+  /** Independent App resource; Canvas stores only reference and display data. */
+  imageReference?:CanvasImageReference;
+  /** Image stacking rank within its canvas parent. */
+  zIndex?: number;
   /** Original native-media inputs for an explicit new attempt, never an automatic replay. */
   mediaRequest?: Record<string, unknown>;
   mediaDelivery?: Record<string, unknown>;
@@ -96,6 +101,7 @@ export function getImageDisplaySize(naturalWidth?: number, naturalHeight?: numbe
 }
 
 export type ImageAssetData = {
+  onOpenApp?: (id: string) => Promise<void>;
   referenceResources?: CanvasReferenceResource[];
   onUploadReference?: (file: File) => Promise<{ path: string; src?: string }>;
   image: WorkbenchImage;
@@ -117,6 +123,7 @@ export type ImageAssetData = {
   onDuplicate: (id: string) => void;
   onRetry: (id: string) => void;
   onRotate: (id: string) => void;
+  onLayer?: (id: string, direction: 'front' | 'back' | 'up' | 'down') => void;
   onCutout: (id: string) => void;
   onAddToChat: (id: string) => void;
   onSendAnnotatedToAI: (id: string, file: File, instruction: string) => void | Promise<void>;
@@ -220,9 +227,7 @@ export function imageFileUrl(path: string, version?: string | number) {
  * `projectScopedUrl` 幂等：已是项目作用域或绝对 URL 都原样返回。
  */
 export function resolveImageSrc(src: string | undefined): string {
-  if (!src) return '';
-  if (/^(https?:|data:|blob:)/i.test(src)) return src;
-  return projectScopedUrl(src);
+  return resolveCanvasImageSrc(src);
 }
 
 function ImageAssetNodeComponent({ data, selected }: NodeProps<Node<ImageAssetData>>) {
@@ -235,19 +240,20 @@ function ImageAssetNodeComponent({ data, selected }: NodeProps<Node<ImageAssetDa
     onRemove,
     onDuplicate,
     onRetry,
-    onCutout,
+    onLayer,
     onCropCommit,
-    onRotate,
     onAddToChat,
     onSendAnnotatedToAI,
     onAddConnectedNode,
     onAnnotationCommit,
-    cutoutBusy,
   } = data;
   const grouped = Boolean(image.groupId);
   const status = image.status || 'ready';
+  const toolTarget = React.useRef<HTMLElement>(null);
   const [cropping, setCropping] = React.useState(false);
   const [adjusting, setAdjusting] = React.useState(false);
+  const [layerOpen, setLayerOpen] = React.useState(false);
+  const [transforming, setTransforming] = React.useState(false);
   const [annotating, setAnnotating] = React.useState(false);
   const [promptDraft, setPromptDraft] = React.useState(image.generationDraft?.prompt ?? image.prompt ?? '');
   const [referencePickerOpen, setReferencePickerOpen] = React.useState(false);
@@ -289,18 +295,20 @@ function ImageAssetNodeComponent({ data, selected }: NodeProps<Node<ImageAssetDa
     resolution: promptResolution, count: promptCount, references: extraReferences }));
   // Persist user edits only. Mounting a new image must not mutate its history snapshot.
   React.useEffect(() => {
+    if(image.imageReference)return;
     const draft = { prompt: promptDraft, models: [promptModel], ratios: [promptRatio],
       resolution: promptResolution, count: promptCount, references: extraReferences };
     const serialized = JSON.stringify(draft);
     if (serialized === lastDraft.current) return;
     lastDraft.current = serialized;
     if (serialized !== JSON.stringify(image.generationDraft)) data.onDraftChange?.(image.id, draft);
-  }, [promptDraft, promptModel, promptRatio, promptResolution, promptCount, extraReferences, image.id, image.generationDraft, data.onDraftChange]);
+  }, [promptDraft, promptModel, promptRatio, promptResolution, promptCount, extraReferences, image.id, image.generationDraft, image.imageReference, data.onDraftChange]);
 
   async function submitPrompt(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     event.stopPropagation();
     if (!promptDraft.trim() || promptSubmitting) return;
+    if (!isVisualModelEnabled(promptModel)) { setPromptError(ian().modelUnconfigured(promptModel)); return; }
     setPromptSubmitting(true); setPromptError('');
     try { await onGenerate(image.id, {
       references: extraReferences,
@@ -324,7 +332,7 @@ function ImageAssetNodeComponent({ data, selected }: NodeProps<Node<ImageAssetDa
   }
 
   return (
-    <article
+    <article ref={toolTarget}
       className={`image-asset-node is-${status} ${selected ? 'is-selected' : ''} ${grouped ? 'is-grouped' : ''}`}
       style={{ width: display.width }}
       onPointerEnter={markGroupHot}
@@ -337,13 +345,15 @@ function ImageAssetNodeComponent({ data, selected }: NodeProps<Node<ImageAssetDa
           floating
           placement={selected ? 'inside' : 'outside'}
           onDownload={() => onDownload(image.id)}
-          downloadDisabled={status !== 'ready' || !image.src || cropping || adjusting || annotating}
+          downloadDisabled={status !== 'ready' || !image.src || cropping || adjusting || transforming || annotating}
           downloadLabel={ian().downloadImage}
           onDuplicate={grouped ? undefined : () => onDuplicate(image.id)}
           onRemove={grouped ? undefined : () => onRemove(image.id)}
           duplicateLabel={ian().duplicateImage}
           removeLabel={ian().removeImage}
-        />
+        >
+
+        </CanvasNodeActions>
       )}
       <CanvasNodeSourceHandle onAddNode={kind => onAddConnectedNode(image.id, kind, {
         x: image.x,
@@ -352,11 +362,11 @@ function ImageAssetNodeComponent({ data, selected }: NodeProps<Node<ImageAssetDa
         height: display.height,
       })} />
 
-      <div
+      <ImageCanvasCard
         className="image-asset-frame"
         style={{ width: display.width, height: display.height }}
-      >
-        {status === 'ready' && image.src ? (
+        ready={status === 'ready' && Boolean(image.src)}
+        preview={image.src ?
           <CanvasPreviewImage
             className="image-asset-media"
             previewSize={Math.max(display.width, display.height)}
@@ -372,8 +382,9 @@ function ImageAssetNodeComponent({ data, selected }: NodeProps<Node<ImageAssetDa
               if (w && h && (w !== natural.w || h !== natural.h)) setNatural({ w, h });
               if (w && h && (w !== image.naturalWidth || h !== image.naturalHeight)) data.onNaturalSize?.(w, h);
             }}
-          />
-        ) : (
+          /> : null
+        }
+        pending={
           <div className="image-generation-state">
             {status === 'generating' ? (
               <>
@@ -389,39 +400,31 @@ function ImageAssetNodeComponent({ data, selected }: NodeProps<Node<ImageAssetDa
               </>
             )}
           </div>
-        )}
+        }
+      >
 
-        {selected && status === 'ready' && !cropping && !adjusting && !annotating && (
-          <div className="image-action-capsule nodrag nopan" onClick={event => event.stopPropagation()}>
-            <Button variant="ghost" className="has-label" aria-label={ian().cutout} title={ian().cutoutTitle} disabled={cutoutBusy} onClick={() => onCutout(image.id)}>
-              <CutoutIcon /><span>{cutoutBusy ? ian().cuttingOut : ian().cutout}</span>
-            </Button>
-            <Button variant="ghost" className="has-label" aria-label={ian().crop} onClick={() => setCropping(true)}>
-              <CropIcon /><span>{ian().crop}</span>
-            </Button>
-            <Button variant="ghost" className="has-label" aria-label={ian().adjust} onClick={() => setAdjusting(true)}>
-              <AdjustIcon /><span>{ian().adjust}</span>
-            </Button>
-            <Button variant="ghost" className="has-label" aria-label={ian().rotate90} onClick={() => onRotate(image.id)}>
-              <RotateIcon /><span>{ian().rotate}</span>
-            </Button>
-            <span className="image-capsule-divider" />
-            <Button variant="ghost" className="has-label" aria-label={ian().annotate} onClick={() => setAnnotating(true)}><AnnotateIcon /><span>{ian().annotate}</span></Button>
-            <CanvasSaveAssetButton nodeId={image.id} />
-            <span className="image-capsule-divider" aria-hidden="true" />
-            <Button variant="ghost" size="icon" className="bezier-tooltip" data-tooltip={ian().addToChat} aria-label={ian().addToChat} onClick={() => onAddToChat(image.id)}><ChatAddIcon /></Button>
-          </div>
-        )}
+        {selected && !image.imageReference && status === 'ready' && image.src && !cropping && !adjusting && !transforming && !annotating && !layerOpen && <CanvasImageTools
+          onRender={async(file,meta)=>{if(await onAnnotationCommit(image.id,file,meta)===false)throw Error('图片云端保存失败');}} nodeId={image.id} src={resolveImageSrc(image.src)} name={image.name} width={image.naturalWidth || natural.w} height={image.naturalHeight || natural.h}
+          target={() => toolTarget.current?.querySelector<HTMLElement>('.image-asset-frame') ?? toolTarget.current}
+          onCrop={() => setCropping(true)} onAdjust={() => setAdjusting(true)} onTransform={() => setTransforming(true)} onAnnotate={() => setAnnotating(true)}
+          {...(onLayer ? {onLayer:() => setLayerOpen(true)} : {})} onDownload={() => onDownload(image.id)} onAddToChat={() => onAddToChat(image.id)} extra={<CanvasSaveAssetButton presentation="menu-item" nodeId={image.id}/>}
+        />}
 
+        {layerOpen && onLayer && <ImageLayerTool target={() => toolTarget.current?.querySelector<HTMLElement>('.image-asset-frame') ?? toolTarget.current} onLayer={direction => onLayer(image.id, direction)} onClose={() => setLayerOpen(false)} />}
+
+        {transforming && status === 'ready' && image.src && (
+          <ImageTransformTool target={() => toolTarget.current?.querySelector<HTMLElement>('.image-asset-frame, .minimax-image-frame') ?? toolTarget.current} src={resolveImageSrc(image.src)} name={image.name} busy={cropSaving}
+            onCancel={() => setTransforming(false)} onCommit={(file, meta) => onCropCommit(image.id, file, meta)} />
+        )}
 
         {adjusting && status === 'ready' && image.src && (
-          <ImageAdjustOverlay
+          <ImageAdjustOverlay target={() => toolTarget.current?.querySelector<HTMLElement>('.image-asset-frame, .minimax-image-frame') ?? toolTarget.current}
             src={resolveImageSrc(image.src)}
             name={image.name}
             busy={cropSaving}
             onCancel={() => setAdjusting(false)}
             onCommit={async (file, meta) => {
-              await onCropCommit(image.id, file, meta);
+              if (await onCropCommit(image.id, file, meta) === false) return false;
               setAdjusting(false);
             }}
           />
@@ -446,7 +449,7 @@ function ImageAssetNodeComponent({ data, selected }: NodeProps<Node<ImageAssetDa
         )}
 
         {cropping && status === 'ready' && image.src && (
-          <CropEditor
+          <CropEditor target={() => toolTarget.current?.querySelector<HTMLElement>('.image-asset-frame, .minimax-image-frame') ?? toolTarget.current}
             src={resolveImageSrc(image.src) || (image.path ? imageFileUrl(image.path) : '')}
             name={image.name}
             naturalWidth={image.naturalWidth || natural.w || display.width}
@@ -466,9 +469,9 @@ function ImageAssetNodeComponent({ data, selected }: NodeProps<Node<ImageAssetDa
           ? <CanvasErrorNotice placement="card" error={promptError} />
           : image.error && <ImageGenerationError placement="card" error={image.error} onRetry={() => onRetry(image.id)} />)}
         {toast && <span className="image-asset-toast nodrag nopan">{toast}</span>}
-      </div>
+      </ImageCanvasCard>
 
-      {selected && status === 'ready' && image.src && !cropping && !adjusting && !annotating && (
+      {selected && !image.imageReference && status === 'ready' && image.src && !cropping && !adjusting && !transforming && !annotating && (
         <CanvasComposerShell
           ownerId={data.composerOwnerId || image.id}
           expanded={promptExpanded}
@@ -557,6 +560,7 @@ export function buildImageNode(args: {
   return {
     id: args.image.id,
     type: 'imageAsset',
+    zIndex: args.image.zIndex ?? 0,
     position: { x: args.image.x, y: args.image.y },
     parentId: args.image.groupId,
     draggable: true,

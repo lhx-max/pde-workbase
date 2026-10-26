@@ -9,6 +9,23 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })));
 });
 
+it('saves the first image prompt map, merges different cards and rejects conflicting edits', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'canvas-empty-drafts-'));
+  roots.push(root);
+  const canvas = new CanvasStateService(() => root);
+  await canvas.patch('p', { workbenchTaskDrafts: { a: { text: 'First image' } } }, { base: { workbenchTaskDrafts: {} } });
+  const merged = await canvas.patch('p', { workbenchTaskDrafts: { b: { text: 'Second image' } } }, { base: { workbenchTaskDrafts: {} } });
+  expect(merged.state.workbenchTaskDrafts).toEqual({ a: { text: 'First image' }, b: { text: 'Second image' } });
+  await expect(canvas.patch('p', { workbenchTaskDrafts: { a: { text: 'Conflicting image' } } }, { base: { workbenchTaskDrafts: {} } })).rejects.toMatchObject({ status: 409 });
+});
+it('accepts an explicitly absent initial UI value and rejects overwriting a concurrent first write', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'canvas-absent-ui-')); roots.push(root);
+  const canvas = new CanvasStateService(() => root);
+  const first = await canvas.patch('p', { viewport: { x: 0, y: 0, zoom: 0.7 } }, { base: { viewport: null } });
+  expect(first.state.viewport).toEqual({ x: 0, y: 0, zoom: 0.7 });
+  await expect(canvas.patch('p', { viewport: { x: 0, y: 0, zoom: 0.8 } }, { base: { viewport: null } })).rejects.toMatchObject({ status: 409 });
+});
+
 it('accepts the first legacy node insertion when the stored collection is absent', async () => {
   const root = await mkdtemp(join(tmpdir(), 'canvas-empty-base-'));
   roots.push(root);

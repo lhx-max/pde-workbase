@@ -1,5 +1,5 @@
 import { canvasNodeCopy } from '../locales/node-catalog';
-export type CanvasNodeCreationKind = 'image' | 'text' | 'sketch' | 'storyboard' | 'video' | 'page' | 'presentation';
+export type CanvasNodeCreationKind = 'image' | 'text' | 'sketch' | 'browser' | 'storyboard' | 'video' | 'page' | 'presentation';
 
 /** One-shot host request to create a real node through the canvas state path.
  * `position` is a flow-space coordinate — drops place the card where it
@@ -17,7 +17,7 @@ export type CanvasNodeCreationOption = {
   kind: CanvasNodeCreationKind;
   label: string;
   description: string;
-  icon: 'type' | 'edit' | 'gallery-horizontal' | 'artifact-page' | 'artifact-presentation' | 'artifact-image' | 'artifact-video' | 'scissors';
+  icon: 'type' | 'edit' | 'globe' | 'gallery-horizontal' | 'artifact-page' | 'artifact-presentation' | 'artifact-image' | 'artifact-video' | 'scissors';
   disabled?: boolean;
   badge?: string;
 };
@@ -37,6 +37,7 @@ const NODE_ICONS = {
   image: 'artifact-image',
   text: 'type',
   sketch: 'edit',
+  browser: 'globe',
   storyboard: 'gallery-horizontal',
   video: 'artifact-video',
   page: 'artifact-page',

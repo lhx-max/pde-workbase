@@ -1,6 +1,7 @@
 import { closeSync, constants, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
+import type { JsonStatePort } from '@ks-designai/app-cloud-state';
 
 /** Storage failures and conflicting bindings are explicit, never an empty index. */
 export class BindingStoreError extends Error {
@@ -30,6 +31,7 @@ const text = (value: unknown): value is string => typeof value === 'string' && v
 const keyOf = (binding: Pick<Binding, 'canvasInstanceId' | 'nodeId' | 'appId'>) => JSON.stringify([binding.canvasInstanceId, binding.nodeId, binding.appId]);
 const conflict = (message: string): never => { throw new BindingStoreError(409, 'BINDING_CONFLICT', message); };
 const corrupt = (): never => { throw new BindingStoreError(500, 'BINDING_STORE_CORRUPT', 'Binding index is damaged or has an unsupported schema'); };
+const cloneJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
 function validateState(value: unknown): State {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return corrupt();
@@ -57,10 +59,15 @@ function validateState(value: unknown): State {
 export class BindingStore {
   private readonly root: string;
   private readonly file: string;
-  constructor(dataRoot: string) {
+  private readonly state: JsonStatePort | undefined;
+  constructor(dataRoot: string, state?: JsonStatePort) {
     if (!dataRoot || !path.isAbsolute(dataRoot)) throw new BindingStoreError(400, 'BINDING_STORAGE_INVALID', 'An explicit absolute dataRoot is required');
+    this.state = state;
     this.root = path.resolve(dataRoot);
     this.file = path.join(this.root, 'bindings.json');
+    // With an injected state port the 'bindings' slot is authoritative: no
+    // local file or directory is created, read, or imported.
+    if (state) return;
     try {
       this.assertEntry(this.root, true, true);
       mkdirSync(this.root, { recursive: true });
@@ -94,6 +101,11 @@ export class BindingStore {
   }
 
   private load(): State {
+    if (this.state) {
+      // An absent slot is a fresh namespace; present data must validate exactly.
+      const value = this.state.read('bindings');
+      return value === undefined ? { version: 1, bindings: [] } : cloneJson(validateState(value));
+    }
     let descriptor: number | undefined;
     let serialized: string;
     try {
@@ -113,7 +125,8 @@ export class BindingStore {
   }
 
   private save(state: State): void {
-    validateState(state);
+    state = validateState(state);
+    if (this.state) { this.state.write('bindings', cloneJson(state)); return; }
     const tmp = path.join(this.root, `bindings.json.${randomUUID()}.tmp`);
     let descriptor: number | undefined;
     try {

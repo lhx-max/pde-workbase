@@ -107,6 +107,16 @@ function browserResourceUrl(path: string, context: CanvasHostContext): string {
   return context.transport?.resourceUrl?.(url) ?? url;
 }
 
+/** Resolve saved image URLs through the same browser resource authorization as new images. */
+export function resolveCanvasImageSrc(src: string | undefined): string {
+  if (!src) return '';
+  if (/^(https?:|data:|blob:)/i.test(src)) return src;
+  if (/^\/api\/projects\/[^/]+\/(?:files|image-app)(?:\/|\?)/.test(src)) {
+    return browserResourceUrl(src, getCanvasHostContext());
+  }
+  return projectScopedUrl(src);
+}
+
 /**
  * 逻辑路径（原版扁平 `/api/xxx`）→ DA 真实路径。
  *
@@ -134,14 +144,19 @@ export function projectScopedUrl(path: string): string {
   return `${projectApiBase()}${rest}`;
 }
 
-/** Build a browser-navigable URL for a project-relative file. */
-export function projectFileUrl(relativePath: string, context = getCanvasHostContext()): string {
+/** Stable service descriptor; never include a browser bridge, credentials or host prefix. */
+export function canonicalProjectFileUrl(relativePath: string, context = getCanvasHostContext()): string {
   const normalized = relativePath.replace(/\\/g, '/').replace(/^\/+/, '');
   if (!normalized || normalized.split('/').some(segment => !segment || segment === '.' || segment === '..')) {
     throw new Error('invalid project file path');
   }
   const encodedPath = normalized.split('/').map(encodeURIComponent).join('/');
-  return browserResourceUrl(`/api/projects/${encodeURIComponent(context.projectId)}/files/${encodedPath}`, context);
+  return `/api/projects/${encodeURIComponent(context.projectId)}/files/${encodedPath}`;
+}
+
+/** Build a browser-navigable URL for a project-relative file. */
+export function projectFileUrl(relativePath: string, context = getCanvasHostContext()): string {
+  return browserResourceUrl(canonicalProjectFileUrl(relativePath, context), context);
 }
 
 /**

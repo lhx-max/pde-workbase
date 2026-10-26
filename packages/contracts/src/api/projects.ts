@@ -99,6 +99,8 @@ export interface DesignSystemReviewEntry {
 }
 
 export interface ProjectMetadata {
+  /** Server-verified MA ownership mapping, never accepted as caller authority. */
+  appAuthority?: {bizId:string;applicationId?:string;applicationInstanceId:string;providerInstanceId?:string};
   /** Creation-assistant routing only; grants no background execution rights. */
   automationAuthoring?: 'scheduled' | 'hook';
   kind: ProjectKind;

@@ -30,3 +30,10 @@ test('published manifest exposes one explicit stylesheet and no workspace depend
   assert(manifest.sideEffects.includes('**/*.css'));
   assert(!manifest.files.includes('src'));
 });
+
+test('packed image workers are self-contained across consumer bundlers', () => {
+  const bundle = readFileSync(resolve(packageRoot, 'dist/index.js'), 'utf8');
+  assert(!/new URL\(["'](?:\/)?assets\/worker-/.test(bundle), 'rebundled import.meta URLs cannot locate the original package worker');
+  assert(bundle.includes('createObjectURL') && bundle.includes('revokeObjectURL'), 'inline worker URL must be created and released');
+  assert(bundle.includes('data:text/javascript'), 'the worker payload must travel inside the installed package bundle');
+});

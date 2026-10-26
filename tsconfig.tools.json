@@ -9,5 +9,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["scripts/**/*.ts", "tools/dev/src/**/*.ts"]
+  "include": ["scripts/**/*.ts", "tools/dev/src/**/*.ts", "tools/provision/**/*.ts", "e2e/private-storage-bootstrap.ts", "e2e/four-private-containers.ts"]
 }

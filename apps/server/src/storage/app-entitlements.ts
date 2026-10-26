@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
+import type { JsonStatePort } from '@ks-designai/app-cloud-state';
 
 /** App entitlement governance table (spec §3.0). Operators control which
  * teams/users can see and use each App. Resolution order is most-specific
@@ -18,17 +19,42 @@ export interface AppEntitlementRule {
 
 interface State { version: 1; rules: AppEntitlementRule[] }
 
+const fail = (code: string, message: string): never => {
+  throw Object.assign(new Error(message), { status: 500, code });
+};
+const nonempty = (field: unknown): field is string => typeof field === 'string' && field.trim().length > 0;
+const cloneJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+
+function validateState(value: unknown): State {
+  const state = value as State | null;
+  if (!state || typeof state !== 'object' || Array.isArray(state) || state.version !== 1 || !Array.isArray(state.rules)
+    || !state.rules.every(rule => rule && typeof rule === 'object' && !Array.isArray(rule)
+      && [rule.id, rule.scope, rule.appId, rule.updatedAt].every(nonempty)
+      && (rule.scope === '*' || /^(team|user):[A-Za-z0-9_-]+$/.test(rule.scope))
+      && (rule.effect === 'allow' || rule.effect === 'deny')
+      && (rule.updatedBy === undefined || typeof rule.updatedBy === 'string'))) {
+    return fail('APP_ENTITLEMENTS_CORRUPT', 'App entitlement policy is damaged or has an unsupported schema');
+  }
+  return state;
+}
+
 export class AppEntitlementStore {
   private readonly file: string;
-  constructor(dataRoot: string) {
-    mkdirSync(dataRoot, { recursive: true });
+  private readonly state: JsonStatePort | undefined;
+  constructor(dataRoot: string, state?: JsonStatePort) {
+    this.state = state;
+    // With an injected state port the 'app-entitlements' slot is authoritative:
+    // no local file or directory is created, read, or imported.
+    if (!state) mkdirSync(dataRoot, { recursive: true });
     this.file = path.join(dataRoot, 'app-entitlements.json');
   }
 
   private load(): State {
-    const fail = (code: string, message: string): never => {
-      throw Object.assign(new Error(message), { status: 500, code });
-    };
+    if (this.state) {
+      // An absent slot is a fresh namespace; present data must validate exactly.
+      const value = this.state.read('app-entitlements');
+      return value === undefined ? { version: 1, rules: [] } : cloneJson(validateState(value));
+    }
     let serialized: string;
     try { serialized = readFileSync(this.file, 'utf8'); }
     catch (error) {
@@ -40,20 +66,11 @@ export class AppEntitlementStore {
     let value: unknown;
     try { value = JSON.parse(serialized); }
     catch { return fail('APP_ENTITLEMENTS_CORRUPT', 'App entitlement policy is damaged or has an unsupported schema'); }
-    const nonempty = (field: unknown): field is string => typeof field === 'string' && field.trim().length > 0;
-    const state = value as State | null;
-    if (!state || typeof state !== 'object' || Array.isArray(state) || state.version !== 1 || !Array.isArray(state.rules)
-      || !state.rules.every(rule => rule && typeof rule === 'object' && !Array.isArray(rule)
-        && [rule.id, rule.scope, rule.appId, rule.updatedAt].every(nonempty)
-        && (rule.scope === '*' || /^(team|user):[A-Za-z0-9_-]+$/.test(rule.scope))
-        && (rule.effect === 'allow' || rule.effect === 'deny')
-        && (rule.updatedBy === undefined || typeof rule.updatedBy === 'string'))) {
-      return fail('APP_ENTITLEMENTS_CORRUPT', 'App entitlement policy is damaged or has an unsupported schema');
-    }
-    return state;
+    return validateState(value);
   }
 
   private save(state: State) {
+    if (this.state) { this.state.write('app-entitlements', cloneJson(validateState(state))); return; }
     const tmp = `${this.file}.${randomUUID()}.tmp`;
     writeFileSync(tmp, JSON.stringify(state, null, 2), { flag: 'wx', mode: 0o600 });
     renameSync(tmp, this.file);

@@ -12,7 +12,7 @@ import {
   computeSketchBounds,
   isSketchJsonFileName,
   normalizeSketchText,
-  parseSketchWorkspaceDocument,
+  readSketchWorkspaceDocument,
   sketchSceneHasContent,
   type ExcalidrawSketchScene,
   type SketchItem,
@@ -59,6 +59,7 @@ export function SketchPreview({
   className,
   workspaceContext,
   sourceText,
+  identityScope,
 }: {
   projectId: string;
   file: Pick<ProjectFile, 'kind' | 'name' | 'mtime'>;
@@ -66,22 +67,28 @@ export function SketchPreview({
   workspaceContext?: WorkspaceCollabContext | null;
   /** Live editor draft; file-backed callers can omit this. */
   sourceText?: string;
+  identityScope?: string;
 }) {
   const t = useT();
-  const workspaceIdentity = workspaceIdentityCacheKey(workspaceContext);
+  const workspaceIdentity = identityScope ?? workspaceIdentityCacheKey(workspaceContext);
   const cacheKey = isRenderableSketchJson(file)
     ? sketchPreviewCacheKey(projectId, file.name, file.mtime, workspaceIdentity)
     : null;
+  const [failed, setFailed] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [preview, setPreview] = useState<SketchPreviewState | null>(() => (
     cacheKey ? previewCache.get(cacheKey) ?? null : null
   ));
 
   useEffect(() => {
     let cancelled = false;
+    setFailed(null);
     if (!isRenderableSketchJson(file)) return;
     if (sourceText !== undefined) {
       void buildSketchPreviewState(sourceText).then(next => {
         if (!cancelled) setPreview(next);
+      }).catch(error => {
+        if (!cancelled) setFailed(error instanceof Error ? error.message : 'Preview failed');
       });
       return () => { cancelled = true; };
     }
@@ -106,11 +113,13 @@ export function SketchPreview({
       if (cancelled) return;
       rememberSketchPreview(nextCacheKey, nextPreview);
       setPreview(nextPreview);
-    });
+    }).catch(error => {
+        if (!cancelled) setFailed(error instanceof Error ? error.message : 'Preview failed');
+      });
     return () => {
       cancelled = true;
     };
-  }, [file.kind, file.name, file.mtime, projectId, workspaceContext, workspaceIdentity, sourceText]);
+  }, [file.kind, file.name, file.mtime, projectId, workspaceContext, workspaceIdentity, sourceText, attempt]);
 
   const geometry = useMemo(() => {
     const resolvedItems = preview?.items ?? [];
@@ -118,6 +127,12 @@ export function SketchPreview({
   }, [preview]);
 
   if (!isRenderableSketchJson(file)) return null;
+  if (failed) return (
+    <div role="alert" data-sketch-preview-error={failed} data-sketch-path={file.name} data-sketch-project={projectId}>
+      <span>{t('canvas.sketch.openFailed')}</span>
+      <button type="button" onClick={() => setAttempt(value => value + 1)}>{t('common.retry')}</button>
+    </div>
+  );
   return (
     <div
       className={`sketch-preview${preview === null ? ' loading' : ''}${className ? ` ${className}` : ''}`}
@@ -149,14 +164,14 @@ export function SketchPreview({
             y={geometry.viewBoxY}
             width={geometry.viewBoxWidth}
             height={geometry.viewBoxHeight}
-            fill="#f7f5f1"
+            fill={preview === null ? "#f7f5f1" : "#ffffff"}
           />
           <rect
             x={geometry.viewBoxX}
             y={geometry.viewBoxY}
             width={geometry.viewBoxWidth}
             height={geometry.viewBoxHeight}
-            fill="url(#sketch-preview-grid)"
+            fill={preview === null ? "url(#sketch-preview-grid)" : "transparent"}
           />
           {geometry.items.length > 0 ? (
             geometry.items.map((item, index) => (
@@ -164,11 +179,11 @@ export function SketchPreview({
                 {renderSketchSvgItem(item, index)}
               </Fragment>
             ))
-          ) : (
+          ) : preview === null ? (
             <g className="sketch-preview-empty-mark">
               <path d="M80 80h160M80 120h120" />
             </g>
-          )}
+          ) : null}
         </svg>
       )}
     </div>
@@ -176,7 +191,7 @@ export function SketchPreview({
 }
 
 async function buildSketchPreviewState(text: string | null): Promise<SketchPreviewState> {
-  const parsed = parseSketchWorkspaceDocument(text);
+  const parsed = readSketchWorkspaceDocument(text);
   if (!sketchSceneHasContent(parsed.scene)) {
     return { items: parsed.items, svgMarkup: null };
   }
@@ -210,7 +225,7 @@ async function renderExcalidrawScenePreview(scene: ExcalidrawSketchScene): Promi
       appState: restored.appState,
       files: restored.files,
       exportPadding: 16,
-      skipInliningFonts: true,
+      skipInliningFonts: false,
     });
     return svg.outerHTML;
   } catch {

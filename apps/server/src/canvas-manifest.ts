@@ -50,5 +50,6 @@ export function canvasManifest() {
     agentSurface: listAgentSurface(),
     tenancy: 'required',
     execution: 'receipt',
+    receiptSupport: {operations: 'durable', lifecycle: 'durable', condition: 'Configured durable runtime state; caller retains idempotency-key for create/rename/delete', pending: 'CANVAS_OPERATION_UNCERTAIN; do not retry under a new key'},
   };
 }

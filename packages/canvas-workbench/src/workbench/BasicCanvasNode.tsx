@@ -1118,7 +1118,7 @@ function SketchCanvasNode({ data, selected }: { data: BasicCanvasNodeData; selec
     onAddConnectedNode={(kind, origin) => data.onAddConnectedNode(item.id, kind, origin)}
   >
     <CanvasOutputFrame state="preview">
-      {host?.renderSketch?.({ path: item.projectFilePath || `canvas-${item.id}.sketch.json`, selected: Boolean(selected), pending: item.sketchPending === true, onCreated: async () => { if (item.sketchPending) { data.onPatch(item.id, { sketchPending: false }); await flush(['workbenchBasicNodes']); } } })}
+      {host?.renderSketch?.({ path: item.projectFilePath || `canvas-${item.id}.sketch.json`, nodeId: item.id, selected: Boolean(selected), pending: item.sketchPending === true, onCreated: async () => { if (item.sketchPending) { data.onPatch(item.id, { sketchPending: false }); await flush(['workbenchBasicNodes']); } } })}
     </CanvasOutputFrame>
   </CanvasOutputNode>;
 }
@@ -1190,6 +1190,25 @@ function GenericCardShell({ data, selected, children }: { data: BasicCanvasNodeD
   );
 }
 
+function openBrowserNode(nodeId: string) {
+  window.dispatchEvent(new CustomEvent('bezier-design:open-browser-node', { detail: { nodeId } }));
+}
+
+function BrowserCanvasNode({ data, selected }: { data: BasicCanvasNodeData; selected?: boolean }) {
+  const item = data.node;
+  return (
+    <GenericCardShell data={data} selected={Boolean(selected)}>
+      <div
+        className="nodrag nopan"
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', padding: 16 }}
+        onDoubleClick={event => { event.stopPropagation(); openBrowserNode(item.id); }}
+      >
+        <Button type="button" variant="primary" onClick={event => { event.stopPropagation(); openBrowserNode(item.id); }}>打开浏览器</Button>
+      </div>
+    </GenericCardShell>
+  );
+}
+
 function BasicCanvasNodeComponent({ data, selected }: NodeProps<Node<BasicCanvasNodeData>>) {
   // Registered card packs take precedence — a pack may declare a core kind to
   // override its built-in body, or a `card.<team>.<name>` kind for new cards.
@@ -1210,6 +1229,7 @@ function BasicCanvasNodeComponent({ data, selected }: NodeProps<Node<BasicCanvas
     if (projection.kind === 'text') return <TextArtifactNode data={projected} selected={selected} />;
   }
   if (data.node.kind === 'sketch') return <SketchCanvasNode data={data} selected={selected} />;
+  if (data.node.kind === 'browser') return <BrowserCanvasNode data={data} selected={selected} />;
   if (data.node.kind === 'video') return <VideoCanvasNode data={data} selected={selected} />;
   const item = data.node;
   const versions = selected ? <CanvasResultHistory

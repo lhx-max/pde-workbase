@@ -1,0 +1,12 @@
+FROM node:24-bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg poppler-utils ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN npm install --global pnpm@10.33.2
+WORKDIR /app
+COPY . .
+RUN pnpm --filter @canvas/server... install --frozen-lockfile --ignore-scripts \
+ && pnpm --filter @canvas/server... build
+ENV NODE_ENV=production CANVAS_DATA_DIR=/tmp/canvas-working CANVAS_PORT=17456
+USER node
+EXPOSE 17456
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s CMD node -e "fetch('http://127.0.0.1:17456/api/health',{headers:process.env.CANVAS_AUTH_TOKEN?{Authorization:'Bearer '+process.env.CANVAS_AUTH_TOKEN}:{}}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+CMD ["node", "--enable-source-maps", "apps/server/dist/cli.js", "--host", "0.0.0.0"]

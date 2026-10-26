@@ -1,5 +1,5 @@
 // Extracted original project-file sidebar; external library and collector are host-owned ports.
-import { isCollectedPath, isCanvasTextPath, PROJECT_FILE_DRAG_MIME, type ProjectFile, type ProjectFileKind } from '@bezier/contracts';
+import { isCollectedPath, isCanvasTextPath, PROJECT_FILE_DRAG_MIME, PROJECT_FILE_ADD_TO_CANVAS_EVENT, type ProjectFile, type ProjectFileKind } from '@bezier/contracts';
 import { Button, Input, Select, ConfirmDialog, Tabs, TabsList, TabsTrigger } from './ui';
 import { AssetLibraryPanel, type AssetLibraryPanelProps } from './AssetLibraryPanel';
 import { BrowserCollectorPanel } from './BrowserCollectorPanel';
@@ -15,6 +15,7 @@ import {isVisibleProjectFilePath} from '../state/visible-project-files';
 import { useI18n } from '../i18n';
 import { SketchPreview } from './SketchPreview';
 import { CanvasArtifactThumbnail } from './workspace/CanvasArtifactThumbnail';
+import { CanvasResourceThumbnail } from './CanvasResourceThumbnail';
 import styles from './CanvasAssetsSidebar.module.css';
 function HtmlTemplateThumb({template}:{foreground?:boolean;template:{title:string;type:string;previewSrc:string}}) {return <CanvasArtifactThumbnail src={template.previewSrc} title={template.title} presentation={template.type==='Slides'} />;}
 interface Props extends Pick<AssetLibraryPanelProps,'installedTemplates'|'designSystems'|'onUseTemplate'|'onOpenDesignSystem'|'onOpenAssetLibrary'|'onCancelSelection'|'openRequest'> {
@@ -137,6 +138,7 @@ export function CanvasAssetsSidebar({active=true,projectId,projectName,rootDirNa
     return key ? t(key) : t('entry.canvasAssets.kind.file');
   };
   const { workspaceContext } = useProjectCollabContext();
+  const [addingFile, setAddingFile] = useState<string | null>(null);
   const [fileReferences, setFileReferences] = useState<Record<string, string[]>>({});
   useEffect(() => {
     setFileReferences({});
@@ -266,6 +268,22 @@ export function CanvasAssetsSidebar({active=true,projectId,projectName,rootDirNa
     onLocateFile?.(file.name);
   }, [onLocateFile]);
 
+  const addFileToCanvas = async (file: ProjectFile) => {
+    if (addingFile) return;
+    setActiveMenu(null); setAddingFile(file.name); setNotice(null);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const timer = window.setTimeout(() => reject(new Error(t('asset.error.canvasNoResponse'))), 15000);
+        window.dispatchEvent(new CustomEvent(PROJECT_FILE_ADD_TO_CANVAS_EVENT, { detail: {
+          projectId, name: file.name, size: file.size, mtime: file.mtime, kind: file.kind, mime: file.mime,
+          onComplete: (success: boolean) => { window.clearTimeout(timer); if (success) resolve(); else reject(new Error(t('asset.error.canvasAddFailed'))); },
+        } }));
+      });
+      setNotice(t('entry.canvasAssets.addedToCanvas'));
+    } catch (error) { setNotice(error instanceof Error ? error.message : t('asset.error.canvasAddFailed')); }
+    finally { setAddingFile(null); }
+  };
+
   const startFileDrag = useCallback((event: ReactDragEvent<HTMLElement>, file: ProjectFile) => {
     clearPreviewTimers();
     setPreview(null);
@@ -284,15 +302,6 @@ export function CanvasAssetsSidebar({active=true,projectId,projectName,rootDirNa
     event.dataTransfer.setData('text/plain', file.name);
   }, [clearPreviewTimers, projectId]);
 
-  const revealInFinder = useCallback(async (fileName?: string) => {
-    setNotice(null);
-    if (!onRevealInFinder) {
-      setNotice(t('entry.canvasAssets.notice.finderDesktopOnly'));
-      return;
-    }
-    const ok = await onRevealInFinder(fileName);
-    setNotice(ok ? t('entry.canvasAssets.notice.finderOpened') : t('entry.canvasAssets.notice.finderFailed'));
-  }, [onRevealInFinder]);
 
   useEffect(() => {
     if (!activeMenu) return;
@@ -437,17 +446,6 @@ export function CanvasAssetsSidebar({active=true,projectId,projectName,rootDirNa
           </p> : null}
         </div>
         <div className={styles.headerActions}>
-          {libraryTab === 'canvas' ? <Button
-            type="button"
-            className={`${styles.iconButton} bezier-tooltip`}
-            title={t('entry.canvasAssets.finderOpen')}
-            aria-label={t('entry.canvasAssets.finderOpen')}
-            data-tooltip={t('entry.canvasAssets.finderOpen')}
-            data-tooltip-placement="bottom"
-            onClick={() => void revealInFinder()}
-          >
-            <Icon name="folder-open" size={16} />
-          </Button> : null}
           <Button
             type="button"
             className={`${styles.iconButton} bezier-tooltip`}
@@ -602,7 +600,6 @@ export function CanvasAssetsSidebar({active=true,projectId,projectName,rootDirNa
               onDragEnd={() => setDraggingFileName(null)}
               onMouseEnter={(event) => { if (!selecting) showFilePreview(file, event.currentTarget); }}
               onMouseLeave={hideFilePreview}
-              onDoubleClick={() => { if (!selecting) void revealInFinder(file.name); }}
             >
               <Button
                 type="button"
@@ -615,15 +612,11 @@ export function CanvasAssetsSidebar({active=true,projectId,projectName,rootDirNa
                 {selecting && <span className={styles.selectionCheck} data-selected={selectedFiles.includes(file.name)} aria-hidden="true">{selectedFiles.includes(file.name) && <Icon name="check" size={12}/>}</span>}
                 <span className={styles.thumbnail} data-kind={file.kind}>
                   {isImage ? (
-                    <img
+                    <CanvasResourceThumbnail
                       src={appendResourceQuery(
                         projectFileUrl(projectId, file.name, workspaceContext),
                         `odThumbnailWidth=${viewMode === 'grid' ? 320 : 64}&v=${Math.floor(file.mtime)}`,
                       )}
-                      alt=""
-                      draggable={false}
-                      loading="lazy"
-                      decoding="async"
                     />
                   ) : file.kind === 'html' || /\.html?$/i.test(file.name) ? (
                     <HtmlTemplateThumb foreground template={{title: name, type: isPresentationFile(file) ? 'Slides' : 'Prototype', previewSrc: appendResourceQuery(projectFileUrl(projectId, file.name, workspaceContext), `v=${file.mtime}`)}} />
@@ -674,6 +667,7 @@ export function CanvasAssetsSidebar({active=true,projectId,projectName,rootDirNa
                     </Button>
                     {activeMenu === file.name ? (
                       <div className={styles.itemMenu} role="menu">
+                        {isImage && <Button type="button" role="menuitem" disabled={addingFile !== null} onClick={() => void addFileToCanvas(file)}><Icon name="plus" size={13}/>{t('entry.canvasAssets.addToCanvas')}</Button>}
                         <Button type="button" role="menuitem" onClick={() => {
                           setActiveMenu(null); setNotice(t('entry.canvasAssets.notice.savingPersonal'));
                           void saveToSource(file).then(() => setNotice(t('entry.canvasAssets.notice.savedPersonal'))).catch(error => setNotice(error instanceof Error ? error.message : t('entry.canvasAssets.notice.saveFailed')));
@@ -790,10 +784,6 @@ export function CanvasAssetsSidebar({active=true,projectId,projectName,rootDirNa
               <dt>{t('entry.canvasAssets.meta.size')}</dt><dd>{formatBytes(file.size) || '—'}</dd>
               <dt>{t('entry.canvasAssets.meta.modified')}</dt><dd>{formatModifiedTime(file.mtime)}</dd>
             </dl>
-            <Button type="button" className={styles.previewFinder} onClick={() => void revealInFinder(file.name)}>
-              <Icon name="folder-open" size={14} />
-              {t('entry.canvasAssets.finderOpen')}
-            </Button>
           </aside>
         );
       })(), document.body) : null}

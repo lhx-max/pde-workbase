@@ -5,9 +5,10 @@ import type { BindingStore } from '../storage/bindings.js';
 import type { AuditLog } from '../storage/audit-log.js';
 import type { AppEntitlementStore } from '../storage/app-entitlements.js';
 import { DocumentSyncJournal, type DocumentSyncEntry } from '../storage/document-sync-journal.js';
-import { appVisibleToTenant, currentRequestTenant } from '../tenant.js';
+import { appVisibleToTenant, currentRequestTenant, forwardedAuthorityHeaders } from '../tenant.js';
 import type { CanvasStateSnapshot, CanvasStateService } from './state.js';
 import { CanvasStateError } from './errors.js';
+import type { JsonStatePort } from '@ks-designai/app-cloud-state';
 type CanvasPort = { read(id: string): Promise<CanvasStateSnapshot>; writeTextMirror?: CanvasStateService['writeTextMirror'] };
 
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -19,9 +20,9 @@ interface ActionResult { instanceId?: string; content?: string; revision?: strin
 export function createDocSynchronizer(deps: {
   dataRoot: string; registry: AppRegistryStore; bindings: BindingStore; audit: AuditLog; entitlements: AppEntitlementStore;
   project: (id: string) => { teamId?: string; createdBy?: string; archivedAt?: number } | null | undefined;
-  retryIntervalMs?: number;
+  retryIntervalMs?: number; state?: JsonStatePort; requireVerifiedAuthority?: boolean;
 }) {
-  const journal = new DocumentSyncJournal(deps.dataRoot);
+  const journal = new DocumentSyncJournal(deps.dataRoot, deps.state);
   let canvas: CanvasPort | undefined;
   let timer: ReturnType<typeof setInterval> | undefined;
   const running = new Map<string, Promise<void>>();
@@ -39,15 +40,23 @@ export function createDocSynchronizer(deps: {
       ...(baseContent !== undefined ? { baseContent } : {}) });
   };
   const call = async (endpoint: string, entry: DocumentSyncEntry, suffix: string, input: unknown): Promise<ActionResult> => {
+    // Durable intents and journal mutations must reach storage before any
+    // outbound document call can act on them.
+    await deps.state?.flush();
+    const authority=forwardedAuthorityHeaders(endpoint);
+    if(deps.requireVerifiedAuthority){
+      const caller=currentRequestTenant();
+      if(!caller?.applicationInstanceId||caller.teamId!==entry.teamId||authority['x-mav-tenant']!==entry.teamId||authority['x-mav-application-instance-id']!==caller.applicationInstanceId||typeof authority['x-mav-sso-authorization']!=='string')throw new SyncFailure(503,'DOC_AUTHORITY_REQUIRED','Document delivery requires a fresh verified caller; retry explicitly after authentication');
+    }
     const response = await fetch(`${endpoint.replace(/\/+$/, '')}${suffix}`, {
-      method: 'POST', headers: { 'content-type': 'application/json', 'x-team-id': entry.teamId, 'x-user-id': entry.userId },
+      method: 'POST', redirect:'error', headers: { 'content-type': 'application/json', 'x-team-id': entry.teamId, 'x-user-id': entry.userId, ...authority },
       body: JSON.stringify({ input }), signal: AbortSignal.timeout(10000),
     });
     const text = await response.text();
     let body: { data?: { result?: ActionResult }; error?: { code?: string; message?: string; details?: Record<string, unknown> } };
     try { body = JSON.parse(text); }
-    catch { throw new SyncFailure(response.ok ? 502 : response.status, `DOC_HTTP_${response.status}`, `Doc HTTP ${response.status}: ${text.slice(0, 300)}`); }
-    if (!response.ok) throw new SyncFailure(response.status, body.error?.code ?? `DOC_HTTP_${response.status}`, body.error?.message ?? `Doc HTTP ${response.status}`, body.error?.details);
+    catch { throw new SyncFailure(response.ok ? 502 : response.status, `DOC_HTTP_${response.status}`, `Document service returned HTTP ${response.status} without a valid response`); }
+    if (!response.ok) {const code=typeof body.error?.code==='string'&&/^[A-Z][A-Z0-9_]{1,99}$/.test(body.error.code)?body.error.code:`DOC_HTTP_${response.status}`;throw new SyncFailure(response.status,code,`Document service refused synchronization (${code})`,body.error?.details);}
     if (!body.data?.result) throw new SyncFailure(502, 'DOC_INVALID_RESPONSE', 'Document service returned no result');
     return body.data.result;
   };
@@ -133,8 +142,12 @@ export function createDocSynchronizer(deps: {
           ...(typeof failure.details?.currentRevision === 'string' ? { documentRevision: failure.details.currentRevision } : {}) });
         deps.audit.record({ actor: { teamId: entry.teamId, userId: entry.userId }, action: 'doc.sync', appId: entry.appId,
           targetId: entry.nodeId, status: 'failed', summary: `${failure.code}: ${failure.message}` });
+        // The recorded failure must be durable before it propagates.
+        await deps.state?.flush();
         throw failure;
       }
+      // A resolved attempt leaves no journal mutation unflushed.
+      await deps.state?.flush();
     })();
     running.set(key, task);
     void task.finally(() => { if (running.get(key) === task) running.delete(key); }).catch(() => {});
@@ -169,7 +182,12 @@ export function createDocSynchronizer(deps: {
         if (caller.teamId !== entry.teamId) throw new CanvasStateError(403, 'TENANT_FORBIDDEN', 'Cannot retry another team’s document');
         journal.put({ ...entry, userId: caller.userId, updatedAt: Date.now() });
       }
-      await Promise.allSettled(entries.map(entry => attempt(entry.projectId, entry.nodeId)));
+      const settled = await Promise.allSettled(entries.map(entry => attempt(entry.projectId, entry.nodeId)));
+      await deps.state?.flush();
+      // Delivery failures stay journaled for later attempts; storage failures
+      // must propagate instead of reporting the retry as settled.
+      const storage = settled.find(result => result.status === 'rejected' && !(result.reason instanceof SyncFailure));
+      if (storage?.status === 'rejected') throw storage.reason;
     },
     async resolve(projectId: string, nodeId: string, choice: 'canvas' | 'document', expectedCanvasContent: string, expectedDocumentRevision: string) {
       const entry = journal.get(projectId, nodeId);
@@ -199,13 +217,32 @@ export function createDocSynchronizer(deps: {
         await attempt(projectId, nodeId);
       }
       deps.audit.record({ actor: caller, action: 'doc.sync.resolve', appId: entry.appId, targetId: entry.documentId, status: 'succeeded', summary: `Explicit ${choice} resolution` });
+      await deps.state?.flush();
     },
     start() {
       if (timer) return;
       stopped = false;
-      const tick = () => { if (!stopped) for (const entry of journal.list()) if (entry.status === 'pending' && entry.nextAttemptAt <= Date.now() && !running.has(JSON.stringify([entry.projectId, entry.nodeId]))) void attempt(entry.projectId, entry.nodeId).catch(() => {}); };
+      const report = (error: unknown) => console.warn('[document-sync] background storage failure', error);
+      const tick = () => {
+        if (stopped) return;
+        // Push enqueued mutations (e.g. confirmMirror) and surface flush failures.
+        void Promise.resolve(deps.state?.flush()).catch(report);
+        // Background delivery cannot borrow an old user's MA identity. Keep
+        // cloud intent durable and wait for an explicit authenticated retry.
+        if(deps.requireVerifiedAuthority)return;
+        try {
+          for (const entry of journal.list()) {
+            if (entry.status === 'pending' && entry.nextAttemptAt <= Date.now() && !running.has(JSON.stringify([entry.projectId, entry.nodeId]))) {
+              // Delivery failures are journaled and audited by attempt(); only
+              // non-delivery storage failures need reporting here.
+              void attempt(entry.projectId, entry.nodeId).catch(error => { if (!(error instanceof SyncFailure)) report(error); });
+            }
+          }
+        } catch (error) { report(error); }
+      };
       timer = setInterval(tick, deps.retryIntervalMs ?? 5000); timer.unref(); tick();
     },
-    async close() { stopped = true; if (timer) clearInterval(timer); timer = undefined; await Promise.allSettled([...running.values()]); },
+    async close() { stopped = true; if (timer) clearInterval(timer); timer = undefined; await Promise.allSettled([...running.values()]); await deps.state?.flush(); },
+    async flush() { await deps.state?.flush(); },
   });
 }

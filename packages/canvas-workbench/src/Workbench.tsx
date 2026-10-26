@@ -1,6 +1,7 @@
 'use client';
 
 import type { ProjectFileCanvasAddOptions } from '@bezier/contracts';
+import { openCanvasImageEditor } from './platform/image-app';
 
 import { workflowGroupRuns, activeWorkflowGroups, dismissedWorkflowNodeIds, workflowRunConnections, arrangeWorkflowMembers, workflowRunGroupId, workflowQuestionNodeId, workflowNodeOwners, reconcileWorkflowGroups, workflowGroupMoves, type WorkflowRunGroupLayout } from './workbench/workflow-run-group';
 import type { WorkflowCanvasRun } from '@bezier/contracts';
@@ -14,7 +15,7 @@ import { storyboardVersionAttachments, submitStoryboardVersion } from './workben
 import { applyCanvasImageReplacement } from './workbench/canvas-image-replacement';
 import { duplicateCanvasPage } from './workbench/canvas-page-duplication';
 import { commitCanvasImageEdit } from './workbench/canvas-image-edit';
-import { visualModelToNativeMediaModel } from './workbench/visual-model-routing';
+import { isVisualModelEnabled, visualModelToNativeMediaModel } from './workbench/visual-model-routing';
 import { failCanvasCutout, submitCanvasCutout } from './workbench/canvas-cutout-submission';
 import { canvasArtifactProjection, withCanvasResultHistory } from '@bezier/contracts';
 import { groupCandidateReason, planGroupGeometry, planGroupDissolve, type GroupMemberGeometry } from './workbench/canvas-group-operations';
@@ -48,6 +49,7 @@ import {
   platformFetch,
   projectFetch,
   projectFileUrl,
+  resolveCanvasImageSrc,
 } from './platform/api-base';
 import {
   submitAgentTask,
@@ -91,6 +93,7 @@ import {
 } from './workbench/connected-visual-draft';
 import { embedLegacyPrimaryImages } from './workbench/image-primary-state';
 import { recoverNativeImageOutput } from './workbench/native-media-recovery';
+import { persistImageTarget } from './workbench/image-submission-persistence';
 import {
   IpHand,
   IpMinus,
@@ -504,6 +507,10 @@ function FlowHome({
   artifactGenerationProgress?: CanvasArtifactGenerationResult[];
 }) {
   const uiHost = useCanvasUiHost();
+  // Flow reconciliation retains callbacks when serializable node data is unchanged.
+  // Read the latest host so connecting/replacing an App adapter takes effect.
+  const imageAppHostRef = React.useRef(uiHost?.openImageApp);
+  imageAppHostRef.current = uiHost?.openImageApp;
   const canvasLocale = useCanvasLocale();
   const shell = workbenchShell(canvasLocale);
   const x = workbenchShellExtra(canvasLocale);
@@ -1679,6 +1686,7 @@ function FlowHome({
     const addBasic = (nodeKind: CanvasBasicNodeKind, format?: 'html' | 'presentation') =>
       addBasicNode(nodeKind, format, position, position ? 'none' : 'forward', titleOverride);
     if (kind === 'sketch') return addBasic('sketch');
+    if (kind === 'browser') return addBasic('browser');
     const nodeId = kind === 'video'
         ? addBasic('video')
         : kind === 'text'
@@ -2639,10 +2647,14 @@ function FlowHome({
   }
 
   async function saveEditedImage(id: string, file: File, meta: { width: number; height: number }): Promise<void> {
+    const sourcePath = imagesRef.current.find(item => item.id === id)?.path;
+    const sourceProject = getCanvasHostContext().projectId;
+    if (!sourcePath) throw new Error(shell.errors.originalMissing);
     setImageEditorSaving(true);
     try {
       const uploaded = await uploadImageFile(file);
       const previous = imagesRef.current.find(item => item.id === id);
+      if (getCanvasHostContext().projectId !== sourceProject || previous?.path !== sourcePath) throw new Error('源图片已变化，未覆盖当前图片，请重新打开工具');
       const isShotVersion = previous?.path && basicNodes.some(node => node.storyboard?.shots.some(shot => ['first', 'last'].some(role => selectedStoryboardShotImage(storyboardFrame(shot, role as 'first' | 'last'), imagesRef.current)?.id === id)));
       const isAssetVersion = previous?.path && storyboardAssets.some(asset => asset.variants.some(variant => variant.referencePath === previous.path));
       if (isShotVersion) {
@@ -2872,11 +2884,12 @@ function FlowHome({
     const image = imagesRef.current.find(item => item.id === id);
     if (!image?.path && !image?.src) return;
     try {
+      const downloadUrl=image.path?imageFileUrl(image.path):resolveCanvasImageSrc(image.src!);
       if (uiHost?.downloadResource) {
-        await uiHost.downloadResource({ url: image.path ? imageFileUrl(image.path) : image.src!, fileName: image.path || image.name || 'image', nodeId: id });
+        await uiHost.downloadResource({ url: downloadUrl, fileName: image.path || image.name || 'image', nodeId: id });
         return;
       }
-      const response = await fetch(image.path ? imageFileUrl(image.path) : image.src!);
+      const response = await fetch(downloadUrl);
       if (!response.ok) throw new Error(shell.errors.downloadFailed);
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
@@ -2891,6 +2904,7 @@ function FlowHome({
   }
 
   function generateVisualFromImage(id: string, params: ContinueGenerateParams) {
+    if (!isVisualModelEnabled(params.models[0] ?? defaultVisualModel)) throw new Error(shell.errors.modelUnavailable);
     const image = imagesRef.current.find(item => item.id === id);
     if (!image?.path) {
       showImageToast(id, shell.errors.continueGenUnsupported);
@@ -3193,6 +3207,11 @@ function FlowHome({
   // These handlers must follow the latest project and canvas state. Caching them
   // on the first render captures the empty state before the sidecar is loaded.
   const imageCallbacks = {
+    onOpenApp: async (id: string) => {
+      const context = getCanvasHostContext();
+      await openCanvasImageEditor(context, id, imageAppHostRef.current,
+        () => getCanvasHostContext().projectId === context.projectId && imagesRef.current.some(image => image.id === id));
+    },
     referenceResources: images.filter(image => image.path && (!image.status || image.status === 'ready')).map(image => ({ id: image.id, name: image.name, path: image.path, src: image.src, kind: 'image' as const })),
     onUploadReference: uploadImageFile,
     onDraftChange: (id: string, draft: ContinueGenerateParams) => setImages(current => current.map(image => image.id === id ? { ...image, generationDraft: draft } : image)),
@@ -3200,6 +3219,16 @@ function FlowHome({
     onCropCommit: (id: string, file: File, meta: { width: number; height: number }) => saveEditedImage(id, file, meta),
     onAnnotationCommit: (id: string, file: File, meta: { width: number; height: number }) => saveAnnotatedImageAsDerivative(id, file, meta),
     onRotate: (id: string) => { void rotateImage(id, 90); },
+    onLayer: (id: string, direction: 'front'|'back'|'up'|'down') => history.run(() => setImages(current => {
+      const source = current.find(image => image.id === id); if (!source) return current;
+      const siblings = current.filter(image => image.groupId === source.groupId && !image.embeddedInSource)
+        .map((image,index) => ({image,index})).sort((a,b) => (a.image.zIndex ?? 0)-(b.image.zIndex ?? 0)||a.index-b.index).map(entry => entry.image);
+      const index = siblings.findIndex(image => image.id === id); if (index < 0) return current;
+      const target = direction === 'front' ? siblings.length-1 : direction === 'back' ? 0 : Math.max(0,Math.min(siblings.length-1,index+(direction==='up'?1:-1)));
+      siblings.splice(index,1); siblings.splice(target,0,source);
+      const ranks = new Map(siblings.map((image,rank) => [image.id,rank]));
+      return current.map(image => ranks.has(image.id) ? {...image,zIndex:ranks.get(image.id)!} : image);
+    })),
     onCutout: (id: string) => { void requestImageCutout(id); },
     onAddToChat: (id: string) => { void addImageToChat(id); },
     onSendAnnotatedToAI: (id: string, file: File, instruction: string) => sendAnnotatedToAI(id, file, instruction),
@@ -3700,10 +3729,14 @@ function FlowHome({
           embedInSource: lineage.embedInSource, parentImageId: lineage.parentImageId, parentGroupId: lineage.parentGroupId,
           models: [model], ratio: job.ratio, resolution, modelId, outputPath, startedAt: Date.now(),
         };
-        appendActiveImageTask(instance.id, tracked);
-        await syncImageTaskSlots(instance, nativeMediaTaskAsImageTask({ taskId: predictedTaskId, status: 'queued' }, tracked),
-          tracked.parentImageId, undefined, tracked.parentGroupId, () => true, tracked.embedInSource);
-        await flushCanvas();
+        await persistImageTarget(flushCanvas, async () => {
+          appendActiveImageTask(instance.id, tracked);
+          await syncImageTaskSlots(instance, nativeMediaTaskAsImageTask({ taskId: predictedTaskId, status: 'queued' }, tracked),
+            tracked.parentImageId, undefined, tracked.parentGroupId, () => true, tracked.embedInSource);
+        }, () => {
+          removeActiveImageTask(instance.id, predictedTaskId);
+          setImages(current => current.filter(image => image.taskId !== predictedTaskId || image.status === 'ready'));
+        });
         const targetId = `img-slot-media-${predictedTaskId}`;
         const target = (getCanvasSnapshot().workbenchImages as WorkbenchImage[]).find(image => image.id === targetId);
         if (!target) throw new Error(shell.errors.targetDeletedBeforeRun);
@@ -3828,6 +3861,21 @@ function FlowHome({
                     error: shell.errors.jobEndedNoOutput,
                   };
                 } else {
+                  // A failed pre-dispatch save in older clients left a predicted
+                  // task in the draft even though the server never accepted it.
+                  // Keep the draft, but release that phantom task's busy state.
+                  try { await flushCanvas(); }
+                  catch (error) {
+                    if ((error as { status?: number }).status === 409) {
+                      terminalTask = true;
+                      await syncImageTaskSlots(instance, nativeMediaTaskAsImageTask({
+                        taskId: tracked.taskId, status: 'failed',
+                        error: error instanceof Error ? error.message : shell.errors.queryImageJobFailed,
+                      }, tracked), tracked.parentImageId, tracked.business, tracked.parentGroupId,
+                      () => !disposed, tracked.embedInSource, tracked.replacement);
+                    }
+                    throw error;
+                  }
                   throw new Error(shell.errors.jobNotSynced);
                 }
               }

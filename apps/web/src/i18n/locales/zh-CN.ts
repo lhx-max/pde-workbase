@@ -8196,6 +8196,8 @@ export const zhCN: Dict = {
   "browserCollector.dragAria": "拖动 {name} 到画布",
   "browserCollector.imageAlt": "已采集图片",
   "browserCollector.addAria": "添加 {name} 到画布",
+  "entry.canvasAssets.addToCanvas": "添加到画布",
+  "entry.canvasAssets.addedToCanvas": "已添加到画布",
   "browserCollector.addTooltip": "添加到画布",
   "browserCollector.add": "添加",
   "browserCollector.saveAssetAria": "保存 {name} 到个人资产",

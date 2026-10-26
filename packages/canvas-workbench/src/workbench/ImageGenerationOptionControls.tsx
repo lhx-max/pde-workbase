@@ -20,7 +20,7 @@ export type ImageGenerationPopoverRenderProps = CanvasPopoverRenderProps;
 export type ImageGenerationPopoverRenderer = CanvasPopoverRenderer;
 
 function MiniMaxImageModelIcon() {
-  return <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.52 2 7.26 6.21 4.8 2.71 2.71 4.8 6.2 7.26 2 6.52v2.96l4.21-.74-3.5 2.46 2.1 2.09 2.45-3.5L6.52 14h2.96l-.74-4.21 2.46 3.5 2.09-2.1-3.5-2.45 4.21.74V6.52l-4.21.74 3.5-2.46-2.1-2.09-2.45 3.5L9.48 2H6.52Z" fill="currentColor" /></svg>;
+  return <svg width="16" height="16" style={{flexShrink: 0}} viewBox="0 0 16 16" aria-hidden="true"><path d="M6.52 2 7.26 6.21 4.8 2.71 2.71 4.8 6.2 7.26 2 6.52v2.96l4.21-.74-3.5 2.46 2.1 2.09 2.45-3.5L6.52 14h2.96l-.74-4.21 2.46 3.5 2.09-2.1-3.5-2.45 4.21.74V6.52l-4.21.74 3.5-2.46-2.1-2.09-2.45 3.5L9.48 2H6.52Z" fill="currentColor" /></svg>;
 }
 
 export function ImageGenerationOptionControls({

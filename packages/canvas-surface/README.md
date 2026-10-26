@@ -1,6 +1,6 @@
 # Standalone Canvas Surface
 
-`@ks-designai/canvas-surface@0.1.2` is an ESM library distribution of the
+`@ks-designai/canvas-surface@0.1.5` is an ESM library distribution of the
 existing canvas workbench, not a replacement implementation or an app server.
 Internal workspace runtime and type dependencies are closed inside this package.
 A consumer does **not** install the internal `@bezier/*` workspace packages.
@@ -8,7 +8,7 @@ A consumer does **not** install the internal `@bezier/*` workspace packages.
 ## Install and mount
 
 ```sh
-npm install /absolute/path/to/ks-designai-canvas-surface-0.1.2.tgz \
+npm install /absolute/path/to/ks-designai-canvas-surface-0.1.5.tgz \
   react@18.3.1 react-dom@18.3.1 @xyflow/react@12.8.5
 ```
 
@@ -74,6 +74,13 @@ URLs using the existing canvas contract; it does not convert that protocol into
 a different plugin-host protocol. Keep auth headers/resource authorization in
 host adapters and do not persist credentials into canvas state.
 
+The current source also exports `createMaCanvasTransport` for a host-provided MA
+credential getter, selected tenant and application instance. See
+`docs/tenant-cloud-integration.zh-CN.md` in the source repository for backend
+configuration and team card grants. This addition requires a new package release;
+the already published versions do not include it. Resource navigation still
+requires an authenticated host proxy or an explicit `resourceUrl` adapter.
+
 The existing implementation has module-level host adapters; simultaneous surfaces
 with different projects in one JS realm are not certified by this distribution.
 Unmount/flush/switch one active surface at a time. This package is the **canvas
@@ -110,6 +117,15 @@ proof; the host must perform its own integrated runtime acceptance.
 
 ## Provenance
 
+Local `0.1.3` adds the optional `CanvasUiHost.openImageApp(target)` navigation
+hook for native image cards. The canvas resolves a registered image App and the
+existing image after saving; the host owns navigation. Image App storage and
+detail UI are not included. An unconfigured hook reports unavailable. See
+`docs/image-app-handoff.zh-CN.md` in the source repository. This local build has
+not been published to the registry.
+
 Apache-2.0; see LICENSE and NOTICE. The build records the upstream extraction
 commit and current workspace source hashes in `dist/build-report.json` and
 preserves bundled third-party license texts in `dist/third-party-licenses/`.
+
+Local `0.1.5` revalidates context fields on every render, including when a host reuses a mutable context object. An application-version or identity change rebuilds the scoped transport; previous transports reject credentials and resource access. Equal context values preserve the transport and editor state.

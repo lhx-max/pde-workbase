@@ -37,7 +37,9 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    ".tmp/doc-sync-20261021-1346/types/**/*.ts",
+    ".tmp/doc-sync-20261021-1346/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

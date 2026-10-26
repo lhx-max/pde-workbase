@@ -9,9 +9,11 @@ export { CanvasWorkbenchSurface, default } from './CanvasWorkbenchSurface';
 export { createCanvasTaskSubmitter } from './platform/task-client';
 export { awaitCanvasGenerationBinding, flushCanvasForProject } from './platform/canvas-persistence';
 export { readCanvasSelection } from './platform/object-bridge';
+export type { CanvasImageEditorTarget } from '@bezier/contracts';
 export { overrideCanvasTextDeliveryInstruction } from './platform/canvas-text-delivery-instruction';
 export type { CanvasTaskClientOptions } from './platform/task-client';
 export type { CanvasHostContext, CanvasTransport } from './platform/api-base';
+export {createMaCanvasTransport} from './platform/ma-transport';
 export { localizeDaemonMessage } from './locales/daemon-messages';
 export { CanvasKindAvailability, useCanvasKindAvailability } from './platform/kind-availability';
 export { focusCanvasObject, prepareCanvasObject, failCanvasObject, readCanvasObject, continueCanvasObject, registerCanvasNavigator, revealCanvasObject } from './platform/object-bridge';
@@ -147,3 +149,7 @@ export { TextGenerationOptionControls } from './workbench/TextGenerationOptionCo
 export { VideoGenerationOptionControls } from './workbench/VideoGenerationOptionControls';export type { CardRenderProps, CardRenderer, CardPack, CardPackCard } from './workbench/card-registry';
 export { registerCardPack, cardRendererFor } from './workbench/card-registry';
 import './packs';
+
+export {createCanvasApp} from './platform/ma-app';
+export type {CanvasAppProps,CreateCanvasAppOptions,CanvasAppSurfaceCallbacks} from './platform/ma-app';
+export type {CanvasAppContext} from './platform/ma-context';

@@ -1,1 +1,1 @@
-.devin/skills/canvas-app-platform/SKILL.md
+.devin/skills/designai-app-platform/SKILL.md

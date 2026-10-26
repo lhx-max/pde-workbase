@@ -1,0 +1,12 @@
+{
+  "name" : "pde-agent",
+  "version" : "1.0.7",
+  "ks-meta" : {
+    "displayName" : "PDE Agent",
+    "platform" : [ "MyFlicker-Work模式" ],
+    "author" : {
+      "type" : "user",
+      "username" : [ "fengzhiliang" ]
+    }
+  }
+}

@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { closeSync, constants, fsyncSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import type { JsonStatePort } from '@ks-designai/app-cloud-state';
 
 export interface DocumentSyncEntry {
   projectId: string; nodeId: string; appId: string; teamId: string; userId: string;
@@ -39,16 +40,51 @@ function validateEntry(value: unknown, stored = true): DocumentSyncEntry {
   return entry;
 }
 
+const identityOf = (projectId: string, nodeId: string): string => JSON.stringify([projectId, nodeId]);
+const cloneJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+
+/** Cloud slot shape: { version: 1, entries: DocumentSyncEntry[] }. Every entry
+ * must validate and identities must be unique — anything else fails closed. */
+function validateSlot(value: unknown): DocumentSyncEntry[] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return corrupt();
+  const slot = value as { version?: unknown; entries?: unknown };
+  if (slot.version !== 1 || !Array.isArray(slot.entries)) return corrupt();
+  const seen = new Set<string>();
+  return slot.entries.map(raw => {
+    const entry = validateEntry(raw);
+    const identity = identityOf(entry.projectId, entry.nodeId);
+    if (seen.has(identity)) return corrupt();
+    seen.add(identity);
+    return entry;
+  });
+}
+
+/** Only whitelisted business fields ever reach durable storage; credentials or
+ * any other ad-hoc key can never be persisted. */
+function persistEntry(entry: DocumentSyncEntry): DocumentSyncEntry {
+  const clone: Record<string, unknown> = {};
+  for (const key of fields) {
+    const value = (entry as unknown as Record<string, unknown>)[key];
+    if (value !== undefined) clone[key] = value;
+  }
+  return clone as unknown as DocumentSyncEntry;
+}
+
 /** A durable intent per bound card. Payload is persisted BEFORE canvas commit;
  * delivery confirms that exact canvas revision/content exists before sending.
  * No credentials are persisted, only the authenticated actor identifiers. */
 export class DocumentSyncJournal {
   private readonly root: string;
   private readonly directory: string;
-  constructor(root: string) {
+  private readonly state: JsonStatePort | undefined;
+  constructor(root: string, state?: JsonStatePort) {
     if (!root || !path.isAbsolute(root)) throw new DocumentSyncJournalError(400, 'DOCUMENT_SYNC_STORAGE_INVALID', 'Document sync requires an explicit absolute data root');
+    this.state = state;
     this.root = path.resolve(root);
     this.directory = path.join(this.root, 'document-sync');
+    // With an injected state port the 'document-sync' slot is authoritative:
+    // no local file or directory is created, read, or imported.
+    if (state) return;
     try {
       this.assertEntry(this.root, true, true);
       mkdirSync(this.root, { recursive: true });
@@ -94,9 +130,21 @@ export class DocumentSyncJournal {
     try { fsyncSync(fd); } finally { closeSync(fd); }
   }
 
-  private filename(projectId: string, nodeId: string): string {
+  private identity(projectId: string, nodeId: string): string {
     if (!nonempty(projectId) || !nonempty(nodeId)) throw new DocumentSyncJournalError(400, 'DOCUMENT_SYNC_INVALID_INPUT', 'Document sync identity must be non-empty strings');
-    return createHash('sha256').update(JSON.stringify([projectId, nodeId])).digest('hex') + '.json';
+    return identityOf(projectId, nodeId);
+  }
+
+  private filename(projectId: string, nodeId: string): string {
+    return createHash('sha256').update(this.identity(projectId, nodeId)).digest('hex') + '.json';
+  }
+
+  /** Cloud read: an absent slot is a fresh namespace; present data must
+   * validate exactly. Returned rows are cloned so callers can never mutate
+   * the port's cached state. */
+  private readAll(): DocumentSyncEntry[] {
+    const value = this.state!.read('document-sync');
+    return value === undefined ? [] : cloneJson(validateSlot(value));
   }
 
   private readEntry(name: string, allowMissing = false): DocumentSyncEntry | undefined {
@@ -123,11 +171,25 @@ export class DocumentSyncJournal {
   }
 
   get(projectId: string, nodeId: string): DocumentSyncEntry | undefined {
+    if (this.state) {
+      const identity = this.identity(projectId, nodeId);
+      return this.readAll().find(entry => identityOf(entry.projectId, entry.nodeId) === identity);
+    }
     return this.readEntry(this.filename(projectId, nodeId), true);
   }
 
   put(entry: DocumentSyncEntry): void {
     validateEntry(entry, false);
+    if (this.state) {
+      // Reading first fails closed on a damaged slot, exactly as a damaged
+      // durable intent is never silently replaced.
+      const entries = this.readAll();
+      const identity = this.identity(entry.projectId, entry.nodeId);
+      const index = entries.findIndex(row => identityOf(row.projectId, row.nodeId) === identity);
+      if (index >= 0) entries[index] = entry; else entries.push(entry);
+      this.state.write('document-sync', { version: 1, entries: entries.map(persistEntry) });
+      return;
+    }
     // A new write must not silently replace a damaged durable intent.
     this.get(entry.projectId, entry.nodeId);
     const file = path.join(this.directory, this.filename(entry.projectId, entry.nodeId));
@@ -152,6 +214,7 @@ export class DocumentSyncJournal {
   }
 
   list(projectId?: string): DocumentSyncEntry[] {
+    if (this.state) return this.readAll().filter(entry => !projectId || entry.projectId === projectId);
     let names: string[];
     try { this.assertDirectories(); names = readdirSync(this.directory); }
     catch (error) { return this.storageFailure(error); }

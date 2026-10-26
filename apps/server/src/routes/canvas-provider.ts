@@ -16,15 +16,33 @@ export interface CanvasProviderOptions {
   providerLocalDevelopment?: boolean | undefined;
 }
 export interface RegisterCanvasProviderRoutesDeps extends CanvasProviderOptions {
+  verifiedActor?:(req:Request)=>TenantContext|undefined;
   canvasState: CanvasStateService;
-  registry: Pick<ProjectRegistry, 'get' | 'create'>;
+  registry: Pick<ProjectRegistry, 'get' | 'create'> & {
+    /** Optional durability barrier: registries that schedule persistence
+     * asynchronously (cloud metadata writes) are flushed before a create is
+     * acknowledged, so a reported success means the mapping actually landed. */
+    flush?(): Promise<void> | void;
+  };
   authorizeProjectRequest: (req: Request, res: Response, projectId: string,
     access: { mode: 'read' | 'write'; capability?: string }) => boolean | Promise<boolean>;
 }
 
 const actions = new Set(['canvas.create', 'canvas.read', 'canvas.operations', 'canvas.context']);
 const digest = (value: unknown): string => createHash('sha256').update(canonical(value)).digest('hex');
+/** Canonical Provider project id: `ma-` + the first 32 hex chars of the sha256
+ * over the canonical ['canvas', tenant, application, pid] tuple — 35 chars,
+ * inside the 36-char Appwrite documentId limit that the cloud registry and
+ * canvas persistence use for documentId. The stored canvasProvider mapping is
+ * still verified in full before the id is trusted, so a truncated-digest
+ * collision can never silently adopt another tuple's project. */
 export const canvasProviderProjectId = (tenantId: string, applicationId: string, providerInstanceId: string): string =>
+  `ma-${digest(['canvas', tenantId, applicationId, providerInstanceId]).slice(0, 32)}`;
+/** Legacy addressing only: pre-compact ids used the full 64-hex digest (67
+ * chars, over the Appwrite limit). Existing local mappings stay resolvable
+ * under identical validation, but the form is never assigned to new projects
+ * and is never migrated to the compact form. */
+export const legacyCanvasProviderProjectId = (tenantId: string, applicationId: string, providerInstanceId: string): string =>
   `ma-${digest(['canvas', tenantId, applicationId, providerInstanceId])}`;
 const object = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const bad = (message: string): never => { throw new CanvasStateError(400, 'PROVIDER_INVALID_REQUEST', message); };
@@ -93,28 +111,36 @@ export function registerCanvasProviderRoutes(app: Express, deps: RegisterCanvasP
   const lock = new ProjectSerialLock();
   app.post('/open-platform/v1/instances/:providerInstanceId/actions/:actionId', async (req, res) => {
     try {
-      requireLocal(req, deps.providerLocalDevelopment);
+      const verified=deps.verifiedActor?.(req);
+      if(!verified)requireLocal(req, deps.providerLocalDevelopment);
       const body = envelope(req);
+      if(verified&&(body.actor.tenantId!==verified.teamId||body.actor.userId!==verified.userId||body.applicationId!==verified.applicationId||body.applicationInstanceId!==verified.applicationInstanceId||body.providerInstanceId!==verified.providerInstanceId||body.bizId!==verified.bizId))throw new CanvasStateError(403,'PROVIDER_ACTOR_MISMATCH','Provider envelope does not match verified MA identity and instance');
       if (!actions.has(body.actionId)) throw new CanvasStateError(404, 'PROVIDER_ACTION_NOT_FOUND', 'Unknown canvas Provider action');
       if (body.actionId === 'canvas.operations') {
         if (body.expectedRevision === undefined) return bad('canvas.operations requires expectedRevision from canvas.read');
         if (!Array.isArray(body.input.operations)) return bad('input.operations must be an array');
         if (Object.keys(body.input).some(key => key !== 'operations')) return bad('canvas.operations only accepts input.operations; operationId/baseRevision are Provider-owned');
       }
-      const tenant: TenantContext = { teamId: body.actor.tenantId, userId: body.actor.userId };
+      const tenant: TenantContext = verified??{ teamId: body.actor.tenantId, userId: body.actor.userId };
       // Header/body ambiguity is rejected, rather than silently choosing an actor.
       if ((req.get('x-team-id') && req.get('x-team-id') !== tenant.teamId) || (req.get('x-user-id') && req.get('x-user-id') !== tenant.userId)) throw new CanvasStateError(403, 'PROVIDER_ACTOR_MISMATCH', 'Actor and local identity headers disagree');
       req.headers['x-team-id'] = tenant.teamId; req.headers['x-user-id'] = tenant.userId;
-      const projectId = canvasProviderProjectId(tenant.teamId, body.applicationId, body.providerInstanceId);
+      const canonicalId = canvasProviderProjectId(tenant.teamId, body.applicationId, body.providerInstanceId);
+      const legacyId = legacyCanvasProviderProjectId(tenant.teamId, body.applicationId, body.providerInstanceId);
       const readOnly = body.actionId === 'canvas.read' || body.actionId === 'canvas.context';
-      const response = await runWithRequestTenant(tenant, () => lock.run(projectId, async () => {
+      const response = await runWithRequestTenant(tenant, () => lock.run(canonicalId, async () => {
+        // Resolve before authorizing: an existing compact mapping wins; else an
+        // existing legacy full-digest mapping is reused under the same full
+        // validation; else the compact id is the create target. A read never
+        // creates, nothing is migrated, and no other pid is aliased.
+        let project = deps.registry.get(canonicalId) ?? deps.registry.get(legacyId);
+        const projectId = project?.id ?? canonicalId;
         // Existing authorizer must explicitly recognize the Provider create path.
         // Never create a project before it has accepted the request.
         if (!await deps.authorizeProjectRequest(req, res, projectId, { mode: readOnly ? 'read' : 'write', ...(!readOnly ? { capability: 'writeFiles' } : {}) })) {
           if (!res.headersSent) res.status(403).json({ error: { code: 'PROVIDER_FORBIDDEN', message: 'Project authorization denied' } });
           return undefined;
         }
-        let project = deps.registry.get(projectId);
         if (!project && body.actionId !== 'canvas.create') throw new CanvasStateError(404, 'PROVIDER_INSTANCE_NOT_FOUND', 'Provider instance not found');
         const mapping = { protocolVersion: '1.0', applicationId: body.applicationId, providerInstanceId: body.providerInstanceId, tenantId: tenant.teamId };
         if (project) {
@@ -130,6 +156,12 @@ export function registerCanvasProviderRoutes(app: Express, deps: RegisterCanvasP
           };
           project = deps.registry.create({ id: projectId, name, teamId: tenant.teamId, createdBy: tenant.userId, metadata });
         }
+        // A cloud registry schedules the mapping write asynchronously; a create
+        // ack — fresh or replayed — claims that mapping is durable, so the
+        // flush barrier runs before the new instance is read or acknowledged.
+        // A still-pending or failed earlier write surfaces here as 5xx instead
+        // of faking success.
+        if (body.actionId === 'canvas.create') await deps.registry.flush?.();
         const respond = (revision: number, summary: string, data: Record<string, unknown>): ProviderResponse => ({ protocolVersion: '1.0', actionId: body.actionId, providerInstanceId: body.providerInstanceId, revision: providerRevision(revision), summary: summary.slice(0, 2000), data: { canvasInstanceId: projectId, ...data } });
         if (body.actionId === 'canvas.operations') {
           // Scope by project and actor: a reused key cannot replay across tenants,

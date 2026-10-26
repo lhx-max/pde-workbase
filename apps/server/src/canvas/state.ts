@@ -54,6 +54,8 @@ export interface CanvasStateSnapshot {
 }
 
 export interface CanvasPatchOptions {
+  /** Server-only image App journal write; HTTP callers cannot supply this flag. */
+  imageAppWrite?: boolean;
   /** Client revision used to produce `changes`; retained for conflict evidence. */
   expectedRevision?: number;
   /** Previous values for changed keys, enabling a lossless three-way merge. */
@@ -114,9 +116,9 @@ export class CanvasStateService {
 
   private readonly imageAssets: AssetLibraryAdapter | undefined;
   private readonly textDocumentSynced: ((projectId: string, node: Record<string, unknown>, revision: number, baseContent?: string) => Promise<void>) | undefined;
-  private readonly documentNodesChanged: ((projectId: string, nodes: readonly Record<string, unknown>[]) => void) | undefined;
+  private readonly documentNodesChanged: ((projectId: string, nodes: readonly Record<string, unknown>[]) => void | Promise<void>) | undefined;
   private readonly documentQueues = new Map<string, Promise<void>>();
-  private readonly textDocumentPrepared: ((projectId: string, node: Record<string, unknown>, revision: number, baseContent?: string) => void) | undefined;
+  private readonly textDocumentPrepared: ((projectId: string, node: Record<string, unknown>, revision: number, baseContent?: string) => void | Promise<void>) | undefined;
   private readonly documentMirrorSaved: ((projectId: string, nodeId: string, docId: string, docRevision: string, content: string, path: string, canvasRevision: number) => void) | undefined;
   constructor(private readonly resolveProjectRoot: ResolveCanvasProjectRoot,
     private readonly readUsage?: (projectId: string) => import('@bezier/contracts').CanvasContextSummary['recentUsage'],
@@ -129,8 +131,8 @@ export class CanvasStateService {
        * bound editor App (doc) gets the fresh content — App store is truth. */
       textDocumentSynced?: (projectId: string, node: Record<string, unknown>, revision: number, baseContent?: string) => Promise<void>;
       /** Reconcile binding presence after any committed write path (including UI PATCH). */
-      documentNodesChanged?: (projectId: string, nodes: readonly Record<string, unknown>[]) => void;
-      textDocumentPrepared?: (projectId: string, node: Record<string, unknown>, revision: number, baseContent?: string) => void;
+      documentNodesChanged?: (projectId: string, nodes: readonly Record<string, unknown>[]) => void | Promise<void>;
+      textDocumentPrepared?: (projectId: string, node: Record<string, unknown>, revision: number, baseContent?: string) => void | Promise<void>;
       documentMirrorSaved?: (projectId: string, nodeId: string, docId: string, docRevision: string, content: string, path: string, canvasRevision: number) => void }) {
     this.imageAssets = imageAssets;
     this.persistence = storage?.persistence ?? new FileCanvasPersistence(resolveProjectRoot);
@@ -321,6 +323,9 @@ export class CanvasStateService {
       throw new CanvasStateError(400, 'CANVAS_INVALID_INPUT', 'state changes must be an object');
     }
     const keys = Object.keys(changes);
+    if (keys.some(key=>['workbenchImageReceipts','workbenchImageEdits','workbenchImageReferenceReceipts'].includes(key)) && !options.imageAppWrite) {
+      throw new CanvasStateError(403, 'IMAGE_RECEIPT_READ_ONLY', 'Image receipts can only be written through image App actions');
+    }
     if (keys.length === 0) {
       throw new CanvasStateError(400, 'CANVAS_INVALID_INPUT', 'state changes must be a non-empty object');
     }
@@ -347,7 +352,9 @@ export class CanvasStateService {
         // An absent collection is the same empty collection observed by a new canvas.
         // Do not turn a first insertion into a false conflict, but still reject
         // concurrent same-ID inserts once a remote collection actually exists.
-        const remote = next[key] ?? (hasBase && Array.isArray(options.base?.[key]) ? [] : undefined);
+        const base = options.base?.[key];
+        const emptyDefault = base === null ? null : Array.isArray(base) ? [] : isRecord(base) && Object.keys(base).length === 0 ? {} : undefined;
+        const remote = next[key] ?? (hasBase ? emptyDefault : undefined);
         if (hasBase && !sameJson(options.base?.[key], value)) assertCanvasMerge(options.base?.[key], value, remote, key);
         const merged = hasBase
           ? mergeCanvasValue(options.base?.[key], value, remote)
@@ -374,6 +381,104 @@ export class CanvasStateService {
     });
   }
 
+  /** Attaches an immutable remote Image App asset as a native workbench image.
+   * Canvas persists only layout, the verified reference metadata, an
+   * authenticated preview URL and its own durable receipt; Image workspaces,
+   * config, jobs, edits and bytes stay remotely authoritative. Remote
+   * resolution happens inside the commit lock after local checks; a completed
+   * receipt replays the original ack without recreating a deleted node. */
+  async attachImageReference(
+    projectId: string,
+    input: ImageReferenceAttachInput,
+    options: { resolve: () => Promise<ImageReferenceResolution> },
+  ): Promise<ImageReferenceAttachResult> {
+    if (!input || typeof input !== 'object' || Array.isArray(input))
+      throw new CanvasStateError(400, 'CANVAS_INVALID_INPUT', 'image reference input must be an object');
+    for (const key of Object.keys(input))
+      if (!IMAGE_REFERENCE_INPUT_FIELDS.includes(key as never)) throw new CanvasStateError(400, 'CANVAS_INVALID_INPUT', 'image reference input carries unknown fields');
+    if (typeof input.applicationInstanceId !== 'string' || !MA_ID_PATTERN.test(input.applicationInstanceId))
+      throw new CanvasStateError(400, 'CANVAS_INVALID_INPUT', 'image application instance id is invalid');
+    if (typeof input.workspaceId !== 'string' || !IMAGE_WORKSPACE_ID.test(input.workspaceId))
+      throw new CanvasStateError(400, 'CANVAS_INVALID_INPUT', 'image workspace id is invalid');
+    if (typeof input.assetId !== 'string' || !IMAGE_ASSET_ID.test(input.assetId))
+      throw new CanvasStateError(400, 'CANVAS_INVALID_INPUT', 'image asset id is invalid');
+    if (typeof input.x !== 'number' || !Number.isFinite(input.x) || typeof input.y !== 'number' || !Number.isFinite(input.y))
+      throw new CanvasStateError(400, 'CANVAS_INVALID_INPUT', 'image reference coordinates must be finite numbers');
+    if (input.name !== undefined && (typeof input.name !== 'string' || input.name.length > 500))
+      throw new CanvasStateError(400, 'CANVAS_INVALID_INPUT', 'image reference name is invalid');
+    if (typeof input.expectedRevision !== 'number' || !Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0)
+      throw new CanvasStateError(400, 'CANVAS_INVALID_INPUT', 'image reference expectedRevision must be a safe integer');
+    if (typeof input.idempotencyKey !== 'string' || !/^[^\x00-\x1f\x7f]{1,128}$/u.test(input.idempotencyKey))
+      throw new CanvasStateError(400, 'CANVAS_INVALID_INPUT', 'image reference idempotency key must be 1-128 characters');
+    if (typeof input.callerScope !== 'string' || !/^[0-9a-f]{64}$/.test(input.callerScope))
+      throw new CanvasStateError(400, 'CANVAS_INVALID_INPUT', 'image reference callerScope must be a sha256 hex digest');
+    if (!options || typeof options.resolve !== 'function')
+      throw new CanvasStateError(400, 'CANVAS_INVALID_INPUT', 'an image reference resolver is required');
+    const snapshot = await this.withDocumentChanges(projectId, async (): Promise<CanvasStateSnapshot & { imageReferenceResult?: ImageReferenceAttachResult }> => {
+      const current = await this.persistence.load(projectId);
+      const rawReferenceReceipts=current.state.workbenchImageReferenceReceipts;
+      if(rawReferenceReceipts!==undefined&&(!rawReferenceReceipts||typeof rawReferenceReceipts!=='object'||Array.isArray(rawReferenceReceipts)))throw new CanvasStateError(503,'IMAGE_REFERENCE_JOURNAL_CORRUPT','Image reference receipts are invalid');
+      const receipts = recordValue(current.state.workbenchImageReferenceReceipts);
+      const journalKey = `${input.callerScope}:${input.idempotencyKey}`;
+      const fingerprint = createHash('sha256').update(canonical({
+        applicationInstanceId: input.applicationInstanceId, workspaceId: input.workspaceId, assetId: input.assetId,
+        x: input.x, y: input.y, name: input.name ?? null, expectedRevision: input.expectedRevision,
+        callerScope: input.callerScope, idempotencyKey: input.idempotencyKey, baseRevision: input.expectedRevision,
+      })).digest('hex');
+      const stored = recordValue(receipts[journalKey]);
+      if (Object.hasOwn(receipts,journalKey)) {
+        if(!/^[0-9a-f]{64}$/.test(String(stored.fingerprint??''))||!/^ir[0-9a-f]{32}$/.test(String(stored.receiptId??''))||!/^imref-[0-9a-f]{32}$/.test(String(stored.nodeId??''))||!Number.isSafeInteger(stored.revision)||Number(stored.revision)<0)throw new CanvasStateError(503,'IMAGE_REFERENCE_JOURNAL_CORRUPT','Image reference receipt is invalid');
+        try{assertImageAssetReference(stored.reference);}catch{throw new CanvasStateError(503,'IMAGE_REFERENCE_JOURNAL_CORRUPT','Image reference receipt resource is invalid');}
+        if (stored.fingerprint !== fingerprint)
+          throw new CanvasStateError(409, 'IMAGE_REFERENCE_KEY_CONFLICT', 'idempotency key was used with a different image reference input');
+        return {
+          state: current.state, revision: current.revision,
+          imageReferenceResult: {
+            receiptId: String(stored.receiptId), nodeId: String(stored.nodeId),
+            revision: Number(stored.revision),
+            reference: recordValue(stored.reference) as unknown as ImageAssetReference,
+            replayed: true,
+          },
+        };
+      }
+      if (input.expectedRevision !== current.revision)
+        throw new CanvasStateError(409, 'CANVAS_REVISION_CONFLICT', 'canvas revision conflict', { expectedRevision: input.expectedRevision, actualRevision: current.revision });
+      const nodeId = `imref-${createHash('sha256').update(canonical({projectId,key:input.idempotencyKey,callerScope: input.callerScope, applicationInstanceId: input.applicationInstanceId, workspaceId: input.workspaceId, assetId: input.assetId })).digest('hex').slice(0, 32)}`;
+      const nodes = [...arrayRecords(current.state.workbenchImages), ...arrayRecords(current.state.workbenchBasicNodes), ...arrayRecords(current.state.workbenchInstances)];
+      if (nodes.some(node => node.id === nodeId))
+        throw new CanvasStateError(409, 'IMAGE_REFERENCE_COLLISION', 'deterministic image reference node id already exists');
+      const resolved = await options.resolve();
+      const reference = assertImageAssetReference(resolved?.reference);
+      if (reference.applicationInstanceId !== input.applicationInstanceId || reference.workspaceId !== input.workspaceId || reference.assetId !== input.assetId)
+        throw new CanvasStateError(409, 'IMAGE_REFERENCE_MISMATCH', 'resolved image reference does not match the requested asset');
+      const preview = typeof resolved?.previewUrl === 'function' ? resolved.previewUrl(nodeId) : '';
+      if (typeof preview !== 'string' || preview.length > 2000 || !preview.startsWith(`/api/projects/${encodeURIComponent(projectId)}/`))
+        throw new CanvasStateError(502, 'IMAGE_REFERENCE_PREVIEW_INVALID', 'preview URL must stay on this project’s authenticated canvas route');
+      if (Object.keys(receipts).length >= 256)
+        throw new CanvasStateError(503, 'IMAGE_RECEIPT_CAPACITY', 'image reference receipt capacity reached');
+      const revision = Math.max(current.revision + 1, Date.now());
+      const receiptId = `ir${createHash('sha256').update(canonical({ projectId, journalKey, nodeId, reference })).digest('hex').slice(0, 32)}`;
+      const entry = {
+        id: nodeId, x: input.x, y: input.y, name: input.name ?? reference.assetId,
+        src: preview, status: 'ready',
+        naturalWidth: reference.width, naturalHeight: reference.height,
+        imageReference: reference,
+      };
+      const next = {
+        ...current.state,
+        workbenchImages: [...arrayRecords(current.state.workbenchImages), entry],
+        workbenchImageReferenceReceipts: {
+          ...receipts,
+          [journalKey]: { receiptId, nodeId, revision, fingerprint, reference, createdAt: new Date().toISOString() },
+        },
+      };
+      await this.commit(projectId, { ...current, state: next, revision });
+      recordCanvasStateChanges(projectId, current.state, next, revision, await this.persistence.describe(projectId));
+      return { state: next, revision, imageReferenceResult: { receiptId, nodeId, revision, reference, replayed: false } };
+    });
+    return snapshot.imageReferenceResult as ImageReferenceAttachResult;
+  }
+
   /** Receipts live in the canvas document so operation replay survives process restarts. */
   async operation(projectId: string, operationId: string): Promise<CanvasOperationReceipt> {
     const stored = (await this.persistence.load(projectId)).operations ?? {};
@@ -393,9 +498,9 @@ export class CanvasStateService {
     const createdCardKinds = request.operations
       .filter(op => op.type === 'node.create')
       .map(op => (op as { node?: { kind?: string } }).node?.kind)
-      .filter((kind): kind is string => typeof kind === 'string' && kind.startsWith('card.'));
+      .filter((kind): kind is string => typeof kind === 'string');
     if (createdCardKinds.length) {
-      const unregistered = createdCardKinds.filter(kind => !isCardKindRegistered(kind));
+      const unregistered = createdCardKinds.filter(kind => kind.startsWith('card.') && !isCardKindRegistered(kind));
       if (unregistered.length) throw new CanvasStateError(403, 'CARD_KIND_NOT_ALLOWED', `Card kind not provided by any mounted pack: ${unregistered.join(', ')}`);
       const allowed = this.cardEntitlement ? await this.cardEntitlement(projectId) : undefined;
       if (allowed && !allowed.includes('*')) {
@@ -413,6 +518,16 @@ export class CanvasStateService {
         return { ok: true, state: current.state, revision: current.revision, receipt: previous.receipt, replayed: true };
       }
       if (request.baseRevision !== current.revision && !request.expectedState) throw new CanvasStateError(409, 'CANVAS_REVISION_CONFLICT', 'Canvas revision changed', { actualRevision: current.revision });
+      const granted=await this.cardEntitlement?.(projectId);
+      if(granted&&!granted.includes('*')){
+        const nodes=[...records(current.state.workbenchBasicNodes),...records(current.state.workbenchImages).map(node=>({...node,kind:'image'}))];
+        for(const op of request.operations){
+          const record=op as Record<string,unknown>;
+          const target=nodes.find(node=>node.id===record.nodeId);
+          const kind=typeof target?.kind==='string'?target.kind:op.type.startsWith('image.')?'image':op.type.startsWith('video.')?'video':op.type.startsWith('sketch.')?'sketch':op.type.startsWith('storyboard.')?'storyboard':op.type==='document.create'?(record.format==='presentation'?'presentation':'page'):undefined;
+          if(kind&&!granted.includes(kind))throw new CanvasStateError(403,'CARD_KIND_NOT_ALLOWED',`Card kind not granted for this scope: ${kind}`);
+        }
+      }
       const draft = { ...current.state, ...request.expectedState };
       const applied = await applyCanvasOperations(draft, request.operations as (CanvasOperation | CanvasCardOperation)[], journal, effects.image, effects.document, effects.sketch, effects.video, effects.card);
       for (const key of applied.keys) {
@@ -498,6 +613,7 @@ export class CanvasStateService {
   }
 
   private async commit(projectId: string, blob: CanvasStoredBlob, changedOperationId?: string): Promise<void> {
+    await this.assertAllowedChanges(projectId,(await this.persistence.load(projectId)).state,blob.state);
     if (this.textDocumentPrepared) {
       const previous = arrayRecords((await this.persistence.load(projectId)).state.workbenchBasicNodes);
       for (const node of arrayRecords(blob.state.workbenchBasicNodes)) {
@@ -507,11 +623,24 @@ export class CanvasStateService {
         // Persist intent first. The worker will never deliver until this exact
         // committed content exists; a crash cannot turn an uncommitted draft
         // into a document write.
-        this.textDocumentPrepared(projectId, { ...node, projectFilePath: canvasTextDocumentPath(node) }, blob.revision,
+        await this.textDocumentPrepared(projectId, { ...node, projectFilePath: canvasTextDocumentPath(node) }, blob.revision,
           typeof old?.text === 'string' ? old.text : undefined);
       }
     }
     await this.persistence.commit(projectId, blob, changedOperationId);
+  }
+
+  private async assertAllowedChanges(projectId:string,previous:CanvasState,next:CanvasState):Promise<void>{
+    const allowed=await this.cardEntitlement?.(projectId);
+    if(!allowed||allowed.includes('*'))return;
+    for(const [key,fallback] of [['workbenchBasicNodes',''],['workbenchImages','image']] as const){
+      const old=records(previous[key]);
+      for(const node of records(next[key])){
+        const kind=typeof node.kind==='string'?node.kind:fallback;
+        if(kind&&!allowed.includes(kind)&&!old.some(item=>item.id===node.id&&equal(item,node)))
+          throw new CanvasStateError(403,'CARD_KIND_NOT_ALLOWED',`Card kind not granted for this scope: ${kind}`);
+      }
+    }
   }
 
   /** App callbacks run AFTER releasing the transaction lock: a doc write can
@@ -527,7 +656,7 @@ export class CanvasStateService {
     const pending = (this.documentQueues.get(projectId) ?? Promise.resolve()).then(async () => {
       const latestState = (await this.persistence.load(projectId)).state;
       const latest = arrayRecords(latestState.workbenchBasicNodes);
-      this.documentNodesChanged?.(projectId, [...latest, ...arrayRecords(latestState.workbenchImages)]);
+      await this.documentNodesChanged?.(projectId, [...latest, ...arrayRecords(latestState.workbenchImages)]);
       for (const node of after) {
         if (node.kind !== 'text' || typeof node.text !== 'string') continue;
         const previous = before.find(old => old.id === node.id && old.kind === 'text');
@@ -550,6 +679,10 @@ export class CanvasStateService {
 
   async readFileSnapshot(projectId: string, logicalPath: string): Promise<{ content: string | null; revision: number; path: string }> {
     const documentPath = normalizeSafeProjectFilePath(logicalPath);
+    if (/\.(?:sketch\.json|excalidraw)$/i.test(documentPath) && this.sketchStore) {
+      const sketch = await this.sketchStore(projectId);
+      if (sketch) return {content:await sketch.readSketch(documentPath),revision:(await this.persistence.load(projectId)).revision,path:documentPath};
+    }
     return this.lock.run(projectId, async () => ({ content: await this.content.read(projectId, documentPath),
       revision: (await this.persistence.load(projectId)).revision, path: documentPath }));
   }
@@ -559,6 +692,9 @@ export class CanvasStateService {
   async writeTextMirror(projectId: string, logicalPath: string, content: string, expectedRevision?: number,
     options: { nodeId?: string; docId?: string; documentRevision?: string; baseContent?: string; sourceRevision?: number } = {}): Promise<CanvasStateSnapshot> {
     const documentPath = normalizeSafeProjectFilePath(logicalPath);
+    if (/\.(?:sketch\.json|excalidraw)$/i.test(documentPath) && this.sketchStore && await this.sketchStore(projectId)) {
+      throw new CanvasStateError(428,'SKETCH_WRITE_CHANNEL_REQUIRED','Edit sketch content through the versioned sketch App action; canvas files are a read projection');
+    }
     const docOrigin = !!(options.docId && options.documentRevision);
     if (options.documentRevision && options.documentRevision !== createHash('sha256').update(content).digest('hex')) throw new CanvasStateError(400, 'CANVAS_BAD_DOCUMENT_VERSION', 'Document revision does not match its body');
     const write = async () => {
@@ -587,7 +723,7 @@ export class CanvasStateService {
       const next = { ...current.state, ...(targets.length ? { workbenchBasicNodes: nodes.map(node => node.id === targets[0]!.id ? { ...node, text: content, projectFilePath: actualPath } : node) } : {}) };
       const revision = changed ? Math.max(current.revision + 1, Date.now()) : current.revision;
       if (changed) {
-        if (docOrigin) await this.persistence.commit(projectId, { ...current, state: next, revision });
+        if (docOrigin) {await this.assertAllowedChanges(projectId,current.state,next);await this.persistence.commit(projectId, { ...current, state: next, revision });}
         else await this.commit(projectId, { ...current, state: next, revision });
         recordCanvasStateChanges(projectId, current.state, next, revision, await this.persistence.describe(projectId));
       }
@@ -849,4 +985,56 @@ async function atomicWrite(target: string, content: string): Promise<void> {
 function isMissing(error: unknown): boolean {
   return error instanceof Error && 'code' in error
     && (error as NodeJS.ErrnoException).code === 'ENOENT';
+}
+
+/** MA-published identifier rule for scope fields on image references. */
+const MA_ID_PATTERN = /^[A-Za-z0-9_.:-]{1,160}$/;
+const IMAGE_WORKSPACE_ID = /^iw[0-9a-f]{32}$/;
+const IMAGE_ASSET_ID = /^ia[0-9a-f]{34}$/;
+const IMAGE_REFERENCE_MIMES = new Set(['image/png', 'image/jpeg', 'image/webp']);
+const IMAGE_REFERENCE_INPUT_FIELDS = ['applicationInstanceId', 'workspaceId', 'assetId', 'x', 'y', 'name', 'expectedRevision', 'idempotencyKey', 'callerScope'] as const;
+const IMAGE_REFERENCE_FIELDS = ['applicationId', 'applicationInstanceId', 'providerInstanceId', 'teamId', 'bizId', 'workspaceId', 'assetId', 'mime', 'sha256', 'width', 'height'] as const;
+
+/** Strict remote Image asset reference; verified metadata only, never bytes. */
+export type ImageAssetReference = import('@bezier/contracts').CanvasImageReference;
+export interface ImageReferenceResolution {
+  reference: ImageAssetReference;
+  previewUrl: (nodeId: string) => string;
+}
+export interface ImageReferenceAttachInput {
+  applicationInstanceId: string;
+  workspaceId: string;
+  assetId: string;
+  x: number;
+  y: number;
+  name?: string;
+  expectedRevision: number;
+  idempotencyKey: string;
+  /** Opaque trusted sha256 of the FULL verified source identity; supplied only
+   * by the server route, never by the browser. */
+  callerScope: string;
+}
+export interface ImageReferenceAttachResult {
+  receiptId: string;
+  nodeId: string;
+  revision: number;
+  reference: ImageAssetReference;
+  replayed: boolean;
+}
+
+function assertImageAssetReference(value: unknown): ImageAssetReference {
+  const fail = () => { throw new CanvasStateError(502, 'IMAGE_REFERENCE_INVALID', 'resolved image reference metadata is invalid'); };
+  const record = recordValue(value);
+  if (!Object.keys(record).length) fail();
+  for (const key of Object.keys(record)) if (!(IMAGE_REFERENCE_FIELDS as readonly string[]).includes(key)) fail();
+  for (const key of ['applicationId', 'applicationInstanceId', 'providerInstanceId', 'teamId', 'bizId'] as const)
+    if (typeof record[key] !== 'string' || !MA_ID_PATTERN.test(record[key] as string)) fail();
+  if (typeof record.workspaceId !== 'string' || !IMAGE_WORKSPACE_ID.test(record.workspaceId)) fail();
+  if (typeof record.assetId !== 'string' || !IMAGE_ASSET_ID.test(record.assetId)) fail();
+  if (typeof record.mime !== 'string' || !IMAGE_REFERENCE_MIMES.has(record.mime)) fail();
+  if (typeof record.sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(record.sha256)) fail();
+  const { width, height } = record as { width?: unknown; height?: unknown };
+  if (typeof width !== 'number' || typeof height !== 'number' || !Number.isSafeInteger(width) || !Number.isSafeInteger(height)
+    || width < 1 || height < 1 || width * height > 32_000_000) fail();
+  return record as unknown as ImageAssetReference;
 }

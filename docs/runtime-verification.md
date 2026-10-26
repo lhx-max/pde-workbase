@@ -4,7 +4,7 @@
 
 ## 双入口并发、复制与持久恢复（2026-10-21，本轮验收中）
 
-Node 24.19.0 / pnpm 10.33.2。本轮实现正文 hash 版本与有界三方合并、冲突双方保留、画布 commit 前持久 intent、文档持久 mirror queue、版本化显式解决、独立复制和条件解绑。规范见 [正文同步增补合同](<../.devin/skills/canvas-app-platform/docs/document-sync-contract.zh-CN.md>)，产品归属和限制见 [关系及状态报告](<canvas-doc-relationship-and-status.zh-CN.md>)。
+Node 24.19.0 / pnpm 10.33.2。本轮实现正文 hash 版本与有界三方合并、冲突双方保留、画布 commit 前持久 intent、文档持久 mirror queue、版本化显式解决、独立复制和条件解绑。规范见 [正文同步增补合同](<../.devin/skills/designai-app-platform/docs/document-sync-contract.zh-CN.md>)，产品归属和限制见 [关系及状态报告](<canvas-doc-relationship-and-status.zh-CN.md>)。
 
 截至本轮最近检查：
 

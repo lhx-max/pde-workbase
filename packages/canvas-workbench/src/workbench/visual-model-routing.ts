@@ -5,7 +5,6 @@ import { getCanvasMediaSnapshot, type CanvasMediaSnapshot } from '../platform/me
 
 export function isVisualModelEnabled(model: string): boolean {
   if (model === 'gpt2' || model === 'gemini') return false;
-  if (model === 'codex-gpt2') return isCanvasMediaProviderEnabled('codex');
   const entry = getCanvasMediaSnapshot().image.find(item => item.id === model);
   return Boolean(entry && isCanvasMediaProviderEnabled(entry.provider));
 }

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import type { ExecutionSnapshot } from '@bezier/contracts';
+import type { CanvasImageEditorTarget } from '@bezier/contracts';
 import type { ImageReferencePickerProps, ArtifactTemplatePickerProps, CanvasDesignSystemPickerProps } from '../workbench/ImageReferenceResourcePicker';
 
 /** Product data and ownership stay in the host; the canvas only describes selection. */
@@ -136,6 +137,8 @@ export type CanvasResourceGridRenderer = (
 ) => React.ReactNode;
 
 export interface CanvasUiHost {
+  /** Registered image App detail navigation; no image storage is owned by this hook. */
+  openImageApp?: (target: CanvasImageEditorTarget) => Promise<void>;
   renderWorkflowQuestion?: (snapshot: import("@bezier/contracts").WorkflowCanvasRun) => React.ReactNode;
   /** Read at submission only. Never store this result in canvas or workflow state. */
   getExecutionSnapshot?: () => ExecutionSnapshot;
@@ -151,7 +154,7 @@ export interface CanvasUiHost {
   renderArtifactThumbnail?: (props: { src: string; title: string; presentation: boolean }) => React.ReactNode;
   cacheArtifactThumbnail?: (src: string, frame: HTMLIFrameElement) => void;
   /** A file-backed sketch preview. The host owns its existing editor and persistence. */
-  renderSketch?: (props: { path: string; selected: boolean; pending: boolean; onCreated: () => Promise<void> }) => React.ReactNode;
+  renderSketch?: (props: { path: string; nodeId?: string; selected: boolean; pending: boolean; onCreated: () => Promise<void> }) => React.ReactNode;
   duplicateSketch?: (source: string, destination: string, pending: boolean) => Promise<void>;
   /** Host-owned library export; the canvas does not own a product asset database. */
   saveResource?: (input: { name: string; filename: string; sourcePath?: string; nodeId?: string; mime: string; text?: string; url?: string; kind?: 'text' | 'script' | 'slides' | 'webpage' | 'motion' }) => Promise<void>;

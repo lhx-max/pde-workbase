@@ -1,6 +1,8 @@
 /* ─── image asset node ─────────────────────────── */
 .canvas-workbench .image-asset-node {
   --kind: var(--visual-accent);
+  /* Image display width is the content width; borders must not consume it. */
+  box-sizing: content-box;
   position: relative;
   border-radius: var(--r-md);
   background: var(--bg-surface);

@@ -18,7 +18,8 @@
     "@bezier/host": "workspace:*",
     "@bezier/workbench-core": "workspace:*",
     "@bezier/workbench-ui": "workspace:*",
-    "@doc/surface": "file:../../vendor/doc-surface-0.1.1.tgz",
+    "@doc/surface": "file:../../vendor/ks-designai-doc-surface-0.1.3.303f0ab524c5.tgz",
+    "@sketch/surface": "file:../../vendor/ks-designai-sketch-surface-0.1.4.27229d617a95.tgz",
     "@excalidraw/excalidraw": "0.18.1",
     "@floating-ui/react": "0.27.20",
     "@radix-ui/react-separator": "1.1.15",
@@ -43,7 +44,8 @@
     "react-dom": "18.3.1",
     "shiki": "4.1.0",
     "tailwind-merge": "3.6.0",
-    "turndown": "7.2.2"
+    "turndown": "7.2.2",
+    "@ks-designai/browser-surface": "file:../../vendor/ks-designai-browser-surface-0.2.1.tgz"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.0",
@@ -57,7 +59,8 @@
     "postcss": "8.5.15",
     "tailwindcss": "4.3.0",
     "typescript": "5.9.3",
-    "vitest": "4.1.6"
+    "vitest": "4.1.6",
+    "@ks-designai/image-card-pack": "file:../../vendor/ks-designai-image-card-pack-0.9.0.10897ded1d68.tgz"
   },
   "engines": {
     "node": "~24"

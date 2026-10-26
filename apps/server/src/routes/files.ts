@@ -20,9 +20,12 @@ import { subscribe } from '../project-watchers.js';
 import type { ProjectRegistry } from '../storage/project-registry.js';
 import { assertProjectPathHasNoSymlinks } from '../project-layout.js';
 import { ownsTenantAsset, tenantOf } from '../tenant.js';
+import { sendCloudImage } from '../media/cloud-image-response.js';
+import type { ImageFileStorage } from '../storage/cloud-image-files.js';
 
 export interface RegisterProjectFileRoutesDeps {
   registry: ProjectRegistry;
+  imageFiles?: ImageFileStorage;
   canvasFiles?: { renameSketchFile(projectId: string, from: string, to: string): Promise<void> };
   /** Omitted only for deliberately local, single-user deployments. */
   authorize?: (req: Request, res: Response, projectId: string, options: { mode: 'read' | 'write'; allowNavigationQuery?: boolean }) => boolean | Promise<boolean>;
@@ -141,6 +144,12 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
         const parsed = path.posix.parse(safe);
         let result: Awaited<ReturnType<typeof writeProjectFile>> | undefined;
         const buffer = await fs.promises.readFile(f.path);
+        if (ctx.imageFiles && f.mimetype.startsWith('image/')) {
+          const relative = `${prefix}${parsed.name}-${randomUUID().slice(0, 8)}${parsed.ext}`;
+          const saved = await ctx.imageFiles.write(project.id, relative, buffer, f.mimetype);
+          out.push({ ...saved, originalName });
+          continue;
+        }
         for (let index = 0; index < 10_000; index++) {
           const name = prefix + (index === 0 ? safe : `${parsed.name}-${index}${parsed.ext}`);
           try {
@@ -813,6 +822,10 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
         const seen = new Set(files.map(file => file.name));
         for (const file of remote) if (!seen.has(file.name)) files.push(file);
       }
+      if (ctx.imageFiles) {
+        const seen = new Set(files.map(file => file.name));
+        for (const file of await ctx.imageFiles.list(project.id)) if (!seen.has(file.name)) files.push(file);
+      }
       /** @type {import('@bezier/contracts').ProjectFilesResponse} */
       const body = { files };
       res.json(body);
@@ -1099,6 +1112,15 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
       if (req.headers.origin === 'null') {
         res.header('Access-Control-Allow-Origin', '*');
       }
+      if (ctx.sketchDocuments && /\.(?:sketch\.json|excalidraw)$/i.test(relPath)) {
+        const scene=await ctx.sketchDocuments.read(relPath);
+        if(typeof scene==='string'){
+          res.set('Cache-Control','private, no-store').type('application/json; charset=utf-8').send(scene);
+          return;
+        }
+        if(scene===null)return sendApiError(res,404,'FILE_NOT_FOUND','Sketch is not present in its App storage');
+      }
+      if (await sendCloudImage(req, res, ctx.imageFiles, projectId, relPath)) return;
       const meta = await resolveProjectFilePath(
         PROJECTS_DIR,
         projectId,
@@ -1609,6 +1631,7 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
         }
       }
       // Stream originals (especially videos) instead of buffering the whole file.
+      if (await sendCloudImage(req, res, ctx.imageFiles, projectId, fileSplat)) return;
       await sendProjectFile(req, res, projectId, fileSplat, project?.metadata, undefined, undefined, true);
     } catch (err: any) {
       const status = err && err.code === 'ENOENT' ? 404 : 400;

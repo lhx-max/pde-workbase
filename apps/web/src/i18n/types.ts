@@ -8406,6 +8406,8 @@ export interface Dict {
   'browserCollector.dragAria': string;
   'browserCollector.imageAlt': string;
   'browserCollector.addAria': string;
+  'entry.canvasAssets.addToCanvas': string;
+  'entry.canvasAssets.addedToCanvas': string;
   'browserCollector.addTooltip': string;
   'browserCollector.add': string;
   'browserCollector.saveAssetAria': string;

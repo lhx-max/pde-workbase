@@ -6,7 +6,7 @@ import { basename, join, resolve } from 'node:path';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { CanvasStateService } from '../src/canvas/state.js';
 import { createProjectRegistry } from '../src/storage/project-registry.js';
-import { canvasProviderProjectId, registerCanvasProviderRoutes, type RegisterCanvasProviderRoutesDeps } from '../src/routes/canvas-provider.js';
+import { canvasProviderProjectId, legacyCanvasProviderProjectId, registerCanvasProviderRoutes, type RegisterCanvasProviderRoutesDeps } from '../src/routes/canvas-provider.js';
 import { currentRequestTenant, tenantOf } from '../src/tenant.js';
 import { createCanvasServer, type CanvasServer, type CanvasServerOptions } from '../src/server.js';
 import { AppEntitlementStore } from '../src/storage/app-entitlements.js';
@@ -279,4 +279,102 @@ it('rejects archived writes and unsupported actions rather than pretending succe
   registry.archive(created.json.data.canvasInstanceId);
   expect((await call(base, 'canvas.operations', { expectedRevision: 1, input: { operations: [operation()] } })).status).toBe(409);
   for (const action of ['canvas.rename', 'canvas.delete', 'canvas.duplicate', 'node.create']) expect((await call(base, action)).status).toBe(404);
+});
+
+const validMapping = { protocolVersion: '1.0', applicationId: 'app-canvas', providerInstanceId: 'pid-1', tenantId: 'team-a' };
+const seedProviderProject = (id: string, mapping: Record<string, unknown>, name: string) => registry.create({
+  id, name, teamId: 'team-a', createdBy: 'alice',
+  metadata: { kind: 'other', canvasProvider: mapping, canvasProviderCreation: { applicationVersion: '0.1.0', applicationInstanceId: 'ai-1' } } as NonNullable<Parameters<typeof registry.create>[0]['metadata']>,
+});
+
+it('derives a stable 35-char canonical id inside the Appwrite documentId limit, scoped by the full tuple', async () => {
+  const id = canvasProviderProjectId('team-a', 'app-canvas', 'pid-1');
+  expect(id).toMatch(/^ma-[a-f0-9]{32}$/); expect(id).toHaveLength(35); expect(id.length).toBeLessThanOrEqual(36);
+  expect(id).toBe(canvasProviderProjectId('team-a', 'app-canvas', 'pid-1'));
+  const distinct = new Set([id,
+    canvasProviderProjectId('team-b', 'app-canvas', 'pid-1'),
+    canvasProviderProjectId('team-a', 'app-other', 'pid-1'),
+    canvasProviderProjectId('team-a', 'app-canvas', 'pid-2')]);
+  expect(distinct.size).toBe(4);
+  const legacy = legacyCanvasProviderProjectId('team-a', 'app-canvas', 'pid-1');
+  expect(legacy).toMatch(/^ma-[a-f0-9]{64}$/); expect(legacy).toHaveLength(67);
+  expect(legacy.startsWith(id)).toBe(true);
+});
+
+it('keeps an existing legacy full-digest mapping readable and reusable without creating a compact project', async () => {
+  const legacy = legacyCanvasProviderProjectId('team-a', 'app-canvas', 'pid-1');
+  seedProviderProject(legacy, validMapping, 'Legacy canvas');
+  const base = await start();
+  const read = await call(base, 'canvas.read');
+  expect(read.status).toBe(200); expect(read.json.data.canvasInstanceId).toBe(legacy); expect(read.json.data.name).toBe('Legacy canvas');
+  const applied = await call(base, 'canvas.operations', { expectedRevision: 1, input: { operations: [operation()] } });
+  expect(applied.status).toBe(200);
+  const replay = await call(base, 'canvas.create', { requestId: 'r2', idempotencyKey: 'k2', input: { name: 'ignored' } });
+  expect(replay.status).toBe(200); expect(replay.json.data.canvasInstanceId).toBe(legacy);
+  expect(registry.list()).toHaveLength(1);
+  expect(registry.get(canvasProviderProjectId('team-a', 'app-canvas', 'pid-1'))).toBeNull();
+});
+
+it('fails closed on a conflicting or absent legacy mapping before any mutation or compact fallback', async () => {
+  const legacy = legacyCanvasProviderProjectId('team-a', 'app-canvas', 'pid-1');
+  seedProviderProject(legacy, { ...validMapping, tenantId: 'team-b' }, 'Foreign row');
+  // A name-shaped squat without provider metadata is never claimable either.
+  registry.create({ id: legacyCanvasProviderProjectId('team-a', 'app-canvas', 'pid-2'), name: 'pid-1', teamId: 'team-a' });
+  const base = await start();
+  for (const action of ['canvas.create', 'canvas.read']) {
+    const result = await call(base, action);
+    expect(result.status).toBe(403); expect(result.json.error?.code).toBe('PROVIDER_MAPPING_FORBIDDEN');
+  }
+  expect((await call(base, 'canvas.create', { providerInstanceId: 'pid-2' })).status).toBe(403);
+  expect(registry.list()).toHaveLength(2);
+  expect(registry.get(legacy)?.name).toBe('Foreign row');
+  expect(registry.get(canvasProviderProjectId('team-a', 'app-canvas', 'pid-1'))).toBeNull();
+  expect(registry.get(canvasProviderProjectId('team-a', 'app-canvas', 'pid-2'))).toBeNull();
+});
+
+it('prefers the compact canonical mapping when valid compact and legacy rows both exist', async () => {
+  const compact = canvasProviderProjectId('team-a', 'app-canvas', 'pid-1');
+  seedProviderProject(legacyCanvasProviderProjectId('team-a', 'app-canvas', 'pid-1'), validMapping, 'Legacy');
+  seedProviderProject(compact, validMapping, 'Compact');
+  const read = await call(await start(), 'canvas.read');
+  expect(read.status).toBe(200); expect(read.json.data.canvasInstanceId).toBe(compact); expect(read.json.data.name).toBe('Compact');
+});
+
+it('never creates on a read of a missing instance', async () => {
+  const base = await start();
+  const result = await call(base, 'canvas.read');
+  expect(result.status).toBe(404); expect(result.json.error?.code).toBe('PROVIDER_INSTANCE_NOT_FOUND');
+  expect(registry.list()).toHaveLength(0);
+  expect(registry.get(canvasProviderProjectId('team-a', 'app-canvas', 'pid-1'))).toBeNull();
+  expect(registry.get(legacyCanvasProviderProjectId('team-a', 'app-canvas', 'pid-1'))).toBeNull();
+});
+
+it('holds the create ack behind the registry flush barrier', async () => {
+  let release!: () => void; let flushCalls = 0;
+  const gate = new Promise<void>(done => { release = done; });
+  const base = await start({ registry: {
+    get: id => registry.get(id), create: input => registry.create(input),
+    flush: async () => { flushCalls += 1; await gate; },
+  } });
+  let responded = false;
+  const pending = call(base, 'canvas.create').then(result => { responded = true; return result; });
+  await vi.waitFor(() => expect(flushCalls).toBe(1));
+  await new Promise<void>(done => setImmediate(done));
+  expect(responded).toBe(false);
+  release();
+  const result = await pending;
+  expect(result.status).toBe(200);
+  expect(result.json.data.canvasInstanceId).toBe(canvasProviderProjectId('team-a', 'app-canvas', 'pid-1'));
+});
+
+it('returns 5xx and never acks success when the flush barrier fails', async () => {
+  const flush = vi.fn(async (): Promise<void> => { throw new Error('cloud metadata write failed'); });
+  const base = await start({ registry: { get: id => registry.get(id), create: input => registry.create(input), flush } });
+  const result = await call(base, 'canvas.create');
+  expect(result.status).toBe(500); expect(result.json.error?.code).toBe('PROVIDER_STORAGE_ERROR'); expect(result.json.data).toBeUndefined();
+  // The local row exists, but a failed flush keeps replayed creates failing
+  // instead of reporting a durable instance.
+  const replay = await call(base, 'canvas.create', { requestId: 'retry', idempotencyKey: 'retry' });
+  expect(replay.status).toBe(500);
+  expect(flush).toHaveBeenCalledTimes(2);
 });

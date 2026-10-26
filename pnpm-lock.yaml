@@ -48,6 +48,15 @@ importers:
       '@bezier/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@ks-designai/app-authority':
+        specifier: workspace:*
+        version: link:../../packages/app-authority
+      '@ks-designai/app-cloud-state':
+        specifier: workspace:*
+        version: link:../../packages/app-cloud-state
+      '@ks-designai/image-card-pack':
+        specifier: file:../../vendor/ks-designai-image-card-pack-0.9.0.10897ded1d68.tgz
+        version: file:vendor/ks-designai-image-card-pack-0.9.0.10897ded1d68.tgz(@types/node@24.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       cheerio:
         specifier: 1.2.0
         version: 1.2.0
@@ -107,20 +116,26 @@ importers:
         specifier: workspace:*
         version: link:../../packages/workbench-ui
       '@doc/surface':
-        specifier: file:../../vendor/doc-surface-0.1.1.tgz
-        version: file:vendor/doc-surface-0.1.1.tgz(@floating-ui/dom@1.8.0)(@tiptap/pm@3.30.0)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: file:../../vendor/ks-designai-doc-surface-0.1.3.303f0ab524c5.tgz
+        version: '@ks-designai/doc-surface@file:vendor/ks-designai-doc-surface-0.1.3.303f0ab524c5.tgz(@floating-ui/dom@1.8.0)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)'
       '@excalidraw/excalidraw':
         specifier: 0.18.1
         version: 0.18.1(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@floating-ui/react':
         specifier: 0.27.20
         version: 0.27.20(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@ks-designai/browser-surface':
+        specifier: file:../../vendor/ks-designai-browser-surface-0.2.1.tgz
+        version: file:vendor/ks-designai-browser-surface-0.2.1.tgz(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@radix-ui/react-separator':
         specifier: 1.1.15
         version: 1.1.15(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@radix-ui/react-slot':
         specifier: 1.3.3
         version: 1.3.3(@types/react@18.3.28)(react@18.3.1)
+      '@sketch/surface':
+        specifier: file:../../vendor/ks-designai-sketch-surface-0.1.4.27229d617a95.tgz
+        version: '@ks-designai/sketch-surface@file:vendor/ks-designai-sketch-surface-0.1.4.27229d617a95.tgz(@excalidraw/excalidraw@0.18.1(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)'
       '@tiptap/core':
         specifier: 3.30.0
         version: 3.30.0(@tiptap/pm@3.30.0)
@@ -185,6 +200,9 @@ importers:
         specifier: 7.2.2
         version: 7.2.2
     devDependencies:
+      '@ks-designai/image-card-pack':
+        specifier: file:../../vendor/ks-designai-image-card-pack-0.9.0.10897ded1d68.tgz
+        version: file:vendor/ks-designai-image-card-pack-0.9.0.10897ded1d68.tgz(@types/node@20.19.39)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tailwindcss/postcss':
         specifier: 4.3.0
         version: 4.3.0
@@ -248,13 +266,49 @@ importers:
       '@bezier/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
-      jimp:
-        specifier: ^1.6.0
-        version: 1.6.1
+      '@ks-designai/app-authority':
+        specifier: workspace:*
+        version: link:../../packages/app-authority
+      '@ks-designai/app-cloud-state':
+        specifier: workspace:*
+        version: link:../../packages/app-cloud-state
+      sharp:
+        specifier: 0.35.3
+        version: 0.35.3(@types/node@24.12.2)
     devDependencies:
+      '@types/node':
+        specifier: 24.12.2
+        version: 24.12.2
       esbuild:
         specifier: 0.28.0
         version: 0.28.0
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.1.6
+        version: 4.1.6(@types/node@24.12.2)(jsdom@29.1.1)(vite@8.3.4(@types/node@24.12.2)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))
+
+  packages/app-authority:
+    devDependencies:
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.1.6
+        version: 4.1.6(@types/node@26.6.5)(jsdom@29.1.1)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))
+
+  packages/app-cloud-state:
+    devDependencies:
+      '@types/node':
+        specifier: 24.12.2
+        version: 24.12.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.1.6
+        version: 4.1.6(@types/node@24.12.2)(jsdom@29.1.1)(vite@8.3.4(@types/node@24.12.2)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))
 
   packages/canvas-card-sdk: {}
 
@@ -352,6 +406,9 @@ importers:
       '@bezier/workbench-ui':
         specifier: workspace:*
         version: link:../workbench-ui
+      '@ks-designai/image-card-pack':
+        specifier: file:../../vendor/ks-designai-image-card-pack-0.9.0.10897ded1d68.tgz
+        version: file:vendor/ks-designai-image-card-pack-0.9.0.10897ded1d68.tgz(@types/node@26.6.5)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       lucide-react:
         specifier: 0.468.0
         version: 0.468.0(@types/react@18.3.28)(react@18.3.1)
@@ -663,13 +720,6 @@ packages:
   '@csstools/css-tokenizer@4.0.2':
     resolution: {integrity: sha512-OoKoR0f76dCY666JlcbhmVTs2drYj1GUXZTYTcbUgJjh9Nv41aFfZ21bPQTERm5+L5cBDo466NltB2lplS5GBw==}
     engines: {node: '>=20.19.0'}
-
-  '@doc/surface@file:vendor/doc-surface-0.1.1.tgz':
-    resolution: {integrity: sha512-WL4X4cNKNOk556w+Q0HzPTlAvm5F97xLIWADVltBYDYkseiprpWMhi3UXiixiSnsRj9l1/WGjWyQXtKujF/ZXw==, tarball: file:vendor/doc-surface-0.1.1.tgz}
-    version: 0.1.1
-    peerDependencies:
-      react: ^18.3.1
-      react-dom: ^18.3.1
 
   '@emnapi/runtime@1.11.3':
     resolution: {integrity: sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA==}
@@ -1325,6 +1375,40 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@ks-designai/browser-surface@file:vendor/ks-designai-browser-surface-0.2.1.tgz':
+    resolution: {integrity: sha512-/UnZqRDsx47ijKDT1rPrcfhus4n0J2VWIbOgHH++9wL0Z0vo4rRCHIXaUmPeCZxIv9b5yzoKyHYRh0rovElnIQ==, tarball: file:vendor/ks-designai-browser-surface-0.2.1.tgz}
+    version: 0.2.1
+    peerDependencies:
+      react: 18.3.1
+      react-dom: 18.3.1
+
+  '@ks-designai/doc-surface@file:vendor/ks-designai-doc-surface-0.1.3.303f0ab524c5.tgz':
+    resolution: {integrity: sha512-aB5HpaWvz5AksMFM0ameVKHlMdMNNphgNqbs7WN3wl66dyt/wCEsgNCnM1WjTxefsYUiD6Ul7sJ+PfpU6S0sTw==, tarball: file:vendor/ks-designai-doc-surface-0.1.3.303f0ab524c5.tgz}
+    version: 0.1.3
+    peerDependencies:
+      react: ^18.3.1
+      react-dom: ^18.3.1
+
+  '@ks-designai/image-card-pack@file:vendor/ks-designai-image-card-pack-0.9.0.10897ded1d68.tgz':
+    resolution: {integrity: sha512-bjOn9Bu6moYRkTwTB+1mcW98ho88Xk0BVtY6asnhtHKS2RgHInhlL0MQm8TcZnOpbx4Pe/JgDlSbgMGKVJkp4Q==, tarball: file:vendor/ks-designai-image-card-pack-0.9.0.10897ded1d68.tgz}
+    version: 0.9.0
+    engines: {node: ~24}
+    hasBin: true
+    peerDependencies:
+      react: 18.3.1
+      react-dom: 18.3.1
+    bundledDependencies:
+      - '@ks-designai/app-cloud-state'
+      - '@ks-designai/app-authority'
+
+  '@ks-designai/sketch-surface@file:vendor/ks-designai-sketch-surface-0.1.4.27229d617a95.tgz':
+    resolution: {integrity: sha512-nEOAKuEgJwMUJ09cw1pjja4Sf4imnjy2TPaOwic5l3A6L6AYTD2dDgOn/OVFuW8+naxONYiuyWG9i+7JUB7wZQ==, tarball: file:vendor/ks-designai-sketch-surface-0.1.4.27229d617a95.tgz}
+    version: 0.1.4
+    peerDependencies:
+      '@excalidraw/excalidraw': ^0.18.0
+      react: ^18.3.1
+      react-dom: ^18.3.1
 
   '@mermaid-js/parser@0.6.3':
     resolution: {integrity: sha512-lnjOhe7zyHjc+If7yT4zoedx2vo4sHaTmtkl1+or8BRTnCtDmcTpAjpzDSfCZrshM5bCoz0GyidzadJAH1xobA==}
@@ -2370,6 +2454,86 @@ packages:
   '@radix-ui/rect@1.1.3':
     resolution: {integrity: sha512-JtyZR+mqgBibTo8xea3B6ZRmzZiM/YeVBtUkas6zMuXjAlfIFIW2FgqeM9eLyvEaYX66vr6DJMK+4U6LV0KhNw==}
 
+  '@resvg/resvg-js-android-arm-eabi@2.6.2':
+    resolution: {integrity: sha512-FrJibrAk6v29eabIPgcTUMPXiEz8ssrAk7TXxsiZzww9UTQ1Z5KAbFJs+Z0Ez+VZTYgnE5IQJqBcoSiMebtPHA==}
+    engines: {node: '>= 10'}
+    cpu: [arm]
+    os: [android]
+
+  '@resvg/resvg-js-android-arm64@2.6.2':
+    resolution: {integrity: sha512-VcOKezEhm2VqzXpcIJoITuvUS/fcjIw5NA/w3tjzWyzmvoCdd+QXIqy3FBGulWdClvp4g+IfUemigrkLThSjAQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [android]
+
+  '@resvg/resvg-js-darwin-arm64@2.6.2':
+    resolution: {integrity: sha512-nmok2LnAd6nLUKI16aEB9ydMC6Lidiiq2m1nEBDR1LaaP7FGs4AJ90qDraxX+CWlVuRlvNjyYJTNv8qFjtL9+A==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@resvg/resvg-js-darwin-x64@2.6.2':
+    resolution: {integrity: sha512-GInyZLjgWDfsVT6+SHxQVRwNzV0AuA1uqGsOAW+0th56J7Nh6bHHKXHBWzUrihxMetcFDmQMAX1tZ1fZDYSRsw==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@resvg/resvg-js-linux-arm-gnueabihf@2.6.2':
+    resolution: {integrity: sha512-YIV3u/R9zJbpqTTNwTZM5/ocWetDKGsro0SWp70eGEM9eV2MerWyBRZnQIgzU3YBnSBQ1RcxRZvY/UxwESfZIw==}
+    engines: {node: '>= 10'}
+    cpu: [arm]
+    os: [linux]
+
+  '@resvg/resvg-js-linux-arm64-gnu@2.6.2':
+    resolution: {integrity: sha512-zc2BlJSim7YR4FZDQ8OUoJg5holYzdiYMeobb9pJuGDidGL9KZUv7SbiD4E8oZogtYY42UZEap7dqkkYuA91pg==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@resvg/resvg-js-linux-arm64-musl@2.6.2':
+    resolution: {integrity: sha512-3h3dLPWNgSsD4lQBJPb4f+kvdOSJHa5PjTYVsWHxLUzH4IFTJUAnmuWpw4KqyQ3NA5QCyhw4TWgxk3jRkQxEKg==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [musl]
+
+  '@resvg/resvg-js-linux-x64-gnu@2.6.2':
+    resolution: {integrity: sha512-IVUe+ckIerA7xMZ50duAZzwf1U7khQe2E0QpUxu5MBJNao5RqC0zwV/Zm965vw6D3gGFUl7j4m+oJjubBVoftw==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@resvg/resvg-js-linux-x64-musl@2.6.2':
+    resolution: {integrity: sha512-UOf83vqTzoYQO9SZ0fPl2ZIFtNIz/Rr/y+7X8XRX1ZnBYsQ/tTb+cj9TE+KHOdmlTFBxhYzVkP2lRByCzqi4jQ==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  '@resvg/resvg-js-win32-arm64-msvc@2.6.2':
+    resolution: {integrity: sha512-7C/RSgCa+7vqZ7qAbItfiaAWhyRSoD4l4BQAbVDqRRsRgY+S+hgS3in0Rxr7IorKUpGE69X48q6/nOAuTJQxeQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [win32]
+
+  '@resvg/resvg-js-win32-ia32-msvc@2.6.2':
+    resolution: {integrity: sha512-har4aPAlvjnLcil40AC77YDIk6loMawuJwFINEM7n0pZviwMkMvjb2W5ZirsNOZY4aDbo5tLx0wNMREp5Brk+w==}
+    engines: {node: '>= 10'}
+    cpu: [ia32]
+    os: [win32]
+
+  '@resvg/resvg-js-win32-x64-msvc@2.6.2':
+    resolution: {integrity: sha512-ZXtYhtUr5SSaBrUDq7DiyjOFJqBVL/dOBN7N/qmi/pO0IgiWW/f/ue3nbvu9joWE5aAKDoIzy/CxsY0suwGosQ==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [win32]
+
+  '@resvg/resvg-js@2.6.2':
+    resolution: {integrity: sha512-xBaJish5OeGmniDj9cW5PRa/PtmuVU3ziqrbr5xJj901ZDN4TosrVaNZpEiLZAxdfnhAe7uQ7QFWfjPe9d9K2Q==}
+    engines: {node: '>= 10'}
+
   '@rolldown/binding-android-arm-eabi@1.2.13':
     resolution: {integrity: sha512-Vu/NICrgdRvUOeaJZIyB2FP63s6fO/4ud5l8dXmxDx9yDyn+mN0y+gsvsVviSli+T361Aqo0h46EuMoobrwawA==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -2982,6 +3146,10 @@ packages:
 
   '@upsetjs/venn.js@2.0.0':
     resolution: {integrity: sha512-WbBhLrooyePuQ1VZxrJjtLvTc4NVfpOyKx0sKqioq9bX1C1m7Jgykkn8gLrtwumBioXIqam8DLxp88Adbue6Hw==}
+
+  '@visioncortex/vtracer@1.0.0-alpha.4':
+    resolution: {integrity: sha512-Hhi+vfG4ealLH1m9alrWo1lM00cWFfur4zeLEcNtzrYUjeEYTgukLNfvOXmuaGe2adugu+jl9o9IUzqHuqFO9g==}
+    engines: {node: '>=16'}
 
   '@vitest/expect@4.1.6':
     resolution: {integrity: sha512-7EHDquPthALSV0jhhjgEW8FXaviMx7rSqu8W6oqCoAuOhKov814P99QDV1pxMA3QPv21YudvJngIhjrNI4opLg==}
@@ -5210,6 +5378,18 @@ packages:
   zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
+  '@ks-designai/image-card-pack@file:vendor/ks-designai-image-card-pack-0.9.6.6d86f008db70.tgz':
+    resolution: {integrity: sha512-efFj5pInENhJjIXXJ6KxctBxO0QWLy5JOicwzSvGpr4+RiDj2GUlEHMCl9kfcDwljmN94GbY+G6RemLJHWjoHA==, tarball: file:vendor/ks-designai-image-card-pack-0.9.6.6d86f008db70.tgz}
+    version: 0.9.6
+    engines: {node: ~24}
+    hasBin: true
+    peerDependencies:
+      react: 18.3.1
+      react-dom: 18.3.1
+    bundledDependencies:
+      - '@ks-designai/app-cloud-state'
+      - '@ks-designai/app-authority'
+
 snapshots:
 
   '@adobe/css-tools@4.5.0': {}
@@ -5328,26 +5508,6 @@ snapshots:
       css-tree: 3.2.1
 
   '@csstools/css-tokenizer@4.0.2': {}
-
-  '@doc/surface@file:vendor/doc-surface-0.1.1.tgz(@floating-ui/dom@1.8.0)(@tiptap/pm@3.30.0)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
-    dependencies:
-      '@tiptap/core': 3.30.0(@tiptap/pm@3.30.0)
-      '@tiptap/extension-text-align': 3.30.0(@tiptap/core@3.30.0(@tiptap/pm@3.30.0))
-      '@tiptap/react': 3.30.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.30.0(@tiptap/pm@3.30.0))(@tiptap/pm@3.30.0)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@tiptap/starter-kit': 3.30.0
-      docx: 9.13.0
-      dompurify: 3.4.2
-      lucide-react: 0.468.0(@types/react@18.3.28)(react@18.3.1)
-      micromark: 4.0.2
-      micromark-extension-gfm: 3.0.0
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
-    transitivePeerDependencies:
-      - '@floating-ui/dom'
-      - '@tiptap/pm'
-      - '@types/react'
-      - '@types/react-dom'
-      - supports-color
 
   '@emnapi/runtime@1.11.3':
     dependencies:
@@ -5961,6 +6121,75 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
+
+  '@ks-designai/browser-surface@file:vendor/ks-designai-browser-surface-0.2.1.tgz(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+
+  '@ks-designai/doc-surface@file:vendor/ks-designai-doc-surface-0.1.3.303f0ab524c5.tgz(@floating-ui/dom@1.8.0)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@tiptap/core': 3.30.0(@tiptap/pm@3.30.0)
+      '@tiptap/extension-bubble-menu': 3.30.0(@tiptap/core@3.30.0(@tiptap/pm@3.30.0))(@tiptap/pm@3.30.0)
+      '@tiptap/extension-floating-menu': 3.30.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.30.0(@tiptap/pm@3.30.0))(@tiptap/pm@3.30.0)
+      '@tiptap/extension-text-align': 3.30.0(@tiptap/core@3.30.0(@tiptap/pm@3.30.0))
+      '@tiptap/pm': 3.30.0
+      '@tiptap/react': 3.30.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.30.0(@tiptap/pm@3.30.0))(@tiptap/pm@3.30.0)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@tiptap/starter-kit': 3.30.0
+      docx: 9.13.0
+      dompurify: 3.4.2
+      lucide-react: 0.468.0(@types/react@18.3.28)(react@18.3.1)
+      micromark: 4.0.2
+      micromark-extension-gfm: 3.0.0
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+    transitivePeerDependencies:
+      - '@floating-ui/dom'
+      - '@types/react'
+      - '@types/react-dom'
+      - supports-color
+
+  '@ks-designai/image-card-pack@file:vendor/ks-designai-image-card-pack-0.9.0.10897ded1d68.tgz(@types/node@20.19.39)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@resvg/resvg-js': 2.6.2
+      '@visioncortex/vtracer': 1.0.0-alpha.4
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      sharp: 0.35.3(@types/node@20.19.39)
+    transitivePeerDependencies:
+      - '@types/node'
+
+  '@ks-designai/image-card-pack@file:vendor/ks-designai-image-card-pack-0.9.0.10897ded1d68.tgz(@types/node@24.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@resvg/resvg-js': 2.6.2
+      '@visioncortex/vtracer': 1.0.0-alpha.4
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      sharp: 0.35.3(@types/node@24.0.0)
+    transitivePeerDependencies:
+      - '@types/node'
+
+  '@ks-designai/image-card-pack@file:vendor/ks-designai-image-card-pack-0.9.0.10897ded1d68.tgz(@types/node@26.6.5)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@resvg/resvg-js': 2.6.2
+      '@visioncortex/vtracer': 1.0.0-alpha.4
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      sharp: 0.35.3(@types/node@26.6.5)
+    transitivePeerDependencies:
+      - '@types/node'
+
+  '@ks-designai/sketch-surface@file:vendor/ks-designai-sketch-surface-0.1.4.27229d617a95.tgz(@excalidraw/excalidraw@0.18.1(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@excalidraw/excalidraw': 0.18.1(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      class-variance-authority: 0.7.1
+      clsx: 2.1.1
+      lucide-react: 0.468.0(@types/react@18.3.28)(react@18.3.1)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      tailwind-merge: 3.6.0
+    transitivePeerDependencies:
+      - '@types/react'
 
   '@mermaid-js/parser@0.6.3':
     dependencies:
@@ -7031,6 +7260,57 @@ snapshots:
 
   '@radix-ui/rect@1.1.3': {}
 
+  '@resvg/resvg-js-android-arm-eabi@2.6.2':
+    optional: true
+
+  '@resvg/resvg-js-android-arm64@2.6.2':
+    optional: true
+
+  '@resvg/resvg-js-darwin-arm64@2.6.2':
+    optional: true
+
+  '@resvg/resvg-js-darwin-x64@2.6.2':
+    optional: true
+
+  '@resvg/resvg-js-linux-arm-gnueabihf@2.6.2':
+    optional: true
+
+  '@resvg/resvg-js-linux-arm64-gnu@2.6.2':
+    optional: true
+
+  '@resvg/resvg-js-linux-arm64-musl@2.6.2':
+    optional: true
+
+  '@resvg/resvg-js-linux-x64-gnu@2.6.2':
+    optional: true
+
+  '@resvg/resvg-js-linux-x64-musl@2.6.2':
+    optional: true
+
+  '@resvg/resvg-js-win32-arm64-msvc@2.6.2':
+    optional: true
+
+  '@resvg/resvg-js-win32-ia32-msvc@2.6.2':
+    optional: true
+
+  '@resvg/resvg-js-win32-x64-msvc@2.6.2':
+    optional: true
+
+  '@resvg/resvg-js@2.6.2':
+    optionalDependencies:
+      '@resvg/resvg-js-android-arm-eabi': 2.6.2
+      '@resvg/resvg-js-android-arm64': 2.6.2
+      '@resvg/resvg-js-darwin-arm64': 2.6.2
+      '@resvg/resvg-js-darwin-x64': 2.6.2
+      '@resvg/resvg-js-linux-arm-gnueabihf': 2.6.2
+      '@resvg/resvg-js-linux-arm64-gnu': 2.6.2
+      '@resvg/resvg-js-linux-arm64-musl': 2.6.2
+      '@resvg/resvg-js-linux-x64-gnu': 2.6.2
+      '@resvg/resvg-js-linux-x64-musl': 2.6.2
+      '@resvg/resvg-js-win32-arm64-msvc': 2.6.2
+      '@resvg/resvg-js-win32-ia32-msvc': 2.6.2
+      '@resvg/resvg-js-win32-x64-msvc': 2.6.2
+
   '@rolldown/binding-android-arm-eabi@1.2.13':
     optional: true
 
@@ -7241,7 +7521,6 @@ snapshots:
       '@floating-ui/dom': 1.8.0
       '@tiptap/core': 3.30.0(@tiptap/pm@3.30.0)
       '@tiptap/pm': 3.30.0
-    optional: true
 
   '@tiptap/extension-bullet-list@3.30.0(@tiptap/extension-list@3.30.0(@tiptap/core@3.30.0(@tiptap/pm@3.30.0))(@tiptap/pm@3.30.0))':
     dependencies:
@@ -7269,7 +7548,6 @@ snapshots:
       '@floating-ui/dom': 1.8.0
       '@tiptap/core': 3.30.0(@tiptap/pm@3.30.0)
       '@tiptap/pm': 3.30.0
-    optional: true
 
   '@tiptap/extension-gapcursor@3.30.0(@tiptap/extensions@3.30.0(@tiptap/core@3.30.0(@tiptap/pm@3.30.0))(@tiptap/pm@3.30.0))':
     dependencies:
@@ -7643,6 +7921,8 @@ snapshots:
     optionalDependencies:
       d3-selection: 3.0.0
       d3-transition: 3.0.1(d3-selection@3.0.0)
+
+  '@visioncortex/vtracer@1.0.0-alpha.4': {}
 
   '@vitest/expect@4.1.6':
     dependencies:
@@ -9713,6 +9993,39 @@ snapshots:
       '@img/sharp-win32-x64': 0.34.5
     optional: true
 
+  sharp@0.35.3(@types/node@20.19.39):
+    dependencies:
+      '@img/colour': 1.1.0
+      detect-libc: 2.1.2
+      semver: 7.8.5
+    optionalDependencies:
+      '@img/sharp-darwin-arm64': 0.35.3
+      '@img/sharp-darwin-x64': 0.35.3
+      '@img/sharp-freebsd-wasm32': 0.35.3
+      '@img/sharp-libvips-darwin-arm64': 1.3.2
+      '@img/sharp-libvips-darwin-x64': 1.3.2
+      '@img/sharp-libvips-linux-arm': 1.3.2
+      '@img/sharp-libvips-linux-arm64': 1.3.2
+      '@img/sharp-libvips-linux-ppc64': 1.3.2
+      '@img/sharp-libvips-linux-riscv64': 1.3.2
+      '@img/sharp-libvips-linux-s390x': 1.3.2
+      '@img/sharp-libvips-linux-x64': 1.3.2
+      '@img/sharp-libvips-linuxmusl-arm64': 1.3.2
+      '@img/sharp-libvips-linuxmusl-x64': 1.3.2
+      '@img/sharp-linux-arm': 0.35.3
+      '@img/sharp-linux-arm64': 0.35.3
+      '@img/sharp-linux-ppc64': 0.35.3
+      '@img/sharp-linux-riscv64': 0.35.3
+      '@img/sharp-linux-s390x': 0.35.3
+      '@img/sharp-linux-x64': 0.35.3
+      '@img/sharp-linuxmusl-arm64': 0.35.3
+      '@img/sharp-linuxmusl-x64': 0.35.3
+      '@img/sharp-webcontainers-wasm32': 0.35.3
+      '@img/sharp-win32-arm64': 0.35.3
+      '@img/sharp-win32-ia32': 0.35.3
+      '@img/sharp-win32-x64': 0.35.3
+      '@types/node': 20.19.39
+
   sharp@0.35.3(@types/node@24.0.0):
     dependencies:
       '@img/colour': 1.1.0
@@ -9745,6 +10058,39 @@ snapshots:
       '@img/sharp-win32-ia32': 0.35.3
       '@img/sharp-win32-x64': 0.35.3
       '@types/node': 24.0.0
+
+  sharp@0.35.3(@types/node@26.6.5):
+    dependencies:
+      '@img/colour': 1.1.0
+      detect-libc: 2.1.2
+      semver: 7.8.5
+    optionalDependencies:
+      '@img/sharp-darwin-arm64': 0.35.3
+      '@img/sharp-darwin-x64': 0.35.3
+      '@img/sharp-freebsd-wasm32': 0.35.3
+      '@img/sharp-libvips-darwin-arm64': 1.3.2
+      '@img/sharp-libvips-darwin-x64': 1.3.2
+      '@img/sharp-libvips-linux-arm': 1.3.2
+      '@img/sharp-libvips-linux-arm64': 1.3.2
+      '@img/sharp-libvips-linux-ppc64': 1.3.2
+      '@img/sharp-libvips-linux-riscv64': 1.3.2
+      '@img/sharp-libvips-linux-s390x': 1.3.2
+      '@img/sharp-libvips-linux-x64': 1.3.2
+      '@img/sharp-libvips-linuxmusl-arm64': 1.3.2
+      '@img/sharp-libvips-linuxmusl-x64': 1.3.2
+      '@img/sharp-linux-arm': 0.35.3
+      '@img/sharp-linux-arm64': 0.35.3
+      '@img/sharp-linux-ppc64': 0.35.3
+      '@img/sharp-linux-riscv64': 0.35.3
+      '@img/sharp-linux-s390x': 0.35.3
+      '@img/sharp-linux-x64': 0.35.3
+      '@img/sharp-linuxmusl-arm64': 0.35.3
+      '@img/sharp-linuxmusl-x64': 0.35.3
+      '@img/sharp-webcontainers-wasm32': 0.35.3
+      '@img/sharp-win32-arm64': 0.35.3
+      '@img/sharp-win32-ia32': 0.35.3
+      '@img/sharp-win32-x64': 0.35.3
+      '@types/node': 26.6.5
 
   shebang-command@2.0.0:
     dependencies:
@@ -10282,3 +10628,66 @@ snapshots:
       react: 18.3.1
 
   zwitch@2.0.4: {}
+
+  '@ks-designai/image-card-pack@file:vendor/ks-designai-image-card-pack-0.9.6.6d86f008db70.tgz(@types/node@20.19.39)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@resvg/resvg-js': 2.6.2
+      '@visioncortex/vtracer': 1.0.0-alpha.4
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      sharp: 0.35.3(@types/node@20.19.39)
+    transitivePeerDependencies:
+      - '@types/node'
+
+  '@ks-designai/image-card-pack@file:vendor/ks-designai-image-card-pack-0.9.6.6d86f008db70.tgz(@types/node@24.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@resvg/resvg-js': 2.6.2
+      '@visioncortex/vtracer': 1.0.0-alpha.4
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      sharp: 0.35.3(@types/node@24.0.0)
+    transitivePeerDependencies:
+      - '@types/node'
+
+  '@ks-designai/image-card-pack@file:vendor/ks-designai-image-card-pack-0.9.6.6d86f008db70.tgz(@types/node@26.6.5)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@resvg/resvg-js': 2.6.2
+      '@visioncortex/vtracer': 1.0.0-alpha.4
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      sharp: 0.35.3(@types/node@26.6.5)
+    transitivePeerDependencies:
+      - '@types/node'
+
+  sharp@0.35.3(@types/node@24.12.2):
+    dependencies:
+      '@img/colour': 1.1.0
+      detect-libc: 2.1.2
+      semver: 7.8.5
+    optionalDependencies:
+      '@img/sharp-darwin-arm64': 0.35.3
+      '@img/sharp-darwin-x64': 0.35.3
+      '@img/sharp-freebsd-wasm32': 0.35.3
+      '@img/sharp-libvips-darwin-arm64': 1.3.2
+      '@img/sharp-libvips-darwin-x64': 1.3.2
+      '@img/sharp-libvips-linux-arm': 1.3.2
+      '@img/sharp-libvips-linux-arm64': 1.3.2
+      '@img/sharp-libvips-linux-ppc64': 1.3.2
+      '@img/sharp-libvips-linux-riscv64': 1.3.2
+      '@img/sharp-libvips-linux-s390x': 1.3.2
+      '@img/sharp-libvips-linux-x64': 1.3.2
+      '@img/sharp-libvips-linuxmusl-arm64': 1.3.2
+      '@img/sharp-libvips-linuxmusl-x64': 1.3.2
+      '@img/sharp-linux-arm': 0.35.3
+      '@img/sharp-linux-arm64': 0.35.3
+      '@img/sharp-linux-ppc64': 0.35.3
+      '@img/sharp-linux-riscv64': 0.35.3
+      '@img/sharp-linux-s390x': 0.35.3
+      '@img/sharp-linux-x64': 0.35.3
+      '@img/sharp-linuxmusl-arm64': 0.35.3
+      '@img/sharp-linuxmusl-x64': 0.35.3
+      '@img/sharp-webcontainers-wasm32': 0.35.3
+      '@img/sharp-win32-arm64': 0.35.3
+      '@img/sharp-win32-ia32': 0.35.3
+      '@img/sharp-win32-x64': 0.35.3
+      '@types/node': 24.12.2

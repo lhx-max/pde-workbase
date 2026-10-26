@@ -39,6 +39,7 @@ type PendingCanvasChange = {
 const CANVAS_DRAFT_CHECKPOINT_MS = 250;
 const CANVAS_REVISION_POLL_MS = 1_500;
 const CANVAS_REVISION_MAX_RETRY_MS = 30_000;
+const CANVAS_INITIAL_READ_TIMEOUT_MS = 15_000;
 
 const CanvasContext = React.createContext<CanvasContextValue | null>(null);
 
@@ -96,6 +97,8 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
   const historyScope = stableStringify(requestContext);
   React.useEffect(() => { historyRef.current.clear(); }, [historyScope]);
   const [hydrated, setHydrated] = React.useState(false);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = React.useState(0);
   const [persistenceReady, setPersistenceReady] = React.useState(false);
   const stateRef = React.useRef(state);
   const hydrateBusinessStateRef = React.useRef(hydrateBusinessState);
@@ -122,6 +125,13 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
         const draft = JSON.parse(raw) as { state?: CanvasState; request?: unknown };
         if (draft.state && typeof draft.state === 'object' && !Array.isArray(draft.state)) recoveredDraftRef.current = draft.state;
         const stored = draft.request;
+        // A checkpoint includes the whole snapshot, but a PATCH only owns its
+        // changed fields. Replaying a viewport draft must not resurrect old cards.
+        const changed = stored && typeof stored === 'object' && !Array.isArray(stored)
+          ? (stored as { changes?: unknown }).changes : undefined;
+        if (changed && typeof changed === 'object' && !Array.isArray(changed)) {
+          recoveredDraftRef.current = changed as CanvasState;
+        }
         if (stored && typeof stored === 'object' && !Array.isArray(stored)) {
           // Replay the persisted request once before locking — canvas ops are
           // idempotent on operationId, so a re-submit is safe; if it lands,
@@ -133,6 +143,7 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(stored),
           }).then(payload => {
+            recoveredDraftRef.current = null;
             if (payload?.state && typeof payload.revision === 'number') {
               revisionRef.current = Math.max(revisionRef.current, payload.revision);
               stateRef.current = payload.state;
@@ -152,6 +163,7 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
         void request<{ state?: CanvasState; revision?: number }>(requestContext, '/api/canvas/state', { method: 'GET' })
           .then(payload => {
             if (payload?.state && draft.state && sameValue(payload.state, draft.state)) {
+              recoveredDraftRef.current = null;
               try { localStorage.removeItem(draftKey); } catch { /* Storage unavailable. */ }
               return;
             }
@@ -169,7 +181,6 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
   const saveInFlightRef = React.useRef(false);
   const flushScheduledRef = React.useRef(false);
   const retryTimerRef = React.useRef<number | undefined>(undefined);
-  const initialLoadSettledRef = React.useRef(false);
   const interactionActiveRef = React.useRef(false);
   const refreshRevisionNowRef = React.useRef<(() => void) | null>(null);
   const cancelRefreshRef = React.useRef<(() => void) | undefined>(undefined);
@@ -207,11 +218,15 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
     let loading = false;
     let revisionPollTimer: number | undefined;
     let revisionPollFailures = 0;
+    let activeRead: AbortController | undefined;
     const loadState = async () => {
       if (loading) return;
       loading = true;
+      const controller = new AbortController();
+      activeRead = controller;
+      const readTimeout = window.setTimeout(() => controller.abort(), CANVAS_INITIAL_READ_TIMEOUT_MS);
       try {
-        const payload = await request<{ ok: true; state: CanvasState; revision: number }>(requestContext, '/api/canvas/state');
+        const payload = await request<{ ok: true; state: CanvasState; revision: number }>(requestContext, '/api/canvas/state', { signal: controller.signal });
         if (alive) {
           if (payload.revision < revisionRef.current) return;
           const remoteState = payload.state || {};
@@ -243,15 +258,18 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
             stateRef.current = sharedState;
             setState(sharedState);
           }
-        }
-      } catch (error) {
-        if (alive) console.error(cr().compatLoadFail, error);
-      } finally {
-        loading = false;
-        if (alive && !initialLoadSettledRef.current) {
-          initialLoadSettledRef.current = true;
+          setLoadError(null);
           setHydrated(true);
         }
+      } catch (error) {
+        if (alive) {
+          console.error(cr().compatLoadFail, error);
+          setLoadError(error instanceof Error ? error.message : String(error));
+        }
+      } finally {
+        window.clearTimeout(readTimeout);
+        if (activeRead === controller) activeRead = undefined;
+        loading = false;
       }
     };
     const pollRevision = async (): Promise<boolean> => {
@@ -299,13 +317,14 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
     scheduleRevisionPoll(CANVAS_REVISION_POLL_MS);
     return () => {
       alive = false;
+      activeRead?.abort();
       window.removeEventListener('bezier:canvas-text-delivery-changed', onDeliveryChanged);
       if (refreshRevisionNowRef.current === refreshRevisionNow) {
         refreshRevisionNowRef.current = null;
       }
       if (revisionPollTimer !== undefined) window.clearTimeout(revisionPollTimer);
     };
-  }, [requestContext]);
+  }, [requestContext, loadAttempt]);
 
   const flushChanges = React.useCallback(() => {
     flushScheduledRef.current = false;
@@ -482,9 +501,12 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
     const mutationVersion = ++mutationVersionRef.current;
     const pending = pendingChangesRef.current.get(key);
     dirtyVersionsRef.current.set(key, mutationVersion);
+    const canonicalBase = Object.prototype.hasOwnProperty.call(stateRef.current, key) || Array.isArray(previous) ? previous : null;
     pendingChangesRef.current.set(key, {
       value: resolved,
-      baseValue: pending ? pending.baseValue : previous,
+      // A UI default is not a value observed in canonical storage. Preserve
+      // absence explicitly so the first viewport/prompt save is not a conflict.
+      baseValue: pending ? pending.baseValue : canonicalBase,
       version: mutationVersion,
     });
     stateRef.current = nextState;
@@ -549,7 +571,7 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
         default-seeding effects become dirty local writes before the first GET
         resolves. Those writes can then overwrite persisted card positions.
       */}
-      {saveConflict ? <div role="alert" style={{ padding: 12, background: '#471d1d', color: '#fff' }}>
+      {saveConflict ? <div role="alert" style={{ position: 'relative', zIndex: 10001, padding: 12, background: '#471d1d', color: '#fff', pointerEvents: 'auto' }}>
         <span>{cr().compatSaveFail}: {saveConflict}</span>{' '}
         <Button onClick={() => {
           const content = localStorage.getItem(draftKey) || JSON.stringify({ state: stateRef.current }, null, 2);
@@ -559,7 +581,10 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
         }}>Export draft</Button>{' '}
         <Button onClick={() => { localStorage.removeItem(draftKey); window.location.reload(); }}>Discard draft</Button>
       </div> : null}
-      {hydrated ? children : null}
+      {hydrated ? children : loadError ? <div role="alert" style={{ padding: 16 }}>
+        <p>{cr().compatLoadFail}: {loadError}</p>
+        <Button onClick={() => { setLoadError(null); setLoadAttempt(value => value + 1); }}>{cr().compatRetry}</Button>
+      </div> : <div role="status" style={{ padding: 16 }}>{cr().compatLoading}</div>}
     </CanvasContext.Provider></CanvasIdleWorkContext.Provider>
   );
 }

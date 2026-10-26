@@ -1,6 +1,6 @@
 'use client';
 
-import { FileText, PanelsTopLeft, Presentation, Image, Video, ArrowLeft, ChevronRight, Folder, Pencil, Plus, X, Bot, ChevronDown, CircleCheck, GitBranch, MessageCircleQuestion, Package, Play, Type, GalleryHorizontal, Scissors } from 'lucide-react';
+import { FileText, PanelsTopLeft, Presentation, Image, Video, ArrowLeft, ChevronRight, Folder, Pencil, Plus, X, Bot, ChevronDown, CircleCheck, GitBranch, MessageCircleQuestion, Package, Play, Type, GalleryHorizontal, Scissors, Globe } from 'lucide-react';
 
 /**
  * 中立工作台图标入口。工作流语义图标与下拉箭头使用项目统一的 Lucide 库。
@@ -19,6 +19,7 @@ type LibraryIconName = keyof typeof LIBRARY_ICONS;
 const LIBRARY_ICONS = {
   'artifact-text': FileText, 'artifact-page': PanelsTopLeft, 'artifact-presentation': Presentation, 'artifact-image': Image, 'artifact-video': Video,
   type: Type,
+  globe: Globe,
   'gallery-horizontal': GalleryHorizontal,
   scissors: Scissors,
   'arrow-left': ArrowLeft,

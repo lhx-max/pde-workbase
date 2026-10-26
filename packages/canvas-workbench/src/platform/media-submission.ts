@@ -1,9 +1,9 @@
 import React from 'react';
-import { projectFetchWithContext } from './api-base';
+import { canonicalProjectFileUrl, projectFetchWithContext } from './api-base';
 import { useCanvasFlush, useCanvasState, useCanvasRequestContext } from './canvas-compat';
 import { cr } from '../locales/canvas-remainder';
 
-type Submission = Record<string, any> & { clientRequestId: string; canvasDelivery: { nodeId: string; kind: 'image' | 'video'; basePath: string; baseVersion: string; fileUrl: string } };
+type Submission = Record<string, any> & { clientRequestId: string; output: string; canvasDelivery: { nodeId: string; kind: 'image' | 'video'; basePath: string; baseVersion: string; fileUrl: string } };
 const pending = new Map<string, Promise<Response>>();
 
 /** The outbox stores the exact authorized request; retries never invent an ID. */
@@ -64,8 +64,11 @@ export function useCanvasMediaSubmission() {
   }, [outbox, context.projectId]);
 
   return async (body: Submission) => {
-    setOutbox(entries => ({ ...entries, [body.clientRequestId]: body }));
+    // Canonicalize only NEW requests before persistence. Recovery sends the
+    // original durable body unchanged, preserving its idempotency digest.
+    const submission = {...body, canvasDelivery: {...body.canvasDelivery, fileUrl: canonicalProjectFileUrl(body.output, context)}};
+    setOutbox(entries => ({ ...entries, [submission.clientRequestId]: submission }));
     await flush();
-    return send(body);
+    return send(submission);
   };
 }

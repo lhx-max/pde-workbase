@@ -9,7 +9,7 @@ import { readerPermissions, writerExecuteRoles, validateRestrictedResource } fro
 const exec = promisify(execFile);
 const { values } = parseArgs({ options: {
   mode: { type: 'string', default: 'audit' }, 'config-dir': { type: 'string' }, 'backup-dir': { type: 'string' },
-  cli: { type: 'string' }, writer: { type: 'string', multiple: true }, 'reader-team': { type: 'string', default: 'users' },
+  cli: { type: 'string' }, app:{type:'string',multiple:true}, writer: { type: 'string', multiple: true }, 'reader-team': { type: 'string', default: 'users' },
 } });
 if (!['audit', 'apply', 'restore'].includes(values.mode!)) throw new Error('mode must be audit/apply/restore');
 for (const field of ['config-dir', 'backup-dir', 'cli'] as const) if (!values[field] || !path.isAbsolute(values[field]!)) throw new Error(`${field} must be absolute`);
@@ -30,21 +30,23 @@ async function call(args: string[]): Promise<Record<string, any>> {
     throw new Error(`Appwrite ${args[0]} ${args[1]} failed; no secret output recorded`, { cause: undefined });
   }
 }
-type Resource = { kind: 'collection' | 'bucket' | 'function'; id: string; databaseId?: string; name: string; permissions: string[]; perItemSecurity?: boolean; enabled: boolean };
+type Resource = { kind: 'collection' | 'bucket' | 'function'; id: string; databaseId?: string; name: string; permissions: string[]; perItemSecurity?: boolean; enabled: boolean; functionConfiguration?: Record<string, unknown> };
+const apps=values.app??['canvas','doc'];if(apps.some(app=>!['canvas','doc','sketch'].includes(app)))throw Error('Unsupported App resource inventory');
 async function inspect(): Promise<Resource[]> {
   const result: Resource[] = [];
-  for (const databaseId of ['canvas_app_dev', 'doc_app_dev']) {
+  for (const databaseId of apps.map(app=>`${app}_app_dev`)) {
     const listing = await call(['databases', 'list-collections', '--database-id', databaseId]);
     if (listing.total !== listing.collections.length) throw new Error('Collection pagination requires review before mutation');
     for (const row of listing.collections) result.push({ kind: 'collection', databaseId, id: row.$id, name: row.name, permissions: row.$permissions, perItemSecurity: row.documentSecurity, enabled: row.enabled });
   }
-  for (const id of ['canvas_assets_v2', 'doc_assets_v2']) {
+  for (const id of apps.map(app=>`${app}_assets_v2`)) {
     const row = await call(['storage', 'get-bucket', '--bucket-id', id]);
     result.push({ kind: 'bucket', id, name: row.name, permissions: row.$permissions, perItemSecurity: row.fileSecurity, enabled: row.enabled });
   }
-  for (const id of ['canvas-coi', 'doc-api']) {
+  for (const id of apps.map(app=>app==='canvas'?'canvas-coi':`${app}-api`)) {
     const row = await call(['functions', 'get', '--function-id', id]);
-    result.push({ kind: 'function', id, name: row.name, permissions: row.execute, enabled: row.enabled });
+    result.push({ kind: 'function', id, name: row.name, permissions: row.execute, enabled: row.enabled,
+      functionConfiguration: Object.fromEntries(['runtime', 'events', 'schedule', 'timeout', 'enabled', 'logging', 'entrypoint', 'commands', 'scopes', 'installationId', 'providerRepositoryId', 'providerBranch', 'providerSilentMode', 'providerRootDirectory', 'buildSpecification', 'runtimeSpecification', 'deploymentRetention'].filter(key => row[key] !== undefined && row[key] !== null).map(key => [key, row[key]])) });
   }
   return result;
 }
@@ -59,7 +61,20 @@ if (values.mode === 'audit') {
 async function update(resource: Resource, permissions: string[]) {
   if (resource.kind === 'collection') await call(['databases', 'update-collection', '--database-id', resource.databaseId!, '--collection-id', resource.id, '--name', resource.name, '--permissions', ...permissions]);
   else if (resource.kind === 'bucket') await call(['storage', 'update-bucket', '--bucket-id', resource.id, '--name', resource.name, '--permissions', ...permissions]);
-  else await call(['functions', 'update', '--function-id', resource.id, '--name', resource.name, '--execute', ...permissions]);
+  else {
+    // CLI update defaults can clear omitted arrays/scopes and reset timeout.
+    // Send the read-back non-ACL configuration explicitly; never turn an ACL
+    // change into a loss of the function's storage credentials/capabilities.
+    if (!resource.functionConfiguration) throw new Error('Missing function configuration snapshot');
+    const flags = Object.entries(resource.functionConfiguration).flatMap(([key, value]) => {
+      const flag = `--${key.replace(/[A-Z]/g, character => `-${character.toLowerCase()}`)}`;
+      if (Array.isArray(value)) return value.length ? [flag, ...value.map(String)] : [];
+      return [flag, String(value)];
+    });
+    await call(['functions', 'update', '--function-id', resource.id, '--name', resource.name, '--execute', ...permissions, ...flags]);
+    const updated = await call(['functions', 'get', '--function-id', resource.id]);
+    for (const [key, value] of Object.entries(resource.functionConfiguration)) if (JSON.stringify(updated[key]) !== JSON.stringify(value)) throw new Error(`Function non-ACL configuration changed: ${key}`);
+  }
 }
 if (values.mode === 'restore') {
   const backup = JSON.parse(await readFile(backupFile, 'utf8')) as { resources: Resource[] };

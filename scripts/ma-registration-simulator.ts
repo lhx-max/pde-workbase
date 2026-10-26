@@ -10,6 +10,7 @@ const { values } = parseArgs({ options: {
   'data-dir': { type: 'string' }, port: { type: 'string', default: '18581' },
   'host-port': { type: 'string', default: '18580' }, 'canvas-port': { type: 'string', default: '17463' },
   'doc-port': { type: 'string', default: '19000' },
+  'sketch-port': { type: 'string', default: '19465' }, 'manifest-dir': { type: 'string' },
 } });
 const root = values['data-dir'];
 if (!root || !path.isAbsolute(root)) throw new Error('--data-dir must be an explicit absolute path');
@@ -17,20 +18,21 @@ const portOf = (value: string | undefined) => {
   const port = Number(value); if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Invalid port'); return port;
 };
 const port = portOf(values.port), hostPort = portOf(values['host-port']);
-const canvasPort = portOf(values['canvas-port']), docPort = portOf(values['doc-port']);
+const canvasPort = portOf(values['canvas-port']), docPort = portOf(values['doc-port']), sketchPort = portOf(values['sketch-port']);
+if (values['manifest-dir'] && !path.isAbsolute(values['manifest-dir'])) throw new Error('--manifest-dir must be absolute');
 type Instance = { applicationInstanceId: string; applicationId: string; applicationVersion: string; providerInstanceId: string;
   bizId: string; title: string; status: string; revision: number; createdByUserId: string; createdAt: string; updatedAt: string };
 type Links = { applicationInstanceIds: string[]; applicationsRevision: number };
-type State = { instances: Instance[]; links: Record<string, Links>; attempts: Record<string, string>; tabs?: Record<string, { openTabIds: string[]; tabsRevision: number }> };
+type State = { resourceScopes?: Record<string,{tenantId:string;userId:string}>; instances: Instance[]; links: Record<string, Links>; attempts: Record<string, string>; tabs?: Record<string, { openTabIds: string[]; tabsRevision: number }> };
 await mkdir(root, { recursive: true });
 const stateFile = path.join(root, 'registration.json');
 let state: State;
 try { state = JSON.parse(await readFile(stateFile, 'utf8')) as State; }
 catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; state = { instances: [], links: {}, attempts: {} }; }
 const persist = async () => { await writeFile(`${stateFile}.tmp`, JSON.stringify(state, null, 2)); const { rename } = await import('node:fs/promises'); await rename(`${stateFile}.tmp`, stateFile); };
-const manifests = await Promise.all(['canvas', 'doc'].map(async slug => {
-  const manifest = JSON.parse(await readFile(new URL(`../docs/verification/ma-registration/${slug}.local.manifest.json`, import.meta.url), 'utf8'));
-  manifest.provider.baseUrl = `http://127.0.0.1:${slug === 'canvas' ? canvasPort : docPort}`;
+const manifests = await Promise.all((values['manifest-dir'] ? ['canvas','doc','sketch','image'] : ['canvas', 'doc']).map(async slug => {
+  const manifest = JSON.parse(await readFile(values['manifest-dir'] ? path.join(values['manifest-dir'], `${slug}.local.manifest.json`) : new URL(`../docs/verification/ma-registration/${slug}.local.manifest.json`, import.meta.url), 'utf8'));
+  manifest.provider.baseUrl = `http://127.0.0.1:${slug === 'doc' ? docPort : slug === 'sketch' ? sketchPort : canvasPort}`;
   return manifest;
 }));
 const applications = manifests.map(manifest => ({ applicationId: `app_${createHash('sha256').update(`local-simulation:${manifest.slug}`).digest('hex').slice(0, 24)}`,
@@ -96,8 +98,9 @@ async function simulated(req: IncomingMessage, res: ServerResponse, pathname: st
     const instance: Instance = { applicationInstanceId: `ai_${randomUUID().replaceAll('-', '').slice(0, 24)}`, applicationId: app.applicationId,
       applicationVersion: app.currentVersion, providerInstanceId: body.providerInstanceId, bizId, title: body.title,
       status: 'active', revision: 1, createdByUserId: bizId, createdAt: now, updatedAt: now };
-    const initialized = await provider(instance, `${app.manifest.slug}.create`, { name: body.title }, String(req.headers['x-mav-tenant'] ?? 'local'), 'local_simulation');
+    const initialized = await provider(instance, `${app.manifest.slug === 'image' ? 'canvas' : app.manifest.slug}.create`, { name: body.title }, String(req.headers['x-mav-tenant'] ?? 'local'), 'local_simulation');
     if (!initialized.ok) return fail(res, 502, 'LOCAL_PROVIDER_UNAVAILABLE', `Local Provider initialization failed (${initialized.status})`);
+    (state.resourceScopes ??= {})[instance.applicationInstanceId] = {tenantId:String(req.headers['x-mav-tenant'] ?? 'local'),userId:instance.createdByUserId};
     state.instances.push(instance); state.attempts[attempt] = instance.applicationInstanceId; await persist(); return reply(res, { instance });
   }
   match = pathname.match(/^\/api\/ma-v\/sessions\/([A-Za-z0-9_]+)\/application-instances$/);
@@ -126,14 +129,14 @@ async function simulated(req: IncomingMessage, res: ServerResponse, pathname: st
   }
   fail(res, 404, 'NOT_FOUND', 'Unknown simulation route');
 }
-function proxy(req: IncomingMessage, res: ServerResponse, targetPort: number, pathname = req.url ?? '/') {
-  const headers = { ...req.headers, host: `127.0.0.1:${targetPort}`, 'accept-encoding': 'identity',
+function proxy(req: IncomingMessage, res: ServerResponse, targetPort: number, pathname = req.url ?? '/', extraHeaders:Record<string,string> = {}) {
+  const headers = { ...req.headers, ...extraHeaders, host: `127.0.0.1:${targetPort}`, 'accept-encoding': 'identity',
     ...(req.headers.origin ? { origin: `http://127.0.0.1:${targetPort}` } : {}) };
   const outgoing = http.request({ hostname: '127.0.0.1', port: targetPort, path: pathname, method: req.method, headers }, upstream => {
     const contentType = upstream.headers['content-type'] ?? '';
     if (targetPort === hostPort && contentType.includes('text/html')) {
       const chunks: Buffer[] = []; upstream.on('data', chunk => chunks.push(chunk)); upstream.on('end', () => {
-        const badge = '<div style="position:fixed;bottom:8px;left:50%;transform:translateX(-50%);z-index:2147483647;background:#fff3cd;color:#654c00;border:1px solid #deb887;padding:5px 12px;border-radius:8px;font:12px sans-serif;pointer-events:none">本地模拟登记 · 画布/文档连接真实本地服务 · 未在云端注册</div>';
+        const badge = '<div style="position:fixed;bottom:8px;left:50%;transform:translateX(-50%);z-index:2147483647;background:#fff3cd;color:#654c00;border:1px solid #deb887;padding:5px 12px;border-radius:8px;font:12px sans-serif;pointer-events:none">本地模拟登记 · App连接真实本地服务；数据为隔离测试 · 未在云端注册</div>';
         const html = Buffer.concat(chunks).toString('utf8').replace('</body>', `${badge}</body>`);
         const responseHeaders = { ...upstream.headers }; delete responseHeaders['content-length']; delete responseHeaders['content-encoding'];
         res.writeHead(upstream.statusCode ?? 200, responseHeaders); res.end(html);
@@ -157,11 +160,30 @@ function proxy(req: IncomingMessage, res: ServerResponse, targetPort: number, pa
   outgoing.on('error', () => { if (!res.headersSent) fail(res, 502, 'LOCAL_UPSTREAM_OFFLINE', 'Local service is offline'); else res.destroy(); });
   req.pipe(outgoing);
 }
+/** Local fixture resource bridge. No production credentials or authority claims. */
+async function localResource(req:IncomingMessage,res:ServerResponse,url:URL){
+  const instanceId=url.pathname.slice('/__local-resources/'.length),sessionId=url.searchParams.get('sessionId')??'';
+  const instance=state.instances.find(item=>item.applicationInstanceId===instanceId);
+  const scope=state.resourceScopes?.[instanceId];
+  if(req.method!=='GET'||!instance||!scope||!state.links[sessionId]?.applicationInstanceIds.includes(instanceId))return fail(res,403,'LOCAL_RESOURCE_SCOPE_FORBIDDEN','Resource is not associated with this local fixture instance');
+  const app=applications.find(item=>item.applicationId===instance.applicationId);
+  if(!app||!['canvas','image'].includes(app.manifest.slug))return fail(res,403,'LOCAL_RESOURCE_SCOPE_FORBIDDEN','Not a canvas-hosted resource');
+  const source=new URL(url.searchParams.get('source')??'',`http://127.0.0.1:${port}`);
+  const match=source.pathname.match(/^\/canvas-provider\/api\/projects\/([A-Za-z0-9_-]+)\/files\//);
+  if(source.origin!==`http://127.0.0.1:${port}`||!match)return fail(res,400,'LOCAL_RESOURCE_PATH_FORBIDDEN','Only this fixture canvas file route is supported');
+  const read=await provider(instance,'canvas.read',{},scope.tenantId,sessionId);
+  const snapshot=await read.json() as {data?:{canvasInstanceId?:string}};
+  if(!read.ok||snapshot.data?.canvasInstanceId!==match[1])return fail(res,403,'LOCAL_RESOURCE_PROJECT_FORBIDDEN','Resource project does not match the provider instance');
+  proxy(req,res,canvasPort,source.pathname.slice('/canvas-provider'.length)+source.search,{'x-team-id':scope.tenantId,'x-user-id':scope.userId});
+}
 const server = http.createServer((req, res) => {
   const pathname = new URL(req.url ?? '/', `http://127.0.0.1:${port}`).pathname;
   if (req.headers.host !== `127.0.0.1:${port}`) return fail(res, 403, 'LOCAL_ONLY', 'Use the exact loopback origin');
   if (req.headers.origin && req.headers.origin !== `http://127.0.0.1:${port}`) return fail(res, 403, 'ORIGIN_FORBIDDEN', 'Only the simulation page may call this proxy');
+  if (pathname.startsWith('/__local-resources/')) { void localResource(req,res,new URL(req.url!,`http://127.0.0.1:${port}`)).catch(()=>{if(!res.headersSent)fail(res,503,'LOCAL_RESOURCE_UNAVAILABLE','Local resource bridge failed');}); return; }
   if (pathname === '/__registration-simulation') return reply(res, { mode: 'local-simulation', cloudRegistered: false, applications, ...state });
+  if (pathname.startsWith('/doc-provider/')) return proxy(req, res, docPort, (req.url ?? '').slice('/doc-provider'.length));
+  if (pathname.startsWith('/sketch-provider/')) return proxy(req, res, sketchPort, (req.url ?? '').slice('/sketch-provider'.length));
   if (pathname.startsWith('/canvas-provider/')) return proxy(req, res, canvasPort, (req.url ?? '').slice('/canvas-provider'.length));
   if (/^\/api\/ma-v\/(?:applications(?:\/|$)|projects\/[^/]+\/application-instances$|sessions\/[^/]+\/(?:application-instances|tabs)$|application-instances\/)/.test(pathname)) {
     queue = queue.then(() => simulated(req, res, pathname)).catch(() => { if (!res.headersSent) fail(res, 500, 'SIMULATION_ERROR', 'Local simulation failed; check Provider availability'); });

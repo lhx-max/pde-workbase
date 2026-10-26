@@ -113,3 +113,21 @@ it('keeps the same public operation id on retry while checkpointing its unacknow
     receipt: { operationId: attempts[0]!.body.operationId, baseRevision: 1, revision: 2, status: 'applied', nodeIds: ['text-1'], createdAt: 'now' } })));
   expect(localStorage.getItem('canvas-unsaved:operation-project')).toBeNull();
 });
+
+
+it('recovers only changed PATCH fields without replacing current server cards with checkpoint cards', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const viewport = { x: 23, y: 45, zoom: 0.8 };
+  const snapshot = { workbenchBasicNodes: [node('stale checkpoint')], workbenchViewport: viewport };
+  localStorage.setItem('canvas-unsaved:recovered-project', JSON.stringify({ state: snapshot,
+    request: { expectedRevision: 1, changes: { workbenchViewport: viewport }, base: { workbenchViewport: {} } } }));
+  const context = { projectId: 'recovered-project', transport: { fetch: vi.fn(async (_url: string, init?: RequestInit) =>
+    init?.method === 'PATCH' ? new Response(JSON.stringify({ error: 'conflict' }), { status: 409 })
+      : json({ ok: true, state: { workbenchBasicNodes: [node('current cloud')], workbenchViewport: {} }, revision: 2 })) } };
+  let observed: unknown;
+  function Probe() { const [nodes] = useCanvasState('workbenchBasicNodes', []); const [view] = useCanvasState('workbenchViewport', {}); observed = { nodes, view }; return null; }
+  root = createRoot(document.createElement('div'));
+  await act(async () => root!.render(React.createElement(CanvasCompatProvider, { requestContext: context }, React.createElement(Probe))));
+  expect(observed).toEqual({ nodes: [node('current cloud')], view: viewport });
+  expect(localStorage.getItem('canvas-unsaved:recovered-project')).not.toBeNull();
+});

@@ -53,7 +53,7 @@ it('streams card create, update and delete, and replays after the cursor', async
 
   const make = await fetch(`${base}/instances/live/actions/node.create`, {
     method: 'POST', headers: { 'content-type': 'application/json', 'idempotency-key': 'make' },
-    body: JSON.stringify({ input: { node: { id: 'card', kind: 'text', title: 'hello', text: 'hello', x: 0, y: 0 } } }),
+    body: JSON.stringify({ expectedRevision:Number(ready.data.cursor), input: { node: { id: 'card', kind: 'text', title: 'hello', text: 'hello', x: 0, y: 0 } } }),
   });
   expect(make.status, await make.clone().text()).toBe(200);
   const added = await next();

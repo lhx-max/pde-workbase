@@ -44,6 +44,16 @@ it('delivers without a mounted page, probes dimensions and replays without dupli
   await new MediaCanvasDelivery(db, canvas, () => root).reconcile();
   expect(await canvas.read('p')).toEqual(saved);
 });
+it('delivers an authoritative cloud image without requiring a local project file', async () => {
+  const bytes = await sharp({create:{width:7,height:5,channels:3,background:'#fff'}}).png().toBuffer();
+  const remote = { read: vi.fn(async () => ({buffer:bytes,file:{name:'cloud-only.png',size:bytes.length,mtime:1,kind:'image' as const,mime:'image/png'}})), write:vi.fn(), list:vi.fn() };
+  delivery = new MediaCanvasDelivery(db,canvas,()=>null,remote);
+  await accept();
+  updateMediaTask(db,'one',{status:'done',file:{name:'cloud-only.png'}});
+  await delivery.reconcile();
+  expect((await nodes())[0]).toMatchObject({path:'cloud-only.png',status:'ready',naturalWidth:7,naturalHeight:5});
+  expect(remote.read).toHaveBeenCalledWith('p','cloud-only.png');
+});
 it('recovers video completion after service restart, retaining progress and existing results', async () => {
   await accept('one', 'video');
   updateMediaTask(db, 'one', { status: 'running', progress: ['upstream accepted'] });

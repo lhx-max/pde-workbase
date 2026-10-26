@@ -69,7 +69,7 @@ export class AppwriteCanvasAssetStore implements CanvasAssetStore {
       const stored = await this.client.download(`/storage/buckets/${enc(this.bucketId)}/files/${enc(existing.fileId)}/download`);
       if (stored.length !== bytes.length || createHash('sha256').update(stored).digest('hex') !== hash)
         throw new CanvasStateError(409, 'CANVAS_IMAGE_CONTENT_CHANGED', 'Stored image snapshot has changed');
-      return { path, src: this.client.fileViewUrl(this.bucketId, existing.fileId) };
+      return { path, src: `/api/projects/${encodeURIComponent(this.canvasId)}/files/${path.split('/').map(encodeURIComponent).join('/')}` };
     }
     const fileId = `img-${hash.slice(0, 30)}`;
     const uploaded = await this.client.upload(this.bucketId, fileId, `canvas-${hash}.png`, bytes, 'image/png')
@@ -81,7 +81,7 @@ export class AppwriteCanvasAssetStore implements CanvasAssetStore {
       if (error instanceof CanvasStateError && error.status === 409) return; // claimed by the same-content commit
       throw error;
     });
-    return { path, src: this.client.fileViewUrl(this.bucketId, uploaded.$id) };
+    return { path, src: `/api/projects/${encodeURIComponent(this.canvasId)}/files/${path.split('/').map(encodeURIComponent).join('/')}` };
   }
 
   async readDocument(path: string): Promise<string> {

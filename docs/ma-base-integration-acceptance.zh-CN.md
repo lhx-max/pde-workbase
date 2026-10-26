@@ -1,3 +1,17 @@
+# 最新接入状态 · 2026-10-22
+
+**本地拼装复验补充（2026-10-22）**：[四项本地组合与功能验证](verification/ma-four-app-local-20261022/README.md)。18582 复用未改源码的 MA-V 宿主，登记与关联为显式本地 fixture；文档正文编辑/恢复、草图页面渲染/导出、画布图片显示及服务重启读回通过。修复 Worker/CSS 打包、嵌入布局、图片资源桥和未配置模型假排队；图片只验画布承载工具，完整 editor、正式 MA、真实 Agent 及云端验收仍未通过。18580 保留真实后端目录行为。
+
+本页原始方案及历史记录保留下方。当前四 App 自有适配、云端恢复和交付进展见 [本批记录](four-app-completion-20261022.md)；运行方式见 [Node 服务交付](../deployment/README.zh-CN.md)。已支持可信 MA authority 和精确动作授权，旧段落“Provider 只接受 loopback”不再描述本版。
+
+本节原核对的 MA/Kit 基线为 fa9475183 / 794be21a，维护访问曾返回 401。2026-10-23 通过 KDev 重新核对：MA 远端 yihan-dev-ma 已到 367127668da7e35daf0fa7393040e920a339d069；只读新快照的 8 处 Agent/目录关键文件与原基线 Git blob 一致，未覆盖原检出。原始 MA 页面当前可登录，应用管理仍提示后端存储验收未完成；正式登记实例、自主 App 工具桥与 staging 仍未通过。历史 STORAGE_ACCEPTANCE_REQUIRED 和本地模拟打开结果保留为当时证据，不能推断今天在线状态。
+
+接入时由 App 自有工厂注入正式凭据 getter、稳定 HTTPS Provider 地址及资源鉴权桥；Canvas 用 createCanvasApp，Doc 用 createDocEditorApp，Sketch 用 createSketchEditorApp。宿主现有 context/fileClient/conversation 不保证 providerClient；不能直接登记一个缺少工厂配置的裸编辑器，或把 factory 函数本身当 React 组件 export。应用模块应导出工厂创建的配置组件，并使用正式发布入口登记该 moduleId/exportName。缺正式凭据桥时保持不可用。
+
+跨 App 访问先核验目标实例映射与当前 MA 授权；同团队/同业务空间不意味着两个 MA 实例可以互读。内联编辑器可以沿用其被授权宿主实例的业务上下文，独立应用之间的关联/委托须走 MA 正式合同，不通过复制 actor 或覆盖资源归属凑通。
+
+---
+
 # 画布、文档 App 接入 MA 基座：联调方案与验收
 
 核对日期：2026-10-21。此文是执行与验收计划，不新增协议、不代表已完成真实 MA 接入。

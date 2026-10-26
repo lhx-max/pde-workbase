@@ -213,6 +213,8 @@ const EN = {
   versionCount: (n: number) => `${n} versions`,
   apply: 'Apply',
   compatLoadFail: 'Failed to load canvas state',
+  compatLoading: 'Loading canvas…',
+  compatRetry: 'Retry',
   compatCheckFail: 'Failed to check canvas state',
   compatSaveFail: 'Failed to save canvas state',
   presentationAgentPrompt: (input: {
@@ -448,6 +450,8 @@ const ZH = {
   versionCount: (n: number) => `${n} 个版本`,
   apply: '应用',
   compatLoadFail: '画布兼容状态加载失败',
+  compatLoading: '正在载入画布…',
+  compatRetry: '重试',
   compatCheckFail: '画布兼容状态检查失败',
   compatSaveFail: '画布批量保存状态失败',
   presentationAgentPrompt: (input: {

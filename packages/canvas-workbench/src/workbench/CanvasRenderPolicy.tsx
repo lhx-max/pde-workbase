@@ -20,7 +20,7 @@ export function CanvasRenderPolicyProvider({ children, activeNodeId }: { childre
   // Start cheap while React Flow restores its persisted camera. Starting in
   // detail would briefly mount every iframe before the first layout effect.
   const [overview, setOverview] = React.useState(true);
-  const bucket = useStore(state => state.transform[2] <= .25 ? .25 : state.transform[2] <= .5 ? .5 : state.transform[2] <= 1 ? 1 : 2);
+  const bucket = useStore(state => state.transform[2] <= .25 ? .25 : state.transform[2] <= .5 ? .5 : state.transform[2] <= 1 ? 1 : state.transform[2] <= 2 ? 2 : state.transform[2] <= 4 ? 4 : 8);
   const [scale, setScale] = React.useState(.25);
   React.useEffect(() => idleWork.schedule(() => setScale(bucket)), [bucket, idleWork]);
   // A boolean subscription, never the changing viewport tuple or nodes array.

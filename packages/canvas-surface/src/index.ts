@@ -4,6 +4,7 @@
 export * from '../../canvas-workbench/src/index';
 export { default } from '../../canvas-workbench/src/index';
 export type {
+  CanvasImageReference,
   WorkspaceCollabContext,
   WorkflowCanvasRun,
   WorkflowResultArtifact,

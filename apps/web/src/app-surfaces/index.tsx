@@ -16,6 +16,13 @@
 import React from 'react';
 import { DocumentEditorPane, type DocDocumentApi, type DocMeta, type DocSnapshot, type DocWriteOptions, type DocWriteSnapshot } from '@doc/surface';
 import '@doc/surface/styles.css';
+import type { SketchDocumentApi, SketchMeta } from '@sketch/surface';
+import dynamic from 'next/dynamic';
+const SketchAppPane = dynamic(() => import('./SketchAppPane'), { ssr: false });
+import { CollectorAppSurface } from '@ks-designai/browser-surface';
+import '@ks-designai/browser-surface/styles.css';
+import { browserAppTransport } from './browser-transport';
+import {sketchPreviewChannel,sketchPreviewKey} from '../state/sketch-preview-channel';
 import type { ProjectAppWorkspaceTab } from '@bezier/contracts';
 
 /** Tenant context (spec §3.0) — dev mode headers; deployed mode the host
@@ -92,6 +99,46 @@ export function httpDocApi(endpoint: string, docId: string, mirror?: { canvasId:
   };
 }
 
+
+/** sketch-server-backed Api. Saves go through sketch.write with the content hash. */
+export function httpSketchApi(endpoint: string, sketchId: string, onSaved?:(path:string,content:string)=>void): SketchDocumentApi {
+  const base = endpoint.replace(/\/+$/, '');
+  const call = async (action: string, input: Record<string, unknown>) => {
+    const res = await fetch(`${base}/instances/${encodeURIComponent(sketchId)}/actions/${action}`, {
+      method: 'POST', headers: { 'content-type': 'application/json', ...tenantHeaders() }, body: JSON.stringify({ input }),
+    });
+    const body = await res.json() as { data?: { result?: Record<string, unknown> }; error?: { message?: string } };
+    if (!res.ok) throw new Error(body?.error?.message ?? `sketch ${action} ${res.status}`);
+    if (!body.data?.result) throw new Error('草图服务未返回有效结果');
+    return body.data.result;
+  };
+  return {
+    async readSnapshot() {
+      const result = await call('sketch.read', {});
+      if (typeof result.content !== 'string' || typeof result.revision !== 'string' || !result.revision) throw new Error('草图服务未返回画面版本');
+      return { content: result.content, revision: result.revision, ...(typeof result.draftScope==='string'?{draftScope:result.draftScope}:{}), ...(result.meta?{meta:result.meta as SketchMeta}:{}) };
+    },
+    async read() {
+      return (await this.readSnapshot!()).content;
+    },
+    async write(content, version) {
+      const result = await call('sketch.write', { content, ...(version ?? {}) });
+      const meta = result.meta as SketchMeta | undefined;
+      if (!meta?.id) throw new Error('草图保存响应缺少元数据');
+      onSaved?.((meta as SketchMeta & {mirrorPath?:string}).mirrorPath??meta.path,content);
+      return { ...meta, ...(typeof result.revision === 'string' ? { revision: result.revision } : {}) };
+    },
+    async rename(name) {
+      const result = await call('sketch.rename', { name });
+      return (result.meta as SketchMeta | undefined) ?? null;
+    },
+    async exportImage(fileName, base64) {
+      const result = await call('sketch.export-image', { fileName, base64 });
+      return { fileName: typeof result.fileName === 'string' ? result.fileName : fileName, url: typeof result.url === 'string' ? result.url : null };
+    },
+  };
+}
+
 /** Fallback tab creation for Apps without host-side pairing logic. doc is
  * paired with a canvas card by FileWorkspace (the workbench's own creation
  * channel keeps revision + placement correct). */
@@ -116,9 +163,26 @@ export function createAppDocTab(appId: string, docId: string, label: string, mir
   return { id: `app:${appId}:${docId}`, appId, target: docId, label, ...(mirrorPath ? { mirrorPath } : {}) };
 }
 
+/** Card double-click opens the sketch that already belongs to this card.
+ * create is idempotent on (team, canvas, node): an existing binding comes
+ * back unchanged, a new card gets its first sketch. */
+export async function openBoundSketch(endpoint: string, input: { nodeId: string; mirrorCanvasId: string; mirrorPath: string; name?: string }, headers: Record<string, string>): Promise<{ instanceId: string; name: string }> {
+  const response = await fetch(`${endpoint.replace(/\/+$/, '')}/actions/sketch.create`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...headers },
+    body: JSON.stringify({ input: { name: input.name ?? '未命名草图', nodeId: input.nodeId, mirrorCanvasId: input.mirrorCanvasId, mirrorPath: input.mirrorPath } }),
+  });
+  const body = await response.json().catch(() => null) as { data?: { result?: { instanceId?: string; meta?: { name?: string } } }; error?: { message?: string } } | null;
+  const instanceId = body?.data?.result?.instanceId;
+  if (!response.ok || !instanceId) throw new Error(body?.error?.message ?? `草图详情打开失败 (${response.status})`);
+  return { instanceId, name: body?.data?.result?.meta?.name || input.name || '未命名草图' };
+}
+
 /** The mounted surface for a persisted App tab. */
-export function AppTabSurface({ tab, app, canvasId, onMirrorSaved, onDirtyChange, registerFlush }: { tab: ProjectAppWorkspaceTab; app?: RegisteredAppEntry; canvasId?: string; onMirrorSaved?: (path: string, content: string) => void; onDirtyChange?: (dirty: boolean) => void; registerFlush?: (flush: (() => Promise<boolean>) | null) => void }) {
+export function AppTabSurface({ tab, app, canvasId, onMirrorSaved, onDirtyChange, registerFlush,previewScope='local' }: { tab: ProjectAppWorkspaceTab; app?: RegisteredAppEntry; canvasId?: string; previewScope?:string; onMirrorSaved?: (path: string, content: string) => void; onDirtyChange?: (dirty: boolean) => void; registerFlush?: (flush: (() => Promise<boolean>) | null) => void }) {
   const [syncWarning, setSyncWarning] = React.useState('');
+  const onSavedRef=React.useRef(onMirrorSaved);onSavedRef.current=onMirrorSaved;
+  const sketchApi=React.useMemo(()=>app?.appId==='sketch'&&tab.target?httpSketchApi(app.endpoint,tab.target,(path,content)=>{onSavedRef.current?.(path,content);}):null,[app?.appId,app?.endpoint,tab.target,tab.mirrorPath,canvasId,previewScope]);
   const dirtyGeneration = React.useRef(0);
   const reportDirty = React.useCallback((dirty: boolean) => {
     dirtyGeneration.current += 1;
@@ -150,6 +214,29 @@ export function AppTabSurface({ tab, app, canvasId, onMirrorSaved, onDirtyChange
       onDirtyChange={reportDirty}
       registerFlush={registerFlush}
       document={{ id: tab.target, name: tab.label, path: tab.target, size: 0, updatedAt: '' }}
+    /></div>;
+  }
+  if (app.appId === 'browser' && !tab.target) return <div className="app-tab-missing" style={{ padding: 32 }}>正在准备浏览器…</div>;
+  if (app.appId === 'browser' && tab.target) {
+    return <div className="browser-surface-root" style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}><CollectorAppSurface
+      extensionDownloadUrl="/downloads/web-collector-extension-0.1.0.zip"
+      instanceId={tab.target}
+      transport={browserAppTransport}
+    /></div>;
+  }
+  if (app.appId === 'sketch' && !tab.target) return <div className="app-tab-missing" style={{ padding: 32 }}>正在准备草图…</div>;
+  if (app.appId === 'sketch' && tab.target) {
+    const sketch: SketchMeta = { id: tab.target, name: tab.label, path: tab.mirrorPath || tab.target, size: 0, updatedAt: '' };
+    // The host panel is a block box. `.sketch-editor { flex: 1 }` only fills
+    // it when this wrapper is a column. Otherwise the board height is 0 and
+    // the tab looks like a blank page.
+    return <div style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}><SketchAppPane key={`${previewScope}:${tab.target}`}
+      api={sketchApi!}
+      onSceneSerialized={content=>{if(canvasId&&tab.mirrorPath)sketchPreviewChannel.publish(sketchPreviewKey(previewScope,canvasId,tab.mirrorPath),content);}}
+      sketch={sketch}
+      onRenamed={() => undefined}
+      onDirtyChange={reportDirty}
+      registerFlush={registerFlush ?? (() => undefined)}
     /></div>;
   }
   return <div className="app-tab-missing" style={{ padding: 32 }}>App「{tab.appId}」尚未提供可挂载的页面组件</div>;

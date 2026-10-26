@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  canvasApiUrl, canvasFetch, canvasFetchForContext, getCanvasHostContext,
+  resolveCanvasImageSrc, canonicalProjectFileUrl, canvasApiUrl, canvasFetch, canvasFetchForContext, getCanvasHostContext,
   platformFetch, platformFetchWithContext, projectApiFetch, projectApiOrigin,
   projectFetch, projectFileUrl, projectScopedUrl, setCanvasHostContext,
   type CanvasHostContext,
@@ -10,6 +10,14 @@ const response = () => new Response('{}', { status: 200 });
 afterEach(() => { setCanvasHostContext(null); vi.unstubAllGlobals(); });
 
 describe('standalone transport injection', () => {
+  it('keeps media delivery descriptors canonical while browser images use the host resource bridge', () => {
+    const bridge=vi.fn((path:string)=>`/private-resource?source=${encodeURIComponent(path)}`);
+    const context:CanvasHostContext={projectId:'one',transport:{baseUrl:'/gateway',resourceUrl:bridge,headers:()=>({Authorization:'Bearer private'})}};
+    expect(canonicalProjectFileUrl('outputs/images/a b.png',context)).toBe('/api/projects/one/files/outputs/images/a%20b.png');
+    expect(bridge).not.toHaveBeenCalled();
+    expect(projectFileUrl('outputs/images/a b.png',context)).toBe('/private-resource?source=%2Fgateway%2Fapi%2Fprojects%2Fone%2Ffiles%2Foutputs%2Fimages%2Fa%2520b.png');
+    expect(()=>canonicalProjectFileUrl('../outside.png',context)).toThrow('invalid project file path');
+  });
   it('routes project, canvas and platform operations through one custom API origin/prefix', async () => {
     const fetch = vi.fn(async (_url: string, _init?: RequestInit) => response());
     setCanvasHostContext({ projectId: 'project /a', transport: { baseUrl: 'https://canvas.example/edge/', fetch, headers: () => ({ Authorization: 'Bearer private', 'x-tenant': 'one' }) } });
@@ -88,4 +96,15 @@ describe('standalone transport injection', () => {
     setCanvasHostContext({ projectId: 'p' });
     expect(() => canvasFetch('/canvas/delete-everything')).toThrow(/Invalid canvas endpoint/);
   });
+});
+
+it('routes persisted project image URLs through the browser resource bridge exactly once', () => {
+ const resourceUrl=vi.fn((url:string)=>'/scoped-resource?source='+encodeURIComponent(url));
+ setCanvasHostContext({projectId:'active',transport:{baseUrl:'/edge',headers:()=>({authorization:'private'}),resourceUrl}});
+ expect(resolveCanvasImageSrc('/api/projects/owner/files/image.png')).toBe('/scoped-resource?source=%2Fedge%2Fapi%2Fprojects%2Fowner%2Ffiles%2Fimage.png');
+ expect(resourceUrl).toHaveBeenCalledTimes(1);
+ expect(resolveCanvasImageSrc('https://external.example/image.png')).toBe('https://external.example/image.png');
+ expect(resolveCanvasImageSrc('blob:preview')).toBe('blob:preview');
+ expect(resolveCanvasImageSrc(undefined)).toBe('');
+ expect(resourceUrl.mock.calls[0]?.[0]).not.toContain('private');
 });

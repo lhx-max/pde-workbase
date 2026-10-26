@@ -5,6 +5,11 @@
 set -euo pipefail
 DB="${1:-canvas_app_dev}"
 BUCKET="${2:-canvas_assets_v2}"
+# Legacy users-read resources are development-only; never create staging/production with this script.
+if [[ "$DB" != canvas_*_dev || "$BUCKET" != canvas_*_v2 ]]; then
+  echo "Legacy development provisioning only. Use the private-storage bootstrap artifact for isolated staging/production resources." >&2
+  exit 1
+fi
 # All authenticated users may inspect; only named service/maintenance users may write.
 : "${APPWRITE_SERVICE_WRITER_IDS:?Set comma-separated verified writer user IDs; do not grant users write}"
 IFS=',' read -r -a SERVICE_WRITERS <<< "$APPWRITE_SERVICE_WRITER_IDS"
@@ -24,6 +29,10 @@ appwrite-cf databases create-string-attribute  --database-id "$DB" --collection-
 appwrite-cf databases create-string-attribute  --database-id "$DB" --collection-id canvases --key operations --size $MAX_SIZE --required false || true
 appwrite-cf databases create-string-attribute  --database-id "$DB" --collection-id canvases --key snapshots  --size $MAX_SIZE --required false || true
 appwrite-cf databases create-string-attribute  --database-id "$DB" --collection-id canvases --key extra      --size $MAX_SIZE --required false || true
+for attr in teamId createdBy; do
+  appwrite-cf databases create-string-attribute --database-id "$DB" --collection-id canvases --key "$attr" --size 200 --required false || true
+done
+appwrite-cf databases create-string-attribute --database-id "$DB" --collection-id canvases --key assetMetadata --size $MAX_SIZE --required false || true
 
 appwrite-cf databases create-collection --database-id "$DB" --collection-id canvas_operations --name "Canvas Operations" --document-security false --permissions "${PERMS[@]}" || true
 for attr in canvasId operationId fingerprint receipt before after; do

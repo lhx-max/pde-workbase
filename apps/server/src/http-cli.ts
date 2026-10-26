@@ -2,8 +2,11 @@ import { open, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 
 const MAX_JSON_BYTES = 64 * 1024 * 1024;
-const VALUE_FLAGS = new Set(['server-url', 'body-file', 'prompt-file', 'output', 'file', 'mime', 'project', 'session', 'token', 'id', 'navigation', 'scope', 'ids', 'version', 'name', 'kind', 'text-file', 'filename', 'path', 'instance', 'tenant', 'actor']);
+const VALUE_FLAGS = new Set(['server-url', 'body-file', 'prompt-file', 'output', 'file', 'mime', 'project', 'session', 'token', 'id', 'navigation', 'scope', 'ids', 'version', 'name', 'kind', 'text-file', 'filename', 'path', 'instance', 'tenant', 'actor', 'expected-revision', 'idempotency-key']);
 const HELP = `canvas-server request METHOD /api/path [--body-file JSON_PATH|-] [--prompt-file TEXT_PATH|-]
+canvas-server apps list|state|call|receipt APP_ID [ACTION_ID] [--instance ID] [--body-file INPUT_JSON]
+Image writes: apps call image image.configure|image.generate|image.regenerate --instance CANVAS_ID --body-file INPUT_JSON --expected-revision N --idempotency-key KEY
+Receipt lookup: apps receipt image --instance CANVAS_ID --id KEY
 canvas-server assets info|list|get|create|upload|patch|batch|versions|content|export|spaces|uses|metadata|analysis|prompt|import|save
 canvas-server browser preferences [--body-file REVISION_PATCH_JSON|-]
 canvas-server browser resources start|stop|list|scan|read --project ID --session ID
@@ -58,6 +61,15 @@ export async function buildHttpCliRequest(args: string[]): Promise<{ url: URL; i
     'x-team-id': flag('tenant') ?? process.env.CANVAS_TEAM_ID ?? 'local',
     'x-user-id': flag('actor') ?? process.env.CANVAS_USER_ID ?? 'local',
   };
+  const credentialFile=process.env.CANVAS_MA_CREDENTIAL_FILE;
+  if(credentialFile){
+    if(!path.isAbsolute(credentialFile)||(await stat(credentialFile)).size>16384)throw new Error('MA credential file must be an explicit bounded absolute file');
+    if(origin.protocol==='http:'&&!['localhost','127.0.0.1','[::1]'].includes(origin.hostname))throw new Error('MA credentials require HTTPS outside loopback tests');
+    const credential=(await readFile(credentialFile,'utf8')).trim();
+    const tenant=process.env.MAV_TENANT_ID;const instance=process.env.MAV_APPLICATION_INSTANCE_ID;
+    if(!/^Bearer [A-Za-z0-9\-._~+/]+=*$/i.test(credential)||!tenant||!instance)throw new Error('MA credential, tenant and application instance are required together');
+    headers['x-mav-sso-authorization']=credential;headers['x-mav-tenant']=tenant;headers['x-mav-application-instance-id']=instance;
+  }
   const bodyFile = flag('body-file'), promptFile = flag('prompt-file');
   if (bodyFile === '-' && promptFile === '-') throw new Error('Only one input can consume standard input');
   let body: RequestInit['body'] = bodyFile ? await textFile(bodyFile) : undefined;
@@ -141,12 +153,22 @@ export async function buildHttpCliRequest(args: string[]): Promise<{ url: URL; i
     }
     else if (action === 'entitlements') endpoint = `/api/apps/entitlements${flag('id') ? `?appId=${encodeURIComponent(flag('id')!)}` : ''}`;
     else if (action === 'audit') endpoint = '/api/apps/audit';
+    else if (action === 'receipt') {
+      const appId=args[2];if(!appId)throw new Error('apps receipt APP_ID --instance ID --id RECEIPT_ID');
+      endpoint=`/api/apps/${encodeURIComponent(appId)}/instances/${encodeURIComponent(required('instance'))}/action-receipts/${encodeURIComponent(required('id'))}`;
+    }
     else throw new Error('Expected apps list|call|state|bindings|entitlements|audit');
   } else if (args[0] === 'request') {
     method = (args[1] ?? '').toUpperCase(); endpoint = args[2] ?? '';
     if (!['GET', 'POST', 'PATCH', 'PUT', 'DELETE'].includes(method) || !endpoint.startsWith('/api/')) throw new Error('request METHOD /api/path [--body-file JSON_PATH|-]');
     if (promptFile) setBody({ ...bodyObject(), prompt: await textFile(promptFile) });
   } else throw new Error('Expected request, assets or browser');
+  if (flag('expected-revision')!==undefined) {
+    const revision=Number(flag('expected-revision'));
+    if(method==='GET'||!Number.isSafeInteger(revision)||revision<0)throw new Error('--expected-revision requires a non-negative integer on a write');
+    setBody({...bodyObject(),expectedRevision:revision});
+  }
+  if(flag('idempotency-key'))headers['idempotency-key']=required('idempotency-key');
   if (promptFile && args[0] !== 'request') throw new Error('--prompt-file is supported by request commands');
   if (method === 'GET' && body !== undefined) throw new Error('GET commands do not accept a request body');
   if (typeof body === 'string' && Buffer.byteLength(body) > MAX_JSON_BYTES) throw new Error('JSON request exceeds 64 MB');

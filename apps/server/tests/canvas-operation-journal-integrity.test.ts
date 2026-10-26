@@ -99,7 +99,7 @@ it('a corrupt persisted document cannot be read or overwritten by PATCH, media, 
   await expect(service.revision('project')).rejects.toMatchObject({ code: 'CANVAS_STORAGE_ERROR' });
   expect((await fetch(`${url}/state`)).status).toBe(500);
   expect((await post({ ...request, operationId: 'second' })).status).toBe(500);
-  expect((await fetch(`${url}/state`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ changes: { workbenchViewport: { x: 1 } } }) })).status).toBe(500);
+  expect((await fetch(`${url}/state`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ expectedRevision:0, changes: { workbenchViewport: { x: 1 } } }) })).status).toBe(500);
   await expect(service.updateMediaState('project', state => ({ ...state, marker: true }))).rejects.toMatchObject({ code: 'CANVAS_STORAGE_ERROR' });
   expect(await readFile(stateFile(), 'utf8')).toBe(corrupt);
 });

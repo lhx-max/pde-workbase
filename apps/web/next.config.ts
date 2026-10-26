@@ -4,7 +4,9 @@ const buildDirectory = process.env.CANVAS_WEB_BUILD_DIR;
 if (buildDirectory && !/^\.tmp\/[a-zA-Z0-9_-]+$/.test(buildDirectory)) throw new Error('CANVAS_WEB_BUILD_DIR must be a named build under .tmp/');
 const config: NextConfig = {
   ...(buildDirectory ? { distDir: buildDirectory } : {}),
-  transpilePackages: ['@bezier/components', '@bezier/contracts', '@bezier/canvas-workbench', '@bezier/workbench-core', '@bezier/workbench-ui', '@bezier/host', '@doc/surface'],
+  // This app proxies authenticated files. Dev HMR must not retain old upstream responses.
+  experimental: { serverComponentsHmrCache: false },
+  transpilePackages: ['@bezier/components', '@bezier/contracts', '@bezier/canvas-workbench', '@bezier/workbench-core', '@bezier/workbench-ui', '@bezier/host', '@doc/surface', '@sketch/surface', '@ks-designai/browser-surface'],
   turbopack: { root: resolve(process.cwd(), '../..') },
   // Dev previews (tunnels/proxies) arrive under foreign origins; dev assets like
   // webpack-hmr are origin-checked by Next and would 403 without this list.

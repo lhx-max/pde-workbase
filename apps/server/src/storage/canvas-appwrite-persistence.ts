@@ -1,11 +1,11 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { CanvasStateError, type StoredCanvasOperation } from '@bezier/canvas-core';
-import type { CanvasFileContent, CanvasPersistence, CanvasStoredBlob } from '../canvas/persistence.js';
+import { normalizeSafeProjectFilePath, type CanvasFileContent, type CanvasPersistence, type CanvasStoredBlob } from '../canvas/persistence.js';
 import { AppwriteClient, appwriteEnc as enc } from './appwrite-client.js';
 
 interface CanvasDoc { $id: string; revision: number; state: string; operations?: string; snapshots?: string; extra?: string }
 interface OperationDoc { $id: string; operationId: string; fingerprint: string; receipt: string; before: string; after: string }
-interface FileIndexRow { $id: string; path: string; fileId: string }
+interface FileIndexRow { $id: string; path: string; fileId: string; sha256?: string; size?: number }
 
 /** State-document blob split into canvases-doc attributes. `extra` is a JSON
  * object carrying every unknown top-level field, so the file-backend
@@ -90,16 +90,16 @@ export class AppwriteCanvasPersistence implements CanvasPersistence {
 type LocalRead = (projectId: string, relative: string) => Promise<Uint8Array | null>;
 
 /** Canvas text files: bytes in the storage bucket, one canvas_files index row
- * per (canvasId, logical path). A missing index row falls back to the project
- * filesystem and self-heals into the bucket, so files that predate Appwrite —
- * or uploads that land on the project disk — keep working. */
+ * per (canvasId, logical path). The optional migration reader is explicit;
+ * the supported cloud server never supplies a local fallback. */
 export class AppwriteCanvasFileContent implements CanvasFileContent {
   constructor(private readonly client: AppwriteClient, private readonly databaseId: string, private readonly bucketId: string,
     private readonly files = 'canvas_files', private readonly readLocal?: LocalRead) {}
 
   private async find(projectId: string, relative: string): Promise<FileIndexRow | null> {
-    const q = AppwriteClient.query([AppwriteClient.eq('canvasId', projectId), AppwriteClient.eq('path', relative), AppwriteClient.limit(1)]);
+    const q = AppwriteClient.query([AppwriteClient.eq('canvasId', projectId), AppwriteClient.eq('path', relative), AppwriteClient.limit(2)]);
     const body = await this.client.call<{ documents: FileIndexRow[] }>('GET', `${this.client.docsPath(this.databaseId, this.files)}?${q}`);
+    if(body.documents.length>1)throw new CanvasStateError(503,'CANVAS_FILE_INDEX_CORRUPT','Multiple cloud files occupy one logical path');
     return body.documents[0] ?? null;
   }
 
@@ -112,7 +112,9 @@ export class AppwriteCanvasFileContent implements CanvasFileContent {
     const fileId = `txt-${hash.slice(0, 30)}`;
     await this.client.upload(this.bucketId, fileId, relative.split('/').pop() ?? 'file', bytes, mime)
       .catch((error: unknown) => {
-        if (error instanceof CanvasStateError && error.status === 409) return;
+        if (error instanceof CanvasStateError && error.status === 409) return this.download(fileId).then(existing=>{
+          if(existing.byteLength!==bytes.byteLength||createHash('sha256').update(existing).digest('hex')!==hash)throw new CanvasStateError(503,'CANVAS_FILE_INTEGRITY','Existing immutable file does not match its content identifier');
+        });
         throw error;
       });
     const data = { canvasId: projectId, path: relative, fileId, kind: 'text', mime, size: bytes.length, sha256: hash, createdAt: new Date().toISOString() };
@@ -125,18 +127,20 @@ export class AppwriteCanvasFileContent implements CanvasFileContent {
         });
     } else if (existing.fileId !== fileId) {
       await this.client.call('PATCH', `${this.client.docsPath(this.databaseId, this.files)}/${enc(existing.$id)}`, { data });
-      await this.deleteFile(existing.fileId).catch(() => {});
+      // Immutable blobs may also belong to another path, canvas or retained
+      // version. A head change must never delete globally shared content.
     }
     return fileId;
   }
 
-  private async deleteFile(fileId: string): Promise<void> {
-    await this.client.call('DELETE', `/storage/buckets/${enc(this.bucketId)}/files/${enc(fileId)}`);
-  }
-
   async read(projectId: string, relative: string): Promise<string | null> {
+    relative=normalizeSafeProjectFilePath(relative);
     const row = await this.find(projectId, relative);
-    if (row) return new TextDecoder().decode(await this.download(row.fileId));
+    if (row) {
+      const bytes=await this.download(row.fileId);
+      if(row.size!==undefined&&row.size!==bytes.byteLength||row.sha256!==undefined&&createHash('sha256').update(bytes).digest('hex')!==row.sha256)throw new CanvasStateError(503,'CANVAS_FILE_INTEGRITY','Cloud file integrity check failed');
+      return new TextDecoder().decode(bytes);
+    }
     const local = this.readLocal ? await this.readLocal(projectId, relative) : null;
     if (local === null) return null;
     const fileId = await this.uploadIndexed(projectId, relative, local);
@@ -144,6 +148,7 @@ export class AppwriteCanvasFileContent implements CanvasFileContent {
   }
 
   async write(projectId: string, relative: string, content: string): Promise<void> {
+    relative=normalizeSafeProjectFilePath(relative);
     await this.uploadIndexed(projectId, relative, new TextEncoder().encode(content));
   }
 }

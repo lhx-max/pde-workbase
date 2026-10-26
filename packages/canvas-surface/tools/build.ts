@@ -10,6 +10,20 @@ import { distRoot, isPeer, manifest, packageRoot, requireNode24, workspaceAliase
 requireNode24();
 const modules = new Set<string>();
 const imports = new Set<string>();
+// A consuming bundler rewrites import.meta.url to its own chunk. Keep this
+// dependency's CPU worker inside the library rather than resolving its asset
+// relative to the consumer's page/chunk at runtime.
+const inlineImageWorker: Plugin = {
+  name: 'canvas-surface-inline-image-worker',
+  enforce: 'pre',
+  transform(code, id) {
+    if (!/\/@ks-designai\/image-card-pack\/dist\/tools\/ImageTools\.js$/.test(id)) return;
+    const constructor = /new Worker\(new URL\((['"])\.\/worker\.js\1,\s*import\.meta\.url\),\s*\{\s*type:\s*(['"])module\2\s*\}\)/g;
+    if ((code.match(constructor) ?? []).length !== 1) throw new Error('Image worker constructor changed; recheck inline packaging');
+    modules.add(resolve(dirname(id), 'worker.js'));
+    return {code: `import CanvasSurfaceImageWorker from './worker.js?worker&inline';\n${code.replace(constructor, 'new CanvasSurfaceImageWorker()')}`, map: null};
+  },
+};
 const audit: Plugin = {
   name: 'canvas-surface-closure-audit',
   enforce: 'pre',
@@ -42,7 +56,9 @@ if (distRoot !== resolve(workspaceRoot, 'packages/canvas-surface/dist')) throw n
 await build({
   configFile: false,
   root: packageRoot,
-  plugins: [audit],
+  // Packed consumers resolve emitted workers/assets relative to this package.
+  base: './',
+  plugins: [inlineImageWorker, audit],
   css: { modules: { generateScopedName: 'cs_[name]_[local]_[hash:base64:5]' } },
   resolve: {
     alias: Object.entries(workspaceAliases()).map(([find, replacement]) => ({ find: new RegExp(`^${find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`), replacement })),
@@ -97,11 +113,13 @@ for (const directory of [...packageDirectories].sort()) {
   licenses.push({ name: pkg.name, version: pkg.version, license: pkg.license ?? (workspacePackage ? 'Apache-2.0 (workspace)' : 'unspecified'), files: copied });
 }
 copyFileSync(resolve(workspaceRoot, 'LICENSE'), resolve(packageRoot, 'LICENSE'));
+const workspaceCommit=execFileSync('git',['rev-parse','HEAD'],{cwd:workspaceRoot,encoding:'utf8'}).trim();
+const sourceDirty=Boolean(execFileSync('git',['status','--porcelain','--untracked-files=normal'],{cwd:workspaceRoot,encoding:'utf8'}).trim());
 const report = {
   package: `${manifest.name}@${manifest.version}`,
   upstream: 'Bezier/Loom 319e5eee556a3641d2ee68a6111a36ddc7a1eff7',
-  workspaceCommit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: workspaceRoot, encoding: 'utf8' }).trim(),
-  sourceState: 'Current working tree, including pre-existing local adaptations; not a clean upstream snapshot.',
+  workspaceCommit,
+  sourceState: sourceDirty?'Current working tree includes local adaptations; use sourceSha256 for exact inputs.':'Clean source checkout of workspaceCommit.',
   node: process.version,
   externalImports: [...imports].sort(),
   moduleCount: modules.size,

@@ -1,6 +1,6 @@
 {
   "name": "@ks-designai/canvas-cli",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "HTTP-only canvas and App CLI for agent execution environments.",
   "type": "module",
   "license": "Apache-2.0",

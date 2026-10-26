@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import type { ProjectLedgerEvent, ProjectLedgerEvidenceRef, ProjectLedgerListResponse } from '@bezier/contracts';
+import type {JsonStatePort} from '@ks-designai/app-cloud-state';
 
 /** File-backed extraction of the project ledger. No chat database or product tables. */
 export interface RecordProjectLedgerEventInput {
@@ -24,7 +25,7 @@ function normalize(value: unknown): unknown {
 }
 const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 export class ProjectLedger {
-  constructor(private readonly dataRoot: string) {
+  constructor(private readonly dataRoot: string,private readonly state?:JsonStatePort) {
     if (!path.isAbsolute(dataRoot)) throw new Error('ledger requires an absolute data root');
   }
   private file(projectId: string): string {
@@ -33,6 +34,16 @@ export class ProjectLedger {
   }
   private events(projectId: string): ProjectLedgerEvent[] {
     const file = this.file(projectId);
+    if(this.state){
+      const raw=this.state.read(`ledger:${projectId}`);
+      if(raw===undefined)return [];
+      const value=raw as {version:unknown;events:ProjectLedgerEvent[]};
+      if(!value||typeof value!=='object'||Array.isArray(value)||value.version!==1||!Array.isArray(value.events)
+        ||value.events.some((event,index)=>!event||event.projectId!==projectId||event.sequence!==index+1
+          ||typeof event.id!=='string'||typeof event.idempotencyKey!=='string'||hash(event.payload)!==event.payloadDigest))
+        throw new ProjectLedgerError(503,'LEDGER_CORRUPT','Invalid cloud ledger or payload digest');
+      return value.events;
+    }
     if (!existsSync(file)) return [];
     const document = JSON.parse(readFileSync(file, 'utf8')) as {version: number; events: ProjectLedgerEvent[]};
     if (document.version !== 1 || !Array.isArray(document.events)) throw new Error('invalid ledger document');
@@ -61,6 +72,7 @@ export class ProjectLedger {
       if (input[key]) event[key] = input[key];
     }
     events.push(event);
+    if(this.state){this.state.write(`ledger:${input.projectId}`,{version:1,events});return {event,inserted:true};}
     const file = this.file(input.projectId);
     mkdirSync(path.dirname(file), {recursive: true});
     const temporary = `${file}.${randomUUID()}.tmp`;

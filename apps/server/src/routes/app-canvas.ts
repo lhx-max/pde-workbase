@@ -1,5 +1,6 @@
+import {canvasProjectMatchesAuthority} from '../storage/canvas-project-scope.js';
 import { randomUUID } from 'node:crypto';
-import { canvasOperationSchema, canvasOperationsJsonSchema, CANVAS_CARD_KINDS, type CanvasOperationReceipt } from '@bezier/contracts';
+import { canvasOperationSchema, canvasOperationsJsonSchema, CANVAS_CARD_KINDS, type CanvasOperationReceipt, type CanvasImageEditorTarget } from '@bezier/contracts';
 import type { Express, Request, Response } from 'express';
 import type { CanvasStateService } from '../canvas/state.js';
 import { CanvasStateError } from '../canvas/errors.js';
@@ -13,7 +14,10 @@ import type { createDocSynchronizer } from '../canvas/doc-sync.js';
 import type { AuditLog } from '../storage/audit-log.js';
 import type { CanvasFileContent } from '../canvas/persistence.js';
 import type { AppEntitlementStore } from '../storage/app-entitlements.js';
-import { appVisibleToTenant, ownsTenantAsset, tenantOf } from '../tenant.js';
+import type { JsonStatePort } from '@ks-designai/app-cloud-state';
+import { CanvasActionReceipts, canvasActionFingerprint, canvasActionKey, type CanvasActionActor, type CanvasActionReceipt, type CanvasLifecycleAction } from '../storage/canvas-action-receipts.js';
+import { isSafeId } from '../projects.js';
+import { appVisibleToTenant, ownsTenantAsset, tenantOf, forwardedAuthorityHeaders } from '../tenant.js';
 
 type Authorize = (req: Request, res: Response, projectId: string, access?: { mode: 'read' | 'write'; capability?: string }) => Promise<boolean>;
 
@@ -24,6 +28,9 @@ interface Registry {
   list?(): { id: string; name: string; createdAt: number; updatedAt: number; teamId?: string }[];
   update?(id: string, input: { name?: string }): { id: string; name: string };
   delete?(id: string): void;
+  /** Durability barrier the lifecycle executor awaits before a receipt may be
+   * marked succeeded — the mutation must be durable first. */
+  flush?(): Promise<void> | void;
 }
 
 /** Generic App-protocol facade over the canvas implementation.
@@ -39,19 +46,21 @@ const requestId = () => `req_${randomUUID()}`;
 const CORE_EDITOR_APPS: Record<string, string> = {
   text: 'doc',
   sketch: 'sketch',
+  browser: 'browser',
   page: 'page',
   presentation: 'slides',
 };
 
 function sendAppError(res: Response, error: unknown): void {
   const err = error instanceof CanvasStateError ? error : error instanceof BindingStoreError ? new CanvasStateError(error.status, error.code, error.message) : new CanvasStateError(500, 'CANVAS_STORAGE_ERROR', String(error));
-  res.status(err.status).json({ error: { code: err.code, message: err.message, retryable: err.status >= 500, ...(err.details ? { details: err.details } : {}) }, requestId: requestId() });
+  res.status(err.status).json({ error: { code: err.code, message: err.message, retryable: err.status >= 500 && err.code!=='CANVAS_OPERATION_UNCERTAIN', ...(err.details ? { details: err.details } : {}) }, requestId: requestId() });
 }
 
 export interface RegisterAppCanvasRoutesDeps {
   canvasState: CanvasStateService;
   registry: Registry;
   authorizeProjectRequest?: Authorize;
+  isStreamAuthorized?:(req:Request,projectId:string)=>Promise<boolean>;
   /** App catalog — resolves kind→app→endpoint for open-editor. */
   appRegistry?: AppRegistryStore;
   /** Central card↔App binding index (data-model §三). */
@@ -59,11 +68,14 @@ export interface RegisterAppCanvasRoutesDeps {
   audit?: AuditLog;
   entitlements?: AppEntitlementStore;
   documentSync?: Pick<ReturnType<typeof createDocSynchronizer>, 'status' | 'retry' | 'resolve'>;
+  allowedKinds?: (projectId: string) => Promise<string[] | undefined>;
   /** Canvas-owned file channel — external Apps read/write the same files
    * the cards point at (`projectFilePath`). Text payloads in v1. */
   content?: CanvasFileContent;
   /** Entity history for node timeline queries. */
   ledger?: { listEntityHistory(projectId: string, entity: string, entityId: string, limit: number, options?: { correlationIds?: string[]; fileNames?: string[] }): unknown[] };
+  /** Durable JSON slot port (Appwrite runtime); absent ⇒ explicit in-memory local mode. */
+  runtimeState?: JsonStatePort;
 }
 
 export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRoutesDeps): void {
@@ -96,6 +108,54 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
   });
   const authorize = deps.authorizeProjectRequest ?? (async () => true);
 
+  /** Durable lifecycle journal for canvas.create / canvas.rename /
+   * canvas.delete. Pending intent is persisted before the registry mutation
+   * and completed only after it flushed; an in-memory journal serves the
+   * explicit local mode when no JsonStatePort is wired. */
+  const actionReceipts = new CanvasActionReceipts(deps.runtimeState);
+  const receiptActor = (req: Request): CanvasActionActor => {
+    const tenant = tenantOf(req);
+    return {
+      teamId: tenant.teamId, userId: tenant.userId,
+      ...(typeof tenant.bizId === 'string' && tenant.bizId ? { bizId: tenant.bizId } : {}),
+      ...(typeof tenant.applicationId === 'string' && tenant.applicationId ? { applicationId: tenant.applicationId } : {}),
+      ...(typeof tenant.applicationInstanceId === 'string' && tenant.applicationInstanceId ? { applicationInstanceId: tenant.applicationInstanceId } : {}),
+    };
+  };
+  /** Caller-supplied idempotency key, or a generated operation id. The returned
+   * value doubles as the durable receipt id so an unkeyed call can still be
+   * looked up — it is simply never retried automatically. */
+  const lifecycleKey = (req: Request): string => {
+    const provided = req.get('idempotency-key');
+    if (provided === undefined) return `car-${randomUUID()}`;
+    if (!provided || provided.trim() !== provided || provided.length > 256 || /[\u0000-\u001f\u007f/]/.test(provided)) {
+      throw new CanvasStateError(400, 'BAD_REQUEST', 'idempotency-key must be a non-empty bounded token without surrounding whitespace, control characters or slashes');
+    }
+    return provided;
+  };
+  type LifecycleData = { receiptId: string; status: 'succeeded'; result: Record<string, unknown>; replayed: boolean };
+  /** Replays a completed receipt or maps the uncertain/conflict states to their
+   * wire errors. 'none' means the caller must reserve and execute. */
+  const lifecycleReplay = async (key: string, fingerprint: string): Promise<'none' | CanvasActionReceipt> => {
+    const decision = await actionReceipts.decide(key, fingerprint);
+    if (decision.kind === 'pending') throw new CanvasStateError(503, 'CANVAS_OPERATION_UNCERTAIN', 'A previous attempt with this idempotency key did not reach a durable result; blind retry is unsafe');
+    if (decision.kind === 'conflict') throw new CanvasStateError(409, 'CANVAS_OPERATION_ID_CONFLICT', 'This idempotency key was used with a different action or input');
+    return decision.kind === 'replay' ? decision.receipt : 'none';
+  };
+  const lifecycleReceiptView = (receipt: CanvasActionReceipt) => ({
+    receiptId: receipt.receiptId, action: receipt.action, status: receipt.status, result: receipt.result ?? null,
+  });
+
+  app.get('/api/apps/canvas/instances/:instanceId/capabilities', async (req,res) => {
+    try {
+      const id=resolveInstanceId(req.params.instanceId);
+      if(!await authorize(req,res,id,{mode:'read'}))return;
+      const granted=await deps.allowedKinds?.(id);
+      const available=[...new Set([...CANVAS_CARD_KINDS,...Object.keys(CORE_EDITOR_APPS),...listRegisteredCardKinds()])];
+      res.json({requestId:requestId(),data:{teamId:tenantOf(req).teamId,allowedKinds:granted&&!granted.includes('*')?available.filter(kind=>granted.includes(kind)):available}});
+    }catch(error){sendAppError(res,error);}
+  });
+
   /** App detail: capability declaration consumed by management side (COI). */
   app.get('/api/apps/canvas', async (_req, res) => {
     try {
@@ -119,6 +179,8 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
           nodeHistory: 'GET /api/apps/canvas/instances/{id}/nodes/{nodeId}/history',
           operations: 'POST /api/apps/canvas/instances/{id}/operations',
           operationReceipt: 'GET /api/apps/canvas/instances/{id}/operations/{operationId}',
+          actionReceipt: 'GET /api/apps/canvas/action-receipts/{receiptId}',
+          instanceActionReceipt: 'GET /api/apps/canvas/instances/{id}/action-receipts/{receiptId}',
         },
         createActions: CARD_CREATE_ACTIONS,
         cardCapabilities: CARD_CAPABILITY_MATRIX,
@@ -145,17 +207,47 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
     } });
   });
 
-  /** App-level action: create a canvas instance. */
+  /** App-level action: create a canvas instance. The durable receipt reserves a
+   * pending intent before the registry mutation and completes only after the
+   * registry flushed; a replayed key still requires current write authorization
+   * on the resolved target so a foreign project's reply is never replayed. */
   app.post<{ actionId: string }>('/api/apps/canvas/actions/:actionId', async (req, res) => {
     try {
       if (req.params.actionId !== 'canvas.create') throw new CanvasStateError(404, 'CANVAS_ACTION_NOT_FOUND', `Unknown app-level action: ${req.params.actionId}`);
-      const name = typeof req.body?.input?.name === 'string' ? req.body.input.name : undefined;
-      const id = typeof req.body?.input?.instanceId === 'string' ? req.body.input.instanceId : `canvas-${randomUUID().slice(0, 12)}`;
-      if (!await authorize(req, res, id, { mode: 'write' })) return;
+      const body = req.body?.input && typeof req.body.input === 'object' && !Array.isArray(req.body.input) ? req.body.input as Record<string, unknown> : {};
+      if (body.name !== undefined && typeof body.name !== 'string') throw new CanvasStateError(400, 'BAD_REQUEST', 'input.name must be a string');
+      if (body.instanceId !== undefined && typeof body.instanceId !== 'string') throw new CanvasStateError(400, 'BAD_REQUEST', 'input.instanceId must be a string');
+      if (typeof body.instanceId === 'string' && !isSafeId(body.instanceId)) throw new CanvasStateError(400, 'BAD_REQUEST', 'input.instanceId is not a valid instance id');
+      const name = typeof body.name === 'string' ? body.name : undefined;
+      if(name!==undefined&&(!name.trim()||name.length>500))throw new CanvasStateError(400,'BAD_REQUEST','input.name must contain 1–500 characters');
+      const proposedId=typeof body.instanceId==='string'?body.instanceId:`canvas-${randomUUID().slice(0,12)}`;
+      if(!await authorize(req,res,proposedId,{mode:'write'}))return;
+      const validatedInput: Record<string, unknown> = { ...(name !== undefined ? { name } : {}), ...(typeof body.instanceId === 'string' ? { instanceId: body.instanceId } : {}) };
       const tenant = tenantOf(req);
-      const project = deps.registry.create({ id, name: name ?? '新画布', teamId: tenant.teamId, createdBy: tenant.userId });
-      deps.audit?.record({ actor: tenant, action: 'canvas.create', appId: 'canvas', targetId: project.id, status: 'succeeded', summary: name ?? '新画布' });
-      res.status(201).json({ requestId: requestId(), data: { receiptId: req.get('idempotency-key') ?? null, status: 'succeeded', result: { instanceId: project.id } } });
+      const actor = receiptActor(req);
+      const keyMaterial = lifecycleKey(req);
+      const key = canvasActionKey(actor, 'app', '', keyMaterial);
+      const fingerprint = canvasActionFingerprint('canvas.create', validatedInput);
+      const outcome = await actionReceipts.serialized(key, async (): Promise<LifecycleData | undefined> => {
+        const replay = await lifecycleReplay(key, fingerprint);
+        if (replay !== 'none') {
+          const target = typeof replay.result?.instanceId === 'string' ? replay.result.instanceId : replay.targetId;
+          if (!await authorize(req, res, target, { mode: 'write' })) return undefined;
+          return { receiptId: replay.receiptId, status: 'succeeded', result: replay.result ?? { instanceId: replay.targetId }, replayed: true };
+        }
+        const id = proposedId;
+        if (!await authorize(req, res, id, { mode: 'write' })) return undefined;
+        if (deps.registry.get?.(id)) throw new CanvasStateError(409, 'CANVAS_INSTANCE_EXISTS', 'Canvas instance already exists; read it before attempting another create');
+        await actionReceipts.reserve({ receiptId: keyMaterial, key, fingerprint, action: 'canvas.create', scope: 'app', targetId: id, identity: actor });
+        const project = deps.registry.create({ id, name: name ?? '新画布', teamId: tenant.teamId, createdBy: tenant.userId,
+          ...(tenant.bizId?{metadata:{kind:'other',appAuthority:{bizId:tenant.bizId,applicationId:tenant.applicationId,applicationInstanceId:tenant.applicationInstanceId,providerInstanceId:tenant.providerInstanceId}}}:{}) });
+        await deps.registry.flush?.();
+        const done = await actionReceipts.succeed(key, { instanceId: project.id });
+        deps.audit?.record({ actor: tenant, action: 'canvas.create', appId: 'canvas', targetId: project.id, status: 'succeeded', summary: name ?? '新画布' });
+        return { receiptId: done.receiptId, status: 'succeeded', result: done.result ?? { instanceId: project.id }, replayed: false };
+      });
+      if (!outcome) return;
+      res.status(201).json({ requestId: requestId(), data: outcome });
     } catch (error) { sendAppError(res, error); }
   });
 
@@ -168,11 +260,19 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
       if (!await authorize(req, res, projectId, { mode: 'read' })) return;
       const pending: CanvasCardChange[] = [];
       let live = false;
-      const send = (event: string, payload: unknown) => {
-        if (!res.writableEnded && !res.destroyed) res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`);
+      let closed=false,queued=0;let outbound=Promise.resolve();
+      const closeStream=()=>{closed=true;if(!res.writableEnded)res.end();};
+      const send=(event:string,payload:unknown)=>{
+        if(closed||res.destroyed)return;
+        if(++queued>256){closeStream();return;}
+        outbound=outbound.then(async()=>{
+          if(closed||res.destroyed)return;
+          if(deps.isStreamAuthorized&&!await deps.isStreamAuthorized(req,projectId)){closeStream();return;}
+          if(!res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`))closeStream();
+        }).catch(closeStream).finally(()=>{queued--;});
       };
       unsubscribe = subscribeCanvasCardChanges(projectId, (event) => {
-        if (!live) pending.push(event);
+        if (!live) {if(pending.length>=256){closeStream();return;}pending.push(event);}
         else send(event.type, event);
       });
       const current = await deps.canvasState.read(projectId);
@@ -198,9 +298,9 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
           send(event.type, event);
         }
       }
-      const heartbeat = setInterval(() => { if (!res.destroyed) res.write(': heartbeat\n\n'); }, 20_000);
+      const heartbeat = setInterval(() => { if(deps.isStreamAuthorized){void deps.isStreamAuthorized(req,projectId).then(allowed=>{if(!allowed)closeStream();else if(!closed&&!res.destroyed)res.write(': heartbeat\n\n');}).catch(closeStream);}else if(!closed&&!res.destroyed)res.write(': heartbeat\n\n'); }, 3_000);
       heartbeat.unref();
-      const cleanup = () => { clearInterval(heartbeat); unsubscribe(); };
+      const cleanup = () => { closed=true;clearInterval(heartbeat); unsubscribe(); };
       res.once('close', cleanup);
       res.once('finish', cleanup);
     } catch (error) {
@@ -223,8 +323,12 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
   /** Instance list (P5). */
   app.get('/api/apps/canvas/instances', async (req, res) => {
     try {
-      const teamId = tenantOf(req).teamId;
-      const instances = (deps.registry.list?.() ?? []).filter(p => (p.teamId ?? 'local') === teamId).map(p => ({ instanceId: p.id, name: p.name, createdAt: p.createdAt, updatedAt: p.updatedAt }));
+      const actor = tenantOf(req);
+      const instances = (deps.registry.list?.() ?? []).filter(p => {
+        if((p.teamId??'local')!==actor.teamId)return false;
+        if(!actor.bizId)return true;
+        return canvasProjectMatchesAuthority(p as typeof p & {metadata?:unknown},actor);
+      }).map(p => ({ instanceId: p.id, name: p.name, createdAt: p.createdAt, updatedAt: p.updatedAt }));
       res.json({ requestId: requestId(), data: { instances } });
     } catch (error) { sendAppError(res, error); }
   });
@@ -257,7 +361,7 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
       // same queue through state (which would deadlock across two HTTP servers).
       const documentTarget = body.appId === 'doc';
       const verified = await fetch(`${targetApp.endpoint.replace(/\/+$/, '')}/instances/${encodeURIComponent(body.appInstanceId)}${documentTarget ? '/actions/doc.read' : '/state'}`, {
-        method: documentTarget ? 'POST' : 'GET', headers: { 'content-type': 'application/json', 'x-team-id': actor.teamId, 'x-user-id': actor.userId },
+        method: documentTarget ? 'POST' : 'GET', redirect:'error', headers: { 'content-type': 'application/json', 'x-team-id': actor.teamId, 'x-user-id': actor.userId, ...forwardedAuthorityHeaders(targetApp.endpoint) },
         ...(documentTarget ? { body: JSON.stringify({ input: {} }) } : {}), signal: AbortSignal.timeout(5000),
       });
       if (!verified.ok) throw new CanvasStateError(verified.status === 403 || verified.status === 404 ? 403 : 503, 'BINDING_TARGET_UNVERIFIED', 'Target instance is not accessible to this caller');
@@ -368,26 +472,51 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
       const input = req.body?.input && typeof req.body.input === 'object' ? req.body.input : {};
       if (actionId === 'canvas.rename' || actionId === 'canvas.delete') {
         if (!await authorize(req, res, projectId, { mode: 'write', capability: 'writeFiles' })) return;
+        const lifecycleAction = actionId as CanvasLifecycleAction;
+        const validatedInput: Record<string, unknown> = {};
         if (actionId === 'canvas.rename') {
           const name = typeof input.name === 'string' ? input.name : '';
           if (!name.trim()) throw new CanvasStateError(400, 'BAD_REQUEST', 'input.name is required');
-          const project = deps.registry.update?.(projectId, { name });
-          if (!project) throw new CanvasStateError(503, 'CANVAS_REGISTRY_UNAVAILABLE', 'rename is unavailable');
-          res.json({ requestId: requestId(), data: { receiptId: req.get('idempotency-key') ?? null, status: 'succeeded', result: { instanceId: project.id, name: project.name } } });
-          return;
+          validatedInput.name = name;
         }
-        // Archive — never physically delete an instance (spec §3.0); its
-        // files and bindings stay recoverable. Its card↔App bindings archive too.
-        deps.registry.archive ? deps.registry.archive(projectId) : deps.registry.delete?.(projectId);
-        deps.bindings?.archive(projectId, undefined, 'canvas_archived');
-        deps.audit?.record({ actor: tenantOf(req), action: 'canvas.archive', appId: 'canvas', targetId: projectId, status: 'succeeded' });
-        res.json({ requestId: requestId(), data: { receiptId: req.get('idempotency-key') ?? null, status: 'succeeded', result: { instanceId: projectId, archived: true } } });
+        // Nonexistent (and cross-team, via the middleware) targets fail before
+        // any pending intent is reserved.
+        if (deps.registry.get && !deps.registry.get(projectId)) throw new CanvasStateError(404, 'CANVAS_INSTANCE_NOT_FOUND', 'Canvas instance not found');
+        const actor = receiptActor(req);
+        const keyMaterial = lifecycleKey(req);
+        const key = canvasActionKey(actor, 'instance', projectId, keyMaterial);
+        const fingerprint = canvasActionFingerprint(lifecycleAction, validatedInput);
+        const outcome = await actionReceipts.serialized(key, async (): Promise<LifecycleData | undefined> => {
+          const replay = await lifecycleReplay(key, fingerprint);
+          if (replay !== 'none') return { receiptId: replay.receiptId, status: 'succeeded', result: replay.result ?? { instanceId: projectId }, replayed: true };
+          await actionReceipts.reserve({ receiptId: keyMaterial, key, fingerprint, action: lifecycleAction, scope: 'instance', targetId: projectId, identity: actor });
+          let result: Record<string, unknown>;
+          if (actionId === 'canvas.rename') {
+            const project = deps.registry.update?.(projectId, { name: validatedInput.name as string });
+            if (!project) throw new CanvasStateError(503, 'CANVAS_REGISTRY_UNAVAILABLE', 'rename is unavailable');
+            result = { instanceId: project.id, name: project.name };
+          } else {
+            // Archive — never physically delete an instance (spec §3.0); its
+            // files and bindings stay recoverable. Its card↔App bindings archive too.
+            deps.registry.archive ? deps.registry.archive(projectId) : deps.registry.delete?.(projectId);
+            deps.bindings?.archive(projectId, undefined, 'canvas_archived');
+            deps.audit?.record({ actor: tenantOf(req), action: 'canvas.archive', appId: 'canvas', targetId: projectId, status: 'succeeded' });
+            result = { instanceId: projectId, archived: true };
+          }
+          await deps.registry.flush?.();
+          const done = await actionReceipts.succeed(key, result);
+          return { receiptId: done.receiptId, status: 'succeeded', result: done.result ?? result, replayed: false };
+        });
+        if (!outcome) return;
+        res.json({ requestId: requestId(), data: outcome });
         return;
       }
       if (actionId === 'canvas.duplicate') throw new CanvasStateError(501, 'CANVAS_ACTION_UNAVAILABLE', 'canvas.duplicate is not implemented yet');
       if (!await authorize(req, res, projectId, { mode: 'write', capability: 'writeFiles' })) return;
       const operationId = req.get('idempotency-key') ?? `op-${randomUUID()}`;
-      const baseRevision = typeof req.body?.expectedRevision === 'number' ? req.body.expectedRevision : await deps.canvasState.revision(projectId);
+      const baseRevision = req.body?.expectedRevision;
+      if(baseRevision===undefined)throw new CanvasStateError(428,'CANVAS_PRECONDITION_REQUIRED','expectedRevision is required before changing a canvas instance');
+      if(!Number.isSafeInteger(baseRevision)||baseRevision<0)throw new CanvasStateError(400,'CANVAS_INVALID_INPUT','expectedRevision must be a non-negative safe integer');
       const response = await deps.canvasState.applyOperations(projectId, {
         operationId, baseRevision,
         operations: [{ type: req.params.actionId, ...input }],
@@ -402,11 +531,30 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
     } catch (error) { sendAppError(res, error); }
   });
 
-  /** Execution receipt lookup by the caller-issued operation id. */
+  /** App-scope lifecycle receipt lookup (canvas.create). Exact current actor
+   * scope only — another scope's receipt is a 404 — and the resolved target
+   * still requires current read authorization. */
+  app.get<{ receiptId: string }>('/api/apps/canvas/action-receipts/:receiptId', async (req, res) => {
+    try {
+      const receipt = await actionReceipts.findVisible(receiptActor(req), 'app', req.params.receiptId);
+      if (!receipt) throw new CanvasStateError(404, 'CANVAS_RECEIPT_NOT_FOUND', 'Receipt not found');
+      const target = typeof receipt.result?.instanceId === 'string' ? receipt.result.instanceId : receipt.targetId;
+      if (!await authorize(req, res, target, { mode: 'read' })) return;
+      res.json({ requestId: requestId(), data: lifecycleReceiptView(receipt) });
+    } catch (error) { sendAppError(res, error); }
+  });
+
+  /** Execution receipt lookup by the caller-issued operation id. Lifecycle
+   * (rename/delete) journal first; otherwise the existing operation receipt. */
   app.get<{ instanceId: string; receiptId: string }>('/api/apps/canvas/instances/:instanceId/action-receipts/:receiptId', async (req, res) => {
     try {
       const projectId = resolveInstanceId(req.params.instanceId);
       if (!await authorize(req, res, projectId, { mode: 'read' })) return;
+      const lifecycle = await actionReceipts.findVisible(receiptActor(req), 'instance', req.params.receiptId);
+      if (lifecycle && lifecycle.targetId === projectId) {
+        res.json({ requestId: requestId(), data: lifecycleReceiptView(lifecycle) });
+        return;
+      }
       const receipt = await deps.canvasState.operation(projectId, req.params.receiptId);
       res.json({ requestId: requestId(), data: { receiptId: receipt.operationId, status: receipt.status === 'applied' ? 'succeeded' : 'noop', result: receipt } });
     } catch (error) { sendAppError(res, error); }
@@ -423,6 +571,19 @@ export function registerAppCanvasRoutes(app: Express, deps: RegisterAppCanvasRou
       const nodeId = typeof req.body?.nodeId === 'string' ? req.body.nodeId : '';
       if (!nodeId) throw new CanvasStateError(400, 'BAD_REQUEST', 'nodeId is required');
       const snapshot = await deps.canvasState.read(projectId);
+      const images = (Array.isArray(snapshot.state.workbenchImages) ? snapshot.state.workbenchImages : []) as Record<string, unknown>[];
+      const image = images.find(item => item.id === nodeId);
+      if (image) {
+        const app = deps.appRegistry ? await deps.appRegistry.get('image') : null;
+        if (!app || app.status !== 'active') throw new CanvasStateError(404, 'APP_NOT_INSTALLED', '图片 App 尚未注册');
+        await requireAppAccess(req, 'image');
+        if (typeof image.path !== 'string' || !image.path || (image.status !== undefined && image.status !== 'ready')) throw new CanvasStateError(409, 'IMAGE_NOT_READY', '请等待图片保存完成后再进入图片模式');
+        const target: CanvasImageEditorTarget = { appId: 'image', kind: 'image', canvasInstanceId: projectId,
+          nodeId, endpoint: app.endpoint, filePath: image.path, revision: snapshot.revision, name: typeof image.name === 'string' ? image.name : '图片',
+          ...(typeof image.naturalWidth === 'number' ? { naturalWidth: image.naturalWidth } : {}), ...(typeof image.naturalHeight === 'number' ? { naturalHeight: image.naturalHeight } : {}) };
+        res.json({ requestId: requestId(), data: target });
+        return;
+      }
       const nodes = (snapshot.state.workbenchBasicNodes ?? []) as { id: string; kind?: string; projectFilePath?: string; text?: string; data?: Record<string, unknown> }[];
       const node = nodes.find(n => n.id === nodeId);
       if (!node) throw new CanvasStateError(404, 'CANVAS_NODE_NOT_FOUND', `Node not found: ${nodeId}`);

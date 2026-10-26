@@ -48,6 +48,9 @@ function useRegisteredKindAvailability(): { kinds: ReadonlySet<string> | null; a
                     const appId = editorApps[kind];
                     if (NATIVE_CARD_KINDS.has(kind) || (appId && activeApps.has(appId))) next.add(kind);
                 }
+                for (const [kind, appId] of Object.entries(editorApps)) {
+                    if (appId && activeApps.has(appId)) next.add(kind);
+                }
                 if (!cancelled) setState({ kinds: next, agentAvailable: manifest?.agentRuntime?.available === true });
             } catch { /* registry unreachable → keep the full catalogue */ }
         };

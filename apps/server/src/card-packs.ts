@@ -18,9 +18,11 @@ type CardPackLike = {
 /** Server-side card-pack mount: each pack's card ops register under
  * `card.<team>.<name>.<verb>`. One import line per pack (build-time, v1). */
 import demoPackServer from '@bezier/canvas-pack-demo/server';
+import imagePackServer from '@ks-designai/image-card-pack/server';
 
 const CARD_PACKS: CardPackLike[] = [
   demoPackServer,
+  imagePackServer, // Independent image App metadata; existing native renderer/actions stay in canvas.
   // import yourPack from '@team/canvas-pack-yourbiz/server';
   // yourPack,
 ];

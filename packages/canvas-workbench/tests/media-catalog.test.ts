@@ -57,13 +57,17 @@ describe('configuration-backed canvas media models', () => {
   it('keeps native IDs through generation and refreshes revoked configuration without fallback', async () => {
     setCanvasHostContext({ projectId: 'test' });
     let configured = true;
+    let codexAvailable = false;
     vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify(
-      url.endsWith('/models') ? catalog : url.endsWith('/agents') ? { agents: [] } : { providers: { openai: { configured } } },
+      url.endsWith('/models') ? catalog : url.endsWith('/agents') ? { agents: codexAvailable ? [{id:'codex',available:true}] : [] } : { providers: { openai: { configured } } },
     ), { status: 200 })));
     await refreshCanvasMediaCatalog();
     expect(visualModelToNativeMediaModel('gpt-image-2')).toBe('gpt-image-2');
     expect(() => visualModelToNativeMediaModel('gpt2')).toThrow();
     expect(() => visualModelToNativeMediaModel('gemini')).toThrow();
+    expect(() => visualModelToNativeMediaModel('codex-gpt2')).toThrow();
+    codexAvailable = true;
+    await refreshCanvasMediaCatalog();
     expect(visualModelToNativeMediaModel('codex-gpt2')).toBe('codex-gpt-image-2');
     configured = false;
     await refreshCanvasMediaCatalog();

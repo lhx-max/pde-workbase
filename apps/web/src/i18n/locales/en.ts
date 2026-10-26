@@ -8555,6 +8555,8 @@ export const en: Dict = {
   "browserCollector.dragAria": "Drag {name} to canvas",
   "browserCollector.imageAlt": "Collected image",
   "browserCollector.addAria": "Add {name} to canvas",
+  "entry.canvasAssets.addToCanvas": "Add to canvas",
+  "entry.canvasAssets.addedToCanvas": "Added to canvas",
   "browserCollector.addTooltip": "Add to canvas",
   "browserCollector.add": "Add",
   "browserCollector.saveAssetAria": "Save {name} to personal assets",

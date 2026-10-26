@@ -1,5 +1,5 @@
 import React from 'react';
-import { useCanvasPreviewScale } from './CanvasRenderPolicy';
+import { useCanvasPreviewScale, useCanvasRenderDetail } from './CanvasRenderPolicy';
 import { useCanvasIdleWork } from '../platform/canvas-idle-work';
 
 let decoding = 0;
@@ -62,11 +62,17 @@ export function canvasPreviewUrl(src: string, kind: 'image' | 'poster' | 'video'
   return `${base}${base!.includes('?') ? '&' : '?'}odCanvasPreview=${kind}&odPreviewWidth=${bucket}${hash ? `#${hash}` : ''}`;
 }
 
+/** Keep original URLs intact for editing, exports, and zoom above preview resolution. */
+export function canvasImageDisplayUrl(src:string,pixels:number,original=false):string {
+  return original||pixels>2048?src:canvasPreviewUrl(src,'image',pixels);
+}
+
 export function CanvasPreviewImage({ src = '', previewSize = 420, original = false, onLoad, onError, ...props }:
   React.ImgHTMLAttributes<HTMLImageElement> & { previewSize?: number; original?: boolean }) {
   const scale = useCanvasPreviewScale();
+  const { nearby } = useCanvasRenderDetail();
   const idleWork = useCanvasIdleWork();
-  const candidate = original ? src : canvasPreviewUrl(src, 'image', previewSize * scale * Math.min(globalThis.devicePixelRatio || 1, 2));
+  const candidate = canvasImageDisplayUrl(src, previewSize * scale * Math.min(globalThis.devicePixelRatio || 1, 2), original);
   const [displayed, setDisplayed] = React.useState({ source: src, url: candidate });
   const resolvedPreview = displayed.source === src && !original ? displayed.url : candidate;
   React.useEffect(() => {
@@ -83,7 +89,9 @@ export function CanvasPreviewImage({ src = '', previewSize = 420, original = fal
   }, [candidate, displayed, idleWork, original, src]);
   const [failed, setFailed] = React.useState('');
   const resolved = failed === resolvedPreview ? src : resolvedPreview;
-  return <img {...props} src={resolved} loading="lazy" decoding="async" onLoad={event => {
+  // The canvas already tracks proximity to its transformed viewport. Visible
+  // cards must not wait for the document's separate lazy-image heuristic.
+  return <img {...props} src={resolved} loading={nearby ? 'eager' : 'lazy'} decoding="async" onLoad={event => {
     // A preview's natural dimensions must never overwrite original asset metadata.
     if (resolved === src) onLoad?.(event);
   }} onError={event => { if (resolved !== src) setFailed(resolvedPreview); else onError?.(event); }} />;
