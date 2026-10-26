@@ -1,8 +1,8 @@
 ---
 name: designai-app-platform
-description: DesignAI App 与卡片平台开发规范。用于新建独立 App、开发画布卡片包、适配 DA/MA 宿主、交付 CLI/Skill，以及审查租户鉴权、云端存储、组件制品和接入验收。按白皮书形成开发合同，再加载对应协议；不替代业务需求定义或授予平台访问权限。
+description: DesignAI App 与卡片平台开发规范。用于新建独立 App、开发画布卡片包、适配 DA/MA 宿主、交付 CLI/Skill，以及 Appwrite 后端成员授权、添加用户、租户鉴权、云端存储、组件制品和接入验收。按白皮书形成开发合同，再加载对应协议；不替代业务需求定义或授予平台访问权限。
 metadata:
-  version: "3.3.1"
+  version: "3.3.4"
   language: zh-CN
 ---
 
@@ -19,6 +19,8 @@ metadata:
 
 ## 任务与专项合同
 
+**Appwrite 后端权限 / 给同事开权限 / 找不到添加成员按钮**：直接读 [后端授权操作指南](docs/appwrite-backend-collaboration.zh-CN.md)。正式入口是 [Appwrite Console](https://frontend-cloud.corp.kuaishou.com/console) 的**组织首页 → 右上角“添加成员”**；站点协作和桶 ACL 不代替后端成员授权。
+
 | 任务 | 专项合同与按需资料 | 应交付的结果 |
 | --- | --- | --- |
 | 新独立 App | [开发规范与 API profile](docs/app-development-spec.zh-CN.md)、[统一可靠性交付合同](docs/unified-app-delivery.zh-CN.md) | 权威业务服务、独立壳、surface、API/CLI、资源配置与证据 |
@@ -26,6 +28,7 @@ metadata:
 | 卡片与深编辑 App 互联 | [App 互联协议](docs/canvas-app-interop.zh-CN.md)、[数据模型](docs/data-model.zh-CN.md) | 同实例绑定、版本化读写、文件/镜像和生命周期 |
 | 文档正文与画布双入口 | [正文与同步合同](docs/document-sync-contract.zh-CN.md) | 条件写、冲突、持久投递、复制/归档与恢复 |
 | DA/MA 宿主适配 | [Kit 示范与接入合同](docs/da-plugin-kit-integration.zh-CN.md) | App 自有包装层、manifest、Provider、环境和认证配置 |
+| Appwrite 后端协作、添加用户、完整维护权限 | [后端成员授权与排查](docs/appwrite-backend-collaboration.zh-CN.md) | 正确组织与成员角色、范围核对、本人身份的真实能力验证 |
 | 图片/异步处理 | [图片接入案例](docs/image-integration-cases.zh-CN.md)、[图片 CLI 合同](../../../docs/image-cli-contract.zh-CN.md) | 任务身份、产物、版本、幂等、取消及条件回填 |
 | 草图与场景类 App | [草图接入案例](docs/sketch-integration-cases.zh-CN.md) | 场景权威、资源引用、同实例编辑及导出授权 |
 | 首次上线、npm 发包与版本更新 | [发布、更新与 npm 操作流程](docs/app-release-and-npm.zh-CN.md) | 固定制品、registry 读回、宿主消费、后端部署、正式登记、迁移、回滚与运维交接 |

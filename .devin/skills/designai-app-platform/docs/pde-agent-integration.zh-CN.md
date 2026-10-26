@@ -12,11 +12,14 @@ PDE 提供内部脚手架、Appwrite 运维、静态托管、OneSQL 和设计参
 
 ## 2. 按需使用模块
 
+**Appwrite 后端权限快速解法（2026-10-26 核验）**：打开 [Appwrite Console](https://frontend-cloud.corp.kuaishou.com/console)，在目标资源所属**组织首页**右上角点“添加成员”。找不到按钮时先退出项目/桶详情，不要改走静态站点协作或公开桶。人员、角色、组织覆盖范围及验收步骤见 [后端授权操作指南](appwrite-backend-collaboration.zh-CN.md)；官方来源为 [PDE FAQ](https://pde-agent.frontend-cloud.corp.kuaishou.com/faq/69f1b7390012fc33e6e8)。本地适配层维护这条补充，不改写内置上游快照。
+
 | 任务 | 内置入口 | 应得到的结果 |
 | --- | --- | --- |
 | 新项目工具链与总体流程 | [PDE 原入口](../vendor/pde-agent/entrypoint.md) | 选择适用工具，保留本页的边界判断 |
 | 新建独立前端壳 | [Vite 初始化](../vendor/pde-agent/references/vite-react-init/vite-react-init.md) | 与 App surface/后端分层相容的前端项目 |
 | Appwrite 查询、schema 与资源维护 | [Appwrite CLI](../vendor/pde-agent/references/appwrite-cf/entrypoint.md) | 在已批准资源范围执行并读回；不把 CLI 登录当业务用户授权 |
+| 给同事开后端权限、添加成员、找不到 Add Member | [后端授权与排查](appwrite-backend-collaboration.zh-CN.md) | Console 组织级授权及接收方能力实测；与站点/桶权限分开 |
 | 云函数与权限细节 | [函数资料](../vendor/pde-agent/references/appwrite-cf/references/fucntions.md)、[权限资料](../vendor/pde-agent/references/appwrite-cf/references/permissions.md) | 验证所选运行形态、最小权限与真实隔离 |
 | 发布静态前端 | [静态托管](../vendor/pde-agent/references/static-site-deploy/static-site-deploy.md) | 固定构建资源、实际站点、访问控制与页面验收 |
 | OneSQL / KwaiBI 数据能力 | [数据接入](../vendor/pde-agent/references/onesql/onesql.md) | 读取真实元信息、限定数据权限、按实际任务取数 |

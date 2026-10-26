@@ -3,3 +3,7 @@ export type { AppwriteJsonStateOptions, AppwriteStateClient, JsonStatePort } fro
 export { AppwriteJsonState, MANIFEST_SLOT, stateDocumentId } from './appwrite-json-state.js';
 export { AppwriteWriterLock, writerLockDocumentId } from './appwrite-writer-lock.js';
 export { assertPrivateAppwriteStorage } from './private-storage.js';
+
+export type { AppwriteWriterLockOptions, WriterLockReconcileOptions } from "./appwrite-writer-lock.js";
+
+export type { WriteReconcileOptions } from "./port.js";

@@ -1,6 +1,6 @@
 # DesignAI App API 与实现规范
 
-文档修订：3.2.0；日期：2026-10-23。文档版本不改变 COI、MA 或业务协议自身的版本。
+文档修订：3.3.3；日期：2026-10-26。文档版本不改变 COI、MA 或业务协议自身的版本。
 
 > 给要**从零开发一个新 App** 的人或 Agent。业务参考：`designai-app-doc`；外部接入参考：[一涵示范仓与合同逐项对照](da-plugin-kit-integration.zh-CN.md)（2026-10-22 深度复核）。示范、MA实际合同与本项目云端/可靠性增补分开取证。
 > **先读 [App架构与开发白皮书](app-development-handbook.zh-CN.md)**：定义 App/卡包/surface/包装层/CLI、责任、ID、环境与完整开发验收流程；本文件保留具体协议。COI 与 MA 是不同 profile；P1–P24 按提供方分工，不要求每个 App 实现宿主所有路由。旧运行样例仅证明当时范围，不能当生产就绪结论。
@@ -393,8 +393,8 @@ POST {provider.baseUrl}/open-platform/v1/instances/{providerInstanceId}/actions/
 
 交付与验收必须区分三层：
 
-1. **组件可安装**：提供独立可安装包、版本、CSS、真实命名导出与依赖闭包。`frontend.moduleId/exportName` 是宿主编译注册身份，版本要与后端 `currentVersion`、manifest 和实例 `applicationVersion` 一致；源码软链、Preview 能渲染不等于可移植交付。
-2. **后端可登记**：交付部署 manifest，按目标正式登记/发布入口安装。MA profile 的 `provider.baseUrl` 必须是完整 URL；`/canvas-provider` 只是本机 Preview 路由，不能作为正式登记值。不得自造 `app_`/`ai_` ID、用我们的 `/api/apps/register` 冒充 MA 登记，也不向目标数据库直接塞行。云端目录被 503 门禁拒绝时，记录为目标服务未就绪，不能改菜单假装注册成功。
+1. **组件可安装**：提供独立可安装包、版本、CSS、真实命名导出与依赖闭包。`frontend.moduleId/exportName` 是宿主编译注册身份，须通过目标已部署后端的实际 schema；逻辑模块标识与 npm 包名分别记录，不默认允许把作用域包名作为 moduleId。登记合同版本与后端 `currentVersion`、manifest 和实例 `applicationVersion` 一致；npm 组件版本独立记录。源码软链、Preview 能渲染不等于可移植交付。
+2. **后端可登记**：交付部署 manifest，按目标正式登记/发布入口安装。MA profile 的 `provider.baseUrl` 必须是完整 URL；`/canvas-provider` 只是本机 Preview 路由，不能作为正式登记值。不得自造 `app_`/`ai_` ID、用我们的 `/api/apps/register` 冒充 MA 登记，也不向目标数据库直接塞行。云端目录返回 503 时保留执行关联和业务错误码，区分验收门控、存储调用失败及权限拒绝；不能改菜单假装注册成功。正式登记、租户可用范围、团队启用配置分别读回，不把其中一项成功当作其余项通过。
 3. **可打开调用**：从目标目录创建、关联并打开真实实例；Agent 经其正式工具通道调用公开动作，回执、App 存储与 UI 读回一致。前端关键词预执行、模型复述脚本结果和只在 Kit Preview 点击均不得算真实 Agent 调用通过。
 
 前端适配只消费目标已承诺的 props。当前 MA-V 会传 `context/fileClient/conversation`；`providerClient` 虽在 SDK 类型中可选，宿主实际没有传，不能当成必需项；`registerBeforeLeave` 和画布私有 `transport` 也不是该宿主已承诺的接口。应用自己的发布配置/包装层负责接入现有通道，不能要求基座新增这些参数。缺少必要能力时如实报不支持并给出所需公开合同，不静默连到开发者电脑。
@@ -402,6 +402,8 @@ POST {provider.baseUrl}/open-platform/v1/instances/{providerInstanceId}/actions/
 所有地址按部署 profile 配置，不能把 `127.0.0.1:19000`、`17463`、绝对工作目录或另一个仓库源码路径写成通用运行依赖。联调 manifest 可使用明确的本机 URL，但必须与生产登记产物区分；远端服务上的 loopback 不指向用户电脑。用户与团队身份由约定的认证/委托通道证明，actor 字段本身不是认证凭据。前端共用宿主渲染器，遵守本仓 React 18 约束并独立核验真实宿主运行兼容性，不靠捆绑另一份 React 规避冲突。
 
 最小交付包包括：组件安装包、按环境生成的 manifest、Provider 协议/版本/错误说明、认证与网络依赖、声明动作的参数 schema、在未修改目标基座上完成的安装/打开/调用/持久化证据及未通过项。规范与能力声明只记录实际通过的范围。
+
+登记工具在提交前持久化非敏感恢复记录：调用身份、租户、完整规范请求、摘要、幂等键和阶段。未知提交先按当前权限读回或按正式合同以同键同体重放，不换键制造第二次登记；恢复时重新核对所有者、完整 manifest、版本与返回 ID。401/403 立即停止后续写入，目录刷新失败不得使用旧缓存确认成功。租户授权使用正式条件写与明确目标集合，禁止自动扩大其他租户范围。Appwrite 外层执行 HTTP 成功不等于函数业务成功。
 
 ### 4.6.1 新 App 从开发阶段准备 Kit 接入（2026-10-21）
 

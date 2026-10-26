@@ -19,6 +19,7 @@ export function writerLockDocumentId(serviceId: string): string {
 }
 
 interface LockRow {
+  $id?: unknown;
   namespace?: unknown;
   slot?: unknown;
   payload?: unknown;
@@ -37,17 +38,48 @@ const misconfigured = (why: string): CloudStateError =>
 
 type LockStatus = 'idle' | 'acquiring' | 'acquired' | 'uncertain' | 'locked' | 'released';
 
+/** Opt-in owned-create acknowledgement reconciliation. When the create POST
+ * fails ambiguously the acknowledgement may have been lost AFTER the row
+ * landed; the caller may then authorize a bounded read-back of OUR OWN
+ * deterministic lock row to decide the outcome on evidence instead of
+ * guessing. The reconcile never issues another POST, never deletes any row,
+ * and never decides by age — only a complete ownership match confirms the
+ * acquisition. Bounds are taken from the caller's OWN deadline (usually the
+ * invocation budget): the reconcile spends from the same clock, it never
+ * gets a fresh window. */
+export interface WriterLockReconcileOptions {
+  /** Absolute deadline (epoch ms, Date.now() clock) bounding the reconcile.
+   * Typically `startedAt + totalMs - reserveMs` of the invocation deadline. */
+  deadlineAt?: number;
+  /** Additional relative bound from reconcile start (ms). */
+  timeoutMs?: number;
+  /** Delay between ownership read-backs (ms); default 150. */
+  pollIntervalMs?: number;
+}
+
+export interface AppwriteWriterLockOptions {
+  client: AppwriteStateClient;
+  databaseId: string;
+  collectionId: string;
+  serviceId: string;
+  /** Opt-in: reconcile an ambiguous create result by reading back our own
+   * deterministic row within the supplied bound. Absent = legacy behavior:
+   * any ambiguous create failure rejects immediately as uncertain. */
+  reconcileAcquire?: WriterLockReconcileOptions;
+}
+
 export class AppwriteWriterLock {
   private readonly client: AppwriteStateClient;
   private readonly databaseId: string;
   private readonly collectionId: string;
   private readonly serviceId: string;
+  private readonly reconcile: { until: () => number; pollIntervalMs: number } | null;
   private readonly ownerId = randomUUID();
   private acquisition: Promise<void> | undefined;
   private releaseOp: Promise<void> | undefined;
   private status: LockStatus = 'idle';
 
-  constructor(options: { client: AppwriteStateClient; databaseId: string; collectionId: string; serviceId: string }) {
+  constructor(options: AppwriteWriterLockOptions) {
     const { client, databaseId, collectionId, serviceId } = options ?? ({} as never);
     if (!client || typeof client.call !== 'function' || typeof client.getOrNull !== 'function' || typeof client.docsPath !== 'function')
       throw misconfigured('A client with call/getOrNull/docsPath is required');
@@ -59,6 +91,23 @@ export class AppwriteWriterLock {
     this.databaseId = databaseId;
     this.collectionId = collectionId;
     this.serviceId = serviceId;
+    this.reconcile = options.reconcileAcquire ? AppwriteWriterLock.boundReconcile(options.reconcileAcquire) : null;
+  }
+
+  private static boundReconcile(options: WriterLockReconcileOptions): { until: () => number; pollIntervalMs: number } {
+    const startedAt = Date.now();
+    const timeoutMs = options.timeoutMs;
+    const deadlineAt = options.deadlineAt;
+    if (timeoutMs === undefined && deadlineAt === undefined)
+      throw misconfigured('reconcileAcquire requires an explicit bound: deadlineAt and/or timeoutMs');
+    if (timeoutMs !== undefined && (!Number.isFinite(timeoutMs) || timeoutMs <= 0))
+      throw misconfigured('reconcileAcquire.timeoutMs must be a positive number');
+    if (deadlineAt !== undefined && !Number.isFinite(deadlineAt))
+      throw misconfigured('reconcileAcquire.deadlineAt must be a finite epoch ms');
+    if (options.pollIntervalMs !== undefined && (!Number.isFinite(options.pollIntervalMs) || options.pollIntervalMs <= 0 || options.pollIntervalMs > 10_000))
+      throw misconfigured('reconcileAcquire.pollIntervalMs must be a positive number <= 10000');
+    const pollIntervalMs = options.pollIntervalMs ?? 150;
+    return { until: () => Math.min(deadlineAt ?? Number.POSITIVE_INFINITY, timeoutMs !== undefined ? startedAt + timeoutMs : Number.POSITIVE_INFINITY), pollIntervalMs };
   }
 
   private documents(): string {
@@ -108,8 +157,67 @@ export class AppwriteWriterLock {
       // uncertain — release() must still reconcile our ownerId — but no
       // success is ever reported from a failed create.
       this.status = 'uncertain';
-      throw unavailable();
+      // Opt-in reconcile either throws (deterministically foreign-owned),
+      // promotes us to 'acquired' on full ownership evidence, or leaves us
+      // 'uncertain' — in which case the same unavailable failure surfaces.
+      if (this.reconcile) await this.reconcileOwnership();
+      if ((this.status as LockStatus) !== 'acquired') throw unavailable();
+      return;
     }
+  }
+
+  /** Opt-in lost-acknowledgement reconcile: read back OUR deterministic row
+   * inside the caller-supplied bound. Exactly three outcomes:
+   *  - the stored row is verifiably OUR create (same rowid + namespace +
+   *    slot + strict payload schema + our ownerId) → the POST landed, the
+   *    ack was lost: status 'acquired' and the caller owns the lock;
+   *  - a structurally valid lock row exists under a DIFFERENT owner → we did
+   *    not win this serviceId: status 'locked', fail as busy;
+   *  - anything else — missing row, corrupt/foreign metadata, an
+   *    undecidable read, or an exhausted bound → stay 'uncertain' and the
+   *    caller sees the same unavailable failure as before; the row, if it
+   *    exists, is left for release()/operator reconciliation. */
+  private async reconcileOwnership(): Promise<void> {
+    const reconcile = this.reconcile!;
+    const rowId = writerLockDocumentId(this.serviceId);
+    for (;;) {
+      const remaining = reconcile.until() - Date.now();
+      if (remaining <= 0) return; // bound exhausted — stay uncertain
+      // Each read-back is bounded by the SAME deadline: a getOrNull that
+      // outlives the budget is abandoned and counted undecidable. Its late
+      // result can never promote this object to 'acquired' — see the
+      // deadline re-check below before any ownership claim is made.
+      const row = await this.readRowBounded(remaining);
+      if (Date.now() >= reconcile.until()) return; // late evidence never qualifies
+      if (row !== null && row !== undefined) {
+        if (row.$id !== rowId) return; // wrong rowid — fail closed
+        const owner = this.readOwner(row);
+        if (owner === null) return; // corrupt or foreign-shaped metadata
+        if (owner === this.ownerId) { this.status = 'acquired'; return; }
+        this.status = 'locked';
+        throw new CloudStateError(503, 'CLOUD_WRITER_LOCKED', `An exclusive writer already owns service '${this.serviceId}'; stop the previous writer before retrying`);
+      }
+      // Missing row or undecidable read: probe again while budget remains.
+      const wait = reconcile.until() - Date.now();
+      if (wait <= 0) return;
+      await new Promise<void>(resolve => setTimeout(resolve, Math.min(reconcile.pollIntervalMs, wait)));
+    }
+  }
+
+  /** One ownership read bounded by `ms`. Resolves `undefined` when the read
+   * failed OR did not settle inside the budget — both undecidable. The
+   * abandoned getOrNull is never reported as cancelled upward; it simply
+   * cannot win the race that matters (the deadline is checked again before
+   * any acquisition decision). */
+  private readRowBounded(ms: number): Promise<LockRow | null | undefined> {
+    let timer: NodeJS.Timeout | undefined;
+    return new Promise<LockRow | null | undefined>((resolve) => {
+      timer = setTimeout(() => resolve(undefined), ms);
+      this.client.getOrNull<LockRow>(this.documentPath()).then(
+        row => resolve(row),
+        () => resolve(undefined),
+      );
+    }).finally(() => { if (timer) clearTimeout(timer); });
   }
 
   /** Deletes the lock document only when it is verifiably ours. A 409-conflict
@@ -164,6 +272,6 @@ export class AppwriteWriterLock {
     if(!payload||typeof payload!=='object'||Array.isArray(payload)||Object.keys(payload).some(key=>!['kind','version','serviceId','ownerId','startedAt'].includes(key)))return null;
     if (payload.kind !== LOCK_KIND || payload.version !== LOCK_VERSION || payload.serviceId !== this.serviceId) return null;
     if(typeof payload.startedAt!=='string'||!Number.isFinite(Date.parse(payload.startedAt)))return null;
-    return typeof payload.ownerId === 'string' && /^[a-f0-9-]{36}$/.test(payload.ownerId) ? payload.ownerId : null;
+    return typeof payload.ownerId === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(payload.ownerId) ? payload.ownerId : null;
   }
 }

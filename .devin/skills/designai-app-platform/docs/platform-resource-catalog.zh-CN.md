@@ -1,6 +1,6 @@
 # DesignAI 仓库、负责人、文档与云资源目录
 
-修订日期：2026-10-23。用途：开发定位、资源归属与权限申请。本目录保存非敏感标识，不保存账号口令、会话、token、私钥或服务写凭据。
+修订日期：2026-10-26。用途：开发定位、资源归属与权限申请。本目录保存非敏感标识，不保存账号口令、会话、token、私钥或服务写凭据。
 
 **审批规则：仓库负责人管理并审批该仓库所属资源。跨仓使用代码、组件、接口或存储时，向资源归属仓库的负责人申请。** 不因同团队、同项目或能安装包而自动获得其他 App 的资源权限。
 
@@ -55,7 +55,20 @@
 
 Image独立资源核验日期：2026-10-23。`image_app_dev/app_runtime_state` 为 `documentSecurity:true`、集合授权为空；`image_assets_v2` 为 `fileSecurity:true`、桶授权为空，单文件上限30,000,000字节。资源存在和 schema 就绪不代表业务后端、模型执行或宿主接线已经通过。
 
-生图独立后端的合同、部署制品与当次验收证据见生图仓 `docs/INDEPENDENT_BACKEND.md`、`deployment/README.zh-CN.md` 及 `docs/verification/`；画布侧仅保存布局、目标作用域、资源引用、投递回执与认证预览。正式 MA 登记、HTTPS 网关、运行时凭据、逐用户模型授权与 Agent 调用仍为外部输入，不因后端实现或资源私有而改为通过。
+生图独立后端的合同、部署制品与当次验收证据见生图仓 `docs/INDEPENDENT_BACKEND.md`、`deployment/README.zh-CN.md` 及 `docs/verification/`；画布侧仅保存布局、目标作用域、资源引用、投递回执与认证预览。正式 MA 登记见下方日期记录；HTTPS 网关、运行时身份、逐用户模型授权与 Agent 调用继续分别验收，不因登记完成、后端实现或资源私有而改为通过。
+
+### MA 正式应用目录（2026-10-26 读回）
+
+目标项目 `mavbackendwyh20261013`、函数 `mavapi`。以下 ID 来自正式应用登记 API，并已读回确认租户可用集合为 `design_agent`；不是 npm 包 ID、数据库 ID 或业务实例 ID。
+
+| App | applicationId | moduleId | MA 合同版本 |
+| --- | --- | --- | --- |
+| 画布 | `app_9f253e1b9ca5409d9a432a9c` | `designai-canvas` | `0.1.0` |
+| 文档 | `app_7ed39204ce754628ac6dced1` | `designai-doc` | `0.1.0` |
+| 草图 | `app_9eeee002f2f0430a81ed30da` | `designai-sketch` | `0.1.4` |
+| 生图 | `app_84ca832fb4ce4472b8f8c6bb` | `designai-image` | `0.9.4` |
+
+读回记录为宿主仓候选交付文件 `deploy/appwrite-functions/registration/registration-readback-20261026.json`；代码推送与部署状态另验。上述登记不证明 Provider 运行、团队启用配置、可信 Agent 调用或 staging 已验收。使用前重新读目录和授权版本，不能只信本表。
 
 生图必须使用自己的业务存储和私有桶；画布仅维护布局、资源引用、预览与必要的绑定/投递映射。历史画布承载 profile 的数据仍在 `canvas_app_dev/canvas_assets_v2`，供兼容读取和显式迁移核验，不作为新独立生图业务的默认落点。旧数据不自动迁移、删除或改权限。其他 App 的共享服务方案仍须明确业务权威、资源归属和授权边界。
 
@@ -76,6 +89,16 @@ Image独立资源核验日期：2026-10-23。`image_app_dev/app_runtime_state` �
 - 预置前确认平台允许的清理/恢复方式。平台禁止删库或集合时，保留实际限制与资源归属记录，由资源负责人处理，不绕过平台约束。
 
 ## 4. 申请什么权限、找谁审批
+
+### Appwrite 后端协作入口（2026-10-26 核验）
+
+**搜索“给同事开后端权限 / 添加用户 / 添加成员 / 找不到按钮”时，直接进入 [Appwrite 后端授权操作指南](appwrite-backend-collaboration.zh-CN.md)**：Console → 目标组织首页 → 右上角“添加成员”。完整步骤、角色范围、CLI 错误解释及指定账号只读共享集中维护在该指南。
+
+内部平台的后端成员管理入口为 [Appwrite Console](https://frontend-cloud.corp.kuaishou.com/console)：由所属组织 Owner 通过“添加成员”授权。官方依据见 [PDE FAQ：如何让同事拥有项目的修改权限](https://pde-agent.frontend-cloud.corp.kuaishou.com/faq/69f1b7390012fc33e6e8)。静态站点的“协作成员”与 Appwrite 后端组织成员是两个入口，不以站点协作结果推断后端权限。
+
+执行前核对组织、成员账号、实际角色和覆盖的项目；组织级授权可能覆盖同组织其他项目及项目内其他业务资源，不当作仅授权四个 App 的桶。Console 邀请表单当前默认角色为 `developer`，具体管理能力仍须用接收方本人登录核验数据库、存储、Function 配置与部署。桶/文件 ACL 决定数据访问，不代替后端管理授权；不分享维护者会话或通过开放公共写解决管理权限。
+
+指定账号文件只读与后端维护分别授权。2026-10-26 隔离资源实测：保持桶 ACL 为空、fileSecurity=true，仅在文件上添加指定用户 read，可下载且无法上传、改名、扩权或删除；匿名和其他普通账号不可读取该文件。直接在桶上添加公共或指定用户 read 会被当前共享私有存储预检拒绝，不能未经兼容改造直接应用于业务桶。现有文件授权不意味着新文件自动获得相同授权；持续共享需另行实现并验收明确的授权/撤销流程。
 
 | 需求 | 向谁申请 | 申请时说明 | 审批后的技术核对 |
 | --- | --- | --- | --- |

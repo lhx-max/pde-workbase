@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { CloudStateError } from './errors.js';
-import type { AppwriteJsonStateOptions, AppwriteStateClient, JsonStatePort } from './port.js';
+import type { AppwriteJsonStateOptions, AppwriteStateClient, JsonStatePort, WriteReconcileOptions } from './port.js';
 
 /** Reserved slot carrying the namespace manifest; never a business value. */
 export const MANIFEST_SLOT = '__manifest__';
@@ -28,6 +28,8 @@ interface QueuedWrite {
   revision: number;
   payload: string;
   existed: boolean;
+  /** Timestamp of this immutable publication, matched byte-for-byte on recovery. */
+  updatedAt: string;
 }
 
 /** Document id: first 36 hex chars of sha256 over
@@ -98,6 +100,7 @@ export class AppwriteJsonState implements JsonStatePort {
   private readonly collectionId: string;
   private readonly namespace: string;
   private readonly initialize: boolean;
+  private readonly reconcile: WriteReconcileOptions | null;
 
   private slots = new Map<string, { value: unknown; revision: number }>();
   private tail: Promise<void> = Promise.resolve();
@@ -119,6 +122,7 @@ export class AppwriteJsonState implements JsonStatePort {
     if (options.singleWriter !== true)
       throw new CloudStateError(503, 'CLOUD_STATE_NOT_CONFIGURED',
         'singleWriter must be explicitly true: no distributed CAS or replica safety is provided');
+    this.reconcile = AppwriteJsonState.boundReconcile(options);
     this.client = client;
     this.databaseId = databaseId;
     this.collectionId = collectionId;
@@ -134,6 +138,29 @@ export class AppwriteJsonState implements JsonStatePort {
     // handler only keeps an un-awaited ready from tripping Node's
     // unhandled-rejection crash.
     void this.ready.catch(() => {});
+  }
+
+  /** reconcileWrite is only legal under the explicit deployment contract:
+   * singleWriter already acknowledged AND the caller declares it holds the
+   * exclusive external writer lock for this namespace (externalWriterLock).
+   * The option must also carry an explicit bound — the reconcile spends
+   * from the caller's own clock, never a fresh window. */
+  private static boundReconcile(options: AppwriteJsonStateOptions): WriteReconcileOptions | null {
+    const reconcile = options.reconcileWrite;
+    if (!reconcile) return null;
+    if (options.externalWriterLock !== true)
+      throw new CloudStateError(503, 'CLOUD_STATE_NOT_CONFIGURED',
+        'reconcileWrite requires externalWriterLock:true — the exclusive writer lock for this namespace must be held before ambiguous writes may be reconciled');
+    const { deadlineAt, timeoutMs, pollIntervalMs } = reconcile;
+    if (deadlineAt === undefined && timeoutMs === undefined)
+      throw new CloudStateError(503, 'CLOUD_STATE_NOT_CONFIGURED', 'reconcileWrite requires an explicit bound: deadlineAt and/or timeoutMs');
+    if (timeoutMs !== undefined && (!Number.isFinite(timeoutMs) || timeoutMs <= 0))
+      throw new CloudStateError(503, 'CLOUD_STATE_NOT_CONFIGURED', 'reconcileWrite.timeoutMs must be a positive number');
+    if (deadlineAt !== undefined && !Number.isFinite(deadlineAt))
+      throw new CloudStateError(503, 'CLOUD_STATE_NOT_CONFIGURED', 'reconcileWrite.deadlineAt must be a finite epoch ms');
+    if (pollIntervalMs !== undefined && (!Number.isFinite(pollIntervalMs) || pollIntervalMs <= 0 || pollIntervalMs > 10_000))
+      throw new CloudStateError(503, 'CLOUD_STATE_NOT_CONFIGURED', 'reconcileWrite.pollIntervalMs must be a positive number <= 10000');
+    return Object.freeze({ ...reconcile });
   }
 
   private collectionPath(): string {
@@ -175,7 +202,7 @@ export class AppwriteJsonState implements JsonStatePort {
     const prior = this.slots.get(slot);
     const revision = prior === undefined ? 0 : prior.revision + 1;
     this.slots.set(slot, { value: snapshot, revision });
-    const op: QueuedWrite = { slot, revision, payload, existed: prior !== undefined };
+    const op: QueuedWrite = { slot, revision, payload, existed: prior !== undefined, updatedAt: new Date().toISOString() };
     this.tail = this.tail.then(() => this.persist(op));
   }
 
@@ -193,7 +220,7 @@ export class AppwriteJsonState implements JsonStatePort {
         slot: op.slot,
         revision: op.revision,
         payload: op.payload,
-        updatedAt: new Date().toISOString(),
+        updatedAt: op.updatedAt,
       };
       if (op.existed) {
         await this.client.call('PATCH', `${this.collectionPath()}/${encodeURIComponent(stateDocumentId(this.namespace, op.slot))}`, { data });
@@ -201,8 +228,67 @@ export class AppwriteJsonState implements JsonStatePort {
         await this.client.call('POST', this.collectionPath(), { documentId: stateDocumentId(this.namespace, op.slot), data, permissions:[] });
       }
     } catch (error) {
+      // Only an ambiguous outcome — transport unknown, timeout, or a 5xx
+      // with no reliable determination — may be reconciled, and only when
+      // the opt-in is enabled under the external writer lock. Deterministic
+      // answers (4xx incl. 400/401/403, the 409 conflict, the 404 vanished
+      // document) keep the existing contract: never a retried write, never
+      // treated as a success.
+      const status = statusOf(error);
+      if (this.reconcile && (status === undefined || status >= 500) && await this.confirmPersisted(op)) return;
       this.poison(error);
     }
+  }
+
+  /** Opt-in lost-ack reconcile for one queued write. The persisted body is
+   * checked against the immutable snapshot taken at write() time — `$id`,
+   * namespace, slot, revision, byte-identical payload string and a
+   * byte-identical `updatedAt` must ALL match before the ambiguous write is
+   * confirmed as landed. A missing row or undecidable read is probed again
+   * within the bound; a present-but-mismatched row is deterministic foreign
+   * evidence. Late evidence (read finishing past the deadline) never
+   * qualifies. Read-only: no POST/PATCH/DELETE is ever re-issued. */
+  private async confirmPersisted(op: QueuedWrite): Promise<boolean> {
+    const reconcile = this.reconcile!;
+    const deadlineAt = Math.min(
+      reconcile.deadlineAt ?? Number.POSITIVE_INFINITY,
+      reconcile.timeoutMs !== undefined ? Date.now() + reconcile.timeoutMs : Number.POSITIVE_INFINITY,
+    );
+    const rowId = stateDocumentId(this.namespace, op.slot);
+    const pollIntervalMs = reconcile.pollIntervalMs ?? 150;
+    for (;;) {
+      const remaining = deadlineAt - Date.now();
+      if (remaining <= 0) return false;
+      const row = await this.readRowBounded(rowId, remaining);
+      if (Date.now() >= deadlineAt) return false; // late evidence never qualifies
+      if (row !== undefined && row !== null) {
+        return row.$id === rowId
+          && row.namespace === this.namespace
+          && row.slot === op.slot
+          && row.revision === op.revision
+          && row.payload === op.payload
+          && row.updatedAt === op.updatedAt;
+      }
+      const wait = deadlineAt - Date.now();
+      if (wait <= 0) return false;
+      await new Promise<void>(resolve => setTimeout(resolve, Math.min(pollIntervalMs, wait)));
+    }
+  }
+
+  /** One read-back bounded by `ms`. Resolves `undefined` when the read
+   * failed OR did not settle inside the budget — both undecidable. The
+   * abandoned getOrNull settles silently later (both branches resolve, so
+   * no unhandled rejection); the deadline is checked again before the row
+   * is ever used as evidence. */
+  private readRowBounded(rowId: string, ms: number): Promise<StateRow | null | undefined> {
+    let timer: NodeJS.Timeout | undefined;
+    return new Promise<StateRow | null | undefined>((resolve) => {
+      timer = setTimeout(() => resolve(undefined), ms);
+      this.client.getOrNull<StateRow>(`${this.collectionPath()}/${encodeURIComponent(rowId)}`).then(
+        row => resolve(row),
+        () => resolve(undefined),
+      );
+    }).finally(() => { if (timer) clearTimeout(timer); });
   }
 
   /** A failed write leaves remote state uncertain — the queued revision may

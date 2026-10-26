@@ -29,6 +29,22 @@ export interface JsonStatePort {
   flush(): Promise<void>;
 }
 
+/** Opt-in bounds for write-acknowledgement reconciliation. Bounds come from
+ * the caller's OWN clock (typically the invocation deadline): `deadlineAt`
+ * is an absolute epoch-ms bound shared with the rest of the invocation,
+ * `timeoutMs` an additional per-attempt relative bound. At least one is
+ * required — the reconcile never gets a fresh, unbounded window. */
+export interface WriteReconcileOptions {
+  /** Absolute deadline (epoch ms, Date.now() clock) — e.g. the end of the
+   * invocation business window. */
+  deadlineAt?: number;
+  /** Additional relative bound measured from the failed write (ms). */
+  timeoutMs?: number;
+  /** Delay between read-backs while the row is missing/undecidable (ms);
+   * default 150. */
+  pollIntervalMs?: number;
+}
+
 export interface AppwriteJsonStateOptions {
   client: AppwriteStateClient;
   databaseId: string;
@@ -44,4 +60,13 @@ export interface AppwriteJsonStateOptions {
    * schema, indexes or ACLs. On a create conflict the existing manifest is
    * re-read and validated, never reset. */
   initialize?: boolean;
+  /** Required to enable `reconcileWrite`: declares that this invocation
+   * already holds the exclusive external writer lock covering this
+   * namespace, so a read-back reconciliation is the only second writer
+   * decision ever made. Without the lock contract, reconciling an ambiguous
+   * write could mask another writer's row. */
+  externalWriterLock?: boolean;
+  /** Opt-in lost-acknowledgement reconcile for slot writes. Absent = legacy
+   * behavior: any failed persist poisons the port immediately. */
+  reconcileWrite?: WriteReconcileOptions;
 }
