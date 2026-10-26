@@ -38,7 +38,7 @@
     "lucide-react": "0.468.0",
     "micromark": "4.0.2",
     "micromark-extension-gfm": "3.0.0",
-    "@ks-designai/image-card-pack": "file:../../vendor/ks-designai-image-card-pack-0.9.0.10897ded1d68.tgz"
+    "@ks-designai/image-card-pack": "file:../../vendor/ks-designai-image-card-pack-0.9.7.79e93957f8c0.tgz"
   },
   "devDependencies": {
     "@types/react": "18.3.28",

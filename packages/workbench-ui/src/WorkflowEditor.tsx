@@ -82,7 +82,6 @@ import {
   loadWorkflowEditorPresetFlows,
   migrateLegacyOutputContractToPrompt,
   stageSnapshotOf,
-  synchronizeWorkflowReviewSelection,
   type PlanFlowContract,
   type WorkflowAgentNodeConfig,
   type WorkflowBranchNodeConfig,
@@ -934,13 +933,6 @@ function AgentNodeConfigCard({ data }: { data: EditorNodeData }) {
 
 function StepSelect(props: React.ComponentProps<typeof Select>) {
   return <span className={stepStyles.selectField}>
-    <Select {...props}/>
-    <Icon name="chevron-down" size={12} strokeWidth={1.7}/>
-  </span>;
-}
-
-function InquirySelect(props: React.ComponentProps<typeof Select>) {
-  return <span className={inquiryStyles.selectField}>
     <Select {...props}/>
     <Icon name="chevron-down" size={12} strokeWidth={1.7}/>
   </span>;

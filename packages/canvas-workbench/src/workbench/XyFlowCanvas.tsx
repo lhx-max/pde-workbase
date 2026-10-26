@@ -444,7 +444,7 @@ function MiniMaxImageGeneratorNode({
         )}
 
         {selected && imageReady && primaryImage && !cropping && !adjusting && !transforming && !annotating && <CanvasImageTools
-          onRender={async(file,meta)=>{if(await primaryImageActions.onAnnotationCommit(primaryImage.id,file,meta)===false)throw Error('图片云端保存失败');}} nodeId={primaryImage.id} src={primaryImageSrc} name={primaryImage.name} width={primaryImage.naturalWidth || 1024} height={primaryImage.naturalHeight || 1024}
+          onRender={async(file,meta)=>{if(await primaryImageActions.onAnnotationCommit(primaryImage.id,file,meta)===false)throw Error('图片云端保存失败');}} nodeId={primaryImage.id} imageReference={primaryImage.imageReference} x={primaryImage.x} y={primaryImage.y} src={primaryImageSrc} name={primaryImage.name} width={primaryImage.naturalWidth || 1024} height={primaryImage.naturalHeight || 1024}
           target={() => toolTarget.current?.querySelector<HTMLElement>('.minimax-image-frame') ?? toolTarget.current}
           onCrop={() => setCropping(true)} onAdjust={() => setAdjusting(true)} onTransform={() => setTransforming(true)} onAnnotate={() => setAnnotating(true)}
           onDownload={() => primaryImageActions.onDownload(primaryImage.id)} onAddToChat={() => primaryImageActions.onAddToChat(primaryImage.id)} extra={<CanvasSaveAssetButton presentation="menu-item" nodeId={primaryImage.id}/>}

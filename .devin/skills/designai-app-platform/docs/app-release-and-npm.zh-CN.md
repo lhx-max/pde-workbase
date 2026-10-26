@@ -42,6 +42,7 @@ Git push 保存源码；npm publish 上传组件/工具制品；PDE 静态部署
 - 本项目确认的公司 registry 为 `https://npm.corp.kuaishou.com/`。在发布包的 `publishConfig.registry` 和实际发布参数明确指定，不依赖全局默认 registry，也不默认添加 `--access public`。可见性和读写权限按公司 registry 的实际策略核对。
 - 使用公司规定的 npm 登录/SSO 或 CI 身份。若 registry 支持，可用 `npm whoami --registry https://npm.corp.kuaishou.com/` 核对当前身份；失败交负责人核查，不把 Appwrite 登录当作 npm 发布授权，不记录 token 或复制维护者凭据。
 - 在实际待发布的 package 目录检查 `name/version/exports/types/files/peerDependencies/bin`（按包类型适用）。根工作区可能是 `private:true`；不要为发子包取消根私有标志，也不要误发整个 monorepo。
+- 公司 registry 的新包必须在 `package.json.repository` 声明实际公司 Git 仓库（`type: git`、`url`）；monorepo 子包同时填写 `directory`。缺少仓库信息会触发发布策略拒绝，不能仅凭 HTTP 403 推断为账号权限不足，应按响应原因修复。明确拒绝且确认版本未创建后，可重新封装同一未发布版本；已经上传的版本或包含它的已发布依赖包必须递增版本，不覆盖旧制品。
 - 不原地覆盖已发布版本。根据兼容性发布新版本；0.x 阶段的破坏性升级策略也须写清。npm 包版本与 MA 应用发布版本可以不同，兼容清单必须将两者关联。
 
 下面仅是组件包元数据示例。包名与版本为占位示例，不表示已批准、已创建或已发布；出口路径必须与真实构建文件一致。React 等 peer 按实际目标宿主配置，不从示例推定版本。
