@@ -27,7 +27,7 @@
     "cheerio": "1.2.0",
     "sharp": "0.35.3",
     "@bezier/canvas-pack-demo": "workspace:*",
-    "@ks-designai/image-card-pack": "file:../../vendor/ks-designai-image-card-pack-0.9.7.fb8861bff252.tgz",
+    "@ks-designai/image-card-pack": "file:../../vendor/ks-designai-image-card-pack-0.9.7.79e93957f8c0.tgz",
     "@ks-designai/app-authority": "workspace:*",
     "@ks-designai/app-cloud-state": "workspace:*"
   },

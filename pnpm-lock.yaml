@@ -55,8 +55,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/app-cloud-state
       '@ks-designai/image-card-pack':
-        specifier: file:../../vendor/ks-designai-image-card-pack-0.9.7.fb8861bff252.tgz
-        version: file:vendor/ks-designai-image-card-pack-0.9.7.fb8861bff252.tgz(@types/node@24.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: file:../../vendor/ks-designai-image-card-pack-0.9.7.79e93957f8c0.tgz
+        version: file:vendor/ks-designai-image-card-pack-0.9.7.79e93957f8c0.tgz(@types/node@24.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       cheerio:
         specifier: 1.2.0
         version: 1.2.0
@@ -128,8 +128,8 @@ importers:
         specifier: file:../../vendor/ks-designai-browser-surface-0.2.1.tgz
         version: file:vendor/ks-designai-browser-surface-0.2.1.tgz(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@ks-designai/image-card-pack':
-        specifier: file:../../vendor/ks-designai-image-card-pack-0.9.7.fb8861bff252.tgz
-        version: file:vendor/ks-designai-image-card-pack-0.9.7.fb8861bff252.tgz(@types/node@20.19.39)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: file:../../vendor/ks-designai-image-card-pack-0.9.7.79e93957f8c0.tgz
+        version: file:vendor/ks-designai-image-card-pack-0.9.7.79e93957f8c0.tgz(@types/node@20.19.39)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@radix-ui/react-separator':
         specifier: 1.1.15
         version: 1.1.15(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -407,8 +407,8 @@ importers:
         specifier: workspace:*
         version: link:../workbench-ui
       '@ks-designai/image-card-pack':
-        specifier: file:../../vendor/ks-designai-image-card-pack-0.9.7.fb8861bff252.tgz
-        version: file:vendor/ks-designai-image-card-pack-0.9.7.fb8861bff252.tgz(@types/node@26.6.5)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: file:../../vendor/ks-designai-image-card-pack-0.9.7.79e93957f8c0.tgz
+        version: file:vendor/ks-designai-image-card-pack-0.9.7.79e93957f8c0.tgz(@types/node@26.6.5)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       lucide-react:
         specifier: 0.468.0
         version: 0.468.0(@types/react@18.3.28)(react@18.3.1)
@@ -1275,8 +1275,8 @@ packages:
       react: ^18.3.1
       react-dom: ^18.3.1
 
-  '@ks-designai/image-card-pack@file:vendor/ks-designai-image-card-pack-0.9.7.fb8861bff252.tgz':
-    resolution: {integrity: sha512-DWDjRmwIHJC4F2mv6f10DeFBa1hLfHkRJY/5/J75JkpPDkQJWfXFPR10XZxsgDjVvAHS8ecLVGwKhghR7FswXQ==, tarball: file:vendor/ks-designai-image-card-pack-0.9.7.fb8861bff252.tgz}
+  '@ks-designai/image-card-pack@file:vendor/ks-designai-image-card-pack-0.9.7.79e93957f8c0.tgz':
+    resolution: {integrity: sha512-3tZL9v6ZwW2JYk90BOELIme1aQMt6mYnnjVtNe4rUYb4LbNqpWC3B4HbeMs/VLe4GXj+mmQf9btHMklgC+G7aQ==, tarball: file:vendor/ks-designai-image-card-pack-0.9.7.79e93957f8c0.tgz}
     version: 0.9.7
     engines: {node: ~24}
     hasBin: true
@@ -5688,7 +5688,7 @@ snapshots:
       - '@types/react-dom'
       - supports-color
 
-  '@ks-designai/image-card-pack@file:vendor/ks-designai-image-card-pack-0.9.7.fb8861bff252.tgz(@types/node@20.19.39)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@ks-designai/image-card-pack@file:vendor/ks-designai-image-card-pack-0.9.7.79e93957f8c0.tgz(@types/node@20.19.39)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@resvg/resvg-js': 2.6.2
       '@visioncortex/vtracer': 1.0.0-alpha.4
@@ -5698,7 +5698,7 @@ snapshots:
     transitivePeerDependencies:
       - '@types/node'
 
-  '@ks-designai/image-card-pack@file:vendor/ks-designai-image-card-pack-0.9.7.fb8861bff252.tgz(@types/node@24.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@ks-designai/image-card-pack@file:vendor/ks-designai-image-card-pack-0.9.7.79e93957f8c0.tgz(@types/node@24.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@resvg/resvg-js': 2.6.2
       '@visioncortex/vtracer': 1.0.0-alpha.4
@@ -5708,7 +5708,7 @@ snapshots:
     transitivePeerDependencies:
       - '@types/node'
 
-  '@ks-designai/image-card-pack@file:vendor/ks-designai-image-card-pack-0.9.7.fb8861bff252.tgz(@types/node@26.6.5)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@ks-designai/image-card-pack@file:vendor/ks-designai-image-card-pack-0.9.7.79e93957f8c0.tgz(@types/node@26.6.5)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@resvg/resvg-js': 2.6.2
       '@visioncortex/vtracer': 1.0.0-alpha.4
