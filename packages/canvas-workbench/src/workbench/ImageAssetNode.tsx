@@ -403,8 +403,8 @@ function ImageAssetNodeComponent({ data, selected }: NodeProps<Node<ImageAssetDa
         }
       >
 
-        {selected && !image.imageReference && status === 'ready' && image.src && !cropping && !adjusting && !transforming && !annotating && !layerOpen && <CanvasImageTools
-          onRender={async(file,meta)=>{if(await onAnnotationCommit(image.id,file,meta)===false)throw Error('图片云端保存失败');}} nodeId={image.id} src={resolveImageSrc(image.src)} name={image.name} width={image.naturalWidth || natural.w} height={image.naturalHeight || natural.h}
+        {selected && status === 'ready' && image.src && !cropping && !adjusting && !transforming && !annotating && !layerOpen && <CanvasImageTools
+          onRender={async(file,meta)=>{if(await onAnnotationCommit(image.id,file,meta)===false)throw Error('图片云端保存失败');}} nodeId={image.id} imageReference={image.imageReference} x={image.x} y={image.y} src={resolveImageSrc(image.src)} name={image.name} width={image.naturalWidth || natural.w} height={image.naturalHeight || natural.h}
           target={() => toolTarget.current?.querySelector<HTMLElement>('.image-asset-frame') ?? toolTarget.current}
           onCrop={() => setCropping(true)} onAdjust={() => setAdjusting(true)} onTransform={() => setTransforming(true)} onAnnotate={() => setAnnotating(true)}
           {...(onLayer ? {onLayer:() => setLayerOpen(true)} : {})} onDownload={() => onDownload(image.id)} onAddToChat={() => onAddToChat(image.id)} extra={<CanvasSaveAssetButton presentation="menu-item" nodeId={image.id}/>}

@@ -1,6 +1,6 @@
 {
   "name": "@ks-designai/canvas-surface",
-  "version": "0.1.5",
+  "version": "0.1.9",
   "description": "Standalone bundled canvas surface with host-injected transport and UI adapters.",
   "type": "module",
   "license": "Apache-2.0",

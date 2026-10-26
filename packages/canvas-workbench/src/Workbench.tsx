@@ -1,6 +1,7 @@
 'use client';
 
 import type { ProjectFileCanvasAddOptions } from '@bezier/contracts';
+import {createIndependentImageToolSession} from './platform/independent-image-tools';
 import { openCanvasImageEditor } from './platform/image-app';
 
 import { workflowGroupRuns, activeWorkflowGroups, dismissedWorkflowNodeIds, workflowRunConnections, arrangeWorkflowMembers, workflowRunGroupId, workflowQuestionNodeId, workflowNodeOwners, reconcileWorkflowGroups, workflowGroupMoves, type WorkflowRunGroupLayout } from './workbench/workflow-run-group';
@@ -2646,7 +2647,26 @@ function FlowHome({
     }
   }
 
+  const independentImageSaves = React.useRef(new Map<string,{context:ReturnType<typeof getCanvasHostContext>;session:ReturnType<typeof createIndependentImageToolSession>;controller:AbortController;referenceKey:string}>());
+  React.useEffect(()=>()=>{for(const entry of independentImageSaves.current.values())entry.controller.abort();independentImageSaves.current.clear();},[]);
+  async function saveIndependentImage(id:string,file:File,meta:{width:number;height:number}):Promise<boolean>{
+    const source=imagesRef.current.find(image=>image.id===id);
+    if(!source?.imageReference)return false;
+    const context=getCanvasHostContext(),referenceKey=JSON.stringify(source.imageReference);
+    let entry=independentImageSaves.current.get(id);
+    if(!entry||entry.context!==context||entry.referenceKey!==referenceKey){
+      entry?.controller.abort();const controller=new AbortController();
+      const group=source.groupId?imageGroupsRef.current.find(group=>group.id===source.groupId):undefined;
+      const session=createIndependentImageToolSession(context,id,source.imageReference,{x:source.x+(group?.x??0),y:source.y+(group?.y??0)},()=>controller.signal,()=>imagesRef.current.some(image=>image.id===id&&JSON.stringify(image.imageReference)===referenceKey));
+      entry={context,session,controller,referenceKey};independentImageSaves.current.set(id,entry);
+    }
+    setImageEditorSaving(true);
+    try{await entry.session.createImages([{file,...meta}]);showImageToast(id,shell.toasts.editSaved);return true;}
+    finally{setImageEditorSaving(false);}
+  }
+
   async function saveEditedImage(id: string, file: File, meta: { width: number; height: number }): Promise<void> {
+    if(await saveIndependentImage(id,file,meta))return;
     const sourcePath = imagesRef.current.find(item => item.id === id)?.path;
     const sourceProject = getCanvasHostContext().projectId;
     if (!sourcePath) throw new Error(shell.errors.originalMissing);
@@ -2694,6 +2714,7 @@ function FlowHome({
     file: File,
     meta: { width: number; height: number },
   ): Promise<void> {
+    if(await saveIndependentImage(id,file,meta))return;
     const source = imagesRef.current.find(item => item.id === id);
     if (!source) throw new Error(shell.errors.originalMissing);
     setImageEditorSaving(true);

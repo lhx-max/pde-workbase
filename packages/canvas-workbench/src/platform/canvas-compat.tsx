@@ -109,6 +109,7 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
   const savedVersionsRef = React.useRef(new Map<string, number>());
   const saveErrorRef = React.useRef<unknown>(undefined);
   const [saveConflict, setSaveConflict] = React.useState<string | null>(null);
+  const [recovering, setRecovering] = React.useState(false);
   const blockedRef = React.useRef(false);
   const recoveredDraftRef = React.useRef<CanvasState | null>(null);
   const retryRequestRef = React.useRef<{ batch: Map<string, PendingCanvasChange>; body: string; route: string } | null>(null);
@@ -430,7 +431,7 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
             blockedRef.current = true;
             checkpointDraft();
             setSaveConflict(error instanceof Error ? error.message : cr().compatSaveFail);
-            console.error(cr().compatSaveFail, error);
+            console.warn(cr().compatSaveFail, error);
             return;
           }
           try { localStorage.setItem(draftKey, JSON.stringify({ state: stateRef.current, request: JSON.parse(requestBody) })); } catch { /* Keep in memory. */ }
@@ -548,6 +549,37 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
     }
   }, [flushChanges]);
 
+  const recoverConflict = async () => {
+    if (recovering || saveInFlightRef.current || !blockedRef.current) return;
+    setRecovering(true);
+    checkpointDraft();
+    try {
+      const payload = await request<{ state: CanvasState; revision: number }>(requestContext, '/api/canvas/state');
+      // Compute every merge first: one overlapping edit must leave the entire
+      // draft/queue untouched, never partially acknowledge or force overwrite.
+      const rebased = new Map<string, PendingCanvasChange>();
+      for (const [key, entry] of pendingChangesRef.current) {
+        rebased.set(key, { ...entry, baseValue: payload.state[key],
+          value: rebaseCanvasDraft(entry.baseValue, entry.value, payload.state[key]) });
+      }
+      const next = { ...payload.state };
+      for (const [key, entry] of rebased) next[key] = entry.value;
+      pendingChangesRef.current = rebased;
+      retryRequestRef.current = null;
+      revisionRef.current = payload.revision;
+      stateRef.current = next;
+      setState(next);
+      blockedRef.current = false;
+      saveErrorRef.current = undefined;
+      setSaveConflict(null);
+      checkpointDraft();
+      scheduleFlush();
+    } catch (error) {
+      setSaveConflict(error instanceof Error ? error.message : cr().compatSaveFail);
+      checkpointDraft();
+    } finally { setRecovering(false); }
+  };
+
   const getState = React.useCallback(() => stateRef.current, []);
   React.useLayoutEffect(() => {
     if (!persistenceReady) return;
@@ -578,8 +610,9 @@ export function CanvasCompatProvider({ children, hydrateBusinessState, onInterac
           const url = URL.createObjectURL(new Blob([content], { type: 'application/json' }));
           const link = document.createElement('a'); link.href = url; link.download = 'canvas-unsaved-draft.json'; link.click();
           window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-        }}>Export draft</Button>{' '}
-        <Button onClick={() => { localStorage.removeItem(draftKey); window.location.reload(); }}>Discard draft</Button>
+        }}>导出草稿</Button>{' '}
+        {blockedRef.current && pendingChangesRef.current.size > 0 ? <Button disabled={recovering} onClick={() => void recoverConflict()}>{recovering ? '正在读取…' : '保留草稿并读取最新'}</Button> : null}{' '}
+        <Button onClick={() => { localStorage.removeItem(draftKey); window.location.reload(); }}>放弃草稿并重新加载</Button>
       </div> : null}
       {hydrated ? children : loadError ? <div role="alert" style={{ padding: 16 }}>
         <p>{cr().compatLoadFail}: {loadError}</p>
