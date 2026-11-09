@@ -1,0 +1,11 @@
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.notice {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

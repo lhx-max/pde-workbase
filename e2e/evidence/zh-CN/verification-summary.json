@@ -1,0 +1,257 @@
+{
+  "language": "zh-CN",
+  "defaultLanguagePolicy": "Simplified Chinese regardless of automatic OS/browser locale; explicit manual English remains supported",
+  "baselineCommit": "6e2d96ae36afc74bb9d249461190bc377c737311",
+  "guard": {
+    "files": 1380,
+    "manifests": 12,
+    "passed": true
+  },
+  "typecheck": "passed",
+  "packageTests": {
+    "files": 170,
+    "passed": 1703,
+    "failed": 0
+  },
+  "httpCliTests": {
+    "files": 2,
+    "passed": 7,
+    "failed": 0
+  },
+  "builds": [
+    "contracts",
+    "server",
+    "desktop and extensions",
+    "web"
+  ],
+  "translationKeys": {
+    "en": 8342,
+    "zhCN": 8342,
+    "missing": 0
+  },
+  "ui": {
+    "repeatEach": 2,
+    "passed": 20,
+    "failed": 0,
+    "skipped": 2,
+    "webPassed": 16,
+    "desktopPassed": 4,
+    "rawScreenshots": 66
+  },
+  "targetedNativeFocus": {
+    "repeatEach": 5,
+    "passed": 5,
+    "failed": 0,
+    "job": "bash-529",
+    "elapsed": "2.1m",
+    "output": ".tmp/e2e-results/chinese-native-focus-repeat5"
+  },
+  "externalNativeExtension": {
+    "status": "full-native-recheck-deferred-by-user",
+    "consentTriggeredThisRun": false
+  },
+  "warnings": [
+    "Third-party favicon HTTP 404s in native browser; no renderer pageerror",
+    "Some native screenshots retain JPEG screencast bytes despite .png filename; copied without re-encoding"
+  ],
+  "screenshots": [
+    {
+      "file": "00-default-chinese-english-browser.png",
+      "source": ".tmp/e2e-results/chinese-final-3/default-locale--P0-英语浏览器全新配置默认简体中文，仍尊重手动英语偏好-web/00-default-chinese-english-browser.png",
+      "sha256": "fb9ba5568b41a6cb7c63f1ab35ea982dde88dd8f56a41f07872cddb846e89c4b",
+      "format": "png"
+    },
+    {
+      "file": "01-full-workspace.png",
+      "source": ".tmp/e2e-results/chinese-final-3/workspace--P0-original-wor-61a01-ext-sketch-and-clip-persist-web/01-full-workspace.png",
+      "sha256": "d1a43c83b3587f90bd2ee94d0858d4bf0a8b56461940623d73787b94b8b1eab6",
+      "format": "png"
+    },
+    {
+      "file": "02-project-assets.png",
+      "source": ".tmp/e2e-results/chinese-final-3/workspace--P0-original-wor-61a01-ext-sketch-and-clip-persist-web/02-project-assets.png",
+      "sha256": "0bf6a07a3919b613af57956e8fd51ebf60c2d2b697542b5f0cfd5d470cd25245",
+      "format": "png"
+    },
+    {
+      "file": "03-launcher-tabs.png",
+      "source": ".tmp/e2e-results/chinese-final-3/workspace--P0-original-wor-61a01-ext-sketch-and-clip-persist-web/03-launcher-tabs.png",
+      "sha256": "24f914032cbeb54c4d5598bacc8823d6b3ce2fa34b95894bf5c858e6fa0b31d6",
+      "format": "png"
+    },
+    {
+      "file": "04-text-editor.png",
+      "source": ".tmp/e2e-results/chinese-final-3/workspace--P0-original-wor-61a01-ext-sketch-and-clip-persist-web/04-text-editor.png",
+      "sha256": "1b868dadd9228f60d71bd63b420e7c624d417a1c68d12e44c962c88bd6190a24",
+      "format": "png"
+    },
+    {
+      "file": "05-sketch-editor.png",
+      "source": ".tmp/e2e-results/chinese-final-3/workspace--P0-original-wor-61a01-ext-sketch-and-clip-persist-web/05-sketch-editor.png",
+      "sha256": "afdf0e8264004ca203e0219a66d76e5ecc0d581cde4b4f015f639d9602e8fb67",
+      "format": "png"
+    },
+    {
+      "file": "06-clip-workspace.png",
+      "source": ".tmp/e2e-results/chinese-final-3/workspace--P0-original-wor-61a01-ext-sketch-and-clip-persist-web/06-clip-workspace.png",
+      "sha256": "ab81659d5d28ac975d39ff25906e3683a8fcc4c2d827d9d793ac457fb50615d2",
+      "format": "png"
+    },
+    {
+      "file": "07-html-preview.png",
+      "source": ".tmp/e2e-results/chinese-final-3/workspace--P0-HTML-and-pre-41c6c-d-version-history-roundtrip-web/07-html-preview.png",
+      "sha256": "b591d4c95efdc058da4e9696820baab2d0a5e45642c522123c256139d11426a1",
+      "format": "png"
+    },
+    {
+      "file": "08-html-source.png",
+      "source": ".tmp/e2e-results/chinese-final-3/workspace--P0-HTML-and-pre-41c6c-d-version-history-roundtrip-web/08-html-source.png",
+      "sha256": "f16bac334626e68ca6775be9477141cc7e118f4b78dda5211dfedcbd659a8c65",
+      "format": "png"
+    },
+    {
+      "file": "09-html-manual-edit.png",
+      "source": ".tmp/e2e-results/chinese-final-3/workspace--P0-HTML-and-pre-41c6c-d-version-history-roundtrip-web/09-html-manual-edit.png",
+      "sha256": "dd416946136adb9a58ce6080aeb99002afd6c16657daf25cc7372bb34a5edea2",
+      "format": "png"
+    },
+    {
+      "file": "10-html-versions.png",
+      "source": ".tmp/e2e-results/chinese-final-3/workspace--P0-HTML-and-pre-41c6c-d-version-history-roundtrip-web/10-html-versions.png",
+      "sha256": "919dfda557bf8ab1ad2ca0c88225c992beef0744b5aa7c0a6f8f446e8bca0038",
+      "format": "png"
+    },
+    {
+      "file": "11-presentation-preview.png",
+      "source": ".tmp/e2e-results/chinese-final-3/workspace--P0-HTML-and-pre-41c6c-d-version-history-roundtrip-web/11-presentation-preview.png",
+      "sha256": "5461c258a378c5199df1da8736cfac131be4cfccb22e28513c9d837f0948f856",
+      "format": "png"
+    },
+    {
+      "file": "11b-presentation-second-slide.png",
+      "source": ".tmp/e2e-results/chinese-final-3/workspace--P0-HTML-and-pre-41c6c-d-version-history-roundtrip-web/11b-presentation-second-slide.png",
+      "sha256": "5476f6eb21d20dfa438388e34bbc14b002edd31a738e9e82fd54340e47e9c88e",
+      "format": "png"
+    },
+    {
+      "file": "12-presentation-source.png",
+      "source": ".tmp/e2e-results/chinese-final-3/workspace--P0-HTML-and-pre-41c6c-d-version-history-roundtrip-web/12-presentation-source.png",
+      "sha256": "a40dda365beae1a97b5b825b9f4762836c85fa3168c6487a53e2e589a5f027fe",
+      "format": "png"
+    },
+    {
+      "file": "13-native-browser-home.png",
+      "source": ".tmp/e2e-results/chinese-final-3/native-browser--P0-native--44be8--grants-and-safe-URL-denial-desktop/13-native-browser-home.png",
+      "sha256": "d23ac48cbc2961490b006ed038d278d12443f7c2400a80960d0f6929f5eb9486",
+      "format": "png"
+    },
+    {
+      "file": "14-native-browser-page.png",
+      "source": ".tmp/e2e-results/chinese-final-3/native-browser--P0-native--44be8--grants-and-safe-URL-denial-desktop/14-native-browser-page.png",
+      "sha256": "929304ff12d56258a04a8aa72c498a52345f690d19be3f507def7fb15fefba53",
+      "format": "png"
+    },
+    {
+      "file": "15-native-resources.png",
+      "source": ".tmp/e2e-results/chinese-final-3/native-browser--P0-native--44be8--grants-and-safe-URL-denial-desktop/15-native-resources.png",
+      "sha256": "e9046ee9f2c52350db685dde68c2e1dbeea1af449fc4a9676128cce9cb7a0df5",
+      "format": "png"
+    },
+    {
+      "file": "16-native-library-resource-saved.png",
+      "source": ".tmp/e2e-results/chinese-final-3/native-browser--P0-native--44be8--grants-and-safe-URL-denial-desktop/16-native-library-resource-saved.png",
+      "sha256": "dd4cfd597d7efd67d0fdbaca5914ff0393c56d59967cef16d8662c269b6c486b",
+      "format": "png"
+    },
+    {
+      "file": "17-native-captured-project-image.png",
+      "source": ".tmp/e2e-results/chinese-final-3/native-browser--P0-native--44be8--grants-and-safe-URL-denial-desktop/17-native-captured-project-image.png",
+      "sha256": "bb121f9ac89a28dee356b11d5078a765aa7a900db352706342ba76c851113aa8",
+      "format": "png"
+    },
+    {
+      "file": "20-three-original-sidebar-tabs.png",
+      "source": ".tmp/e2e-results/chinese-final-3/asset-library--P0-original-fdf9d--favorite-and-canvas-import-web/20-three-original-sidebar-tabs.png",
+      "sha256": "daf93f81ebf9fb4e0d240ec8a3d037cc2d012904527927a8f15a5f3ee05ec6fd",
+      "format": "png"
+    },
+    {
+      "file": "21-web-collector-native-capability-boundary.png",
+      "source": ".tmp/e2e-results/chinese-final-3/asset-library--P0-original-fdf9d--favorite-and-canvas-import-web/21-web-collector-native-capability-boundary.png",
+      "sha256": "264a356d6774dbd7855e5a6b61e16ca65b3d1b8d8f71f18b58d67f68f8e0b63b",
+      "format": "png"
+    },
+    {
+      "file": "22-original-local-asset-cards-and-space.png",
+      "source": ".tmp/e2e-results/chinese-final-3/asset-library--P0-original-fdf9d--favorite-and-canvas-import-web/22-original-local-asset-cards-and-space.png",
+      "sha256": "23119283bbd685dd851d991aa1a80ce07f274221eba8e7decf1b6dbfbd20f526",
+      "format": "png"
+    },
+    {
+      "file": "23-original-expanded-asset-library.png",
+      "source": ".tmp/e2e-results/chinese-final-3/asset-library--P0-original-fdf9d--favorite-and-canvas-import-web/23-original-expanded-asset-library.png",
+      "sha256": "759ae5ebd76b1d36c667138d7b58825dd2da5f51038241ff0d008c42a180c799",
+      "format": "png"
+    },
+    {
+      "file": "24-space-removal-preserves-assets-by-default.png",
+      "source": ".tmp/e2e-results/chinese-final-3/asset-library--P0-original-fdf9d--favorite-and-canvas-import-web/24-space-removal-preserves-assets-by-default.png",
+      "sha256": "2fe605c0ae1eb457f86ce903a2b81997bfff2d83da02686402a38219d72fd8c6",
+      "format": "png"
+    },
+    {
+      "file": "25-browser-capture-preferences.png",
+      "source": ".tmp/e2e-results/chinese-final-3/asset-library--P0-browser--84cbc-ngs-remain-reachable-on-Web-web/25-browser-capture-preferences.png",
+      "sha256": "2956fc6641a30dccd323042098fc8a97fc5f3f46d24780cda2b5ff65dfd8dc01",
+      "format": "png"
+    },
+    {
+      "file": "26-browser-extension-settings-web-boundary.png",
+      "source": ".tmp/e2e-results/chinese-final-3/asset-library--P0-browser--84cbc-ngs-remain-reachable-on-Web-web/26-browser-extension-settings-web-boundary.png",
+      "sha256": "c64ddd77de3f8f0c2db200a605bffa1b0aded10d630dfd63df80be09dbd1e285",
+      "format": "png"
+    },
+    {
+      "file": "27-original-native-collector-sidebar.png",
+      "source": ".tmp/e2e-results/chinese-final-3/native-collector--P0-origi-c7d87-d-saves-to-the-real-library-desktop/27-original-native-collector-sidebar.png",
+      "sha256": "148d246420752a1f0a1d287c5f663d84ffbe48fc486f85517d44b2ded75cd835",
+      "format": "png"
+    },
+    {
+      "file": "28-collector-project-tray-with-provenance.png",
+      "source": ".tmp/e2e-results/chinese-final-3/native-collector--P0-origi-c7d87-d-saves-to-the-real-library-desktop/28-collector-project-tray-with-provenance.png",
+      "sha256": "c38e5094475c3daaad19161acd30dd2d04bc46c4d34efde18c2228aff4d32b0b",
+      "format": "png"
+    },
+    {
+      "file": "29-canonical-original-save-asset-dialog.png",
+      "source": ".tmp/e2e-results/chinese-final-3/native-collector--P0-origi-c7d87-d-saves-to-the-real-library-desktop/29-canonical-original-save-asset-dialog.png",
+      "sha256": "19e1de309809ce4704ad83024fa4930399df803acbd1997ac4c0920c64b2fddb",
+      "format": "png"
+    },
+    {
+      "file": "30-native-browser-extension-entry-and-status.png",
+      "source": ".tmp/e2e-results/chinese-final-3/native-collector--P0-origi-c7d87-d-saves-to-the-real-library-desktop/30-native-browser-extension-entry-and-status.png",
+      "sha256": "87ed32b0270bc6fce87ba214b80992aaf8ac5c96e914a1c80e1ee12d951ae590",
+      "format": "png"
+    },
+    {
+      "file": "34-docx-text-preview.png",
+      "source": ".tmp/e2e-results/chinese-final-3/office-previews--P0-DOCX-s-6aa83-ew-and-exact-download-bytes-web/34-docx-text-preview.png",
+      "sha256": "2ccc5f7c0cd2133bd5d8e354b9acf039d58aa64064c0d30e2006b7c6343282f8",
+      "format": "png"
+    },
+    {
+      "file": "35-pptx-text-preview.png",
+      "source": ".tmp/e2e-results/chinese-final-3/office-previews--P0-PPTX-s-c9fa0-ew-and-exact-download-bytes-web/35-pptx-text-preview.png",
+      "sha256": "4ee21ae090d7c6fdb8241be956cfeb792fe6a8f1c144250bf7f1da161fdc359c",
+      "format": "png"
+    },
+    {
+      "file": "36-xlsx-text-preview.png",
+      "source": ".tmp/e2e-results/chinese-final-3/office-previews--P0-XLSX-s-1d172-ew-and-exact-download-bytes-web/36-xlsx-text-preview.png",
+      "sha256": "703f5359a3e8ff40fea8b3feb20e1af074014348c7ae6b55355db4c318964c67",
+      "format": "png"
+    }
+  ]
+}

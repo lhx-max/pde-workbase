@@ -1,0 +1,216 @@
+.editor {
+  position: relative;
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 6px 20px;
+  flex-wrap: wrap;
+}
+
+.header button {
+  height: 30px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  box-shadow: none;
+  font: 560 12.5px/1 var(--sans);
+  transition: background-color 120ms cubic-bezier(0.23, 1, 0.32, 1), color 120ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.header button:hover:not(:disabled),
+.header button[data-state='open'],
+.header button[aria-pressed='true'] {
+  color: var(--text);
+  background: var(--bg-subtle);
+}
+
+.header button:focus-visible {
+  outline: 2px solid var(--border-strong);
+  outline-offset: 2px;
+}
+
+.header button:disabled { opacity: 0.32; }
+.header .title { min-width: 0; max-width: min(360px, 38vw); padding-left: 0; text-align: left; }
+.title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.header .title:disabled { opacity: 1; }
+.titleForm, .actions { display: flex; align-items: center; gap: 2px; }
+.titleForm { max-width: 100%; }
+.titleForm input { width: 220px; min-width: 80px; height: 30px; border-radius: 999px; }
+.actions { margin-left: auto; flex-wrap: wrap; }
+.divider { width: 1px; height: 16px; margin: 0 5px; background: color-mix(in oklab, var(--border) 80%, transparent); }
+
+.saveState {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-muted);
+  font: 400 11px/1 var(--sans);
+  white-space: nowrap;
+}
+.saveState[data-state='dirty'] { color: var(--amber); }
+.error { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 6px 16px; background: var(--bg-subtle); color: var(--red); font-size: 12px; }
+
+/* Engine menu contents are empty. Autosave needs no menu entry; Help is owned
+   by our header, so hide both vendor entrypoints and the empty menu slot. */
+.editor :global(.excalidraw .App-menu_top__left > div:has(> .main-menu-trigger)),
+.editor :global(.excalidraw .main-menu-trigger),
+.editor :global(.excalidraw .layer-ui__wrapper__footer-right .help-icon) {
+  display: none;
+}
+
+/* Match the document formatter's 40px glass capsule and 30px round tools.
+   Only adapt UI chrome: never recolor user-authored shapes or text. */
+.editor :global(.excalidraw .shapes-section .App-toolbar) {
+  min-height: 40px;
+  padding: 4px 6px;
+  gap: 2px;
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--bg) 86%, transparent);
+  backdrop-filter: blur(16px) saturate(1.2);
+  box-shadow: 0 1px 2px color-mix(in oklab, var(--text) 5%, transparent), 0 8px 24px -8px color-mix(in oklab, var(--text) 14%, transparent);
+}
+
+.editor :global(.excalidraw .shapes-section .ToolIcon__icon),
+.editor :global(.excalidraw .shapes-section .App-toolbar__extra-tools-trigger) {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  box-shadow: none;
+}
+.editor :global(.excalidraw .shapes-section .ToolIcon__icon svg),
+.editor :global(.excalidraw .shapes-section .App-toolbar__extra-tools-trigger svg) { width: 16px; height: 16px; }
+.editor :global(.excalidraw .shapes-section .ToolIcon:hover .ToolIcon__icon),
+.editor :global(.excalidraw .shapes-section .App-toolbar__extra-tools-trigger:hover) { background: var(--bg-subtle); color: var(--text); }
+.editor :global(.excalidraw .shapes-section .ToolIcon input:checked + .ToolIcon__icon),
+.editor :global(.excalidraw .shapes-section .App-toolbar__extra-tools-trigger[aria-expanded='true']) {
+  background: color-mix(in oklab, var(--text) 10%, var(--bg));
+  color: var(--text);
+}
+.editor :global(.excalidraw .shapes-section .ToolIcon input:focus-visible + .ToolIcon__icon) { box-shadow: inset 0 0 0 1px var(--border-strong); }
+.editor :global(.excalidraw .shapes-section .ToolIcon__keybinding) { display: none; }
+.editor :global(.excalidraw .App-toolbar__divider) { height: 16px; margin: 0 5px; background: color-mix(in oklab, var(--border) 80%, transparent); opacity: 1; }
+/* The section is a zero-size layout anchor: decorating it creates a stray
+   circle. Only the actual Island owns the properties panel's visible surface. */
+.editor :global(.excalidraw .selected-shape-actions > .Island) {
+  width: 208px;
+  padding: 12px;
+  border: 1px solid color-mix(in oklab, var(--border) 65%, transparent);
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: 0 2px 8px color-mix(in oklab, var(--text) 4%, transparent);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.editor :global(.excalidraw .selected-shape-actions .panelColumn) { gap: 12px; }
+.editor :global(.excalidraw .selected-shape-actions fieldset) { margin: 0; padding: 0; border: 0; min-width: 0; }
+.editor :global(.excalidraw .selected-shape-actions h3),
+.editor :global(.excalidraw .selected-shape-actions legend) {
+  margin: 0 0 6px;
+  padding: 0;
+  color: var(--text-muted);
+  font: 500 11px/1.4 var(--sans);
+}
+.editor :global(.excalidraw .selected-shape-actions .buttonList) { gap: 4px; }
+.editor :global(.excalidraw .selected-shape-actions .buttonList > button),
+.editor :global(.excalidraw .selected-shape-actions .buttonList > label),
+.editor :global(.excalidraw .selected-shape-actions .buttonList > div > button) {
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  transition: background 140ms cubic-bezier(0.23, 1, 0.32, 1), color 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.editor :global(.excalidraw .selected-shape-actions .buttonList .ToolIcon__icon) {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+}
+.editor :global(.excalidraw .selected-shape-actions .buttonList :is(button, label):hover) {
+  background: var(--bg-subtle);
+  color: var(--text);
+}
+.editor :global(.excalidraw .selected-shape-actions .buttonList :is(button, label).active),
+.editor :global(.excalidraw .selected-shape-actions .buttonList label:has(input:checked)),
+.editor :global(.excalidraw .selected-shape-actions .buttonList .ToolIcon--selected) {
+  border-color: var(--border);
+  background: var(--bg-subtle);
+  color: var(--text);
+}
+.editor :global(.excalidraw .selected-shape-actions .buttonList button:focus-visible),
+.editor :global(.excalidraw .selected-shape-actions .buttonList label:has(input:focus-visible)) {
+  outline: 1px solid var(--border-strong);
+  outline-offset: 2px;
+}
+.editor :global(.excalidraw .selected-shape-actions .buttonList svg) { width: 15px; height: 15px; }
+.editor :global(.excalidraw .selected-shape-actions .panelColumn > fieldset:last-child) {
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.editor :global(.excalidraw .App-toolbar__extra-tools-dropdown) {
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: var(--shadow-sm);
+}
+/* The shared board toolbar owns the visible controls. Keep the engine's
+   history buttons mounted as the sole undo/redo implementation. */
+.editor :global(.excalidraw .zoom-actions),
+.editor :global(.excalidraw .undo-redo-buttons),
+.editor :global(.excalidraw [data-testid="button-undo"]),
+.editor :global(.excalidraw [data-testid="button-redo"]) { display: none; }
+
+/* Keep starter hit targets above the engine's z-index:2 canvas, below tools. */
+.empty { position: absolute; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100% - 40px)); text-align: center; padding: 20px; background: color-mix(in oklab, var(--bg) 94%, transparent); }
+.empty h2 { margin: 0 0 8px; color: var(--text); font: 550 20px/1.4 var(--sans); letter-spacing: -0.02em; }
+.empty p { margin: 0 0 18px; color: var(--text-muted); font: 13px/1.6 var(--sans); }
+.starters { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; }
+.starters button { height: 30px; padding: 0 12px; border: 0; border-radius: 999px; background: var(--bg-subtle); color: var(--text-muted); font: 500 12.5px/1 var(--sans); }
+.starters button:hover { background: var(--bg-fill-secondary); color: var(--text); }
+
+/* Keep the board controls in their fixed corner when a chat pane narrows the
+   drawing viewport; move the drawing-tool capsule to a second row. */
+@container (max-width: 900px) {
+  .editor :global(.excalidraw--mobile .App-top-bar) { top: 56px; }
+  .editor :global(.excalidraw .shapes-section) { padding-top: 40px; }
+  /* On narrow canvases the centered tools span the properties column. Keep
+     the actual panel below that second tool row, not under its hit targets. */
+  .editor :global(.excalidraw:not(.excalidraw--mobile) .selected-shape-actions > .Island) {
+    position: relative;
+    top: 88px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editor :global(.excalidraw .selected-shape-actions .buttonList > button),
+  .editor :global(.excalidraw .selected-shape-actions .buttonList > label),
+  .editor :global(.excalidraw .selected-shape-actions .buttonList > div > button) { transition: none; }
+}
+
+@media (max-width: 760px) {
+  .header { padding: 4px 10px; gap: 4px; }
+  .header .title { max-width: 60vw; }
+  .actions { width: 100%; justify-content: flex-end; }
+  .empty { padding: 12px; }
+}

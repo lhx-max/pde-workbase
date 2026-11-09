@@ -1,0 +1,14 @@
+.canvas-result-history {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 4px 8px;
+  color: var(--text-secondary, #666);
+  font-size: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: #0003 transparent;
+}
+.canvas-result-history > span { flex-shrink: 0; margin-right: 4px; }
+.canvas-result-history > button { flex-shrink: 0; }

@@ -1,0 +1,138 @@
+.canvas-workbench {
+  --canvas-edge-color: color-mix(in srgb, var(--text-muted, #98a2b3) 68%, var(--bg-panel, white));
+  --canvas-edge-active: color-mix(in srgb, var(--text-strong, #202020) 72%, var(--bg-panel, white));
+  --canvas-port-border: color-mix(in srgb, var(--text-muted, #98a2b3) 35%, var(--bg-panel, white));
+}
+.canvas-workbench .xy-flow-host .react-flow__edge-path,
+.canvas-workbench .storyboard-relation-wire,
+.canvas-workbench .xy-flow-host .react-flow__connection-path {
+  stroke: var(--canvas-edge-color);
+  stroke-width: 1.35;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  transition: stroke 160ms ease, stroke-width 160ms ease;
+}
+/* Native edges are scaled by an outer HTML viewport. The relation overlay
+   scales inside SVG, where non-scaling-stroke would cancel that zoom. */
+.canvas-workbench .storyboard-relation-wire { vector-effect: none; }
+.canvas-workbench .xy-flow-host .react-flow__edge.selected .react-flow__edge-path,
+.canvas-workbench .storyboard-relation-overlay [data-active="true"] .storyboard-relation-wire,
+.canvas-workbench .xy-flow-host .react-flow__edge:hover .react-flow__edge-path,
+.canvas-workbench .xy-flow-host .react-flow__edge.is-related .react-flow__edge-path {
+  stroke: var(--canvas-edge-active);
+  stroke-width: 1.65;
+}
+.canvas-workbench .xy-flow-host .react-flow__edge { transition: opacity 160ms ease; }
+.canvas-workbench .xy-flow-host .react-flow__edge.is-muted { opacity: .25; }
+.canvas-workbench .xy-flow-host .react-flow__edge.is-muted:hover { opacity: 1; }
+.canvas-workbench .xy-flow-host .react-flow__node.is-edge-endpoint:not(.selected) {
+  outline: 1px solid var(--canvas-edge-color);
+  outline-offset: 3px;
+  border-radius: var(--radius-card, 12px);
+}
+.canvas-workbench .canvas-edge-pulse {
+  fill: none;
+  pointer-events: none;
+  stroke: var(--canvas-edge-active);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: .12 1.88;
+  animation: canvas-edge-connect 550ms ease-out both;
+}
+@keyframes canvas-edge-connect {
+  from { stroke-dashoffset: .12; opacity: 0; }
+  15% { opacity: .75; }
+  to { stroke-dashoffset: -1; opacity: 0; }
+}
+.canvas-workbench .canvas-edge-pulse-halo { stroke-width: 7; stroke-opacity: .15; }
+.canvas-workbench .canvas-edge-actions {
+  position: absolute;
+  pointer-events: all;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: var(--radius-button, 8px);
+  background: var(--bg-panel, white);
+  color: var(--text-strong, #202020);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 10%);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.canvas-workbench .canvas-edge-endpoints { max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+/* Input handles share a visible dot and a larger hit target; never a second +. */
+.canvas-workbench .xy-flow-host .react-flow__handle.target {
+  width: 18px !important;
+  height: 18px !important;
+  opacity: 0 !important;
+  pointer-events: auto !important;
+  background: var(--bg-panel, white) !important;
+  border: 1px solid var(--canvas-port-border) !important;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 5%) !important;
+  transition: opacity 140ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+.canvas-workbench .xy-flow-host .react-flow__handle.target::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background: var(--canvas-edge-color);
+  pointer-events: none;
+  transition: transform 160ms ease, background 160ms ease;
+}
+.canvas-workbench .xy-flow-host .react-flow__node:hover .react-flow__handle.target,
+.canvas-workbench .xy-flow-host .react-flow__node.selected .react-flow__handle.target,
+.canvas-workbench .xy-flow-host.is-connecting .react-flow__handle.target { opacity: 1 !important; }
+.canvas-workbench .xy-flow-host .react-flow__handle.target.valid {
+  border-color: var(--canvas-edge-active) !important;
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--canvas-edge-active) 10%, transparent) !important;
+}
+.canvas-workbench .xy-flow-host .react-flow__handle.target.valid::after { transform: scale(.65); background: var(--canvas-edge-active); }
+/* Workflow result inputs are arrow destinations, never visible ports.
+   Keep their measurement box so existing edges and hit geometry remain stable. */
+.canvas-workbench .xy-flow-host .react-flow__node .bezier-workflow-result > .react-flow__handle.target {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+.canvas-workbench .xy-flow-host .react-flow__node .bezier-workflow-result > .react-flow__handle.target::after { content: none; }
+.canvas-workbench .canvas-edge-arrival {
+  fill: none;
+  stroke: var(--canvas-edge-active);
+  stroke-width: 1;
+  pointer-events: none;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: canvas-edge-arrival 260ms 420ms ease-out both;
+}
+@keyframes canvas-edge-arrival {
+  from { transform: scale(.65); opacity: 0; }
+  25% { opacity: .45; }
+  to { transform: scale(1.8); opacity: 0; }
+}
+.canvas-workbench .xy-flow-host.is-interacting .canvas-edge-pulse,
+.canvas-workbench .xy-flow-host.is-interacting .canvas-edge-arrival { display: none; }
+.canvas-workbench .canvas-connection-notice {
+  position: absolute;
+  left: 50%;
+  top: 16px;
+  transform: translateX(-50%);
+  z-index: 20;
+  pointer-events: none;
+  max-width: 85%;
+  padding: 6px 12px;
+  border-radius: var(--radius-button, 8px);
+  color: var(--text-strong, #202020);
+  background: var(--bg-panel, white);
+  font-size: 12px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .canvas-workbench .canvas-edge-pulse,
+  .canvas-workbench .canvas-edge-arrival { display: none; }
+  .canvas-workbench .xy-flow-host .react-flow__edge,
+  .canvas-workbench .xy-flow-host .react-flow__edge-path,
+  .canvas-workbench .xy-flow-host .react-flow__connection-path,
+  .canvas-workbench .xy-flow-host .react-flow__handle.target,
+  .canvas-workbench .xy-flow-host .react-flow__handle.target::after { transition: none; }
+}

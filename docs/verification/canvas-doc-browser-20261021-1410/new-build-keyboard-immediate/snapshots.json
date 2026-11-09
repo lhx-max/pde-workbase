@@ -1,0 +1,203 @@
+[
+  {
+    "stage": "focused-1500ms",
+    "at": 1792563736927,
+    "copyId": "basic-text-mvhq5yby-yzvv",
+    "dom": "KEYBOARD IMMEDIATE COPY EDIT\n\n\n",
+    "attrs": {
+      "contenteditable": "true",
+      "role": "textbox",
+      "class": "tiptap ProseMirror markdown-rendered markdown-word-editor ProseMirror-focused",
+      "active": true
+    },
+    "saved": [
+      {
+        "title": "合成正文",
+        "text": "# 合成正文\n\nfirst middle last\n",
+        "width": 600,
+        "height": 440,
+        "x": 150,
+        "y": 150,
+        "id": "n",
+        "kind": "text",
+        "projectFilePath": "sources/text/n-op-46b252504a4da63d.md",
+        "textEntryMode": "edit"
+      },
+      {
+        "id": "basic-text-mvhq5yby-yzvv",
+        "title": "合成正文",
+        "text": "# 合成正文\n\nfirst middle last\n",
+        "width": 600,
+        "height": 440,
+        "x": 186,
+        "y": 186,
+        "kind": "text",
+        "projectFilePath": "sources/text/basic-text-mvhq5yby-yzvv-op-8001e82b7b905ed6.md",
+        "textEntryMode": "edit"
+      }
+    ],
+    "binding": {
+      "bindingId": "bind-17c3840b-0ddd-41cf-bb88-cc426f71fe93",
+      "canvasInstanceId": "browser-p",
+      "nodeId": "basic-text-mvhq5yby-yzvv",
+      "kind": "text",
+      "appId": "doc",
+      "appInstanceId": "合成正文-6710faa5",
+      "mirrorPath": "sources/text/basic-text-mvhq5yby-yzvv-op-8001e82b7b905ed6.md",
+      "teamId": "local",
+      "status": "active",
+      "createdAt": "2026-10-21T06:22:15.356Z",
+      "updatedAt": "2026-10-21T06:22:15.416Z"
+    },
+    "document": {
+      "meta": {
+        "id": "合成正文-6710faa5",
+        "name": "合成正文",
+        "path": "合成正文-6710faa5.md",
+        "size": 34,
+        "updatedAt": "2026-10-21T06:22:15.350Z",
+        "nodeId": "basic-text-mvhq5yby-yzvv",
+        "mirrorCanvasId": "browser-p",
+        "mirrorPath": "sources/text/basic-text-mvhq5yby-yzvv-op-8001e82b7b905ed6.md",
+        "teamId": "local",
+        "createdBy": "local"
+      },
+      "content": "# 合成正文\n\nfirst middle last\n",
+      "revision": "58e0bf0af1083411b4bae7d8f02817382699c07c868a6479a566d4e701a2a284"
+    }
+  },
+  {
+    "stage": "focused-6000ms",
+    "at": 1792563741447,
+    "copyId": "basic-text-mvhq5yby-yzvv",
+    "dom": "KEYBOARD IMMEDIATE COPY EDIT\n\n\n",
+    "attrs": {
+      "contenteditable": "true",
+      "role": "textbox",
+      "class": "tiptap ProseMirror markdown-rendered markdown-word-editor ProseMirror-focused",
+      "active": true
+    },
+    "saved": [
+      {
+        "title": "合成正文",
+        "text": "# 合成正文\n\nfirst middle last\n",
+        "width": 600,
+        "height": 440,
+        "x": 150,
+        "y": 150,
+        "id": "n",
+        "kind": "text",
+        "projectFilePath": "sources/text/n-op-46b252504a4da63d.md",
+        "textEntryMode": "edit"
+      },
+      {
+        "id": "basic-text-mvhq5yby-yzvv",
+        "title": "合成正文",
+        "text": "# 合成正文\n\nfirst middle last\n",
+        "width": 600,
+        "height": 440,
+        "x": 186,
+        "y": 186,
+        "kind": "text",
+        "projectFilePath": "sources/text/basic-text-mvhq5yby-yzvv-op-8001e82b7b905ed6.md",
+        "textEntryMode": "edit"
+      }
+    ],
+    "binding": {
+      "bindingId": "bind-17c3840b-0ddd-41cf-bb88-cc426f71fe93",
+      "canvasInstanceId": "browser-p",
+      "nodeId": "basic-text-mvhq5yby-yzvv",
+      "kind": "text",
+      "appId": "doc",
+      "appInstanceId": "合成正文-6710faa5",
+      "mirrorPath": "sources/text/basic-text-mvhq5yby-yzvv-op-8001e82b7b905ed6.md",
+      "teamId": "local",
+      "status": "active",
+      "createdAt": "2026-10-21T06:22:15.356Z",
+      "updatedAt": "2026-10-21T06:22:15.416Z"
+    },
+    "document": {
+      "meta": {
+        "id": "合成正文-6710faa5",
+        "name": "合成正文",
+        "path": "合成正文-6710faa5.md",
+        "size": 34,
+        "updatedAt": "2026-10-21T06:22:15.350Z",
+        "nodeId": "basic-text-mvhq5yby-yzvv",
+        "mirrorCanvasId": "browser-p",
+        "mirrorPath": "sources/text/basic-text-mvhq5yby-yzvv-op-8001e82b7b905ed6.md",
+        "teamId": "local",
+        "createdBy": "local"
+      },
+      "content": "# 合成正文\n\nfirst middle last\n",
+      "revision": "58e0bf0af1083411b4bae7d8f02817382699c07c868a6479a566d4e701a2a284"
+    }
+  },
+  {
+    "stage": "after-blur-1500ms",
+    "at": 1792563743031,
+    "copyId": "basic-text-mvhq5yby-yzvv",
+    "dom": "KEYBOARD IMMEDIATE COPY EDIT\n\n\n",
+    "attrs": {
+      "contenteditable": "true",
+      "role": "textbox",
+      "class": "tiptap ProseMirror markdown-rendered markdown-word-editor",
+      "active": false
+    },
+    "saved": [
+      {
+        "title": "合成正文",
+        "text": "# 合成正文\n\nfirst middle last\n",
+        "width": 600,
+        "height": 440,
+        "x": 150,
+        "y": 150,
+        "id": "n",
+        "kind": "text",
+        "projectFilePath": "sources/text/n-op-46b252504a4da63d.md",
+        "textEntryMode": "edit"
+      },
+      {
+        "id": "basic-text-mvhq5yby-yzvv",
+        "title": "合成正文",
+        "text": "# 合成正文\n\nfirst middle last\n",
+        "width": 600,
+        "height": 440,
+        "x": 186,
+        "y": 186,
+        "kind": "text",
+        "projectFilePath": "sources/text/basic-text-mvhq5yby-yzvv-op-8001e82b7b905ed6.md",
+        "textEntryMode": "edit"
+      }
+    ],
+    "binding": {
+      "bindingId": "bind-17c3840b-0ddd-41cf-bb88-cc426f71fe93",
+      "canvasInstanceId": "browser-p",
+      "nodeId": "basic-text-mvhq5yby-yzvv",
+      "kind": "text",
+      "appId": "doc",
+      "appInstanceId": "合成正文-6710faa5",
+      "mirrorPath": "sources/text/basic-text-mvhq5yby-yzvv-op-8001e82b7b905ed6.md",
+      "teamId": "local",
+      "status": "active",
+      "createdAt": "2026-10-21T06:22:15.356Z",
+      "updatedAt": "2026-10-21T06:22:15.416Z"
+    },
+    "document": {
+      "meta": {
+        "id": "合成正文-6710faa5",
+        "name": "合成正文",
+        "path": "合成正文-6710faa5.md",
+        "size": 34,
+        "updatedAt": "2026-10-21T06:22:15.350Z",
+        "nodeId": "basic-text-mvhq5yby-yzvv",
+        "mirrorCanvasId": "browser-p",
+        "mirrorPath": "sources/text/basic-text-mvhq5yby-yzvv-op-8001e82b7b905ed6.md",
+        "teamId": "local",
+        "createdBy": "local"
+      },
+      "content": "# 合成正文\n\nfirst middle last\n",
+      "revision": "58e0bf0af1083411b4bae7d8f02817382699c07c868a6479a566d4e701a2a284"
+    }
+  }
+]

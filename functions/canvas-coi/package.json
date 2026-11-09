@@ -1,0 +1,26 @@
+{
+  "name": "@canvas/canvas-coi",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Canvas App backend as an Appwrite Function — full app domain on Appwrite with a per-execution single-writer lock.",
+  "scripts": {
+    "build": "node ./esbuild.config.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.tests.json --noEmit",
+    "test": "vitest run",
+    "deploy": "bash ./deploy.sh"
+  },
+  "dependencies": {
+    "@bezier/canvas-core": "workspace:*",
+    "@bezier/contracts": "workspace:*",
+    "@ks-designai/app-authority": "workspace:*",
+    "@ks-designai/app-cloud-state": "workspace:*",
+    "sharp": "0.35.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.12.2",
+    "esbuild": "0.28.0",
+    "typescript": "5.9.3",
+    "vitest": "4.1.6"
+  }
+}

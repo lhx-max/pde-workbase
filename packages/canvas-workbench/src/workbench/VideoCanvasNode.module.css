@@ -1,0 +1,65 @@
+.unconfiguredEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
+  max-width: 320px;
+  padding: 20px;
+  color: var(--text-muted);
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.unconfiguredEmpty > svg { flex-shrink: 0; color: var(--text-soft); }
+.unconfiguredEmpty > p { margin: 0; }
+
+/* Keep configuration guidance outside the saved video's playback area. */
+.unconfiguredNotice {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-panel);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.modeBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-self: flex-start;
+  flex: none;
+  gap: 2px;
+  max-width: calc(100% - 40px);
+  margin: 0 40px 10px 0;
+  padding: 3px;
+  border-radius: 7px;
+  background: var(--bg-muted);
+}
+
+/* Beat the canvas button reset equally for every mode and state. */
+.modeBar .modeButton {
+  flex: 0 0 auto;
+  min-width: 72px;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 5px;
+  color: var(--text-secondary);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+}
+.modeBar .modeButton[aria-selected='true'] {
+  color: var(--text-strong);
+  background: var(--bg-panel, #fff);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
+}
+.modeBar .modeButton:disabled { opacity: .35; }

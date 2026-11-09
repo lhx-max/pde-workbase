@@ -1,0 +1,226 @@
+/* Canvas workbench host overlay contract; global names are shared with the canvas package.
+ * Mechanically retained from upstream 319e5eee home-hero-composer-footer.css:27-174,180-253.
+ * Import from the adapter itself; independent workspaces do not mount the Home composer. */
+/* The home composer injects Animate UI as the behavior shell. These surfaces
+   are portalled, so reset the workbench's legacy absolute-position rules and
+   let Radix own collision-aware placement and transform-origin motion. */
+.home-workbench-popover {
+  z-index: 50;
+  width: auto;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-md);
+}
+.workbench-host-menu.is-model-menu {
+  width: 280px;
+}
+.home-workbench-popover.is-params-menu {
+  width: min(380px, calc(100vw - 24px));
+}
+.home-workbench-popover.canvas-appearance-popover {
+  width: 288px;
+}
+.home-workbench-popover__scope.canvas-workbench {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  overflow: hidden;
+  transform: none;
+  border-radius: inherit;
+  background: transparent;
+}
+.home-workbench-popover__scope.canvas-workbench .minimax-image-menu {
+  position: static;
+  inset: auto;
+  width: 100%;
+  margin: 0;
+  transform: none;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  box-shadow: none;
+}
+.home-workbench-popover__scope.canvas-workbench .canvas-appearance-menu {
+  position: static;
+  inset: auto;
+  width: 100%;
+  border: 0;
+  box-shadow: none;
+}
+.workbench-host-menu.canvas-tidy-menu {
+  width: 218px;
+}
+.workbench-host-menu .canvas-tidy-menu-item {
+  height: auto;
+  min-height: 46px;
+  align-items: flex-start;
+  padding-block: 7px;
+}
+.workbench-host-menu .canvas-tidy-menu-item > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+.workbench-host-menu .canvas-tidy-menu-item > svg {
+  margin-top: 2px;
+}
+.workbench-host-menu .canvas-tidy-menu-item b {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+}
+.workbench-host-menu .canvas-tidy-menu-item small {
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+.workbench-host-menu.canvas-zoom-menu {
+  min-width: 158px;
+}
+.workbench-host-menu.dock-mode-menu small { color: var(--text-muted); font-size: 11px; }
+.workbench-host-menu.dock-mode-menu {
+  min-width: 176px;
+}
+.workbench-host-menu.dock-mode-menu [role='menuitemradio'] {
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+}
+.workbench-host-menu.node-connect-picker {
+  width: 244px;
+}
+.workbench-host-menu .node-connect-picker-item {
+  height: auto;
+  min-height: 48px;
+  align-items: center;
+  padding: 7px 8px;
+}
+.workbench-host-menu .node-connect-picker-badge {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  place-items: center;
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+.workbench-host-menu .node-connect-picker-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+.workbench-host-menu .node-connect-picker-copy small {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.workbench-host-menu.minimax-annotation-font-menu {
+  min-width: 80px;
+}
+.workbench-host-menu.minimax-annotation-brush-menu {
+  min-width: 96px;
+}
+.workbench-host-menu .minimax-annotation-brush-dot {
+  display: block;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+}
+.workbench-host-menu.basic-output-option-menu {
+  width: 246px;
+}
+/* Workbench dialogs own the base modal tier. Resource pickers opened from
+   them must cover both the domain content and its backdrop; asset previews
+   stay above both on --layer-modal-stacked. */
+.home-workbench-dialog-overlay {
+  z-index: var(--layer-modal);
+  background: rgba(0, 0, 0, 0.32);
+}
+.home-workbench-dialog-overlay--resource {
+  z-index: calc(var(--layer-modal) + 2);
+}
+/* Opt-in visual transparency does not change modal focus/dismissal or tiers. */
+.home-workbench-dialog-overlay.home-workbench-dialog-overlay--transparent {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.home-workbench-dialog.home-workbench-dialog--resource {
+  z-index: calc(var(--layer-modal) + 3);
+  width: min(1024px, calc(100vw - 56px));
+  height: min(676px, calc(100vh - 56px));
+  min-height: min(560px, calc(100vh - 56px));
+  max-width: min(1024px, calc(100vw - 56px));
+  max-height: calc(100vh - 56px);
+  display: block;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  border-radius: 20px;
+  box-shadow: var(--shadow-lg);
+}
+.home-workbench-dialog__scope {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: visible;
+}
+.home-workbench-dialog__scope.canvas-workbench .minimax-resource-dialog {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: none;
+  border: 0;
+  box-shadow: none;
+}
+.workbench-domain-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--layer-modal) + 1);
+  display: grid;
+  width: 100vw;
+  height: 100vh;
+  place-items: center;
+  outline: 0;
+  pointer-events: none;
+}
+/* Radix Content has inline pointer-events:auto. Bound its actual hit region
+   to module-owned panels so clicks outside reach the native overlay. */
+.workbench-domain-dialog.workbench-domain-dialog--floating {
+  width: max-content;
+  height: fit-content;
+  margin: auto;
+  max-width: 100vw;
+  max-height: 100dvh;
+}
+.workbench-domain-dialog__scope.canvas-workbench {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: visible;
+  pointer-events: none;
+}
+.workbench-domain-dialog__scope.canvas-workbench > * {
+  pointer-events: auto;
+}
+/* Module-styled domain panels size themselves; do not wrap them in the
+   viewport-sized canvas root and its application background/element resets. */
+.workbench-domain-dialog__scope:not(.canvas-workbench) {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  max-height: 100%;
+  pointer-events: none;
+}
+.workbench-domain-dialog__scope:not(.canvas-workbench) > * {
+  pointer-events: auto;
+}

@@ -1,0 +1,30 @@
+{
+  "accountCreated": true,
+  "temporaryUserId": "roprobed3f319582ba84224956c",
+  "cleanup": [
+    {
+      "target": "doc_assets_v2//rotestd3f319582ba84224956c",
+      "removed": true
+    },
+    {
+      "target": "canvas_assets_v2//rotestd3f319582ba84224956c",
+      "removed": true
+    },
+    {
+      "target": "doc_app_dev/documents/rotestd3f319582ba84224956c",
+      "removed": true
+    },
+    {
+      "target": "canvas_app_dev/canvases/rotestd3f319582ba84224956c",
+      "removed": true
+    },
+    {
+      "target": "temporary-account-disabled",
+      "removed": true
+    },
+    {
+      "target": "temporary-session-revoked",
+      "removed": true
+    }
+  ]
+}

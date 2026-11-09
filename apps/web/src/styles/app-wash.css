@@ -1,0 +1,62 @@
+/* -------- App ground: flat white --------------------------------------- */
+/* The application uses an opaque white ground. Surface values and degraded
+   fallbacks are owned by tokens.css; this file only applies them to the app
+   and native desktop hosts. */
+
+/* A fixed opaque layer keeps transparent workspace containers on the same
+   white ground without any compositing effect. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--bg-app-wash);
+}
+
+/* Native desktop windows use the same opaque white ground. */
+html:has(.workspace-shell--desktop[data-host-platform='win32']) {
+  background: var(--bg-app-wash);
+}
+
+/* Only the macOS desktop navigation exposes native sidebar vibrancy.
+   This is intentionally a cross-shell contract: every ancestor between the
+   sidebar and the BrowserWindow must stop painting an opaque ground. */
+html:has(.workspace-shell--desktop[data-host-platform='darwin'] .entry-nav-rail),
+html:has(.workspace-shell--desktop[data-host-platform='darwin'] .entry-nav-rail) body {
+  background: transparent;
+}
+html:has(.workspace-shell--desktop[data-host-platform='darwin'] .entry-nav-rail) body::before {
+  content: none;
+}
+.workspace-shell--desktop[data-host-platform='darwin']:has(.entry-nav-rail),
+.workspace-shell--desktop[data-host-platform='darwin'] .entry-shell--no-header,
+.workspace-shell--desktop[data-host-platform='darwin'] .entry-shell--no-header .entry {
+  background: transparent;
+}
+/* Glass is confined to navigation: editors, home pages, and the tab strip
+   remain opaque, including gutters around the project workbench. */
+.workspace-shell--desktop[data-host-platform='darwin'] .entry-main,
+.workspace-shell--desktop[data-host-platform='darwin'] .project-workbench-main,
+.workspace-shell--desktop[data-host-platform='darwin'] .workspace-tabs-chrome.app-chrome-header {
+  background: var(--bg);
+}
+@media (prefers-reduced-transparency: reduce) {
+  html:has(.workspace-shell--desktop[data-host-platform='darwin'] .entry-nav-rail),
+  html:has(.workspace-shell--desktop[data-host-platform='darwin'] .entry-nav-rail) body {
+    background: var(--bg);
+  }
+}
+/* The top project tab strip stays flush and seamless with the page below it:
+   a transparent surface shows the exact same app wash as the content (one
+   continuous color, pinned Home tab mask included) and takes NO
+   backdrop-filter — nothing scrolls under this top strip, so a frost would
+   serve no function and its blur edge drew a visible seam under the tab row.
+   (Deliberate 材质规范 exception: no material at all, the strip rides the
+   ground.) The [data-client-type] hook only bumps specificity above
+   routines.css's `.workspace-tabs-chrome` base rule. */
+.workspace-shell[data-client-type] .workspace-tabs-chrome.app-chrome-header {
+  --workspace-tab-bar-bg: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}

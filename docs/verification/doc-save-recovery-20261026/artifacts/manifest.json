@@ -1,0 +1,38 @@
+{
+  "validatedAt": "2026-10-26T08:37:54.955Z",
+  "businessMainSha256": "34d6646a5d8cd4e0d0c10ca8992bab8e88a2b4ec68e249ba2099dad6b2a855b7",
+  "deployableArchive": "doc-api-recovery-20261026-34d6646a5d8c.tgz",
+  "archiveSha256": "b8771c7f79fc2458cb061a441c17a8d0bba50db022fe8d089c3fd878e59a89af",
+  "corePackage": "@ks-designai/app-cloud-state@0.1.3",
+  "coreArchiveSha256": "b4e7909ef0b4f982bc0d090752555f3790143ba431a71592f44cfde81084dda8",
+  "businessFunctionId": "doc-recovery-verify-20261026",
+  "businessDeploymentId": "6adf100eb2849b27a6af",
+  "directEntryFunctionId": "doc-entry-recovery-20261026",
+  "directEntryDeploymentId": "6adf10763d5a28966d86",
+  "localTests": {
+    "server": 255,
+    "function": 70,
+    "sharedCore": 60
+  },
+  "cloudChecks": {
+    "business": 46,
+    "acknowledgementLoss": 15,
+    "directEntry": 2
+  },
+  "productionArchiveContainsAuthorityFixture": false,
+  "cloudBusinessAuthority": "isolated contract fixture; real Appwrite storage",
+  "sourcePromoted": true,
+  "sourceGuardPassed": true,
+  "wholeCanvasTypecheckPassed": true,
+  "wholeWorkspaceGuardPassed": false,
+  "wholeWorkspaceGuardReason": "pre-existing untracked verification snapshots/generated JavaScript; source snapshot guard passed",
+  "stagingDeployed": false,
+  "realMaAgentAccepted": false,
+  "gitCommitted": false,
+  "gitPushed": false,
+  "testFunctionsDisabled": true,
+  "remainingTestLocks": 0,
+  "productionResourcesChanged": false,
+  "sourceMatchesFrozenCandidate": true,
+  "reviewExports": 7
+}

@@ -1,0 +1,11 @@
+.root { box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; width:100%; padding:32px 24px; color:var(--text-muted); text-align:center; }
+.root > * { margin:0; }
+.root > svg, .root > span:first-child { box-sizing:border-box; width:44px; height:44px; padding:10px; border-radius:12px; background:var(--bg-subtle); color:var(--text-muted); margin-bottom:4px; }
+.root > span:first-child { display:grid; place-items:center; }
+.root > span:first-child svg { width:22px; height:22px; }
+.root strong, .root h2 { margin:0; font-size:15px; font-weight:600; line-height:22px; color:var(--text-strong); }
+.root p { margin:0; font-size:13px; line-height:21px; max-width:420px; overflow-wrap:anywhere; }
+.root > button, .root > div { margin-top:8px; }
+.root > button { height:32px; min-height:32px; font-size:13px; padding-inline:12px; }
+.root > div { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
+.root > div:empty { display:none; }

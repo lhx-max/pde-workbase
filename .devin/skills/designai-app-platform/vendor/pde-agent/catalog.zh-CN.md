@@ -1,0 +1,55 @@
+# PDE Agent 内置资料全目录
+
+先读[适配说明](../../docs/pde-agent-integration.zh-CN.md)。以下资料完整随包保存，按任务加载；嵌套 Skill 已改为 entrypoint.md，防止独立自动触发覆盖总规范。目录中的路径相对本页。
+
+| 文件 | 内容定位 |
+| --- | --- |
+| [entrypoint.md](entrypoint.md) | 资料 |
+| [references/appwrite-cf/entrypoint.md](references/appwrite-cf/entrypoint.md) | 资料 |
+| [references/appwrite-cf/references/fucntions.md](references/appwrite-cf/references/fucntions.md) | 资料 |
+| [references/appwrite-cf/references/permissions.md](references/appwrite-cf/references/permissions.md) | 资料 |
+| [references/canvas-brief/canvas-brief.md](references/canvas-brief/canvas-brief.md) | 资料 |
+| [references/canvas-brief/interactive-brief-template.canvas.tsx](references/canvas-brief/interactive-brief-template.canvas.tsx) | 上游元数据/可复用模板 |
+| [references/onesql/onesql.md](references/onesql/onesql.md) | 资料 |
+| [references/onesql/reference/access-management.md](references/onesql/reference/access-management.md) | 资料 |
+| [references/onesql/reference/commands.md](references/onesql/reference/commands.md) | 资料 |
+| [references/onesql/reference/credential-connection.md](references/onesql/reference/credential-connection.md) | 资料 |
+| [references/onesql/reference/dataset.md](references/onesql/reference/dataset.md) | 资料 |
+| [references/onesql/reference/frontend-sdk.md](references/onesql/reference/frontend-sdk.md) | 资料 |
+| [references/onesql/reference/metadata.md](references/onesql/reference/metadata.md) | 资料 |
+| [references/onesql/reference/parameters.md](references/onesql/reference/parameters.md) | 资料 |
+| [references/onesql/reference/query.md](references/onesql/reference/query.md) | 资料 |
+| [references/onesql/reference/troubleshooting.md](references/onesql/reference/troubleshooting.md) | 资料 |
+| [references/onesql/reference/workflows.md](references/onesql/reference/workflows.md) | 资料 |
+| [references/static-site-deploy/static-site-deploy.md](references/static-site-deploy/static-site-deploy.md) | 资料 |
+| [references/vite-react-init/vite-react-init.md](references/vite-react-init/vite-react-init.md) | 资料 |
+| [references/website-design/core/accessibility.md](references/website-design/core/accessibility.md) | 资料 |
+| [references/website-design/core/anti-patterns.md](references/website-design/core/anti-patterns.md) | 资料 |
+| [references/website-design/core/brand-token-derivation.md](references/website-design/core/brand-token-derivation.md) | 资料 |
+| [references/website-design/core/design-tokens.md](references/website-design/core/design-tokens.md) | 资料 |
+| [references/website-design/core/interaction-states.md](references/website-design/core/interaction-states.md) | 资料 |
+| [references/website-design/core/motion-icons.md](references/website-design/core/motion-icons.md) | 资料 |
+| [references/website-design/core/responsive-spec.md](references/website-design/core/responsive-spec.md) | 资料 |
+| [references/website-design/core/theme-blending.md](references/website-design/core/theme-blending.md) | 资料 |
+| [references/website-design/core/three-layer-spec.md](references/website-design/core/three-layer-spec.md) | 资料 |
+| [references/website-design/data-components/echarts-config.md](references/website-design/data-components/echarts-config.md) | 资料 |
+| [references/website-design/data-components/kpi-card.md](references/website-design/data-components/kpi-card.md) | 资料 |
+| [references/website-design/data-components/semantic-colors.md](references/website-design/data-components/semantic-colors.md) | 资料 |
+| [references/website-design/data-components/site-chrome.md](references/website-design/data-components/site-chrome.md) | 资料 |
+| [references/website-design/data-components/table-spec.md](references/website-design/data-components/table-spec.md) | 资料 |
+| [references/website-design/references/CHANGELOG.md](references/website-design/references/CHANGELOG.md) | 资料 |
+| [references/website-design/scenes/content-doc.md](references/website-design/scenes/content-doc.md) | 资料 |
+| [references/website-design/scenes/dashboard.md](references/website-design/scenes/dashboard.md) | 资料 |
+| [references/website-design/scenes/data-report.md](references/website-design/scenes/data-report.md) | 资料 |
+| [references/website-design/scenes/landing-page.md](references/website-design/scenes/landing-page.md) | 资料 |
+| [references/website-design/scenes/tool-app.md](references/website-design/scenes/tool-app.md) | 资料 |
+| [references/website-design/themes/A-enterprise-light.md](references/website-design/themes/A-enterprise-light.md) | 资料 |
+| [references/website-design/themes/B-dark-pro.md](references/website-design/themes/B-dark-pro.md) | 资料 |
+| [references/website-design/themes/C-editorial.md](references/website-design/themes/C-editorial.md) | 资料 |
+| [references/website-design/themes/D-minimal.md](references/website-design/themes/D-minimal.md) | 资料 |
+| [references/website-design/themes/E-bold-bento.md](references/website-design/themes/E-bold-bento.md) | 资料 |
+| [references/website-design/themes/F-mono-noir.md](references/website-design/themes/F-mono-noir.md) | 资料 |
+| [references/website-design/themes/G-technical-console.md](references/website-design/themes/G-technical-console.md) | 资料 |
+| [references/website-design/website-design.md](references/website-design/website-design.md) | 资料 |
+| [references/website-design-integration.md](references/website-design-integration.md) | 资料 |
+| [upstream-manifest.json](upstream-manifest.json) | 上游元数据/可复用模板 |

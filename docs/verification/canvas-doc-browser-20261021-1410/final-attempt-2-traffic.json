@@ -1,0 +1,498 @@
+[
+  {
+    "type": "request",
+    "at": 1792563734788,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "method": "POST",
+    "body": "{\"input\":{}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563734803,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "status": 200,
+    "body": "{\"requestId\":\"req_63768c25-cdea-46c3-b8c7-10ef2f68b198\",\"data\":{\"receiptId\":\"op-e6f4a184-c032-4ae9-b6e3-dff98d312b1e\",\"status\":\"succeeded\",\"result\":{\"meta\":{\"id\":\"合成正文-75abcd88\",\"name\":\"合成正文\",\"path\":\"合成正文-75abcd88.md\",\"size\":34,\"updatedAt\":\"2026-10-21T06:22:13.019Z\",\"nodeId\":\"n\",\"mirrorCanvasId\":\"browser-p\",\"mirrorPath\":\"sources/text/n-op-82383417cd7103ab.md\",\"teamId\":\"local\",\"createdBy\":\"local\"},\"content\":\"# 合成正文\\n\\nfirst middle last\\n\",\"revision\":\"58e0bf0af1083411b4bae7d8f02817382699c07c868a6479a566d4e701a2a284\"},\"replayed\":false}}"
+  },
+  {
+    "type": "request",
+    "at": 1792563736790,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "method": "POST",
+    "body": "{\"input\":{}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563736795,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "status": 200,
+    "body": "{\"requestId\":\"req_fe1a71f4-4839-43a6-be15-5729557125e9\",\"data\":{\"receiptId\":\"op-55c2404a-8350-4a29-97c4-35815af77e31\",\"status\":\"succeeded\",\"result\":{\"meta\":{\"id\":\"合成正文-75abcd88\",\"name\":\"合成正文\",\"path\":\"合成正文-75abcd88.md\",\"size\":34,\"updatedAt\":\"2026-10-21T06:22:13.019Z\",\"nodeId\":\"n\",\"mirrorCanvasId\":\"browser-p\",\"mirrorPath\":\"sources/text/n-op-82383417cd7103ab.md\",\"teamId\":\"local\",\"createdBy\":\"local\"},\"content\":\"# 合成正文\\n\\nfirst middle last\\n\",\"revision\":\"58e0bf0af1083411b4bae7d8f02817382699c07c868a6479a566d4e701a2a284\"},\"replayed\":false}}"
+  },
+  {
+    "type": "request",
+    "at": 1792563738359,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62814/api/projects/browser-p/canvas/operations",
+    "method": "POST",
+    "body": "{\"operationId\":\"ffe9625f-923b-4d17-8f2e-ee721b40a0ba\",\"baseRevision\":1792563732934,\"operations\":[{\"type\":\"node.update\",\"nodeId\":\"n\",\"set\":{\"textEntryMode\":\"edit\"}}],\"expectedState\":{\"workbenchBasicNodes\":[{\"title\":\"合成正文\",\"text\":\"# 合成正文\\n\\nfirst middle last\\n\",\"width\":600,\"height\":440,\"x\":150,\"y\":150,\"id\":\"n\",\"kind\":\"text\",\"projectFilePath\":\"sources/text/n-op-82383417cd7103ab.md\"}]}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563738386,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62814/api/projects/browser-p/canvas/operations",
+    "status": 200,
+    "body": "{\"ok\":true,\"state\":{\"workbenchBasicNodes\":[{\"title\":\"合成正文\",\"text\":\"# 合成正文\\n\\nfirst middle last\\n\",\"width\":600,\"height\":440,\"x\":150,\"y\":150,\"id\":\"n\",\"kind\":\"text\",\"projectFilePath\":\"sources/text/n-op-82383417cd7103ab.md\",\"textEntryMode\":\"edit\"}]},\"revision\":1792563738364,\"receipt\":{\"operationId\":\"ffe9625f-923b-4d17-8f2e-ee721b40a0ba\",\"status\":\"applied\",\"baseRevision\":1792563732934,\"revision\":1792563738364,\"nodeIds\":[\"n\"],\"createdAt\":\"2026-10-21T06:22:18.364Z\"},\"replayed\":false}"
+  },
+  {
+    "type": "request",
+    "at": 1792563738497,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62831/api/apps/doc/actions/doc.create",
+    "method": "POST",
+    "body": "{\"input\":{\"nodeId\":\"n\",\"name\":\"合成正文\",\"content\":\"# 合成正文\\n\\nfirst middle last\\n\",\"mirrorCanvasId\":\"browser-p\",\"mirrorPath\":\"sources/text/n-op-82383417cd7103ab.md\"}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563738517,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62831/api/apps/doc/actions/doc.create",
+    "status": 200,
+    "body": "{\"requestId\":\"req_687ef9c2-3bed-4343-bae8-a90935b91006\",\"data\":{\"receiptId\":\"op-1241e05f-58c3-40d4-8973-ffd84858e009\",\"status\":\"succeeded\",\"result\":{\"instanceId\":\"合成正文-75abcd88\",\"meta\":{\"id\":\"合成正文-75abcd88\",\"name\":\"合成正文\",\"path\":\"合成正文-75abcd88.md\",\"size\":34,\"updatedAt\":\"2026-10-21T06:22:13.019Z\",\"nodeId\":\"n\",\"mirrorCanvasId\":\"browser-p\",\"mirrorPath\":\"sources/text/n-op-82383417cd7103ab.md\",\"teamId\":\"local\",\"createdBy\":\"local\"},\"binding\":{\"status\":\"synced\",\"retryable\":false}},\"replayed\":false}}"
+  },
+  {
+    "type": "request",
+    "at": 1792563738517,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "method": "POST",
+    "body": "{\"input\":{}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563738519,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "status": 200,
+    "body": "{\"requestId\":\"req_d3aa70d2-0ae3-4cf2-97ed-e88d63b938ff\",\"data\":{\"receiptId\":\"op-03de3202-9c18-45dc-987f-513a38809fe9\",\"status\":\"succeeded\",\"result\":{\"meta\":{\"id\":\"合成正文-75abcd88\",\"name\":\"合成正文\",\"path\":\"合成正文-75abcd88.md\",\"size\":34,\"updatedAt\":\"2026-10-21T06:22:13.019Z\",\"nodeId\":\"n\",\"mirrorCanvasId\":\"browser-p\",\"mirrorPath\":\"sources/text/n-op-82383417cd7103ab.md\",\"teamId\":\"local\",\"createdBy\":\"local\"},\"content\":\"# 合成正文\\n\\nfirst middle last\\n\",\"revision\":\"58e0bf0af1083411b4bae7d8f02817382699c07c868a6479a566d4e701a2a284\"},\"replayed\":false}}"
+  },
+  {
+    "type": "request",
+    "at": 1792563738520,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62814/api/projects/browser-p/tabs",
+    "method": "PUT",
+    "body": "{\"tabs\":[\"app:doc:合成正文-75abcd88\"],\"active\":\"app:doc:合成正文-75abcd88\",\"hasSavedState\":true,\"appTabs\":[{\"id\":\"app:doc:合成正文-75abcd88\",\"appId\":\"doc\",\"target\":\"合成正文-75abcd88\",\"label\":\"合成正文\",\"mirrorPath\":\"sources/text/n-op-82383417cd7103ab.md\"}],\"updatedAt\":1792563738519}"
+  },
+  {
+    "type": "request",
+    "at": 1792563738533,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "method": "POST",
+    "body": "{\"input\":{}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563738534,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62814/api/projects/browser-p/tabs",
+    "status": 200,
+    "body": "{\"tabs\":[\"app:doc:合成正文-75abcd88\"],\"active\":\"app:doc:合成正文-75abcd88\",\"appTabs\":[{\"id\":\"app:doc:合成正文-75abcd88\",\"appId\":\"doc\",\"target\":\"合成正文-75abcd88\",\"label\":\"合成正文\",\"mirrorPath\":\"sources/text/n-op-82383417cd7103ab.md\"}],\"hasSavedState\":true,\"updatedAt\":1792563738523}"
+  },
+  {
+    "type": "response",
+    "at": 1792563738534,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "status": 200,
+    "body": "{\"requestId\":\"req_dd0ee5b2-3989-45a7-9172-2729f8abd282\",\"data\":{\"receiptId\":\"op-d20919f7-75d9-4b10-8d35-fdd3f74f1e8e\",\"status\":\"succeeded\",\"result\":{\"meta\":{\"id\":\"合成正文-75abcd88\",\"name\":\"合成正文\",\"path\":\"合成正文-75abcd88.md\",\"size\":34,\"updatedAt\":\"2026-10-21T06:22:13.019Z\",\"nodeId\":\"n\",\"mirrorCanvasId\":\"browser-p\",\"mirrorPath\":\"sources/text/n-op-82383417cd7103ab.md\",\"teamId\":\"local\",\"createdBy\":\"local\"},\"content\":\"# 合成正文\\n\\nfirst middle last\\n\",\"revision\":\"58e0bf0af1083411b4bae7d8f02817382699c07c868a6479a566d4e701a2a284\"},\"replayed\":false}}"
+  },
+  {
+    "type": "request",
+    "at": 1792563738789,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "method": "POST",
+    "body": "{\"input\":{}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563738791,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "status": 200,
+    "body": "{\"requestId\":\"req_2408473d-7ca3-4b35-b2f6-426b5b3fe6cf\",\"data\":{\"receiptId\":\"op-46abf76f-bd09-4d8e-8a19-88edd7b952f4\",\"status\":\"succeeded\",\"result\":{\"meta\":{\"id\":\"合成正文-75abcd88\",\"name\":\"合成正文\",\"path\":\"合成正文-75abcd88.md\",\"size\":34,\"updatedAt\":\"2026-10-21T06:22:13.019Z\",\"nodeId\":\"n\",\"mirrorCanvasId\":\"browser-p\",\"mirrorPath\":\"sources/text/n-op-82383417cd7103ab.md\",\"teamId\":\"local\",\"createdBy\":\"local\"},\"content\":\"# 合成正文\\n\\nfirst middle last\\n\",\"revision\":\"58e0bf0af1083411b4bae7d8f02817382699c07c868a6479a566d4e701a2a284\"},\"replayed\":false}}"
+  },
+  {
+    "type": "request",
+    "at": 1792563739388,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.write",
+    "method": "POST",
+    "body": "{\"input\":{\"content\":\"# 合成正文\\n\\nDOC UI edit first middle last\\n\",\"expectedRevision\":\"58e0bf0af1083411b4bae7d8f02817382699c07c868a6479a566d4e701a2a284\",\"baseContent\":\"# 合成正文\\n\\nfirst middle last\\n\"}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563739453,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.write",
+    "status": 200,
+    "body": "{\"requestId\":\"req_c4e4aca1-04a1-4f67-83f4-1a164480171f\",\"data\":{\"receiptId\":\"op-36394fd6-02ad-4b90-8333-bd0ae97c8abc\",\"status\":\"succeeded\",\"result\":{\"meta\":{\"id\":\"合成正文-75abcd88\",\"name\":\"合成正文\",\"path\":\"合成正文-75abcd88.md\",\"size\":46,\"updatedAt\":\"2026-10-21T06:22:19.392Z\",\"nodeId\":\"n\",\"mirrorCanvasId\":\"browser-p\",\"mirrorPath\":\"sources/text/n-op-82383417cd7103ab.md\",\"teamId\":\"local\",\"createdBy\":\"local\",\"content\":\"# 合成正文\\n\\nDOC UI edit first middle last\\n\",\"revision\":\"d6e0dbe4cc9ca0d2456373f4652a1c340daf4a99d36afa2a80d8e47bfb0f91bf\",\"merged\":false,\"previousContent\":\"# 合成正文\\n\\nfirst middle last\\n\"},\"content\":\"# 合成正文\\n\\nDOC UI edit first middle last\\n\",\"revision\":\"d6e0dbe4cc9ca0d2456373f4652a1c340daf4a99d36afa2a80d8e47bfb0f91bf\",\"merged\":false,\"mirror\":{\"status\":\"synced\",\"retryable\":false,\"canvasId\":\"browser-p\",\"path\":\"sources/text/n-op-82383417cd7103ab.md\"}},\"replayed\":false}}"
+  },
+  {
+    "type": "request",
+    "at": 1792563740532,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "method": "POST",
+    "body": "{\"input\":{}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563740538,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "status": 200,
+    "body": "{\"requestId\":\"req_1b510da9-eba8-4258-90ae-aab155b10284\",\"data\":{\"receiptId\":\"op-ba2aff2f-6453-452d-ae2a-2a5e220166de\",\"status\":\"succeeded\",\"result\":{\"meta\":{\"id\":\"合成正文-75abcd88\",\"name\":\"合成正文\",\"path\":\"合成正文-75abcd88.md\",\"size\":46,\"updatedAt\":\"2026-10-21T06:22:19.392Z\",\"nodeId\":\"n\",\"mirrorCanvasId\":\"browser-p\",\"mirrorPath\":\"sources/text/n-op-82383417cd7103ab.md\",\"teamId\":\"local\",\"createdBy\":\"local\"},\"content\":\"# 合成正文\\n\\nDOC UI edit first middle last\\n\",\"revision\":\"d6e0dbe4cc9ca0d2456373f4652a1c340daf4a99d36afa2a80d8e47bfb0f91bf\"},\"replayed\":false}}"
+  },
+  {
+    "type": "request",
+    "at": 1792563740790,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "method": "POST",
+    "body": "{\"input\":{}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563740794,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "status": 200,
+    "body": "{\"requestId\":\"req_5b95f822-f798-4154-95c6-9ae2c49fee79\",\"data\":{\"receiptId\":\"op-8932d1ad-994e-4e75-aaea-79244ed6c6ad\",\"status\":\"succeeded\",\"result\":{\"meta\":{\"id\":\"合成正文-75abcd88\",\"name\":\"合成正文\",\"path\":\"合成正文-75abcd88.md\",\"size\":46,\"updatedAt\":\"2026-10-21T06:22:19.392Z\",\"nodeId\":\"n\",\"mirrorCanvasId\":\"browser-p\",\"mirrorPath\":\"sources/text/n-op-82383417cd7103ab.md\",\"teamId\":\"local\",\"createdBy\":\"local\"},\"content\":\"# 合成正文\\n\\nDOC UI edit first middle last\\n\",\"revision\":\"d6e0dbe4cc9ca0d2456373f4652a1c340daf4a99d36afa2a80d8e47bfb0f91bf\"},\"replayed\":false}}"
+  },
+  {
+    "type": "request",
+    "at": 1792563741565,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.write",
+    "method": "POST",
+    "body": "{\"input\":{\"content\":\"# 合成正文\\n\\nCANVAS EMBEDDED UI edit first middle last\\n\",\"expectedRevision\":\"d6e0dbe4cc9ca0d2456373f4652a1c340daf4a99d36afa2a80d8e47bfb0f91bf\",\"baseContent\":\"# 合成正文\\n\\nDOC UI edit first middle last\\n\"}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563741638,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.write",
+    "status": 200,
+    "body": "{\"requestId\":\"req_4d48b5b5-2d38-486b-bbaa-b3b29661ea5f\",\"data\":{\"receiptId\":\"op-5df741d7-4f0f-405d-8523-8cfe285f3ea4\",\"status\":\"succeeded\",\"result\":{\"meta\":{\"id\":\"合成正文-75abcd88\",\"name\":\"合成正文\",\"path\":\"合成正文-75abcd88.md\",\"size\":58,\"updatedAt\":\"2026-10-21T06:22:21.568Z\",\"nodeId\":\"n\",\"mirrorCanvasId\":\"browser-p\",\"mirrorPath\":\"sources/text/n-op-82383417cd7103ab.md\",\"teamId\":\"local\",\"createdBy\":\"local\",\"content\":\"# 合成正文\\n\\nCANVAS EMBEDDED UI edit first middle last\\n\",\"revision\":\"ff3e5b795589ace4de0f3e1b23fa888e409dbe558aa49d5724c1b2f3e67df0eb\",\"merged\":false,\"previousContent\":\"# 合成正文\\n\\nDOC UI edit first middle last\\n\"},\"content\":\"# 合成正文\\n\\nCANVAS EMBEDDED UI edit first middle last\\n\",\"revision\":\"ff3e5b795589ace4de0f3e1b23fa888e409dbe558aa49d5724c1b2f3e67df0eb\",\"merged\":false,\"mirror\":{\"status\":\"synced\",\"retryable\":false,\"canvasId\":\"browser-p\",\"path\":\"sources/text/n-op-82383417cd7103ab.md\"}},\"replayed\":false}}"
+  },
+  {
+    "type": "request",
+    "at": 1792563742531,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "method": "POST",
+    "body": "{\"input\":{}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563742537,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "status": 200,
+    "body": "{\"requestId\":\"req_cf8df3b2-7116-4813-a305-3fd014c13347\",\"data\":{\"receiptId\":\"op-35c8dbe7-5cca-49ca-b36d-aaeceae6cc25\",\"status\":\"succeeded\",\"result\":{\"meta\":{\"id\":\"合成正文-75abcd88\",\"name\":\"合成正文\",\"path\":\"合成正文-75abcd88.md\",\"size\":58,\"updatedAt\":\"2026-10-21T06:22:21.568Z\",\"nodeId\":\"n\",\"mirrorCanvasId\":\"browser-p\",\"mirrorPath\":\"sources/text/n-op-82383417cd7103ab.md\",\"teamId\":\"local\",\"createdBy\":\"local\"},\"content\":\"# 合成正文\\n\\nCANVAS EMBEDDED UI edit first middle last\\n\",\"revision\":\"ff3e5b795589ace4de0f3e1b23fa888e409dbe558aa49d5724c1b2f3e67df0eb\"},\"replayed\":false}}"
+  },
+  {
+    "type": "request",
+    "at": 1792563742791,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "method": "POST",
+    "body": "{\"input\":{}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563742796,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "status": 200,
+    "body": "{\"requestId\":\"req_3f3fccc6-0889-4cd8-8686-c83f40179523\",\"data\":{\"receiptId\":\"op-d03e4916-31a5-4342-8e4a-5981bd5f05b5\",\"status\":\"succeeded\",\"result\":{\"meta\":{\"id\":\"合成正文-75abcd88\",\"name\":\"合成正文\",\"path\":\"合成正文-75abcd88.md\",\"size\":58,\"updatedAt\":\"2026-10-21T06:22:21.568Z\",\"nodeId\":\"n\",\"mirrorCanvasId\":\"browser-p\",\"mirrorPath\":\"sources/text/n-op-82383417cd7103ab.md\",\"teamId\":\"local\",\"createdBy\":\"local\"},\"content\":\"# 合成正文\\n\\nCANVAS EMBEDDED UI edit first middle last\\n\",\"revision\":\"ff3e5b795589ace4de0f3e1b23fa888e409dbe558aa49d5724c1b2f3e67df0eb\"},\"replayed\":false}}"
+  },
+  {
+    "type": "request",
+    "at": 1792563743169,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "method": "POST",
+    "body": "{\"input\":{}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563743174,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "status": 200,
+    "body": "{\"requestId\":\"req_ff871af9-2f22-4559-890a-5fe0b924d7b4\",\"data\":{\"receiptId\":\"op-6031c369-977d-4105-8d0f-7f75840f44b6\",\"status\":\"succeeded\",\"result\":{\"meta\":{\"id\":\"合成正文-75abcd88\",\"name\":\"合成正文\",\"path\":\"合成正文-75abcd88.md\",\"size\":58,\"updatedAt\":\"2026-10-21T06:22:21.568Z\",\"nodeId\":\"n\",\"mirrorCanvasId\":\"browser-p\",\"mirrorPath\":\"sources/text/n-op-82383417cd7103ab.md\",\"teamId\":\"local\",\"createdBy\":\"local\"},\"content\":\"# 合成正文\\n\\nCANVAS EMBEDDED UI edit first middle last\\n\",\"revision\":\"ff3e5b795589ace4de0f3e1b23fa888e409dbe558aa49d5724c1b2f3e67df0eb\"},\"replayed\":false}}"
+  },
+  {
+    "type": "request",
+    "at": 1792563743933,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.write",
+    "method": "POST",
+    "body": "{\"input\":{\"content\":\"# 合成正文\\n\\nCANVAS LOCAL CONFLICT DRAFT\\n\",\"expectedRevision\":\"ff3e5b795589ace4de0f3e1b23fa888e409dbe558aa49d5724c1b2f3e67df0eb\",\"baseContent\":\"# 合成正文\\n\\nCANVAS EMBEDDED UI edit first middle last\\n\"}}"
+  },
+  {
+    "type": "request",
+    "at": 1792563744653,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.write",
+    "method": "POST",
+    "body": "{\"input\":{\"content\":\"# 合成正文\\n\\nDOC REMOTE CONFLICT DRAFT\\n\",\"expectedRevision\":\"ff3e5b795589ace4de0f3e1b23fa888e409dbe558aa49d5724c1b2f3e67df0eb\",\"baseContent\":\"# 合成正文\\n\\nCANVAS EMBEDDED UI edit first middle last\\n\"}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563744746,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.write",
+    "status": 200,
+    "body": "{\"requestId\":\"req_14ece1af-e530-40bd-8411-a0f36df3b809\",\"data\":{\"receiptId\":\"op-0dccc250-dd3b-45fd-94b2-5fc28380cc8f\",\"status\":\"succeeded\",\"result\":{\"meta\":{\"id\":\"合成正文-75abcd88\",\"name\":\"合成正文\",\"path\":\"合成正文-75abcd88.md\",\"size\":42,\"updatedAt\":\"2026-10-21T06:22:24.658Z\",\"nodeId\":\"n\",\"mirrorCanvasId\":\"browser-p\",\"mirrorPath\":\"sources/text/n-op-82383417cd7103ab.md\",\"teamId\":\"local\",\"createdBy\":\"local\",\"content\":\"# 合成正文\\n\\nDOC REMOTE CONFLICT DRAFT\\n\",\"revision\":\"10f56c1551b624125a2bf7c49461a47056a61295052fc6947338288bdd5ef7d2\",\"merged\":false,\"previousContent\":\"# 合成正文\\n\\nCANVAS EMBEDDED UI edit first middle last\\n\"},\"content\":\"# 合成正文\\n\\nDOC REMOTE CONFLICT DRAFT\\n\",\"revision\":\"10f56c1551b624125a2bf7c49461a47056a61295052fc6947338288bdd5ef7d2\",\"merged\":false,\"mirror\":{\"status\":\"synced\",\"retryable\":false,\"canvasId\":\"browser-p\",\"path\":\"sources/text/n-op-82383417cd7103ab.md\"}},\"replayed\":false}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563744834,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.write",
+    "status": 409,
+    "body": "{\"error\":{\"code\":\"DOC_CONFLICT\",\"message\":\"Concurrent edits overlap or exceed safe merge limits; retain draft and reconcile\",\"retryable\":false,\"details\":{\"currentContent\":\"# 合成正文\\n\\nDOC REMOTE CONFLICT DRAFT\\n\",\"currentRevision\":\"10f56c1551b624125a2bf7c49461a47056a61295052fc6947338288bdd5ef7d2\",\"baseContent\":\"# 合成正文\\n\\nCANVAS EMBEDDED UI edit first middle last\\n\",\"draftContent\":\"# 合成正文\\n\\nCANVAS LOCAL CONFLICT DRAFT\\n\",\"expectedRevision\":\"ff3e5b795589ace4de0f3e1b23fa888e409dbe558aa49d5724c1b2f3e67df0eb\"}},\"requestId\":\"req_1b08c507-1c3b-4bec-b802-52b3a74c8bdd\"}"
+  },
+  {
+    "type": "request",
+    "at": 1792563745029,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.write",
+    "method": "POST",
+    "body": "{\"input\":{\"content\":\"# 合成正文\\n\\nCANVAS LOCAL CONFLICT DRAFT\\n\",\"expectedRevision\":\"10f56c1551b624125a2bf7c49461a47056a61295052fc6947338288bdd5ef7d2\",\"baseContent\":\"# 合成正文\\n\\nDOC REMOTE CONFLICT DRAFT\\n\"}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563745104,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.write",
+    "status": 200,
+    "body": "{\"requestId\":\"req_65af92ae-7a84-4efb-9fd3-69413aadf170\",\"data\":{\"receiptId\":\"op-8cbf1fe4-bbc5-408e-9bd5-e1890aa0195e\",\"status\":\"succeeded\",\"result\":{\"meta\":{\"id\":\"合成正文-75abcd88\",\"name\":\"合成正文\",\"path\":\"合成正文-75abcd88.md\",\"size\":44,\"updatedAt\":\"2026-10-21T06:22:25.028Z\",\"nodeId\":\"n\",\"mirrorCanvasId\":\"browser-p\",\"mirrorPath\":\"sources/text/n-op-82383417cd7103ab.md\",\"teamId\":\"local\",\"createdBy\":\"local\",\"content\":\"# 合成正文\\n\\nCANVAS LOCAL CONFLICT DRAFT\\n\",\"revision\":\"01f2e49305d9b2ea0513317881ee8def4b7e93d345be6a39d7ed2ba984d94505\",\"merged\":false,\"previousContent\":\"# 合成正文\\n\\nDOC REMOTE CONFLICT DRAFT\\n\"},\"content\":\"# 合成正文\\n\\nCANVAS LOCAL CONFLICT DRAFT\\n\",\"revision\":\"01f2e49305d9b2ea0513317881ee8def4b7e93d345be6a39d7ed2ba984d94505\",\"merged\":false,\"mirror\":{\"status\":\"synced\",\"retryable\":false,\"canvasId\":\"browser-p\",\"path\":\"sources/text/n-op-82383417cd7103ab.md\"}},\"replayed\":false}}"
+  },
+  {
+    "type": "request",
+    "at": 1792563745166,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "method": "POST",
+    "body": "{\"input\":{}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563745168,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "status": 200,
+    "body": "{\"requestId\":\"req_96c857c3-32e6-498f-a107-dd5912ae3bde\",\"data\":{\"receiptId\":\"op-fd46da03-2739-4b98-99ff-4611d71cdd7f\",\"status\":\"succeeded\",\"result\":{\"meta\":{\"id\":\"合成正文-75abcd88\",\"name\":\"合成正文\",\"path\":\"合成正文-75abcd88.md\",\"size\":44,\"updatedAt\":\"2026-10-21T06:22:25.028Z\",\"nodeId\":\"n\",\"mirrorCanvasId\":\"browser-p\",\"mirrorPath\":\"sources/text/n-op-82383417cd7103ab.md\",\"teamId\":\"local\",\"createdBy\":\"local\"},\"content\":\"# 合成正文\\n\\nCANVAS LOCAL CONFLICT DRAFT\\n\",\"revision\":\"01f2e49305d9b2ea0513317881ee8def4b7e93d345be6a39d7ed2ba984d94505\"},\"replayed\":false}}"
+  },
+  {
+    "type": "request",
+    "at": 1792563745235,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "method": "POST",
+    "body": "{\"input\":{}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563745238,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "status": 200,
+    "body": "{\"requestId\":\"req_e99cf3cc-ba14-4299-bdb4-3bf87a4f6926\",\"data\":{\"receiptId\":\"op-52c31762-e817-4325-808b-7ee223e8d71a\",\"status\":\"succeeded\",\"result\":{\"meta\":{\"id\":\"合成正文-75abcd88\",\"name\":\"合成正文\",\"path\":\"合成正文-75abcd88.md\",\"size\":44,\"updatedAt\":\"2026-10-21T06:22:25.028Z\",\"nodeId\":\"n\",\"mirrorCanvasId\":\"browser-p\",\"mirrorPath\":\"sources/text/n-op-82383417cd7103ab.md\",\"teamId\":\"local\",\"createdBy\":\"local\"},\"content\":\"# 合成正文\\n\\nCANVAS LOCAL CONFLICT DRAFT\\n\",\"revision\":\"01f2e49305d9b2ea0513317881ee8def4b7e93d345be6a39d7ed2ba984d94505\"},\"replayed\":false}}"
+  },
+  {
+    "type": "request",
+    "at": 1792563745512,
+    "page": "copy",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E8%B5%84%E4%BA%A7%E6%96%B0%E5%89%AF%E6%9C%AC-5f5fdef2/actions/doc.read",
+    "method": "POST",
+    "body": "{\"input\":{}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563745526,
+    "page": "copy",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E8%B5%84%E4%BA%A7%E6%96%B0%E5%89%AF%E6%9C%AC-5f5fdef2/actions/doc.read",
+    "status": 200,
+    "body": "{\"requestId\":\"req_308b73bd-5829-4262-94a4-49030368fd54\",\"data\":{\"receiptId\":\"op-ff4e69f1-235d-453c-a227-265b69659826\",\"status\":\"succeeded\",\"result\":{\"meta\":{\"id\":\"合成资产新副本-5f5fdef2\",\"name\":\"合成资产新副本\",\"path\":\"合成资产新副本-5f5fdef2.md\",\"size\":44,\"updatedAt\":\"2026-10-21T06:22:25.333Z\",\"teamId\":\"local\",\"createdBy\":\"local\"},\"content\":\"# 合成正文\\n\\nCANVAS LOCAL CONFLICT DRAFT\\n\",\"revision\":\"01f2e49305d9b2ea0513317881ee8def4b7e93d345be6a39d7ed2ba984d94505\"},\"replayed\":false}}"
+  },
+  {
+    "type": "request",
+    "at": 1792563746304,
+    "page": "copy",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E8%B5%84%E4%BA%A7%E6%96%B0%E5%89%AF%E6%9C%AC-5f5fdef2/actions/doc.write",
+    "method": "POST",
+    "body": "{\"input\":{\"content\":\"# 资产新副本\\n\\n只修改副本，不改原件。\\n\",\"expectedRevision\":\"01f2e49305d9b2ea0513317881ee8def4b7e93d345be6a39d7ed2ba984d94505\",\"baseContent\":\"# 合成正文\\n\\nCANVAS LOCAL CONFLICT DRAFT\\n\"}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563746310,
+    "page": "copy",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E8%B5%84%E4%BA%A7%E6%96%B0%E5%89%AF%E6%9C%AC-5f5fdef2/actions/doc.write",
+    "status": 200,
+    "body": "{\"requestId\":\"req_08f1d79c-0f8a-4a40-9dff-e8d943173d07\",\"data\":{\"receiptId\":\"op-d15e9c4a-65da-43b6-b5af-a3b677c90d96\",\"status\":\"succeeded\",\"result\":{\"meta\":{\"id\":\"合成资产新副本-5f5fdef2\",\"name\":\"合成资产新副本\",\"path\":\"合成资产新副本-5f5fdef2.md\",\"size\":53,\"updatedAt\":\"2026-10-21T06:22:26.308Z\",\"teamId\":\"local\",\"createdBy\":\"local\",\"content\":\"# 资产新副本\\n\\n只修改副本，不改原件。\\n\",\"revision\":\"7b4922e6190a5f5a551ca76fc67e5f7e2323e4af96d3e76d9578669703d8e9b6\",\"merged\":false,\"previousContent\":\"# 合成正文\\n\\nCANVAS LOCAL CONFLICT DRAFT\\n\"},\"content\":\"# 资产新副本\\n\\n只修改副本，不改原件。\\n\",\"revision\":\"7b4922e6190a5f5a551ca76fc67e5f7e2323e4af96d3e76d9578669703d8e9b6\",\"merged\":false,\"mirror\":{\"status\":\"unbound\",\"retryable\":false}},\"replayed\":false}}"
+  },
+  {
+    "type": "request",
+    "at": 1792563746501,
+    "page": "copy",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E8%B5%84%E4%BA%A7%E6%96%B0%E5%89%AF%E6%9C%AC-5f5fdef2/actions/doc.read",
+    "method": "POST",
+    "body": "{\"input\":{}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563746512,
+    "page": "copy",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E8%B5%84%E4%BA%A7%E6%96%B0%E5%89%AF%E6%9C%AC-5f5fdef2/actions/doc.read",
+    "status": 200,
+    "body": "{\"requestId\":\"req_532dd65c-b7fa-4392-a3f0-0179c4fdfa3b\",\"data\":{\"receiptId\":\"op-84e85ca6-c688-4580-8ae7-5e3f338b7cff\",\"status\":\"succeeded\",\"result\":{\"meta\":{\"id\":\"合成资产新副本-5f5fdef2\",\"name\":\"合成资产新副本\",\"path\":\"合成资产新副本-5f5fdef2.md\",\"size\":53,\"updatedAt\":\"2026-10-21T06:22:26.308Z\",\"teamId\":\"local\",\"createdBy\":\"local\"},\"content\":\"# 资产新副本\\n\\n只修改副本，不改原件。\\n\",\"revision\":\"7b4922e6190a5f5a551ca76fc67e5f7e2323e4af96d3e76d9578669703d8e9b6\"},\"replayed\":false}}"
+  },
+  {
+    "type": "request",
+    "at": 1792563746529,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "method": "POST",
+    "body": "{\"input\":{}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563746531,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "status": 200,
+    "body": "{\"requestId\":\"req_d1bdaac6-112d-4988-857f-0cf6b4ef68ee\",\"data\":{\"receiptId\":\"op-648428e9-4cec-42ae-948e-8b003edb80df\",\"status\":\"succeeded\",\"result\":{\"meta\":{\"id\":\"合成正文-75abcd88\",\"name\":\"合成正文\",\"path\":\"合成正文-75abcd88.md\",\"size\":44,\"updatedAt\":\"2026-10-21T06:22:25.028Z\",\"nodeId\":\"n\",\"mirrorCanvasId\":\"browser-p\",\"mirrorPath\":\"sources/text/n-op-82383417cd7103ab.md\",\"teamId\":\"local\",\"createdBy\":\"local\"},\"content\":\"# 合成正文\\n\\nCANVAS LOCAL CONFLICT DRAFT\\n\",\"revision\":\"01f2e49305d9b2ea0513317881ee8def4b7e93d345be6a39d7ed2ba984d94505\"},\"replayed\":false}}"
+  },
+  {
+    "type": "request",
+    "at": 1792563746653,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62814/api/projects/browser-p/tabs",
+    "method": "PUT",
+    "body": "{\"tabs\":[\"app:doc:合成正文-75abcd88\"],\"active\":\"__design_files__\",\"hasSavedState\":true,\"appTabs\":[{\"id\":\"app:doc:合成正文-75abcd88\",\"appId\":\"doc\",\"target\":\"合成正文-75abcd88\",\"label\":\"合成正文\",\"mirrorPath\":\"sources/text/n-op-82383417cd7103ab.md\"}],\"updatedAt\":1792563746644}"
+  },
+  {
+    "type": "request",
+    "at": 1792563746677,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62814/api/projects/browser-p/canvas/operations",
+    "method": "POST",
+    "body": "{\"operationId\":\"1a37e014-e2e8-4541-add0-e214317b5d8e\",\"baseRevision\":1792563745052,\"operations\":[{\"type\":\"node.update\",\"nodeId\":\"n\",\"set\":{\"text\":\"# CANVAS INLINE BODY EDIT\\n\"}}],\"expectedState\":{\"workbenchBasicNodes\":[{\"title\":\"合成正文\",\"text\":\"# 合成正文\\n\\nCANVAS LOCAL CONFLICT DRAFT\\n\",\"width\":600,\"height\":440,\"x\":150,\"y\":150,\"id\":\"n\",\"kind\":\"text\",\"projectFilePath\":\"sources/text/n-op-82383417cd7103ab.md\",\"textEntryMode\":\"edit\"}]}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563746677,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62814/api/projects/browser-p/tabs",
+    "status": 200,
+    "body": "{\"tabs\":[\"app:doc:合成正文-75abcd88\"],\"active\":\"__design_files__\",\"appTabs\":[{\"id\":\"app:doc:合成正文-75abcd88\",\"appId\":\"doc\",\"target\":\"合成正文-75abcd88\",\"label\":\"合成正文\",\"mirrorPath\":\"sources/text/n-op-82383417cd7103ab.md\"}],\"hasSavedState\":true,\"updatedAt\":1792563746654}"
+  },
+  {
+    "type": "response",
+    "at": 1792563746824,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62814/api/projects/browser-p/canvas/operations",
+    "status": 200,
+    "body": "{\"ok\":true,\"state\":{\"workbenchBasicNodes\":[{\"title\":\"合成正文\",\"text\":\"# CANVAS INLINE BODY EDIT\\n\",\"width\":600,\"height\":440,\"x\":150,\"y\":150,\"id\":\"n\",\"kind\":\"text\",\"projectFilePath\":\"sources/text/n-op-11b6af605e9f0d43.md\",\"textEntryMode\":\"edit\"}]},\"revision\":1792563746680,\"receipt\":{\"operationId\":\"1a37e014-e2e8-4541-add0-e214317b5d8e\",\"status\":\"applied\",\"baseRevision\":1792563745052,\"revision\":1792563746680,\"nodeIds\":[\"n\"],\"createdAt\":\"2026-10-21T06:22:26.680Z\"},\"replayed\":false}"
+  },
+  {
+    "type": "request",
+    "at": 1792563747239,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "method": "POST",
+    "body": "{\"input\":{}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563747242,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "status": 200,
+    "body": "{\"requestId\":\"req_2f8f2512-097a-47bd-a2a3-0defbb5ae845\",\"data\":{\"receiptId\":\"op-1395d077-2b81-47c5-86b0-7c8196ce6c0c\",\"status\":\"succeeded\",\"result\":{\"meta\":{\"id\":\"合成正文-75abcd88\",\"name\":\"合成正文\",\"path\":\"合成正文-75abcd88.md\",\"size\":26,\"updatedAt\":\"2026-10-21T06:22:26.752Z\",\"nodeId\":\"n\",\"mirrorCanvasId\":\"browser-p\",\"mirrorPath\":\"sources/text/n-op-11b6af605e9f0d43.md\",\"teamId\":\"local\",\"createdBy\":\"local\"},\"content\":\"# CANVAS INLINE BODY EDIT\\n\",\"revision\":\"7dcd516178eb6d0a4081f34585e80d0cbfc5d0e241b68c56ce06229beb534763\"},\"replayed\":false}}"
+  },
+  {
+    "type": "request",
+    "at": 1792563747615,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62814/api/projects/browser-p/canvas/operations",
+    "method": "POST",
+    "body": "{\"operationId\":\"88684747-139c-42e0-97d5-b5e2f8e09b48\",\"baseRevision\":1792563746680,\"operations\":[{\"type\":\"node.duplicate\",\"nodeId\":\"n\",\"newNodeId\":\"basic-text-mvhq67td-gfcl\",\"x\":186,\"y\":186}],\"expectedState\":{\"workbenchBasicNodes\":[{\"title\":\"合成正文\",\"text\":\"# CANVAS INLINE BODY EDIT\\n\",\"width\":600,\"height\":440,\"x\":150,\"y\":150,\"id\":\"n\",\"kind\":\"text\",\"projectFilePath\":\"sources/text/n-op-11b6af605e9f0d43.md\",\"textEntryMode\":\"edit\"}]}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563747763,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62814/api/projects/browser-p/canvas/operations",
+    "status": 200,
+    "body": "{\"ok\":true,\"state\":{\"workbenchBasicNodes\":[{\"title\":\"合成正文\",\"text\":\"# CANVAS INLINE BODY EDIT\\n\",\"width\":600,\"height\":440,\"x\":150,\"y\":150,\"id\":\"n\",\"kind\":\"text\",\"projectFilePath\":\"sources/text/n-op-11b6af605e9f0d43.md\",\"textEntryMode\":\"edit\"},{\"id\":\"basic-text-mvhq67td-gfcl\",\"title\":\"合成正文\",\"text\":\"# CANVAS INLINE BODY EDIT\\n\",\"width\":600,\"height\":440,\"x\":186,\"y\":186,\"kind\":\"text\",\"projectFilePath\":\"sources/text/basic-text-mvhq67td-gfcl-op-9f2dd2fc350bb041.md\",\"textEntryMode\":\"edit\"}]},\"revision\":1792563747618,\"receipt\":{\"operationId\":\"88684747-139c-42e0-97d5-b5e2f8e09b48\",\"status\":\"applied\",\"baseRevision\":1792563746680,\"revision\":1792563747618,\"nodeIds\":[\"n\",\"basic-text-mvhq67td-gfcl\"],\"createdAt\":\"2026-10-21T06:22:27.618Z\"},\"replayed\":false}"
+  },
+  {
+    "type": "request",
+    "at": 1792563748154,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62814/api/projects/browser-p/canvas/state",
+    "method": "PATCH",
+    "body": "{\"changes\":{\"workbenchBasicNodes\":[{\"title\":\"合成正文\",\"text\":\"# CANVAS INLINE BODY EDIT\\n\",\"width\":600,\"height\":440,\"x\":150,\"y\":150,\"id\":\"n\",\"kind\":\"text\",\"projectFilePath\":\"sources/text/n-op-11b6af605e9f0d43.md\",\"textEntryMode\":\"edit\"},{\"title\":\"合成正文\",\"text\":\"# CANVAS INLINE BODY EDIT\\n\",\"width\":600,\"height\":440,\"x\":186,\"y\":186,\"id\":\"basic-text-mvhq67td-gfcl\",\"kind\":\"text\",\"projectFilePath\":\"sources/text/n-op-11b6af605e9f0d43.md\",\"textEntryMode\":\"edit\"}]},\"base\":{\"workbenchBasicNodes\":[{\"title\":\"合成正文\",\"text\":\"# CANVAS INLINE BODY EDIT\\n\",\"width\":600,\"height\":440,\"x\":150,\"y\":150,\"id\":\"n\",\"kind\":\"text\",\"projectFilePath\":\"sources/text/n-op-11b6af605e9f0d43.md\",\"textEntryMode\":\"edit\"},{\"id\":\"basic-text-mvhq67td-gfcl\",\"title\":\"合成正文\",\"text\":\"# CANVAS INLINE BODY EDIT\\n\",\"width\":600,\"height\":440,\"x\":186,\"y\":186,\"kind\":\"text\",\"projectFilePath\":\"sources/text/basic-text-mvhq67td-gfcl-op-9f2dd2fc350bb041.md\",\"textEntryMode\":\"edit\"}]},\"expectedRevision\":1792563747618}"
+  },
+  {
+    "type": "response",
+    "at": 1792563748169,
+    "page": "canvas",
+    "url": "http://127.0.0.1:62814/api/projects/browser-p/canvas/state",
+    "status": 200,
+    "body": "{\"ok\":true,\"state\":{\"workbenchBasicNodes\":[{\"title\":\"合成正文\",\"text\":\"# CANVAS INLINE BODY EDIT\\n\",\"width\":600,\"height\":440,\"x\":150,\"y\":150,\"id\":\"n\",\"kind\":\"text\",\"projectFilePath\":\"sources/text/n-op-11b6af605e9f0d43.md\",\"textEntryMode\":\"edit\"},{\"id\":\"basic-text-mvhq67td-gfcl\",\"title\":\"合成正文\",\"text\":\"# CANVAS INLINE BODY EDIT\\n\",\"width\":600,\"height\":440,\"x\":186,\"y\":186,\"kind\":\"text\",\"projectFilePath\":\"sources/text/basic-text-mvhq67td-gfcl-op-9f2dd2fc350bb041.md\",\"textEntryMode\":\"edit\"}]},\"revision\":1792563748163}"
+  },
+  {
+    "type": "request",
+    "at": 1792563749239,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "method": "POST",
+    "body": "{\"input\":{}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563749244,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "status": 200,
+    "body": "{\"requestId\":\"req_98dabe7f-cc03-48d5-a29e-4aa43080eca8\",\"data\":{\"receiptId\":\"op-ef25a109-b988-4d6f-9d45-634a6f79ae21\",\"status\":\"succeeded\",\"result\":{\"meta\":{\"id\":\"合成正文-75abcd88\",\"name\":\"合成正文\",\"path\":\"合成正文-75abcd88.md\",\"size\":26,\"updatedAt\":\"2026-10-21T06:22:26.752Z\",\"nodeId\":\"n\",\"mirrorCanvasId\":\"browser-p\",\"mirrorPath\":\"sources/text/n-op-11b6af605e9f0d43.md\",\"teamId\":\"local\",\"createdBy\":\"local\"},\"content\":\"# CANVAS INLINE BODY EDIT\\n\",\"revision\":\"7dcd516178eb6d0a4081f34585e80d0cbfc5d0e241b68c56ce06229beb534763\"},\"replayed\":false}}"
+  },
+  {
+    "type": "request",
+    "at": 1792563751238,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "method": "POST",
+    "body": "{\"input\":{}}"
+  },
+  {
+    "type": "response",
+    "at": 1792563751242,
+    "page": "doc",
+    "url": "http://127.0.0.1:62831/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-75abcd88/actions/doc.read",
+    "status": 200,
+    "body": "{\"requestId\":\"req_79d79a17-07ed-428c-924d-e46f95da0296\",\"data\":{\"receiptId\":\"op-20cf8295-deaa-4392-8c30-1c52ea7d29f2\",\"status\":\"succeeded\",\"result\":{\"meta\":{\"id\":\"合成正文-75abcd88\",\"name\":\"合成正文\",\"path\":\"合成正文-75abcd88.md\",\"size\":26,\"updatedAt\":\"2026-10-21T06:22:26.752Z\",\"nodeId\":\"n\",\"mirrorCanvasId\":\"browser-p\",\"mirrorPath\":\"sources/text/n-op-11b6af605e9f0d43.md\",\"teamId\":\"local\",\"createdBy\":\"local\"},\"content\":\"# CANVAS INLINE BODY EDIT\\n\",\"revision\":\"7dcd516178eb6d0a4081f34585e80d0cbfc5d0e241b68c56ce06229beb534763\"},\"replayed\":false}}"
+  }
+]

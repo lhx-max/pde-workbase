@@ -1,0 +1,1 @@
+.devin/skills/designai-app-platform/SKILL.md

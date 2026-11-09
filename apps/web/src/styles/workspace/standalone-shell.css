@@ -1,0 +1,40 @@
+/* Mount sizing and the original project's light-only appearance contract.
+   The upstream layout initialized these accent overrides before first paint;
+   keep its default palette without importing platform configuration/accounts. */
+:root[data-theme="light"] {
+  --accent: #353535;
+  --accent-strong: color-mix(in srgb, #353535 82%, var(--text-strong));
+  --accent-soft: color-mix(in srgb, #353535 12%, var(--bg-subtle));
+  --accent-tint: color-mix(in srgb, #353535 6%, var(--bg-panel));
+  --accent-hover: color-mix(in srgb, #353535 86%, var(--text-strong));
+}
+html, body { height: 100%; margin: 0; }
+.standalone-workspace-root { height: 100dvh; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+/* routines.css' .app .workspace and single-pane .split-focus card material.
+   Restore only this leaf contract; .app itself would bring back platform grid
+   layout. Auto width accounts for the original 8px gutters without overflow. */
+.standalone-workspace-root > .workspace {
+  flex: 1;
+  min-height: 0;
+  width: auto;
+  margin: 0 8px 8px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  overflow: hidden;
+}
+.standalone-workspace-root .ws-body {
+  border: 0;
+  border-radius: 0;
+  background: var(--bg-panel);
+  box-shadow: none;
+}
+.standalone-file-panel { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; min-width: 0; overflow: hidden; }
+.standalone-file-panel[hidden] { display: none; }
+/* The neutral host adapter exposes a labelled action rather than the product's
+   editor icon. Do not inherit its 32px icon-only width and clip this label. */
+.standalone-workspace-root .handoff-trigger--solo { width: auto; }

@@ -1,0 +1,32 @@
+{
+  "checks": [
+    "open existing canonical doc without overwrite",
+    "standalone UI save propagates to embedded live editor",
+    "embedded UI save propagates to standalone live editor"
+  ],
+  "errors": [
+    {
+      "page": "canvas",
+      "type": "requestfailed",
+      "url": "http://127.0.0.1:50464/api/projects/browser-p/events",
+      "failure": {
+        "errorText": "net::ERR_ABORTED"
+      }
+    },
+    {
+      "page": "canvas",
+      "type": "requestfailed",
+      "url": "http://127.0.0.1:50464/api/apps/canvas/instances/browser-p/events",
+      "failure": {
+        "errorText": "net::ERR_ABORTED"
+      }
+    }
+  ],
+  "responses": [],
+  "failures": [
+    {
+      "name": "both entry reloads retain shared body",
+      "error": "locator.click: Timeout 15000ms exceeded.\nCall log:\n  - waiting for getByRole('tab', { name: '代码', exact: true })\n\n    at <anonymous> (/private/tmp/canvas-doc-browser-KXH8y7/browser.ts:59:307)\n    at async check (/private/tmp/canvas-doc-browser-KXH8y7/browser.ts:22:61)\n    at async <anonymous> (/private/tmp/canvas-doc-browser-KXH8y7/browser.ts:59:2)"
+    }
+  ]
+}

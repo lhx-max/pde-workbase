@@ -1,0 +1,62 @@
+/* Shared standalone consumer styles; extracted verbatim from Bezier
+ * 319e5eee556a3641d2ee68a6111a36ddc7a1eff7, apps/web/src/styles/viewer/composio.css
+ * source lines 308-363 (one newline between spans).
+ * Keep global selectors: these are shared component/portal contracts, not Home UI.
+ */
+/* BEGIN FROZEN RULES */
+.present-overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  /* Covers the whole window including the tab chrome (z-index 120), but
+     stays below transient popovers/toasts (1100+) so user-invoked UI can
+     still layer above a running presentation. */
+  z-index: 1050;
+  background: black;
+  display: flex;
+}
+.present-overlay iframe {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: white;
+}
+/* Momentary "Press Esc to exit" confirmation, centered near the top of the
+   presented stage. Timed to unmount at ~3.6s from the host, so the keyframe
+   fades it in fast, holds, then eases out to meet that unmount cleanly. */
+.present-esc-hint {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 22px);
+  left: 50%;
+  z-index: 1002;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(20, 20, 22, 0.72);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: present-esc-hint-in-out 3600ms cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+@keyframes present-esc-hint-in-out {
+  0% { opacity: 0; transform: translate(-50%, -8px); }
+  6% { opacity: 1; transform: translate(-50%, 0); }
+  86% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -8px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .present-esc-hint { animation: none; }
+}

@@ -1,0 +1,41 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 960
+  },
+  "zoom": "100%",
+  "nodes": [
+    {
+      "id": "img-mv14vt6r-xevo",
+      "classes": "react-flow__node react-flow__node-imageAsset nopan selected selectable draggable",
+      "selected": true,
+      "rect": {
+        "x": 440,
+        "y": 270,
+        "width": 420,
+        "height": 282,
+        "top": 270,
+        "right": 860,
+        "bottom": 552,
+        "left": 440
+      }
+    }
+  ],
+  "overlays": [
+    {
+      "label": null,
+      "classes": "workbench-domain-dialog workbench-domain-dialog--floating",
+      "rect": {
+        "x": 200,
+        "y": 120,
+        "width": 1040,
+        "height": 720,
+        "top": 120,
+        "right": 1240,
+        "bottom": 840,
+        "left": 200
+      },
+      "padding": "0px"
+    }
+  ]
+}

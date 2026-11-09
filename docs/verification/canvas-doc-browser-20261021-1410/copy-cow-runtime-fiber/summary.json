@@ -1,0 +1,1598 @@
+[
+  {
+    "stage": "before-duplicate",
+    "at": 1792565064622,
+    "provider": [
+      {
+        "name": "dO",
+        "hooks": [
+          {
+            "index": 0,
+            "value": {
+              "workbenchBasicNodes": [
+                {
+                  "id": "n",
+                  "text": "# 合成正文\n\nfirst middle last\n",
+                  "path": "sources/text/n-op-005a44253096d8ea.md",
+                  "kind": "text"
+                }
+              ]
+            }
+          },
+          {
+            "index": 3,
+            "value": {
+              "current": {
+                "workbenchBasicNodes": [
+                  {
+                    "id": "n",
+                    "text": "# 合成正文\n\nfirst middle last\n",
+                    "path": "sources/text/n-op-005a44253096d8ea.md",
+                    "kind": "text"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "index": 11,
+            "value": {
+              "current": {
+                "workbenchBasicNodes": [
+                  {
+                    "id": "n",
+                    "text": "# 合成正文\n\nfirst middle last\n",
+                    "path": "sources/text/n-op-005a44253096d8ea.md",
+                    "kind": "text"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "index": 13,
+            "value": {
+              "current": 1792565064598
+            }
+          },
+          {
+            "index": 14,
+            "value": {
+              "current": 1
+            }
+          },
+          {
+            "index": 15,
+            "value": {
+              "current": {
+                "corrections": {
+                  "type": "Map",
+                  "entries": []
+                }
+              }
+            }
+          },
+          {
+            "index": 16,
+            "value": {
+              "current": {
+                "type": "Map",
+                "entries": []
+              }
+            }
+          },
+          {
+            "index": 17,
+            "value": {
+              "current": {
+                "type": "Map",
+                "entries": [
+                  [
+                    "workbenchBasicNodes",
+                    1
+                  ]
+                ]
+              }
+            }
+          },
+          {
+            "index": 18,
+            "value": {}
+          },
+          {
+            "index": 19,
+            "value": {
+              "current": 0
+            }
+          },
+          {
+            "index": 23,
+            "value": {
+              "current": null
+            }
+          },
+          {
+            "index": 27,
+            "value": {
+              "current": {
+                "type": "Map",
+                "entries": []
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "flow": [
+      {
+        "name": "p1",
+        "props": {
+          "basicNodes": [
+            {
+              "id": "n",
+              "text": "# 合成正文\n\nfirst middle last\n",
+              "path": "sources/text/n-op-005a44253096d8ea.md",
+              "kind": "text"
+            }
+          ]
+        }
+      }
+    ],
+    "editors": [
+      {
+        "name": "GI",
+        "props": {
+          "markdown": "# 合成正文\n\nfirst middle last\n",
+          "editable": true,
+          "onChange": "function"
+        },
+        "refs": [
+          {
+            "index": 14,
+            "value": {
+              "type": "Editor",
+              "isInitialized": true,
+              "isDestroyed": false,
+              "dom": "合成正文first middle last",
+              "editorDoc": "合成正文first middle last",
+              "optionsContent": "<h1>合成正文</h1><p>first middle last</p>"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "stage": "after-input",
+    "at": 1792565064767,
+    "provider": [
+      {
+        "name": "dO",
+        "hooks": [
+          {
+            "index": 0,
+            "value": {
+              "workbenchBasicNodes": [
+                {
+                  "id": "n",
+                  "text": "# 合成正文\n\nfirst middle last\n",
+                  "path": "sources/text/n-op-005a44253096d8ea.md",
+                  "kind": "text"
+                },
+                {
+                  "id": "basic-text-mvhqyg2u-ya25",
+                  "text": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+                  "path": "sources/text/basic-text-mvhqyg2u-ya25.md",
+                  "kind": "text"
+                }
+              ]
+            }
+          },
+          {
+            "index": 3,
+            "value": {
+              "current": {
+                "workbenchBasicNodes": [
+                  {
+                    "id": "n",
+                    "text": "# 合成正文\n\nfirst middle last\n",
+                    "path": "sources/text/n-op-005a44253096d8ea.md",
+                    "kind": "text"
+                  },
+                  {
+                    "id": "basic-text-mvhqyg2u-ya25",
+                    "text": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+                    "path": "sources/text/basic-text-mvhqyg2u-ya25.md",
+                    "kind": "text"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "index": 11,
+            "value": {
+              "current": {
+                "workbenchBasicNodes": [
+                  {
+                    "id": "n",
+                    "text": "# 合成正文\n\nfirst middle last\n",
+                    "path": "sources/text/n-op-005a44253096d8ea.md",
+                    "kind": "text"
+                  },
+                  {
+                    "id": "basic-text-mvhqyg2u-ya25",
+                    "text": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+                    "path": "sources/text/basic-text-mvhqyg2u-ya25.md",
+                    "kind": "text"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "index": 13,
+            "value": {
+              "current": 1792565064598
+            }
+          },
+          {
+            "index": 14,
+            "value": {
+              "current": 3
+            }
+          },
+          {
+            "index": 15,
+            "value": {
+              "current": {
+                "corrections": {
+                  "type": "Map",
+                  "entries": []
+                }
+              }
+            }
+          },
+          {
+            "index": 16,
+            "value": {
+              "current": {
+                "type": "Map",
+                "entries": [
+                  [
+                    "workbenchBasicNodes",
+                    3
+                  ]
+                ]
+              }
+            }
+          },
+          {
+            "index": 17,
+            "value": {
+              "current": {
+                "type": "Map",
+                "entries": [
+                  [
+                    "workbenchBasicNodes",
+                    1
+                  ]
+                ]
+              }
+            }
+          },
+          {
+            "index": 18,
+            "value": {}
+          },
+          {
+            "index": 19,
+            "value": {
+              "current": 0
+            }
+          },
+          {
+            "index": 23,
+            "value": {
+              "current": {
+                "route": "/api/canvas/operations",
+                "body": "{\"operationId\":\"9a32d236-598e-4f40-9fd2-9add1d8b4743\",\"baseRevision\":1792565064598,\"operations\":[{\"type\":\"node.duplicate\",\"nodeId\":\"n\",\"newNodeId\":\"basic-text-mvhqyg2u-ya25\",\"x\":186,\"y\":186}],\"expectedState\":{\"workbenchBasicNodes\":[{\"title\":\"合成正文\",\"text\":\"# 合成正文\\n\\nfirst middle last\\n\",\"width\":600,\"height\":440,\"x\":150,\"y\":150,\"id\":\"n\",\"kind\":\"text\",\"projectFilePath\":\"sources/text/n-op-005a44253096d8ea.md\",\"textEntryMode\":\"edit\"}]}}",
+                "batch": {
+                  "type": "Map",
+                  "entries": [
+                    [
+                      "workbenchBasicNodes",
+                      {
+                        "value": [
+                          {
+                            "id": "n",
+                            "text": "# 合成正文\n\nfirst middle last\n",
+                            "path": "sources/text/n-op-005a44253096d8ea.md",
+                            "kind": "text"
+                          },
+                          {
+                            "id": "basic-text-mvhqyg2u-ya25",
+                            "text": "# 合成正文\n\nfirst middle last\n",
+                            "path": "sources/text/n-op-005a44253096d8ea.md",
+                            "kind": "text"
+                          }
+                        ],
+                        "baseValue": [
+                          {
+                            "id": "n",
+                            "text": "# 合成正文\n\nfirst middle last\n",
+                            "path": "sources/text/n-op-005a44253096d8ea.md",
+                            "kind": "text"
+                          }
+                        ],
+                        "version": 2
+                      }
+                    ]
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "index": 27,
+            "value": {
+              "current": {
+                "type": "Map",
+                "entries": [
+                  [
+                    "workbenchBasicNodes",
+                    {
+                      "value": [
+                        {
+                          "id": "n",
+                          "text": "# 合成正文\n\nfirst middle last\n",
+                          "path": "sources/text/n-op-005a44253096d8ea.md",
+                          "kind": "text"
+                        },
+                        {
+                          "id": "basic-text-mvhqyg2u-ya25",
+                          "text": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+                          "path": "sources/text/basic-text-mvhqyg2u-ya25.md",
+                          "kind": "text"
+                        }
+                      ],
+                      "baseValue": [
+                        {
+                          "id": "n",
+                          "text": "# 合成正文\n\nfirst middle last\n",
+                          "path": "sources/text/n-op-005a44253096d8ea.md",
+                          "kind": "text"
+                        },
+                        {
+                          "id": "basic-text-mvhqyg2u-ya25",
+                          "text": "# 合成正文\n\nfirst middle last\n",
+                          "path": "sources/text/n-op-005a44253096d8ea.md",
+                          "kind": "text"
+                        }
+                      ],
+                      "version": 3
+                    }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "flow": [
+      {
+        "name": "p1",
+        "props": {
+          "basicNodes": [
+            {
+              "id": "n",
+              "text": "# 合成正文\n\nfirst middle last\n",
+              "path": "sources/text/n-op-005a44253096d8ea.md",
+              "kind": "text"
+            },
+            {
+              "id": "basic-text-mvhqyg2u-ya25",
+              "text": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+              "path": "sources/text/basic-text-mvhqyg2u-ya25.md",
+              "kind": "text"
+            }
+          ]
+        }
+      }
+    ],
+    "editors": [
+      {
+        "name": "GI",
+        "props": {
+          "markdown": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+          "editable": true,
+          "onChange": "function"
+        },
+        "refs": [
+          {
+            "index": 14,
+            "value": {
+              "type": "Editor",
+              "isInitialized": true,
+              "isDestroyed": false,
+              "dom": "KEYBOARD IMMEDIATE COPY EDIT",
+              "editorDoc": "KEYBOARD IMMEDIATE COPY EDIT",
+              "optionsContent": "<h1>KEYBOARD IMMEDIATE COPY EDIT</h1>"
+            }
+          }
+        ]
+      },
+      {
+        "name": "GI",
+        "props": {
+          "markdown": "# 合成正文\n\nfirst middle last\n",
+          "editable": true,
+          "onChange": "function"
+        },
+        "refs": [
+          {
+            "index": 14,
+            "value": {
+              "type": "Editor",
+              "isInitialized": true,
+              "isDestroyed": false,
+              "dom": "合成正文first middle last",
+              "editorDoc": "合成正文first middle last",
+              "optionsContent": "<h1>合成正文</h1><p>first middle last</p>"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "stage": "after-input-frame",
+    "at": 1792565064791,
+    "provider": [
+      {
+        "name": "dO",
+        "hooks": [
+          {
+            "index": 0,
+            "value": {
+              "workbenchBasicNodes": [
+                {
+                  "id": "n",
+                  "text": "# 合成正文\n\nfirst middle last\n",
+                  "path": "sources/text/n-op-005a44253096d8ea.md",
+                  "kind": "text"
+                },
+                {
+                  "id": "basic-text-mvhqyg2u-ya25",
+                  "text": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+                  "path": "sources/text/basic-text-mvhqyg2u-ya25.md",
+                  "kind": "text"
+                }
+              ]
+            }
+          },
+          {
+            "index": 3,
+            "value": {
+              "current": {
+                "workbenchBasicNodes": [
+                  {
+                    "id": "n",
+                    "text": "# 合成正文\n\nfirst middle last\n",
+                    "path": "sources/text/n-op-005a44253096d8ea.md",
+                    "kind": "text"
+                  },
+                  {
+                    "id": "basic-text-mvhqyg2u-ya25",
+                    "text": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+                    "path": "sources/text/basic-text-mvhqyg2u-ya25.md",
+                    "kind": "text"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "index": 11,
+            "value": {
+              "current": {
+                "workbenchBasicNodes": [
+                  {
+                    "id": "n",
+                    "text": "# 合成正文\n\nfirst middle last\n",
+                    "path": "sources/text/n-op-005a44253096d8ea.md",
+                    "kind": "text"
+                  },
+                  {
+                    "id": "basic-text-mvhqyg2u-ya25",
+                    "text": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+                    "path": "sources/text/basic-text-mvhqyg2u-ya25.md",
+                    "kind": "text"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "index": 13,
+            "value": {
+              "current": 1792565064598
+            }
+          },
+          {
+            "index": 14,
+            "value": {
+              "current": 3
+            }
+          },
+          {
+            "index": 15,
+            "value": {
+              "current": {
+                "corrections": {
+                  "type": "Map",
+                  "entries": []
+                }
+              }
+            }
+          },
+          {
+            "index": 16,
+            "value": {
+              "current": {
+                "type": "Map",
+                "entries": [
+                  [
+                    "workbenchBasicNodes",
+                    3
+                  ]
+                ]
+              }
+            }
+          },
+          {
+            "index": 17,
+            "value": {
+              "current": {
+                "type": "Map",
+                "entries": [
+                  [
+                    "workbenchBasicNodes",
+                    1
+                  ]
+                ]
+              }
+            }
+          },
+          {
+            "index": 18,
+            "value": {}
+          },
+          {
+            "index": 19,
+            "value": {
+              "current": 0
+            }
+          },
+          {
+            "index": 23,
+            "value": {
+              "current": {
+                "route": "/api/canvas/operations",
+                "body": "{\"operationId\":\"9a32d236-598e-4f40-9fd2-9add1d8b4743\",\"baseRevision\":1792565064598,\"operations\":[{\"type\":\"node.duplicate\",\"nodeId\":\"n\",\"newNodeId\":\"basic-text-mvhqyg2u-ya25\",\"x\":186,\"y\":186}],\"expectedState\":{\"workbenchBasicNodes\":[{\"title\":\"合成正文\",\"text\":\"# 合成正文\\n\\nfirst middle last\\n\",\"width\":600,\"height\":440,\"x\":150,\"y\":150,\"id\":\"n\",\"kind\":\"text\",\"projectFilePath\":\"sources/text/n-op-005a44253096d8ea.md\",\"textEntryMode\":\"edit\"}]}}",
+                "batch": {
+                  "type": "Map",
+                  "entries": [
+                    [
+                      "workbenchBasicNodes",
+                      {
+                        "value": [
+                          {
+                            "id": "n",
+                            "text": "# 合成正文\n\nfirst middle last\n",
+                            "path": "sources/text/n-op-005a44253096d8ea.md",
+                            "kind": "text"
+                          },
+                          {
+                            "id": "basic-text-mvhqyg2u-ya25",
+                            "text": "# 合成正文\n\nfirst middle last\n",
+                            "path": "sources/text/n-op-005a44253096d8ea.md",
+                            "kind": "text"
+                          }
+                        ],
+                        "baseValue": [
+                          {
+                            "id": "n",
+                            "text": "# 合成正文\n\nfirst middle last\n",
+                            "path": "sources/text/n-op-005a44253096d8ea.md",
+                            "kind": "text"
+                          }
+                        ],
+                        "version": 2
+                      }
+                    ]
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "index": 27,
+            "value": {
+              "current": {
+                "type": "Map",
+                "entries": [
+                  [
+                    "workbenchBasicNodes",
+                    {
+                      "value": [
+                        {
+                          "id": "n",
+                          "text": "# 合成正文\n\nfirst middle last\n",
+                          "path": "sources/text/n-op-005a44253096d8ea.md",
+                          "kind": "text"
+                        },
+                        {
+                          "id": "basic-text-mvhqyg2u-ya25",
+                          "text": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+                          "path": "sources/text/basic-text-mvhqyg2u-ya25.md",
+                          "kind": "text"
+                        }
+                      ],
+                      "baseValue": [
+                        {
+                          "id": "n",
+                          "text": "# 合成正文\n\nfirst middle last\n",
+                          "path": "sources/text/n-op-005a44253096d8ea.md",
+                          "kind": "text"
+                        },
+                        {
+                          "id": "basic-text-mvhqyg2u-ya25",
+                          "text": "# 合成正文\n\nfirst middle last\n",
+                          "path": "sources/text/n-op-005a44253096d8ea.md",
+                          "kind": "text"
+                        }
+                      ],
+                      "version": 3
+                    }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "flow": [
+      {
+        "name": "p1",
+        "props": {
+          "basicNodes": [
+            {
+              "id": "n",
+              "text": "# 合成正文\n\nfirst middle last\n",
+              "path": "sources/text/n-op-005a44253096d8ea.md",
+              "kind": "text"
+            },
+            {
+              "id": "basic-text-mvhqyg2u-ya25",
+              "text": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+              "path": "sources/text/basic-text-mvhqyg2u-ya25.md",
+              "kind": "text"
+            }
+          ]
+        }
+      }
+    ],
+    "editors": [
+      {
+        "name": "GI",
+        "props": {
+          "markdown": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+          "editable": true,
+          "onChange": "function"
+        },
+        "refs": [
+          {
+            "index": 14,
+            "value": {
+              "type": "Editor",
+              "isInitialized": true,
+              "isDestroyed": false,
+              "dom": "KEYBOARD IMMEDIATE COPY EDIT",
+              "editorDoc": "KEYBOARD IMMEDIATE COPY EDIT",
+              "optionsContent": "<h1>KEYBOARD IMMEDIATE COPY EDIT</h1>"
+            }
+          }
+        ]
+      },
+      {
+        "name": "GI",
+        "props": {
+          "markdown": "# 合成正文\n\nfirst middle last\n",
+          "editable": true,
+          "onChange": "function"
+        },
+        "refs": [
+          {
+            "index": 14,
+            "value": {
+              "type": "Editor",
+              "isInitialized": true,
+              "isDestroyed": false,
+              "dom": "合成正文first middle last",
+              "editorDoc": "合成正文first middle last",
+              "optionsContent": "<h1>合成正文</h1><p>first middle last</p>"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "stage": "receipt-response",
+    "at": 1792565064832,
+    "provider": [
+      {
+        "name": "dO",
+        "hooks": [
+          {
+            "index": 0,
+            "value": {
+              "workbenchBasicNodes": [
+                {
+                  "id": "n",
+                  "text": "# 合成正文\n\nfirst middle last\n",
+                  "path": "sources/text/n-op-005a44253096d8ea.md",
+                  "kind": "text"
+                },
+                {
+                  "id": "basic-text-mvhqyg2u-ya25",
+                  "text": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+                  "path": "sources/text/basic-text-mvhqyg2u-ya25.md",
+                  "kind": "text"
+                }
+              ]
+            }
+          },
+          {
+            "index": 3,
+            "value": {
+              "current": {
+                "workbenchBasicNodes": [
+                  {
+                    "id": "n",
+                    "text": "# 合成正文\n\nfirst middle last\n",
+                    "path": "sources/text/n-op-005a44253096d8ea.md",
+                    "kind": "text"
+                  },
+                  {
+                    "id": "basic-text-mvhqyg2u-ya25",
+                    "text": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+                    "path": "sources/text/basic-text-mvhqyg2u-ya25.md",
+                    "kind": "text"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "index": 11,
+            "value": {
+              "current": {
+                "workbenchBasicNodes": [
+                  {
+                    "id": "n",
+                    "text": "# 合成正文\n\nfirst middle last\n",
+                    "path": "sources/text/n-op-005a44253096d8ea.md",
+                    "kind": "text"
+                  },
+                  {
+                    "id": "basic-text-mvhqyg2u-ya25",
+                    "text": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+                    "path": "sources/text/basic-text-mvhqyg2u-ya25.md",
+                    "kind": "text"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "index": 13,
+            "value": {
+              "current": 1792565064598
+            }
+          },
+          {
+            "index": 14,
+            "value": {
+              "current": 3
+            }
+          },
+          {
+            "index": 15,
+            "value": {
+              "current": {
+                "corrections": {
+                  "type": "Map",
+                  "entries": [
+                    [
+                      "basic-text-mvhqyg2u-ya25",
+                      {
+                        "path": "sources/text/basic-text-mvhqyg2u-ya25-op-f39839098adfb35c.md",
+                        "superseded": {
+                          "type": "Set",
+                          "values": [
+                            "sources/text/n-op-005a44253096d8ea.md"
+                          ]
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "index": 16,
+            "value": {
+              "current": {
+                "type": "Map",
+                "entries": [
+                  [
+                    "workbenchBasicNodes",
+                    3
+                  ]
+                ]
+              }
+            }
+          },
+          {
+            "index": 17,
+            "value": {
+              "current": {
+                "type": "Map",
+                "entries": [
+                  [
+                    "workbenchBasicNodes",
+                    1
+                  ]
+                ]
+              }
+            }
+          },
+          {
+            "index": 18,
+            "value": {
+              "current": {
+                "type": "Error",
+                "keys": [
+                  "status"
+                ]
+              }
+            }
+          },
+          {
+            "index": 19,
+            "value": {
+              "current": 1
+            }
+          },
+          {
+            "index": 23,
+            "value": {
+              "current": {
+                "route": "/api/canvas/operations",
+                "body": "{\"operationId\":\"9a32d236-598e-4f40-9fd2-9add1d8b4743\",\"baseRevision\":1792565064598,\"operations\":[{\"type\":\"node.duplicate\",\"nodeId\":\"n\",\"newNodeId\":\"basic-text-mvhqyg2u-ya25\",\"x\":186,\"y\":186}],\"expectedState\":{\"workbenchBasicNodes\":[{\"title\":\"合成正文\",\"text\":\"# 合成正文\\n\\nfirst middle last\\n\",\"width\":600,\"height\":440,\"x\":150,\"y\":150,\"id\":\"n\",\"kind\":\"text\",\"projectFilePath\":\"sources/text/n-op-005a44253096d8ea.md\",\"textEntryMode\":\"edit\"}]}}",
+                "batch": {
+                  "type": "Map",
+                  "entries": [
+                    [
+                      "workbenchBasicNodes",
+                      {
+                        "value": [
+                          {
+                            "id": "n",
+                            "text": "# 合成正文\n\nfirst middle last\n",
+                            "path": "sources/text/n-op-005a44253096d8ea.md",
+                            "kind": "text"
+                          },
+                          {
+                            "id": "basic-text-mvhqyg2u-ya25",
+                            "text": "# 合成正文\n\nfirst middle last\n",
+                            "path": "sources/text/n-op-005a44253096d8ea.md",
+                            "kind": "text"
+                          }
+                        ],
+                        "baseValue": [
+                          {
+                            "id": "n",
+                            "text": "# 合成正文\n\nfirst middle last\n",
+                            "path": "sources/text/n-op-005a44253096d8ea.md",
+                            "kind": "text"
+                          }
+                        ],
+                        "version": 2
+                      }
+                    ]
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "index": 27,
+            "value": {
+              "current": {
+                "type": "Map",
+                "entries": [
+                  [
+                    "workbenchBasicNodes",
+                    {
+                      "value": [
+                        {
+                          "id": "n",
+                          "text": "# 合成正文\n\nfirst middle last\n",
+                          "path": "sources/text/n-op-005a44253096d8ea.md",
+                          "kind": "text"
+                        },
+                        {
+                          "id": "basic-text-mvhqyg2u-ya25",
+                          "text": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+                          "path": "sources/text/basic-text-mvhqyg2u-ya25.md",
+                          "kind": "text"
+                        }
+                      ],
+                      "baseValue": [
+                        {
+                          "id": "n",
+                          "text": "# 合成正文\n\nfirst middle last\n",
+                          "path": "sources/text/n-op-005a44253096d8ea.md",
+                          "kind": "text"
+                        },
+                        {
+                          "id": "basic-text-mvhqyg2u-ya25",
+                          "text": "# 合成正文\n\nfirst middle last\n",
+                          "path": "sources/text/n-op-005a44253096d8ea.md",
+                          "kind": "text"
+                        }
+                      ],
+                      "version": 3
+                    }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "flow": [
+      {
+        "name": "p1",
+        "props": {
+          "basicNodes": [
+            {
+              "id": "n",
+              "text": "# 合成正文\n\nfirst middle last\n",
+              "path": "sources/text/n-op-005a44253096d8ea.md",
+              "kind": "text"
+            },
+            {
+              "id": "basic-text-mvhqyg2u-ya25",
+              "text": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+              "path": "sources/text/basic-text-mvhqyg2u-ya25.md",
+              "kind": "text"
+            }
+          ]
+        }
+      }
+    ],
+    "editors": [
+      {
+        "name": "GI",
+        "props": {
+          "markdown": "# KEYBOARD IMMEDIATE COPY EDIT\n",
+          "editable": true,
+          "onChange": "function"
+        },
+        "refs": [
+          {
+            "index": 14,
+            "value": {
+              "type": "Editor",
+              "isInitialized": true,
+              "isDestroyed": false,
+              "dom": "KEYBOARD IMMEDIATE COPY EDIT",
+              "editorDoc": "KEYBOARD IMMEDIATE COPY EDIT",
+              "optionsContent": "<h1>KEYBOARD IMMEDIATE COPY EDIT</h1>"
+            }
+          }
+        ]
+      },
+      {
+        "name": "GI",
+        "props": {
+          "markdown": "# 合成正文\n\nfirst middle last\n",
+          "editable": true,
+          "onChange": "function"
+        },
+        "refs": [
+          {
+            "index": 14,
+            "value": {
+              "type": "Editor",
+              "isInitialized": true,
+              "isDestroyed": false,
+              "dom": "合成正文first middle last",
+              "editorDoc": "合成正文first middle last",
+              "optionsContent": "<h1>合成正文</h1><p>first middle last</p>"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "stage": "final",
+    "at": 1792565072513,
+    "provider": [
+      {
+        "name": "dO",
+        "hooks": [
+          {
+            "index": 0,
+            "value": {
+              "workbenchBasicNodes": [
+                {
+                  "id": "n",
+                  "text": "# 合成正文\n\nfirst middle last\n",
+                  "path": "sources/text/n-op-005a44253096d8ea.md",
+                  "kind": "text"
+                },
+                {
+                  "id": "basic-text-mvhqyg2u-ya25",
+                  "text": "# 合成正文\n\nfirst middle last\n",
+                  "path": "sources/text/basic-text-mvhqyg2u-ya25-op-f39839098adfb35c.md",
+                  "kind": "text"
+                }
+              ]
+            }
+          },
+          {
+            "index": 3,
+            "value": {
+              "current": {
+                "workbenchBasicNodes": [
+                  {
+                    "id": "n",
+                    "text": "# 合成正文\n\nfirst middle last\n",
+                    "path": "sources/text/n-op-005a44253096d8ea.md",
+                    "kind": "text"
+                  },
+                  {
+                    "id": "basic-text-mvhqyg2u-ya25",
+                    "text": "# 合成正文\n\nfirst middle last\n",
+                    "path": "sources/text/basic-text-mvhqyg2u-ya25-op-f39839098adfb35c.md",
+                    "kind": "text"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "index": 11,
+            "value": {
+              "current": {
+                "workbenchBasicNodes": [
+                  {
+                    "id": "n",
+                    "text": "# 合成正文\n\nfirst middle last\n",
+                    "path": "sources/text/n-op-005a44253096d8ea.md",
+                    "kind": "text"
+                  },
+                  {
+                    "id": "basic-text-mvhqyg2u-ya25",
+                    "text": "# 合成正文\n\nfirst middle last\n",
+                    "path": "sources/text/basic-text-mvhqyg2u-ya25-op-f39839098adfb35c.md",
+                    "kind": "text"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "index": 13,
+            "value": {
+              "current": 1792565065184
+            }
+          },
+          {
+            "index": 14,
+            "value": {
+              "current": 3
+            }
+          },
+          {
+            "index": 15,
+            "value": {
+              "current": {
+                "corrections": {
+                  "type": "Map",
+                  "entries": [
+                    [
+                      "basic-text-mvhqyg2u-ya25",
+                      {
+                        "path": "sources/text/basic-text-mvhqyg2u-ya25-op-f39839098adfb35c.md",
+                        "superseded": {
+                          "type": "Set",
+                          "values": [
+                            "sources/text/n-op-005a44253096d8ea.md"
+                          ]
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "index": 16,
+            "value": {
+              "current": {
+                "type": "Map",
+                "entries": [
+                  [
+                    "workbenchBasicNodes",
+                    3
+                  ]
+                ]
+              }
+            }
+          },
+          {
+            "index": 17,
+            "value": {
+              "current": {
+                "type": "Map",
+                "entries": [
+                  [
+                    "workbenchBasicNodes",
+                    2
+                  ]
+                ]
+              }
+            }
+          },
+          {
+            "index": 18,
+            "value": {}
+          },
+          {
+            "index": 19,
+            "value": {
+              "current": 0
+            }
+          },
+          {
+            "index": 23,
+            "value": {
+              "current": null
+            }
+          },
+          {
+            "index": 27,
+            "value": {
+              "current": {
+                "type": "Map",
+                "entries": []
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "flow": [
+      {
+        "name": "p1",
+        "props": {
+          "basicNodes": [
+            {
+              "id": "n",
+              "text": "# 合成正文\n\nfirst middle last\n",
+              "path": "sources/text/n-op-005a44253096d8ea.md",
+              "kind": "text"
+            },
+            {
+              "id": "basic-text-mvhqyg2u-ya25",
+              "text": "# 合成正文\n\nfirst middle last\n",
+              "path": "sources/text/basic-text-mvhqyg2u-ya25-op-f39839098adfb35c.md",
+              "kind": "text"
+            }
+          ]
+        }
+      }
+    ],
+    "editors": [
+      {
+        "name": "GI",
+        "props": {
+          "markdown": "# 合成正文\n\nfirst middle last\n",
+          "editable": true,
+          "onChange": "function"
+        },
+        "refs": [
+          {
+            "index": 14,
+            "value": {
+              "type": "Editor",
+              "isInitialized": true,
+              "isDestroyed": false,
+              "dom": "KEYBOARD IMMEDIATE COPY EDIT",
+              "editorDoc": "KEYBOARD IMMEDIATE COPY EDIT",
+              "optionsContent": "<h1>合成正文</h1><p>first middle last</p>"
+            }
+          }
+        ]
+      },
+      {
+        "name": "GI",
+        "props": {
+          "markdown": "# 合成正文\n\nfirst middle last\n",
+          "editable": true,
+          "onChange": "function"
+        },
+        "refs": [
+          {
+            "index": 14,
+            "value": {
+              "type": "Editor",
+              "isInitialized": true,
+              "isDestroyed": false,
+              "dom": "合成正文first middle last",
+              "editorDoc": "合成正文first middle last",
+              "optionsContent": "<h1>合成正文</h1><p>first middle last</p>"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "stage": "patch-initiation",
+    "body": {
+      "changes": {
+        "workbenchBasicNodes": [
+          {
+            "title": "合成正文",
+            "text": "# 合成正文\n\nfirst middle last\n",
+            "width": 600,
+            "height": 440,
+            "x": 150,
+            "y": 150,
+            "id": "n",
+            "kind": "text",
+            "projectFilePath": "sources/text/n-op-005a44253096d8ea.md",
+            "textEntryMode": "edit"
+          },
+          {
+            "title": "合成正文",
+            "text": "# 合成正文\n\nfirst middle last\n",
+            "width": 600,
+            "height": 440,
+            "x": 186,
+            "y": 186,
+            "id": "basic-text-mvhqyg2u-ya25",
+            "kind": "text",
+            "projectFilePath": "sources/text/n-op-005a44253096d8ea.md",
+            "textEntryMode": "edit"
+          }
+        ]
+      },
+      "base": {
+        "workbenchBasicNodes": [
+          {
+            "title": "合成正文",
+            "text": "# 合成正文\n\nfirst middle last\n",
+            "width": 600,
+            "height": 440,
+            "x": 150,
+            "y": 150,
+            "id": "n",
+            "kind": "text",
+            "projectFilePath": "sources/text/n-op-005a44253096d8ea.md",
+            "textEntryMode": "edit"
+          },
+          {
+            "id": "basic-text-mvhqyg2u-ya25",
+            "title": "合成正文",
+            "text": "# 合成正文\n\nfirst middle last\n",
+            "width": 600,
+            "height": 440,
+            "x": 186,
+            "y": 186,
+            "kind": "text",
+            "projectFilePath": "sources/text/basic-text-mvhqyg2u-ya25-op-f39839098adfb35c.md",
+            "textEntryMode": "edit"
+          }
+        ]
+      },
+      "expectedRevision": 1792565064694
+    },
+    "stack": "Error: PATCH initiation\n    at <anonymous>:2:2738\n    at e6 (http://127.0.0.1:59363/_next/static/chunks/04zbx338wkrnv.js:1:63610)\n    at te (http://127.0.0.1:59363/_next/static/chunks/04zbx338wkrnv.js:1:65237)\n    at tr (http://127.0.0.1:59363/_next/static/chunks/04zbx338wkrnv.js:1:65691)\n    at dP (http://127.0.0.1:59363/_next/static/chunks/04zbx338wkrnv.js:3:167698)\n    at http://127.0.0.1:59363/_next/static/chunks/04zbx338wkrnv.js:3:177372",
+    "at": 1792565065166,
+    "provider": [
+      {
+        "name": "dO",
+        "hooks": [
+          {
+            "index": 0,
+            "value": {
+              "workbenchBasicNodes": [
+                {
+                  "id": "n",
+                  "text": "# 合成正文\n\nfirst middle last\n",
+                  "path": "sources/text/n-op-005a44253096d8ea.md",
+                  "kind": "text"
+                },
+                {
+                  "id": "basic-text-mvhqyg2u-ya25",
+                  "text": "# 合成正文\n\nfirst middle last\n",
+                  "path": "sources/text/basic-text-mvhqyg2u-ya25-op-f39839098adfb35c.md",
+                  "kind": "text"
+                }
+              ]
+            }
+          },
+          {
+            "index": 3,
+            "value": {
+              "current": {
+                "workbenchBasicNodes": [
+                  {
+                    "id": "n",
+                    "text": "# 合成正文\n\nfirst middle last\n",
+                    "path": "sources/text/n-op-005a44253096d8ea.md",
+                    "kind": "text"
+                  },
+                  {
+                    "id": "basic-text-mvhqyg2u-ya25",
+                    "text": "# 合成正文\n\nfirst middle last\n",
+                    "path": "sources/text/basic-text-mvhqyg2u-ya25-op-f39839098adfb35c.md",
+                    "kind": "text"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "index": 11,
+            "value": {
+              "current": {
+                "workbenchBasicNodes": [
+                  {
+                    "id": "n",
+                    "text": "# 合成正文\n\nfirst middle last\n",
+                    "path": "sources/text/n-op-005a44253096d8ea.md",
+                    "kind": "text"
+                  },
+                  {
+                    "id": "basic-text-mvhqyg2u-ya25",
+                    "text": "# 合成正文\n\nfirst middle last\n",
+                    "path": "sources/text/basic-text-mvhqyg2u-ya25-op-f39839098adfb35c.md",
+                    "kind": "text"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "index": 13,
+            "value": {
+              "current": 1792565064694
+            }
+          },
+          {
+            "index": 14,
+            "value": {
+              "current": 3
+            }
+          },
+          {
+            "index": 15,
+            "value": {
+              "current": {
+                "corrections": {
+                  "type": "Map",
+                  "entries": [
+                    [
+                      "basic-text-mvhqyg2u-ya25",
+                      {
+                        "path": "sources/text/basic-text-mvhqyg2u-ya25-op-f39839098adfb35c.md",
+                        "superseded": {
+                          "type": "Set",
+                          "values": [
+                            "sources/text/n-op-005a44253096d8ea.md"
+                          ]
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "index": 16,
+            "value": {
+              "current": {
+                "type": "Map",
+                "entries": [
+                  [
+                    "workbenchBasicNodes",
+                    3
+                  ]
+                ]
+              }
+            }
+          },
+          {
+            "index": 17,
+            "value": {
+              "current": {
+                "type": "Map",
+                "entries": [
+                  [
+                    "workbenchBasicNodes",
+                    1
+                  ]
+                ]
+              }
+            }
+          },
+          {
+            "index": 18,
+            "value": {
+              "current": {
+                "type": "Error",
+                "keys": [
+                  "status"
+                ]
+              }
+            }
+          },
+          {
+            "index": 19,
+            "value": {
+              "current": 1
+            }
+          },
+          {
+            "index": 23,
+            "value": {
+              "current": {
+                "route": "/api/canvas/state",
+                "body": "{\"changes\":{\"workbenchBasicNodes\":[{\"title\":\"合成正文\",\"text\":\"# 合成正文\\n\\nfirst middle last\\n\",\"width\":600,\"height\":440,\"x\":150,\"y\":150,\"id\":\"n\",\"kind\":\"text\",\"projectFilePath\":\"sources/text/n-op-005a44253096d8ea.md\",\"textEntryMode\":\"edit\"},{\"title\":\"合成正文\",\"text\":\"# 合成正文\\n\\nfirst middle last\\n\",\"width\":600,\"height\":440,\"x\":186,\"y\":186,\"id\":\"basic-text-mvhqyg2u-ya25\",\"kind\":\"text\",\"projectFilePath\":\"sources/text/n-op-005a44253096d8ea.md\",\"textEntryMode\":\"edit\"}]},\"base\":{\"workbenchBasicNodes\":[{\"title\":\"合成正文\",\"text\":\"# 合成正文\\n\\nfirst middle last\\n\",\"width\":600,\"height\":440,\"x\":150,\"y\":150,\"id\":\"n\",\"kind\":\"text\",\"projectFilePath\":\"sources/text/n-op-005a44253096d8ea.md\",\"textEntryMode\":\"edit\"},{\"id\":\"basic-text-mvhqyg2u-ya25\",\"title\":\"合成正文\",\"text\":\"# 合成正文\\n\\nfirst middle last\\n\",\"width\":600,\"height\":440,\"x\":186,\"y\":186,\"kind\":\"text\",\"projectFilePath\":\"sources/text/basic-text-mvhqyg2u-ya25-op-f39839098adfb35c.md\",\"textEntryMode\":\"edit\"}]},\"expectedRevision\":1792565064694}",
+                "batch": {
+                  "type": "Map",
+                  "entries": [
+                    [
+                      "workbenchBasicNodes",
+                      {
+                        "value": [
+                          {
+                            "id": "n",
+                            "text": "# 合成正文\n\nfirst middle last\n",
+                            "path": "sources/text/n-op-005a44253096d8ea.md",
+                            "kind": "text"
+                          },
+                          {
+                            "id": "basic-text-mvhqyg2u-ya25",
+                            "text": "# 合成正文\n\nfirst middle last\n",
+                            "path": "sources/text/n-op-005a44253096d8ea.md",
+                            "kind": "text"
+                          }
+                        ],
+                        "baseValue": [
+                          {
+                            "id": "n",
+                            "text": "# 合成正文\n\nfirst middle last\n",
+                            "path": "sources/text/n-op-005a44253096d8ea.md",
+                            "kind": "text"
+                          },
+                          {
+                            "id": "basic-text-mvhqyg2u-ya25",
+                            "text": "# 合成正文\n\nfirst middle last\n",
+                            "path": "sources/text/basic-text-mvhqyg2u-ya25-op-f39839098adfb35c.md",
+                            "kind": "text"
+                          }
+                        ],
+                        "version": 2
+                      }
+                    ]
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "index": 27,
+            "value": {
+              "current": {
+                "type": "Map",
+                "entries": []
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "flow": [
+      {
+        "name": "p1",
+        "props": {
+          "basicNodes": [
+            {
+              "id": "n",
+              "text": "# 合成正文\n\nfirst middle last\n",
+              "path": "sources/text/n-op-005a44253096d8ea.md",
+              "kind": "text"
+            },
+            {
+              "id": "basic-text-mvhqyg2u-ya25",
+              "text": "# 合成正文\n\nfirst middle last\n",
+              "path": "sources/text/basic-text-mvhqyg2u-ya25-op-f39839098adfb35c.md",
+              "kind": "text"
+            }
+          ]
+        }
+      }
+    ],
+    "editors": [
+      {
+        "name": "GI",
+        "props": {
+          "markdown": "# 合成正文\n\nfirst middle last\n",
+          "editable": true,
+          "onChange": "function"
+        },
+        "refs": [
+          {
+            "index": 14,
+            "value": {
+              "type": "Editor",
+              "isInitialized": true,
+              "isDestroyed": false,
+              "dom": "KEYBOARD IMMEDIATE COPY EDIT",
+              "editorDoc": "KEYBOARD IMMEDIATE COPY EDIT",
+              "optionsContent": "<h1>合成正文</h1><p>first middle last</p>"
+            }
+          }
+        ]
+      },
+      {
+        "name": "GI",
+        "props": {
+          "markdown": "# 合成正文\n\nfirst middle last\n",
+          "editable": true,
+          "onChange": "function"
+        },
+        "refs": [
+          {
+            "index": 14,
+            "value": {
+              "type": "Editor",
+              "isInitialized": true,
+              "isDestroyed": false,
+              "dom": "合成正文first middle last",
+              "editorDoc": "合成正文first middle last",
+              "optionsContent": "<h1>合成正文</h1><p>first middle last</p>"
+            }
+          }
+        ]
+      }
+    ]
+  }
+]

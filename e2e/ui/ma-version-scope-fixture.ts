@@ -1,0 +1,34 @@
+/** Installed-surface browser probe. Explicit protocol stubs, no business store,
+ * MA identity or model dispatch; never used as formal integration evidence. */
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import {parseArgs} from 'node:util';
+import {dirname,isAbsolute,join} from 'node:path';
+import {createRequire} from 'node:module';
+import {pathToFileURL} from 'node:url';
+const {values}=parseArgs({options:{consumer:{type:'string'},output:{type:'string'}}});
+if(process.env.NODE_ENV==='production'||!values.consumer||!values.output||!isAbsolute(values.consumer)||!isAbsolute(values.output))throw Error('Nonproduction absolute consumer/output required');
+const consumer=values.consumer;
+const versions:Record<string,string>={};
+for(const app of ['canvas','doc','sketch'])versions[app]=JSON.parse(await readFile(join(consumer,'node_modules/@ks-designai/'+app+'-surface/package.json'),'utf8')).version;
+await mkdir(dirname(values.output),{recursive:true});
+await writeFile(join(consumer,'index.html'),'<!doctype html><html lang="en"><meta charset="UTF-8"><title>Installed MA version scope probe</title><div id="root"></div><script type="module" src="/scope-probe.tsx"></script>');
+await writeFile(join(consumer,'scope-probe.tsx'),`import React from'react';import{createRoot}from'react-dom/client';
+import{createDocEditorApp}from'@ks-designai/doc-surface/da';import'@ks-designai/doc-surface/styles.css';
+import{createSketchEditorApp}from'@ks-designai/sketch-surface/da';import'@ks-designai/sketch-surface/embedded.css';
+import{createCanvasApp}from'@ks-designai/canvas-surface';
+const events=[];const record=(app,event,version)=>{const e={app,event,version};events.push(e);void fetch('/__evidence',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(e)});};
+const base=app=>({applicationId:app,applicationVersion:'1.0',applicationInstanceId:'ma-'+app,providerInstanceId:'provider-'+app,bizId:'fixture-biz',sessionId:'fixture-session',actor:{tenantId:'fixture-tenant',userId:'fixture-user'},locale:'en'});
+const provider=app=>({async action(context,actionId,input){record(app,actionId,context.applicationVersion);if(actionId!==app+'.read')throw Error('This browser probe is read-only');const content=app==='doc'?'# Installed document version '+context.applicationVersion+'\\nRead-only protocol fixture.':JSON.stringify({type:'excalidraw',version:2,source:'version-'+context.applicationVersion,elements:[],appState:{},files:{}});return{protocolVersion:'1.0',providerInstanceId:context.providerInstanceId,revision:1,data:{content,revision:'a'.repeat(64),meta:{id:context.providerInstanceId,name:app+' version '+context.applicationVersion,path:app+'.json',size:content.length,updatedAt:'2026-10-23T00:00:00Z'}}};}});
+const Doc=createDocEditorApp({providerForContext:context=>{record('doc','factory',context.applicationVersion);return provider('doc');}});
+const Sketch=createSketchEditorApp({providerForContext:context=>{record('sketch','factory',context.applicationVersion);return provider('sketch');}});
+const Canvas=createCanvasApp({baseUrl:location.origin+'/canvas',uiHost:{},getCredential:context=>{record('canvas','credential',context.applicationVersion);return'Bearer synthetic-probe-only';},resourceUrl:url=>url,fetcher:async(_url,init)=>{const b=JSON.parse(init.body);record('canvas',b.actionId,b.applicationVersion);return new Response('{}',{status:503});}});
+function App(){const contexts=React.useRef(Object.fromEntries(['doc','sketch','canvas'].map(app=>[app,base(app)])));const[,render]=React.useState(0);const[logs,setLogs]=React.useState([]);React.useEffect(()=>{const i=setInterval(()=>setLogs([...events]),250);return()=>clearInterval(i);},[]);const apply=mode=>{for(const app of Object.keys(contexts.current)){if(mode==='equivalent')contexts.current[app]=structuredClone(contexts.current[app]);else if(mode==='immutable')contexts.current[app]={...contexts.current[app],applicationVersion:'2.0'};else contexts.current[app].applicationVersion='3.0';}render(n=>n+1);};return React.createElement(React.Fragment,null,React.createElement('header',null,React.createElement('h1',null,'Installed MA version scope probe'),React.createElement('p',null,'Canvas ${versions.canvas} / Doc ${versions.doc} / Sketch ${versions.sketch}. Protocol stubs only; no cloud/model/MA acceptance.'),React.createElement('button',{onClick:()=>apply('equivalent')},'Equivalent context'),React.createElement('button',{onClick:()=>apply('immutable')},'Version 2'),React.createElement('button',{onClick:()=>apply('mutable')},'Mutable version 3')),React.createElement('main',null,React.createElement('section',{className:'doc-surface-root'},React.createElement(Doc,{context:contexts.current.doc})),React.createElement('section',{className:'sketch-surface-root'},React.createElement(Sketch,{context:contexts.current.sketch}))),React.createElement('aside',null,React.createElement('strong',null,'Canvas: expected unavailable after authenticated read-only preflight stub 503'),React.createElement(Canvas,{context:contexts.current.canvas})),React.createElement('pre',{'aria-label':'Observed version events'},JSON.stringify(logs,null,2)));}createRoot(document.getElementById('root')).render(React.createElement(App));`);
+await writeFile(join(consumer,'scope-probe.css'),'');
+const require=createRequire(join(consumer,'package.json'));
+const {createServer}=await import(pathToFileURL(require.resolve('vite')).href);
+const events:Array<{app:string;event:string;version:string}>=[];
+const server=await createServer({root:consumer,configFile:false,server:{host:'127.0.0.1',port:0},plugins:[{name:'probe-evidence',configureServer(vite:any){vite.middlewares.use('/__evidence',async(req:any,res:any)=>{if(req.method==='GET'){res.setHeader('content-type','application/json');res.end(JSON.stringify({profile:'installed-version-scope-protocol-stubs',versions,events,realCloud:false,formalMa:false}));return;}if(req.method!=='POST'){res.statusCode=405;res.end();return;}let body='';for await(const c of req){body+=c;if(body.length>1024){res.statusCode=413;res.end();return;}}try{const e=JSON.parse(body);if(!['canvas','doc','sketch'].includes(e.app)||typeof e.event!=='string'||typeof e.version!=='string')throw Error();events.push(e);res.statusCode=204;res.end();}catch{res.statusCode=400;res.end();}});}}]});
+await server.listen();const url=server.resolvedUrls.local[0];
+await writeFile(values.output,JSON.stringify({profile:'installed-version-scope-protocol-stubs',versions,url,pid:process.pid,formalMa:false,realCloud:false},null,2));
+console.log(JSON.stringify({url,pid:process.pid}));
+for(const signal of ['SIGTERM','SIGINT']as const)process.once(signal,()=>{void server.close().then(()=>writeFile(values.output!+'.events.json',JSON.stringify(events,null,2)));});

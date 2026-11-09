@@ -1,0 +1,56 @@
+NEXT Canvas web ready: http://127.0.0.1:51870
+
+URLS {"canvas":"http://127.0.0.1:51877","doc":"http://127.0.0.1:51878","web":"http://127.0.0.1:51870","docUrl":"http://127.0.0.1:51878/?doc=合成正文-23f3aa95","root":"/var/folders/h4/2lhtpkgj43s9d8gfg3x6knc00000gn/T/canvas-doc-browser-data-R5iWeT"}
+BROWSER 155.0.8059.85
+CANVAS BUTTONS [
+  '',         '拆分镜', '生成图片',
+  '文生视频', '',       '',
+  '',         '',       '',
+  '',         '',       '',
+  '',         '',       '',
+  '',         '',       '',
+  '',         '',       '100%',
+  '',         '',       '',
+  '',         '',       ''
+]
+PASS open existing canonical doc without overwrite
+PASS standalone UI save propagates to embedded live editor
+PASS embedded UI save propagates to standalone live editor
+PASS both entry reloads retain shared body after appTabs server fix
+PASS overlapping UI conflict retains local draft and exposes remote body
+PASS explicit UI resolution persists selected draft to both entries
+FAIL asset copy gets new identity and browser editing remains isolated AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ '# 合成正文\n\nCANVAS EMBEDDED UI edit first middle last\n'
+- '# 合成正文\n\nCANVAS LOCAL CONFLICT DRAFT\n'
+
+    at <anonymous> (/private/tmp/canvas-doc-browser-KXH8y7/browser.ts:81:115)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async check (/private/tmp/canvas-doc-browser-KXH8y7/browser.ts:22:61)
+    at async <anonymous> (/private/tmp/canvas-doc-browser-KXH8y7/browser.ts:77:2) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: '# 合成正文\n\nCANVAS EMBEDDED UI edit first middle last\n',
+  expected: '# 合成正文\n\nCANVAS LOCAL CONFLICT DRAFT\n',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ '# 合成正文\n\nCANVAS EMBEDDED UI edit first middle last\n'
+- '# 合成正文\n\nCANVAS LOCAL CONFLICT DRAFT\n'
+
+    at <anonymous> (/private/tmp/canvas-doc-browser-KXH8y7/browser.ts:81:115)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async check (/private/tmp/canvas-doc-browser-KXH8y7/browser.ts:22:61)
+    at async <anonymous> (/private/tmp/canvas-doc-browser-KXH8y7/browser.ts:77:2) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: '# 合成正文\n\nCANVAS EMBEDDED UI edit first middle last\n',
+  expected: '# 合成正文\n\nCANVAS LOCAL CONFLICT DRAFT\n',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+CLEANED temporary listeners and /var/folders/h4/2lhtpkgj43s9d8gfg3x6knc00000gn/T/canvas-doc-browser-data-R5iWeT

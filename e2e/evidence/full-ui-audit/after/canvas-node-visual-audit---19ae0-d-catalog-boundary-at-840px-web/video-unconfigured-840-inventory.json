@@ -1,0 +1,25 @@
+{
+  "viewport": {
+    "width": 840,
+    "height": 960
+  },
+  "zoom": "50%",
+  "nodes": [
+    {
+      "id": "basic-video-mv14vrka-s1gv",
+      "classes": "react-flow__node react-flow__node-basicCanvas nopan selected selectable draggable",
+      "selected": true,
+      "rect": {
+        "x": 54,
+        "y": 181,
+        "width": 320,
+        "height": 180,
+        "top": 181,
+        "right": 374,
+        "bottom": 361,
+        "left": 54
+      }
+    }
+  ],
+  "overlays": []
+}

@@ -1,0 +1,251 @@
+/* Execution/decision surfaces. Global descendants are the existing editor and
+   host-rendered picker/preview contracts; every override is locally scoped. */
+:global(.bezier-workbench) .node:global(.workflow-editor-node) {
+  padding: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 16px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+  transform: none;
+  transition: border-color 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+:global(.bezier-workbench) .node:global(.is-selected) { border-color: var(--border-strong); }
+:global(.bezier-workbench) .node:global(.is-kind-branch) { width: 420px; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-card-config),
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-stage-card-inner) {
+  padding: 18px 18px 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-card-header) {
+  min-height: 28px;
+  padding: 0;
+  gap: 8px;
+  border: 0;
+}
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-card-title) { flex: 1; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-card-title) > svg { flex: none; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-stage-card-title) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  margin: 0;
+  padding-right: 24px;
+}
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-card-header) strong,
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-stage-card-title) { color: var(--text-primary); font-size: 15px; font-weight: 600; letter-spacing: normal; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-card-header) small,
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-stage-card-title) small { padding: 0; background: transparent; color: var(--text-tertiary); font-size: 11px; font-weight: 400; white-space: nowrap; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-node-remove) { top: 19px; right: 14px; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-prompt-entry) { margin: 14px 0 0; min-height: 30px; padding: 0; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-prompt-heading) > span,
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-resource-section) > header > span { color: var(--text-secondary); font-size: 12px; font-weight: 500; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-prompt-heading) > button,
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-review-preview-toggle) {
+  height: 26px; min-height: 26px; padding: 0 8px; border: 0; border-radius: 6px;
+  background: transparent; color: var(--text-secondary); font-size: 11px; font-weight: 500;
+}
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-resource-section) { margin-top: 14px; padding-top: 14px; border-color: var(--border-subtle); }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-resource-section.is-knowledge) { margin-top: 16px; padding-top: 0; border-top: 0; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-resource-section) > header { margin-bottom: 9px; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-resource-section) small,
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-resource-section) > p { color: var(--text-tertiary); font-size: 11px; line-height: 1.6; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-skill-picker .home-hero__capability-trigger),
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-add-knowledge) {
+  width: 100%; height: 34px; min-height: 34px; justify-content: flex-start; gap: 7px;
+  padding: 0 10px; border: 1px solid var(--border-default); border-radius: 8px;
+  color: var(--text-secondary); background: var(--bg-surface); font-size: 12px; font-weight: 400;
+}
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-skill-picker .home-hero__capability-trigger .bezier-icon) { color: var(--text-secondary); }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-confirmation) {
+  margin-top: 14px; padding: 14px 0 0; border: 0; border-top: 1px solid var(--border-subtle);
+  border-radius: 0; background: transparent; box-shadow: none;
+}
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-confirmation-copy) { gap: 4px; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-confirmation-copy) strong { color: var(--text-primary); font-size: 12px; font-weight: 500; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-confirmation-copy) small { color: var(--text-tertiary); font-size: 11px; line-height: 1.6; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-switch) { width: 30px; height: 18px; background: var(--border-strong); }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-switch) > i { width: 14px; height: 14px; background: var(--bg-surface); box-shadow: var(--shadow-sm); }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-confirmation-toggle) > input:checked + span { background: var(--text-strong); }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-confirmation-toggle) > input:checked + span > i { transform: translateX(12px); }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-confirmation-toggle) > input:focus-visible + span { outline: 1px solid var(--text-secondary); outline-offset: 3px; box-shadow: none; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-confirmation-options) {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-top: 14px; padding-top: 0; border: 0;
+}
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-confirmation-options) > label { display: grid; grid-template-columns: 1fr; gap: 6px; margin: 0; color: var(--text-secondary); font-size: 11px; font-weight: 400; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-confirmation-actions) { color: var(--text-secondary); font-size: 11px; line-height: 1.6; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-confirmation-actions) label { color: inherit; font-size: inherit; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-skill-chips) button,
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-knowledge-chip) {
+  height: 28px; border-color: var(--border-subtle); border-radius: 6px; background: var(--bg-subtle); color: var(--text-secondary); font-size: 11px;
+}
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-skill-chips) svg { flex: none; }
+/* One caret with a reserved text gutter, independent of the host base-select CSS. */
+.selectField { position: relative; display: inline-flex; width: 100%; min-width: 0; }
+:global(.bezier-workbench) .selectField select:not([multiple]) {
+  width: 100%; min-width: 0; height: 34px; min-height: 34px; padding: 0 10px; padding-inline-end: 30px;
+  appearance: none; background-image: none; border: 1px solid var(--border-default); border-radius: 8px;
+  color: var(--text-primary); background-color: var(--bg-surface); font-size: 12px; font-weight: 400;
+}
+.selectField select::picker-icon { display: none; }
+.selectField > svg { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-tertiary); }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) input:not([type='checkbox']),
+:global(.bezier-workbench) .node:global(.workflow-editor-node) textarea {
+  box-sizing: border-box; min-width: 0; border: 1px solid var(--border-default); border-radius: 8px;
+  color: var(--text-primary); background: var(--bg-surface); font-family: inherit; font-size: 12px; font-weight: 400; box-shadow: none;
+}
+:global(.bezier-workbench) .node:global(.workflow-editor-node) input:not([type='checkbox']) { height: 34px; padding: 0 10px; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-branch-card-routes) { gap: 14px; margin-top: 14px; }
+.routeLabel { display: block; margin-bottom: 7px; color: var(--text-secondary); font-size: 11px; line-height: 20px; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-branch-card-route) textarea { display: block; height: 72px; padding: 10px; line-height: 1.65; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-branch-route-remove) { top: -2px; right: -2px; width: 24px; min-width: 24px; height: 24px; min-height: 24px; opacity: 1; color: var(--text-tertiary); }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-branch-route-remove):disabled { display: grid; opacity: .3; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-branch-card-route .react-flow__handle-right) { right: -19px; top: calc(50% + 13px); }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-branch-add-inline) {
+  display: flex; align-items: center; justify-content: center; gap: 6px; height: 32px; min-height: 32px;
+  border: 0; border-radius: 8px; background: var(--bg-subtle); color: var(--text-secondary); font-size: 12px; font-weight: 500;
+}
+/* Menus stay beside their output port; no hover transforms to disturb wires. */
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-branch-next-menu),
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-node-next-menu) { width: 148px; padding: 6px; border-color: var(--border-default); border-radius: 12px; background: var(--bg-surface); box-shadow: var(--shadow-md); }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-branch-next-menu) > button,
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-node-next-menu) > button { height: 34px; min-height: 34px; grid-template-columns: 18px minmax(0, 1fr); gap: 9px; color: var(--text-primary); }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-branch-next-menu) b,
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-node-next-menu) b { font-size: 12px; font-weight: 500; }
+/* Shared interactive states cover native controls as well as Button primitives. */
+:global(.bezier-workbench) .node:global(.workflow-editor-node) button { transition: background-color 140ms cubic-bezier(0.23, 1, 0.32, 1), color 140ms cubic-bezier(0.23, 1, 0.32, 1); }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) button:hover:not(:disabled),
+:global(.bezier-workbench) .node:global(.workflow-editor-node) button[aria-expanded='true'] { color: var(--text-primary); background: var(--bg-hover); transform: none; box-shadow: none; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) button:focus-visible,
+:global(.bezier-workbench) .node:global(.workflow-editor-node) input:not([type='checkbox']):focus-visible,
+:global(.bezier-workbench) .node:global(.workflow-editor-node) textarea:focus-visible,
+:global(.bezier-workbench) .selectField select:focus-visible { outline: 1px solid var(--border-strong); outline-offset: 2px; box-shadow: none; }
+/* Prompt panels use a single editor surface and scroll internally. */
+:global(.bezier-workbench) .promptPopover:global(.workflow-editor-inspector.is-open) {
+  width: 420px; padding: 0; border: 1px solid var(--border-default); border-radius: 14px;
+  background: var(--bg-surface); box-shadow: var(--shadow-md); backdrop-filter: none; overflow: hidden;
+}
+:global(.bezier-workbench) .promptPopover :global(.workflow-agent-prompt-editor) { display: flex; flex-direction: column; gap: 0; margin: 0; }
+:global(.bezier-workbench) .promptPopover :global(.workflow-md-editor-head) { min-height: 48px; margin: 0; padding: 0 14px; border-bottom: 1px solid var(--border-subtle); }
+:global(.bezier-workbench) .promptPopover :global(.workflow-md-editor-head) > span { display: flex; align-items: center; gap: 8px; color: var(--text-primary); font-size: 13px; font-weight: 600; }
+:global(.bezier-workbench) .promptPopover :global(.workflow-agent-prompt-editor) textarea {
+  height: clamp(260px, 50vh, 440px); padding: 16px; border: 0; border-radius: 0; color: var(--text-primary);
+  background: var(--bg-surface); font-family: inherit; font-size: 12px; line-height: 1.8; overscroll-behavior: contain; scrollbar-color: var(--border-strong) transparent;
+}
+:global(.bezier-workbench) .promptPopover :global(.workflow-agent-prompt-editor) textarea:focus { outline: 0; box-shadow: inset 0 0 0 1px var(--border-subtle); }
+/* Knowledge picker renders in the canvas viewport beside the node. */
+:global(.bezier-workbench) .knowledgePopover:global(.workflow-agent-knowledge-popover) {
+  width: 360px; max-width: calc(100vw - 32px); max-height: calc(100vh - 64px); overflow: auto;
+  padding: 16px; border-color: var(--border-default); border-radius: 14px; background: var(--bg-surface); box-shadow: var(--shadow-md); overscroll-behavior: contain;
+}
+:global(.bezier-workbench) .knowledgePopover :global(.workflow-agent-knowledge-popover-header) strong { color: var(--text-primary); font-size: 13px; font-weight: 600; }
+:global(.bezier-workbench) .knowledgePopover :global(.workflow-agent-knowledge-popover-header) small { color: var(--text-tertiary); font-size: 11px; }
+:global(.bezier-workbench) .knowledgePopover :global(.workflow-agent-knowledge-popover-header) > button { background: transparent; color: var(--text-secondary); }
+:global(.bezier-workbench) .knowledgePopover :global(.workflow-knowledge-browser) { background: var(--bg-surface); border-color: var(--border-subtle); }
+:global(.bezier-workbench) .knowledgePopover :global(.workflow-knowledge-path) { height: 36px; background: var(--bg-subtle); }
+:global(.bezier-workbench) .knowledgePopover :global(.workflow-knowledge-path) > span { color: var(--text-secondary); font-size: 11px; font-weight: 400; }
+:global(.bezier-workbench) .knowledgePopover :global(.workflow-knowledge-path) button { display: grid; place-items: center; min-height: 24px; color: var(--text-secondary); }
+:global(.bezier-workbench) .knowledgePopover :global(.workflow-knowledge-tree) { min-height: 160px; max-height: 260px; overscroll-behavior: contain; scrollbar-color: var(--border-strong) transparent; }
+:global(.bezier-workbench) .knowledgePopover :global(.workflow-knowledge-file),
+:global(.bezier-workbench) .knowledgePopover :global(.workflow-knowledge-directory) { min-height: 34px; font-size: 12px; color: var(--text-primary); }
+:global(.bezier-workbench) .knowledgePopover :global(.workflow-knowledge-file):has(input:checked) { background: var(--bg-subtle); }
+:global(.bezier-workbench) .knowledgePopover :global(.workflow-knowledge-file) input { accent-color: var(--text-strong); }
+:global(.bezier-workbench) .knowledgePopover p { margin: 12px 0; font-size: 12px; line-height: 1.6; color: var(--text-tertiary); }
+:global(.bezier-workbench) .reviewPopover:global(.workflow-agent-review-preview) { width: 420px; max-width: calc(100vw - 32px); }
+:global(.bezier-workbench) .reviewPopover :global(.workflow-review-preview-shell) { max-height: calc(100vh - 64px); overflow: auto; overscroll-behavior: contain; border-color: var(--border-default); border-radius: 14px; background: var(--bg-surface); box-shadow: var(--shadow-md); }
+:global(.bezier-workbench) .reviewPopover :global(.workflow-review-preview-head) { position: sticky; top: 0; z-index: 1; height: 48px; padding: 0 50px 0 14px; border-color: var(--border-subtle); background: var(--bg-surface); }
+:global(.bezier-workbench) .reviewPopover :global(.workflow-review-preview-head) > strong { color: var(--text-primary); font-size: 13px; font-weight: 600; }
+:global(.bezier-workbench) .reviewPopover :global(.workflow-review-preview-tabs) { flex: 0 0 auto; gap: 3px; background: var(--bg-subtle); }
+:global(.bezier-workbench) .reviewPopover :global(.workflow-review-preview-tabs) button { height: 26px; min-height: 26px; color: var(--text-secondary); font-size: 11px; font-weight: 500; }
+:global(.bezier-workbench) .reviewPopover :global(.workflow-review-preview-tabs) button[aria-selected='true'] { color: var(--text-primary); background: var(--bg-surface); box-shadow: var(--shadow-sm); }
+:global(.bezier-workbench) .reviewPopover :global(.workflow-review-preview-body) { padding: 12px; background: var(--bg-surface); }
+:global(.bezier-workbench) .knowledgeDetail:global(.workflow-knowledge-detail-dialog) { border-radius: 16px; color: var(--text-primary); background: var(--bg-surface); box-shadow: var(--shadow-lg); }
+:global(.bezier-workbench) .knowledgeDetail > header { padding: 18px 20px; border-color: var(--border-subtle); }
+:global(.bezier-workbench) .knowledgeDetail > header h3 { color: var(--text-primary); font-size: 18px; font-weight: 600; }
+:global(.bezier-workbench) .knowledgeDetail > header small,
+:global(.bezier-workbench) .knowledgeDetail > header p { color: var(--text-tertiary); letter-spacing: normal; font-weight: 400; }
+:global(.bezier-workbench) .knowledgeDetail :global(.workflow-knowledge-detail-content) { padding: 20px; color: var(--text-primary); background: var(--bg-surface); overscroll-behavior: contain; }
+:global(.bezier-workbench) .knowledgeDetail :global(.workflow-knowledge-detail-actions) > div { background: var(--bg-subtle); }
+:global(.bezier-workbench) .knowledgeDetail :global(.workflow-knowledge-detail-actions) button { color: var(--text-secondary); }
+:global(.bezier-workbench) .knowledgeDetail :global(.workflow-knowledge-detail-actions) button[aria-pressed='true'] { color: var(--text-primary); background: var(--bg-surface); box-shadow: var(--shadow-sm); }
+:global(.bezier-workbench) .knowledgeDetail > footer { padding: 12px 20px; border-color: var(--border-subtle); color: var(--text-tertiary); background: var(--bg-surface); }
+:global(.bezier-workbench) :is(.knowledgePopover, .reviewPopover, .knowledgeDetail, .promptPopover) button:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-primary); transform: none; }
+:global(.bezier-workbench) :is(.knowledgePopover, .reviewPopover, .knowledgeDetail, .promptPopover) button:focus-visible { outline: 1px solid var(--border-strong); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { :global(.bezier-workbench) .node, :global(.bezier-workbench) .node:global(.workflow-editor-node) button { transition: none; } }
+/* Expanded confirmation uses the same surface; native checkboxes replace the
+   legacy pseudo-element check marks and remain keyboard accessible. */
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-confirmation.is-enabled),
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-confirmation.is-disabled) { background: transparent; box-shadow: none; border-color: var(--border-subtle); }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-confirmation-options) > :global(.workflow-agent-confirmation-selection) { grid-column: 1; grid-row: 2; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-confirmation-options) > :global(.workflow-agent-confirmation-continue-label) { grid-column: 2; grid-row: 2; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-confirmation-actions) { gap: 10px 16px; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-confirmation-actions) > label,
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-confirmation-actions) > label:has(input:checked) { height: auto; gap: 6px; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--text-secondary); }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-confirmation-actions) input { position: static; width: 13px; height: 13px; margin: 0; opacity: 1; overflow: visible; pointer-events: auto; accent-color: var(--text-strong); }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-confirmation-actions) input + span::before { content: none; display: none; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) :global(.workflow-agent-confirmation-actions) input:focus-visible { outline: 1px solid var(--border-strong); outline-offset: 2px; }
+
+/* Keep title editing and deletion on the same header baseline in both states. */
+:global(.bezier-workbench) .node:global(.workflow-editor-node) .titleButton {
+  display: inline-flex; justify-content: flex-start; min-width: 0; max-width: 100%;
+  height: 28px; min-height: 28px; margin-left: -4px; padding: 0 4px;
+  border: 0; border-radius: 5px; background: transparent; box-shadow: none;
+  color: var(--text-primary); font-size: 15px; font-weight: 600; line-height: 20px;
+}
+.titleButton > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) input.titleInput {
+  width: 100%; height: 28px; min-height: 28px; padding: 0 4px; margin-left: -4px;
+  font-size: 15px; font-weight: 600; line-height: 20px;
+}
+:global(.bezier-workbench) .node:global(.workflow-editor-node) .removeButton {
+  display: grid; place-items: center; flex: none; width: 28px; min-width: 28px;
+  height: 28px; min-height: 28px; padding: 0; border: 0; border-radius: 6px;
+  color: var(--text-tertiary); background: transparent; box-shadow: none;
+}
+
+.deliveryFields { display: grid; gap: 12px; margin-top: 20px; }
+.deliveryField { display: grid; grid-template-columns: 60px minmax(0, 1fr); align-items: center; gap: 16px; color: var(--text-secondary); font-size: 13px; }
+.deliveryField > span:first-child { white-space: nowrap; }
+.deliveryField > :last-child { min-width: 0; width: 100%; }
+.deliveryRequirements { display: grid; gap: 8px; color: var(--text-secondary); font-size: 13px; }
+:global(.bezier-workbench) .node .deliveryRequirements textarea { width: 100%; min-height: 76px; resize: vertical; padding: 10px 12px; border: 1px solid var(--border-default); border-radius: 8px; background: var(--bg-surface); font-size: 12px; line-height: 1.6; }
+.deliveryHint { margin: 16px 0 0; color: var(--text-muted); font-size: 12px; line-height: 1.6; }
+
+:global(.bezier-workbench) .node:global(.is-kind-delivery) { width: 460px; }
+.deliveryCard { display: flex; flex-direction: column; gap: 4px; }
+.deliveryFields .artifactPicker { justify-content: flex-start; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border-subtle); }
+.artifactIcon { display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 44px; border-radius: 12px; background: var(--bg-subtle); color: var(--text-primary); }
+.artifactPicker > div { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.artifactPicker small { font-size: 11px; color: var(--text-muted); }
+.outputContract { margin-top: 4px; padding: 16px 0; }
+.outputContract header { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--text-secondary); }
+.outputContract header small { font-size: 11px; color: var(--text-muted); }
+.outputTarget { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.outputTarget > div { display: grid; gap: 4px; min-width: 0; }
+.outputTarget strong { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.outputTarget span, .outputTarget small { font-size: 11px; color: var(--text-secondary); }
+
+.deliveryHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 28px; }
+.deliveryHeader :global(.workflow-stage-card-title) { padding-right: 0; }
+
+.outputTarget small { overflow-wrap: anywhere; line-height: 1.6; }
+
+.confirmationHeading { display: flex; align-items: center; gap: 8px; }
+.confirmationHeading > label { flex: 1; min-width: 0; }
+.confirmationActions { display: flex; gap: 2px; }
+.confirmationDisclosure { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 140ms cubic-bezier(0.23, 1, 0.32, 1), opacity 140ms cubic-bezier(0.23, 1, 0.32, 1); }
+.confirmationExpanded { grid-template-rows: 1fr; opacity: 1; transition-duration: 200ms; }
+.confirmationDisclosure > div { overflow: hidden; min-height: 0; }
+.confirmationFields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 14px 0 0; margin: 0; border: 0; min-width: 0; }
+.confirmationFields > label, .confirmationSelection { display: grid; gap: 7px; font-size: 12px; color: var(--text-secondary); }
+.confirmationOptions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 10px 16px; }
+.confirmationOptions label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+.confirmationOptions input { margin: 0; accent-color: var(--text-primary); }
+:global(.bezier-workbench) .reviewPopover .previewClose { position: absolute; z-index: 2; right: 10px; top: 10px; width: 28px; height: 28px; min-height: 28px; padding: 0; border-radius: 6px; background: var(--bg-surface); }
+@media (prefers-reduced-motion: reduce) { .confirmationDisclosure { transition: none; } }
+:global(.bezier-workbench) .node:global(.workflow-editor-node) .confirmationActions button { min-height: 28px; height: 28px; padding: 0 8px; font-size: 11px; font-weight: 500; white-space: nowrap; border-radius: 6px; background: transparent; }
+.cardNumber { flex: none; color: var(--text-tertiary); font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }

@@ -1,0 +1,41 @@
+{
+  "checks": [
+    "open existing canonical doc without overwrite",
+    "standalone UI save propagates to embedded live editor",
+    "embedded UI save propagates to standalone live editor",
+    "standalone reload preserves body while canvas stays mounted for stale-event regression",
+    "overlapping UI conflict retains local draft and exposes remote body",
+    "explicit UI resolution persists selected draft to both entries",
+    "asset copy gets new identity and browser editing remains isolated"
+  ],
+  "errors": [],
+  "responses": [
+    {
+      "page": "canvas",
+      "status": 409,
+      "url": "http://127.0.0.1:56190/api/apps/doc/instances/%E5%90%88%E6%88%90%E6%AD%A3%E6%96%87-3a7b3575/actions/doc.write",
+      "method": "POST",
+      "headers": {
+        "accept": "*/*",
+        "accept-language": "zh-CN",
+        "origin": "http://127.0.0.1:56182",
+        "referer": "http://127.0.0.1:56182/",
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+        "content-type": "application/json",
+        "sec-ch-ua": "\"Google Chrome\";v=\"155\", \"Chromium\";v=\"155\", \"Not(A:Brand\";v=\"24\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "\"macOS\"",
+        "x-team-id": "local",
+        "x-user-id": "local"
+      },
+      "requestBody": "{\"input\":{\"content\":\"# 合成正文\\n\\nCANVAS LOCAL CONFLICT DRAFT\\n\",\"expectedRevision\":\"ff3e5b795589ace4de0f3e1b23fa888e409dbe558aa49d5724c1b2f3e67df0eb\",\"baseContent\":\"# 合成正文\\n\\nCANVAS EMBEDDED UI edit first middle last\\n\"}}",
+      "body": "{\"error\":{\"code\":\"DOC_CONFLICT\",\"message\":\"Concurrent edits overlap or exceed safe merge limits; retain draft and reconcile\",\"retryable\":false,\"details\":{\"currentContent\":\"# 合成正文\\n\\nDOC REMOTE CONFLICT DRAFT\\n\",\"currentRevision\":\"10f56c1551b624125a2bf7c49461a47056a61295052fc6947338288bdd5ef7d2\",\"baseContent\":\"# 合成正文\\n\\nCANVAS EMBEDDED UI edit first middle last\\n\",\"draftContent\":\"# 合成正文\\n\\nCANVAS LOCAL CONFLICT DRAFT\\n\",\"expectedRevision\":\"ff3e5b795589ace4de0f3e1b23fa888e409dbe558aa49d5724c1b2f3e67df0eb\"}},\"requestId\":\"req_38090af0-ebcf-46ad-af49-f91c3f06425b\"}"
+    }
+  ],
+  "failures": [
+    {
+      "name": "canvas inline body edits and card duplication use separate document copies",
+      "error": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: \"# CANVAS COPY ONLY EDIT\"\nReceived: \"# CANVAS INLINE BODY EDIT\"\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate\n    at captureRawStack (/Users/zhuzhiheng/Desktop/canvas-workspace/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/lib/coreBundle.js:3130:17)\n    at callMatcherAsStep (/Users/zhuzhiheng/Desktop/canvas-workspace/node_modules/.pnpm/playwright@1.60.0/node_modules/playwright/lib/matchers/expect.js:12873:57)\n    at Object.toBe (/Users/zhuzhiheng/Desktop/canvas-workspace/node_modules/.pnpm/playwright@1.60.0/node_modules/playwright/lib/matchers/expect.js:12863:23)\n    at <anonymous> (/private/tmp/canvas-doc-browser-KXH8y7/browser.ts:91:104)\n    at async check (/private/tmp/canvas-doc-browser-KXH8y7/browser.ts:22:61)\n    at async <anonymous> (/private/tmp/canvas-doc-browser-KXH8y7/browser.ts:84:2)"
+    }
+  ]
+}

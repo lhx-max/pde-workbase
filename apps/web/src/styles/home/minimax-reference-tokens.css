@@ -1,0 +1,82 @@
+/* MiniMax Design 3.0.2 home reference measurements.
+   These are semantic DA tokens derived from the installed renderer's
+   production CSS and component geometry; no MiniMax selectors or assets are
+   imported into the application. */
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('https://cdn.jsdelivr.net/fontsource/fonts/outfit:vf@5.3.0/latin-wght-normal.woff2') format('woff2-variations');
+}
+
+/* MiniMax's renderer declares this exact Latin Inter Variable face for the
+   home sidebar. Chinese text continues through the native PingFang fallback. */
+@font-face {
+  font-family: 'Inter Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('https://cdn.hailuoai.com/hailuo-video-web/public_assets/0a4ecfb4-4d60-4fa6-9f57-a596f4560e49.woff2') format('woff2-variations');
+  unicode-range: U+??, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  --home-ref-content-surface: #fafafa;
+  --home-ref-sidebar-surface: #efeff2;
+  --home-ref-card-surface: #fff;
+  --home-ref-tray-surface: #f0f0f0;
+  --home-ref-foreground: #000;
+  --home-ref-muted-foreground: rgba(0, 0, 0, 0.5);
+  --home-ref-border: rgba(0, 0, 0, 0.08);
+  --home-ref-border-strong: rgba(0, 0, 0, 0.14);
+  /* The MiniMax rail is 264px plus an 8px visual gutter before its rounded
+     content canvas. DA's shell has no separate gutter, so the track absorbs
+     those 8px while the inner icon/text axes stay independently fixed. */
+  --home-ref-sidebar-width: 272px;
+  --home-ref-sidebar-rail-width: 64px;
+  --home-ref-sidebar-preview-delay: 60ms;
+  --home-ref-sidebar-preview-duration: 160ms;
+  --home-ref-sidebar-preview-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --home-ref-sidebar-preview-edge-hit: 8px;
+  --home-ref-sidebar-menu-close-delay: 120ms;
+  --home-ref-sidebar-font: 'Inter Variable', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --home-ref-sidebar-leading-inset: 21px;
+  --home-ref-sidebar-icon-axis: 32px;
+  --home-ref-sidebar-brand-row-height: 40px;
+  --home-ref-sidebar-brand-mark-size: 22px;
+  --home-ref-sidebar-nav-row-height: 36px;
+  --home-ref-sidebar-nav-pill-height: 32px;
+  --home-ref-sidebar-nav-pill-left: 16px;
+  /* The renderer's pill stops before the visible panel edge. DA's floating
+     panel adds its own border/shadow inset, so preserve the same perceived
+     gutter by pulling the hover fill another 8px inward. */
+  --home-ref-sidebar-nav-pill-right: 10px;
+  --home-ref-sidebar-nav-radius: 9.6px;
+  --home-ref-sidebar-primary-text: rgba(0, 0, 0, 0.7);
+  --home-ref-sidebar-section-text: rgba(0, 0, 0, 0.5);
+  --home-ref-sidebar-nav-active: var(--bg-subtle);
+  --home-ref-primary-stack-width: 793px;
+  --home-ref-input-height: 150px;
+  --home-ref-input-radius: 24px;
+  --home-ref-input-border-width: 0.5px;
+  --home-ref-input-shadow: 0 10px 24px -20px rgba(17, 17, 19, 0.16),
+    0 1px 4px -3px rgba(17, 17, 19, 0.08);
+  --home-ref-project-tray-height: 46px;
+  --home-ref-grid-size: 20px;
+  --home-ref-grid-dot: color-mix(in srgb, var(--home-ref-foreground) 12%, transparent);
+  --home-ref-heading-font: 'Outfit', 'Albert Sans', sans-serif;
+  --home-ref-title-size: 40px;
+  --home-ref-title-line-height: 40px;
+  --home-ref-subtitle-size: 16px;
+  --home-ref-subtitle-line-height: 24px;
+  /* DA's title lockup is shorter than MiniMax's SVG wordmark row. Five extra
+     pixels preserve the source's measured title-to-composer baseline. */
+  --home-ref-content-gap: 29px;
+  --home-ref-title-block-gap: 12px;
+  --home-ref-input-to-showcase-gap: 38px;
+  --home-ref-showcase-gap: 8px;
+  --home-ref-showcase-radius: 12px;
+}

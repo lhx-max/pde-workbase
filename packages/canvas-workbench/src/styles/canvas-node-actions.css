@@ -1,0 +1,109 @@
+/* Shared skin only; placement and visibility belong to each toolbar owner. */
+.canvas-workbench .canvas-action-surface {
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 999px;
+  background: var(--bg-panel, white);
+  color: var(--text-secondary, #616161);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 8%), inset 0 1px 0 rgb(255 255 255 / 35%);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+/* Node-level portal: one anchor across every card shell. */
+.canvas-workbench .canvas-node-actions {
+  --node-actions-height: 32px;
+  --node-actions-gap: 8px;
+  position: absolute;
+  right: 0;
+  top: calc(var(--node-actions-frame-top, 0px) - var(--node-actions-height) - var(--node-actions-gap));
+  z-index: 20;
+  box-sizing: border-box;
+  height: var(--node-actions-height);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(2px);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+/* Content-state images keep their separate editing toolbar above the card. */
+.canvas-workbench .canvas-node-actions[data-placement='inside'] {
+  top: 8px;
+  right: 8px;
+}
+.canvas-workbench .canvas-node-actions[data-placement='inside']::after { display: none; }
+/* Text formatting occupies the top edge; keep object actions beside the card. */
+.canvas-workbench .react-flow__node:has(.basic-text-floating-toolbar-host) > .canvas-node-actions {
+  top: 0;
+  right: auto;
+  left: calc(100% + var(--node-actions-gap));
+}
+.canvas-workbench .react-flow__node:has(.basic-text-floating-toolbar-host) > .canvas-node-actions::after {
+  top: 0;
+  right: 100%;
+  left: auto;
+  width: var(--node-actions-gap);
+  height: 100%;
+}
+/* Keep the gap traversable without dismissing the capsule. */
+.canvas-workbench .canvas-node-actions::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: var(--node-actions-gap);
+}
+.canvas-workbench .react-flow__node:hover > .canvas-node-actions,
+.canvas-workbench .react-flow__node.selected > .canvas-node-actions,
+.canvas-workbench :is(.minimax-image-generator, .image-asset-node):hover .canvas-node-actions[data-placement='inside'],
+.canvas-workbench :is(.minimax-image-generator, .image-asset-node).is-selected .canvas-node-actions[data-placement='inside'],
+.canvas-workbench .canvas-node-actions:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+.canvas-workbench .canvas-node-actions button {
+  display: grid;
+  place-items: center;
+  min-width: 26px;
+  width: auto;
+  flex-shrink: 0;
+  height: 26px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  white-space: nowrap;
+  background: transparent;
+  color: inherit;
+  transition: background 120ms ease, color 120ms ease;
+}
+.canvas-workbench .canvas-node-actions button[aria-label] {
+  width: 26px;
+  padding: 0;
+}
+.canvas-workbench .canvas-node-actions button:hover:not(:disabled) {
+  background: var(--bg-hover, rgb(0 0 0 / 6%));
+  color: var(--text-strong, #202020);
+}
+.canvas-workbench .canvas-node-actions button:focus-visible { outline: 2px solid var(--text-muted, #888); outline-offset: -2px; }
+.canvas-workbench .canvas-node-actions button:disabled { opacity: .38; }
+.canvas-workbench .canvas-node-actions svg { width: 16px; height: 16px; }
+/* Movement prioritizes geometry: keep controls in place without backdrop work. */
+.canvas-workbench .xy-flow-host.is-interacting .canvas-action-surface {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  transition: none;
+}
+@media (hover: none) {
+  .canvas-workbench .canvas-node-actions { opacity: 1; pointer-events: auto; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .canvas-workbench .canvas-action-surface,
+  .canvas-workbench .canvas-action-surface button { transition: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .canvas-workbench .canvas-action-surface { background: var(--bg-panel, white); backdrop-filter: none; -webkit-backdrop-filter: none; }
+}

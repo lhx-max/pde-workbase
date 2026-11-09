@@ -1,0 +1,380 @@
+.bezier-workflow-result.process-result-card {
+  position: relative;
+  box-sizing: border-box;
+  cursor: default;
+  --r-sm: 6px;
+  --r-pill: 999px;
+  --kind: #262626;
+  --process-line: #eeeef1;
+  --process-soft: var(--bg-subtle, #f5f5f5);
+  /* 内层白卡的投影。两段：1px 贴边定轮廓，6/18px 拉开与灰托盘的层次。
+     只用一段大投影会显得卡片飘着，只用 1px 又看不出是两层。 */
+  --process-card-shadow: 0 1px 2px rgba(11, 11, 15, 0.03), 0 6px 18px rgba(11, 11, 15, 0.045);
+  /* 摘要改成完整折行后，440px 下长句会折到 4~5 行；放宽到 480px 换回 2~3 行，
+     整卡纵向反而更短。 */
+  width: 480px;
+  container-type: inline-size;
+  /* 结果展示区使用白色外壳；子卡继续通过描边与浅投影保持层级。 */
+  border: 0;
+  border-radius: 22px;
+  /* 连接点跨在子卡边框上时保持完整可见。 */
+  overflow: visible;
+  background: var(--bg-surface);
+  box-shadow: 0 1px 2px rgba(11, 11, 15, 0.04), 0 10px 30px rgba(11, 11, 15, 0.05);
+}
+.bezier-workflow-result.process-result-card:hover {
+  border-color: transparent;
+  box-shadow: 0 1px 2px rgba(11, 11, 15, 0.05), 0 14px 36px rgba(11, 11, 15, 0.07);
+}
+.bezier-workflow-result.process-result-card.has-reports { width: 760px; }
+.bezier-workflow-result.has-reports .process-result-item { padding: 18px 20px; }
+.bezier-workflow-result.has-reports .process-result-item-title { font-size: 17px; }
+/* 过程卡只负责展示与确认阶段结果，暂不暴露整卡级新增/连线入口。
+   保留 Handle 节点本身以维持既有 edge 几何，只隐藏卡片直属的左右加号；
+   候选条目自己的 workflow-result-item-handle 不受影响。 */
+.bezier-workflow-result.process-result-card > .node-handle {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+.bezier-workflow-result.process-result-card > .node-handle::after {
+  content: none;
+}
+/* 托盘内边距比常规节点小：里面每张白卡自己有 padding，两层叠加会显得空 */
+.bezier-workflow-result.process-result-card .node-inner { padding: 16px 12px 12px; }
+.bezier-workflow-result.process-result-card .node-drag-surface {
+  margin: -16px -12px 0;
+  padding: 16px 12px 0;
+}
+/* 标题：19px / 800，比常规节点的 21px / 650 更紧更重，跟右侧灰字轮次拉开重量差 */
+.bezier-workflow-result.process-result-card .node-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 0 4px;
+}
+.bezier-workflow-result.process-result-card .node-title-row h2 {
+  flex: none;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.bezier-workflow-result.process-result-card .node-title-tools { margin-left: auto; }
+/* 轮次信息：贴着标题走，做次要灰字，不再单独占一行 */
+.bezier-workflow-result .process-result-meta {
+  color: #8e8e96;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+/* 卡上不再出 node-kind 眉标（CREATIVE REVIEW 那枚胶囊），原先的配色覆盖已随之删除 */
+
+.bezier-workflow-result .process-result-rounds {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 22px;
+  margin: 0;
+  padding-right: 0;
+  overflow: visible;
+}
+.bezier-workflow-result .process-result-round {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.bezier-workflow-result .process-result-round + .process-result-round {
+  padding-top: 20px;
+  border-top: 1px solid var(--process-line);
+}
+/* 候选结果是可直接点击的独立选项卡，选中状态由整卡表达。 */
+.bezier-workflow-result .process-result-items {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.bezier-workflow-result .process-result-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  align-items: start;
+  gap: 0 12px;
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1px solid #e3e1dc;
+  border-radius: 12px;
+  background: var(--bg-surface);
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+.bezier-workflow-result .workflow-result-item-handle.react-flow__handle {
+  /* Zero-size geometry makes React Flow's right edge exactly the dot center.
+     Keep the anchor measurable even when its decorative dot is hidden. */
+  right: 0;
+  top: 50%;
+  width: 0;
+  min-width: 0;
+  height: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+  transition: none;
+  pointer-events: none;
+  z-index: 8;
+}
+.bezier-workflow-result .workflow-result-item-handle.react-flow__handle::after {
+  content: none;
+}
+/* The source dot is painted by CanvasReferenceEdge in the same SVG as its path. */
+.bezier-workflow-result .process-result-item.is-selectable {
+  grid-template-columns: minmax(0, 1fr);
+  cursor: pointer;
+}
+.bezier-workflow-result .process-result-item.is-selectable:hover {
+  border-color: #aaa79f;
+  transform: none;
+}
+.bezier-workflow-result .process-result-item.is-selectable:focus-visible {
+  outline: 0;
+  border-color: #77746e;
+  box-shadow: 0 0 0 3px rgba(35, 35, 32, .08);
+}
+.bezier-workflow-result .process-result-item.is-selectable[aria-disabled="true"] { cursor: default; transform: none; }
+.bezier-workflow-result .process-result-item-ordinal {
+  padding-top: 3px;
+  color: #8e8e96;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+  text-align: right;
+  user-select: none;
+}
+.bezier-workflow-result .process-result-item-main {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+/*
+ * 操作区：正文下方一行，左对齐。
+ *
+ * 左对齐而非右对齐——它跟着上方的标题和摘要走同一条左基线，视线不用横跳到行尾；
+ * 右对齐时不同长度的按钮会在右侧形成一条参差不齐的边。
+ */
+.bezier-workflow-result .process-result-item-decide {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+.bezier-workflow-result .process-result-item-content {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.bezier-workflow-result .process-result-item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 7px;
+  min-width: 0;
+}
+.bezier-workflow-result .process-result-item-title {
+  color: #0b0b0f;
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+/*
+ * 摘要完整折行，不截断。
+ *
+ * 试过 -webkit-line-clamp 压成 1~2 行，结果创意的关键信息（「他们的告白是夜里
+ * 留着的那碗饭」这类具体画面）正好被切在省略号后面，用户必须逐条点开才能比较，
+ * 反而更慢。宁可行高一点，也不让用户为了读内容去做交互。
+ */
+.bezier-workflow-result .process-result-item-summary {
+  margin: 0;
+  color: #8e8e96;
+  font-size: 12.5px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.bezier-workflow-result .process-result-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 7px;
+  border: 0;
+  border-radius: var(--r-sm);
+  color: var(--text-tertiary);
+  background: transparent;
+  font-size: 10.5px;
+  font-weight: 640;
+  transition: color 120ms ease, background 120ms ease;
+}
+.bezier-workflow-result .process-result-action:hover:not(:disabled) {
+  color: var(--text-strong);
+  background: var(--bg-hover);
+}
+.bezier-workflow-result .process-result-action.is-active {
+  color: var(--text-strong);
+  background: var(--bg-active);
+}
+/* 推进按钮：黑色小药丸，是每行唯一的实心元素，视线自然落在这里 */
+.bezier-workflow-result .process-result-action.is-primary {
+  margin-left: 0;
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  color: var(--text-inverse);
+  background: #0b0b0f;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 1;
+}
+.bezier-workflow-result .process-result-action.is-primary:hover:not(:disabled) {
+  color: var(--text-inverse);
+  background: #171717;
+}
+.bezier-workflow-result .process-result-action.is-secondary {
+  padding: 6px 14px;
+  border: 1px solid #d8d6d0;
+  border-radius: var(--r-pill);
+  color: #4f4d48;
+  background: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.bezier-workflow-result .process-result-action.is-secondary:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  color: #0b0b0f;
+  background: var(--bg-subtle, #f5f5f5);
+}
+/*
+ * 灰药丸：跟 .is-primary 同尺寸、同圆角，只换配色。
+ *
+ * 给多选的「未选入」态用。尺寸必须跟黑药丸完全一致，否则勾掉一条时按钮会变大小，
+ * 整行跟着抖一下；也不能退回默认的透明小字按钮——那样多选阶段的行右侧看起来
+ * 就跟另外两个阶段不是一套东西了。
+ */
+.bezier-workflow-result .process-result-action.is-quiet-pill {
+  margin-left: 0;
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  color: #8e8e96;
+  background: #ededf0;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 1;
+}
+.bezier-workflow-result .process-result-action.is-quiet-pill:hover:not(:disabled) {
+  color: #0b0b0f;
+  background: #e4e4e8;
+}
+.bezier-workflow-result .process-result-action:disabled { cursor: wait; opacity: 0.48; }
+.bezier-workflow-result .process-result-action svg { width: 12px; height: 12px; }
+
+
+/* 单项徽标：话题的赛道之类的短标签，跟在标题下面一行 */
+.bezier-workflow-result .process-result-item-badge {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.bezier-workflow-result .process-result-item.is-selected {
+  border-color: #292824;
+  background: var(--bg-subtle, #f5f5f5);
+  box-shadow: inset 0 0 0 1px #292824;
+}
+.bezier-workflow-result .workflow-stage-value,
+.bezier-workflow-result .workflow-stage-document {
+  margin: 0;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font: inherit;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.bezier-workflow-result .workflow-stage-feedback {
+  display: grid;
+  gap: 6px;
+  margin-top: 15px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+.bezier-workflow-result .workflow-stage-feedback textarea {
+  min-height: 76px;
+  max-height: 124px;
+  resize: none;
+  padding: 10px 12px;
+  border: 1px solid var(--process-line);
+  border-radius: 10px;
+  background: var(--bg-surface);
+  color: var(--text-strong);
+  font: inherit;
+}
+.bezier-workflow-result .workflow-stage-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(224, 222, 216, .9);
+}
+/* 单项编辑态：把只读正文换成同宽的字段编辑框，沿用反馈框的外观，不引入新视觉 */
+.bezier-workflow-result .workflow-stage-edit {
+  display: grid;
+  gap: 8px;
+}
+.bezier-workflow-result .workflow-stage-edit label {
+  display: grid;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+.bezier-workflow-result .workflow-stage-edit textarea {
+  min-height: 48px;
+  resize: vertical;
+  padding: 8px 10px;
+  border: 1px solid var(--process-line);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--text-strong);
+  font: inherit;
+  font-weight: 400;
+}
+.bezier-workflow-result .workflow-stage-fields {
+  display: grid;
+  gap: 5px;
+  margin: 8px 0 0;
+}
+.bezier-workflow-result .workflow-stage-fields > div {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 8px;
+}
+.bezier-workflow-result .workflow-stage-fields dt,
+.bezier-workflow-result .workflow-stage-fields dd {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.55;
+}
+.bezier-workflow-result .workflow-stage-fields dt { color: var(--text-tertiary); }
+.bezier-workflow-result .workflow-stage-fields dd { color: var(--text-secondary); }

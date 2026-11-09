@@ -1,0 +1,450 @@
+/* ── Rail topped out to the window edge ───────────────────────────────────
+   `shell.css` now spans `.workspace-shell__body` across BOTH shell rows on the
+   entry route, so the rail's column reaches y=0 and the tab chrome only covers
+   column 2. Two consequences to absorb here:
+
+   1. the rail panel needs its own top inset (it no longer inherits the 44px
+      chrome row as breathing room), and on macOS desktop that inset must clear
+      the traffic lights, which now sit over the rail's brand header;
+   2. `.entry-main` — the rail's sibling in column 2 — must be pushed down by
+      the chrome height, otherwise its content renders underneath the tabs. */
+.entry-shell--no-header {
+  /* Windowed macOS adds a 40px traffic-light drag strip above the panel. */
+  --entry-rail-top-inset: 10px;
+  /* Must equal the shell's tab row. `viewer/routines.css` raises the audited
+     workspace shell to 52px (10 + 32px tab + 10), which is what actually
+     renders — keep the two in lockstep. */
+  --entry-chrome-height: 0px;
+}
+.entry-shell--no-header .entry-nav-rail__panel {
+  margin-top: 0;
+}
+/* All entry routes share an edge-to-edge content surface. Page-internal
+   padding remains owned by each view, not by an outer window frame. */
+.entry-shell--no-header .entry-main {
+  margin-top: 0;
+}
+.entry-shell--no-header .entry-main:has(.entry-main__view-home) {
+  margin-top: 0;
+  scrollbar-gutter: auto;
+}
+
+/* With no tab/title bar, keep the window's narrow top edge draggable even
+   when the rail is collapsed. This fixed, transparent band does not scroll
+   with the canvas; the rail (z=130) and modal layers retain their controls. */
+html:not(.is-window-fullscreen)
+  .workspace-shell--desktop[data-host-platform='darwin']
+  .entry-shell--no-header::after {
+  content: '';
+  position: fixed;
+  inset: 0 0 auto;
+  height: 12px;
+  z-index: 120;
+  pointer-events: auto;
+  user-select: none;
+  -webkit-app-region: drag;
+}
+
+/* Project routes use the same flush outer surface as entry pages. The
+   runtime owns its internal tabs and pane dividers, without an inset frame. */
+.project-workbench-entry {
+  grid-template-rows: minmax(0, 1fr);
+  height: 100%;
+  overflow: hidden;
+}
+.project-workbench-main {
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  align-self: stretch;
+  margin-top: 0;
+  padding: 0;
+  overflow: hidden;
+  background: transparent;
+}
+.project-workbench-main > .app {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  background: transparent;
+}
+.project-workbench-main > .app > .split {
+  border: 0;
+  border-radius: 0;
+  background: var(--bg);
+}
+.project-workbench-main .split-chat-slot {
+  padding: 0;
+  background: var(--bg);
+}
+.project-workbench-main .split-chat-slot > .pane {
+  border-radius: 0;
+  background: var(--bg);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+/* Beat the generic workspace card/focus rules in viewer/routines.css. */
+.project-workbench-main > .app > .split > .workspace {
+  margin: 0;
+  border-radius: 0;
+}
+.project-workbench-main .split-resize-handle {
+  width: 0;
+  min-width: 0;
+}
+.project-workbench-main .split-resize-handle::after {
+  display: block;
+}
+/* macOS desktop: traffic lights live at y≈20..32, x≈12..64 (hiddenInset).
+   The rail's `__traffic` strip is a window-drag region that clears them;
+   the frosted panel starts below. Collapsed strip widens to 78px so the
+   lights stay inside the rail column instead of overlapping the first tab.
+   Fullscreen hides the lights, so the spacer collapses. */
+.workspace-shell--desktop[data-host-platform='darwin'] .entry-shell--no-header {
+  --entry-rail-top-inset: 10px;
+  --entry-rail-traffic-height: 40px;
+  --entry-rail-strip: var(--home-ref-sidebar-rail-width, 64px);
+}
+.workspace-shell--desktop[data-host-platform='darwin']
+  .entry-nav-rail__brand-collapse {
+  top: calc(4px - var(--entry-rail-traffic-height, 40px));
+}
+html.is-window-fullscreen
+  .workspace-shell--desktop[data-host-platform='darwin']
+  .entry-shell--no-header {
+  --entry-rail-traffic-height: 0px;
+  --entry-rail-strip: var(--home-ref-sidebar-rail-width, 64px);
+}
+
+@keyframes entry-identity-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+/* Narrow windows return to the flush single-column shell (the rail track is
+   zeroed), so the tab bar spans the full width again and the main column must
+   NOT double-count the chrome row. */
+@media (max-width: 1080px) {
+  .entry-shell--no-header .entry-main,
+  .project-workbench-main {
+    height: auto;
+    margin-top: 0;
+  }
+}
+
+/* Center scroll column */
+.entry-main--scroll {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  overflow-y: auto;
+  /* Used by descendants (e.g. the plugins-home Scenario row) to
+     pin themselves directly below the sticky topbar. Mirrors the
+     topbar's vertical footprint (12px top + 32px chip). */
+  --entry-topbar-h: 44px;
+  /* Always reserve the scrollbar's width so switching between views/tabs with
+     different content heights (e.g. Community categories) can't toggle the
+     scrollbar and shift the centered content sideways — that read as a jitter. */
+  scrollbar-gutter: stable;
+  border: 0;
+  border-radius: 0;
+  background-color: var(--home-ref-content-surface, rgba(255, 255, 255, 0.94));
+  background-image: radial-gradient(circle, var(--home-ref-grid-dot, rgba(28, 28, 28, 0.105)) 1px, transparent 1px);
+  background-size: var(--home-ref-grid-size, 20px) var(--home-ref-grid-size, 20px);
+}
+
+/* Home is a content gallery, not a canvas. Keep graph/grid treatments in the
+   workspaces that use them, while presenting the landing surface as clean
+   white like the MiniMax reference. */
+.entry-main--scroll:has(.home-view) {
+  background-image: none;
+}
+
+/* The global thumb styling otherwise keeps the OS's full-width scrollbar.
+   Scope the narrow rail to Home; don't change embedded content or editors. */
+.entry-main--scroll:has(.home-view)::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  .entry-main--scroll:has(.home-view) {
+    scrollbar-width: thin;
+  }
+}
+
+.entry-main--tasks,
+.entry-main--tasks .entry-main__inner {
+  background-color: var(--marketplace-ground, var(--home-ref-content-surface, var(--bg)));
+  background-image: none;
+}
+
+.entry-main--scroll.entry-main--asset-library {
+  overflow-x: clip;
+  scrollbar-color: rgb(0 0 0 / 22%) transparent;
+  background-color: var(--marketplace-ground, #fafafa);
+  background-image: none;
+}
+
+.entry-main--scroll.entry-main--asset-library::-webkit-scrollbar-track,
+.entry-main--scroll.entry-main--asset-library::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.entry-main--scroll.entry-main--asset-library::-webkit-scrollbar {
+  background: transparent;
+}
+
+.entry-main--scroll.entry-main--workflow-editor {
+  height: 100%;
+  overflow: hidden;
+  scrollbar-gutter: auto;
+  background-color: var(--marketplace-ground, #fafafa);
+  background-image: none;
+}
+
+.entry-main--workflow-editor::before {
+  display: none;
+}
+
+/* Frosted top edge: content scrolling up toward the (transparent) tab strip
+   melts into a progressive blur instead of hard-clipping at the row
+   boundary. The material token degrades it away under reduced transparency /
+   no backdrop-filter.
+   Absolute, not a sticky band with a negative margin: that pulled the first
+   32px of content above the scroll port, which only looked right while the
+   entry topbar still sat above it. With the topbar gone (#5517) it clipped
+   every section's title and toolbar row. */
+.entry-main--scroll::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: block;
+  height: 32px;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, #000 30%, transparent);
+  mask-image: linear-gradient(to bottom, #000 30%, transparent);
+  /* Blur only while something is actually scrolled under the band. Resting
+     content starts at 12px, so an unconditional backdrop-filter smudged every
+     page's h2 into a dirty dark block (acceptance #28). `is-scrolled` comes
+     from EntryShell's scroll listener. */
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  transition: backdrop-filter 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.entry-main--scroll.is-scrolled::before {
+  -webkit-backdrop-filter: var(--material-ultrathin-backdrop, none);
+  backdrop-filter: var(--material-ultrathin-backdrop, none);
+}
+.entry-main__inner {
+  width: 100%;
+  /* Wider cap + tighter side padding so the content hugs closer to the rail
+     instead of leaving a large centered left margin on wide screens. */
+  max-width: 1600px;
+  margin: 0 auto;
+  /* Keep the home and wide sub-views on one horizontal gutter so switching
+     between collections does not shift the content column. */
+  padding: 28px 48px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  /* `min-height`, not `height`: a view taller than the scroll port (most of
+     them) must still grow past this and scroll exactly as before. This only
+     matters for a view that's SHORTER than the port — see
+     `.entry-main__view-home` below for why it's needed at all. */
+  min-height: 100%;
+}
+/* Wider variant retained for the Projects / Design systems
+   sub-views that historically opted into a wider canvas. The
+   home view now also breathes out to ~1440px so the plugins
+   gallery can fit 4-5 preview tiles per row on desktop displays
+   while the hero card self-constrains to a readable column. */
+.entry-main__inner--wide {
+  max-width: 1600px;
+}
+
+/* MiniMax's Skill surface owns the whole content column. Its page ground is
+   #fafafa in light mode, while cards stay pure white; that 2% contrast is what
+   keeps a shadowless resting card visible. Reset the shared entry inset here
+   so the marketplace does not accidentally receive 48px twice. */
+.entry-main__inner.entry-main__inner--plugins {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+  background: var(--marketplace-ground, #fafafa);
+}
+
+.entry-main--workflow-editor .entry-main__inner--plugins,
+.entry-workflow-editor-host {
+  height: 100%;
+  min-height: 0;
+}
+
+.entry-main--workflow-editor [data-testid='entry-view-plugins'] {
+  display: block;
+  min-width: 0;
+}
+
+.entry-main__inner.entry-main__inner--asset-library {
+  --workspace-gutter: 48px;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+  padding: 0 0 64px;
+  gap: 0;
+  overflow-x: clip;
+  background: var(--marketplace-ground, #fafafa);
+}
+
+/* Design systems owns a viewport-height sticky master pane. Do not append the
+   asset shell's generic 64px gallery tail after that pane; its local surface
+   supplies the small final safe area instead. */
+.entry-main__inner.entry-main__inner--asset-library.entry-main__inner--design-systems {
+  padding-bottom: 0;
+}
+@media (max-width: 900px) {
+  .entry-main__inner {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .entry-main__inner.entry-main__inner--plugins {
+    padding: 0;
+  }
+
+  .entry-main__inner.entry-main__inner--asset-library {
+    --workspace-gutter: 24px;
+    padding: 0 0 56px;
+  }
+}
+
+/* Asset-library shell. Reuses the same quiet header + underlined tab language
+   as the Skill / Workflow catalog instead of introducing a glass card. */
+.asset-library-nav {
+  flex: 0 0 auto;
+  width: calc(100% - 2 * var(--workspace-gutter, 48px));
+  min-width: 0;
+  max-width: calc(100% - 2 * var(--workspace-gutter, 48px));
+  margin: 0 var(--workspace-gutter, 48px);
+  box-sizing: border-box;
+  align-self: center;
+}
+.asset-library-nav .marketplace-header-suite__titles,
+.asset-library-nav .marketplace-header-suite__toolbar,
+.asset-library-nav .marketplace-header-suite__tabs,
+.asset-library-nav .marketplace-header-suite__category-rail {
+  min-width: 0;
+}
+.asset-library-nav .marketplace-header-suite__toolbar {
+  flex-wrap: wrap;
+}
+.asset-library-nav .marketplace-header-suite__tabs {
+  flex-wrap: nowrap;
+}
+.asset-library-nav .marketplace-header-suite__toolbar-end {
+  min-width: 0;
+  max-width: 100%;
+}
+.asset-library-nav .marketplace-header-suite__search {
+  min-width: 0;
+  max-width: 100%;
+}
+.asset-library-nav__view-toggle[data-ui-button] {
+  width: auto;
+  min-width: 112px;
+  height: 36px;
+  padding: 0 12px;
+  gap: 7px;
+  border: 1px solid rgb(0 0 0 / 10%);
+  border-radius: 10px;
+  background: rgb(0 0 0 / 3.5%);
+  color: rgb(0 0 0 / 68%);
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+}
+.asset-library-nav__view-toggle[data-ui-button]:hover,
+.asset-library-nav__view-toggle[data-ui-button][aria-pressed='true'] {
+  border-color: rgb(0 0 0 / 18%);
+  background: rgb(0 0 0 / 5%);
+  color: #000;
+}
+.asset-library-placeholder {
+  min-height: 0;
+  padding: 0 var(--workspace-gutter, 48px) 24px;
+}
+.asset-library-placeholder__card {
+  display: flex;
+  min-height: 300px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  border: 1px dashed rgb(0 0 0 / 12%);
+  border-radius: 18px;
+  color: rgb(0 0 0 / 42%);
+  text-align: center;
+}
+.asset-library-placeholder__card h2 {
+  margin: 14px 0 6px;
+  color: rgb(0 0 0 / 76%);
+  font-size: 18px;
+}
+.asset-library-placeholder__card p {
+  margin: 0;
+  font-size: 14px;
+}
+.asset-library-placeholder__content {
+  max-width: 420px;
+  padding-top: 24px;
+  color: rgb(0 0 0 / 42%);
+}
+.asset-library-placeholder__content h2 {
+  margin: 14px 0 6px;
+  color: rgb(0 0 0 / 76%);
+  font-size: 18px;
+}
+.asset-library-placeholder__content p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+@media (max-width: 720px) {
+  .asset-library-nav {
+    width: calc(100% - 2 * var(--workspace-gutter, 24px));
+    max-width: calc(100% - 2 * var(--workspace-gutter, 24px));
+    margin: 0 var(--workspace-gutter, 24px);
+  }
+  .asset-library-nav .marketplace-header-suite__actions {
+    right: 0;
+  }
+}
+
+/* Bug: an empty workspace's Home never centered (recvqaROkePTP8) — the
+   composer stuck to the top of the scroll column instead. `.home-view
+   --centered`'s `min-height: 100%` (home-hero.css) needs an ancestor with a
+   REAL (non-auto) height to resolve against. `.entry-main__inner` now has
+   one (above), but this view's own wrapper div — a plain block child of that
+   flex column — was still sized to its own content, same as a `height: auto`
+   ancestor would be, breaking the chain one level lower. Make it an actual
+   flexed column that fills the available height instead. Scoped to the home
+   wrapper only: every other view is already taller than the scroll port in
+   practice, so this would only add harmless empty space below its content. */
+.entry-main__view-home {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}

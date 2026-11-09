@@ -1,0 +1,62 @@
+/* Shared standalone consumer styles; extracted verbatim from Bezier
+ * 319e5eee556a3641d2ee68a6111a36ddc7a1eff7, apps/web/src/styles/home/plugins-home.css
+ * source lines 482-537 (one newline between spans).
+ * Keep global selectors: these are shared component/portal contracts, not Home UI.
+ */
+/* BEGIN FROZEN RULES */
+.plugins-home__media {
+  position: absolute;
+  inset: 0;
+}
+.plugins-home__media-img,
+.plugins-home__media-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 320ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.plugins-home__media-video {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  /* Inline `opacity` (videoReady gate in MediaSurface) fades the clip in once
+     it reports a real decoded frame, instead of popping — see that gate's
+     comment for why it exists (a black first-frame flash on some Chromium
+     builds). */
+  transition: transform 320ms cubic-bezier(0.23, 1, 0.32, 1), opacity 200ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.plugins-home__media-skeleton {
+  width: 100%;
+  height: 100%;
+  background:
+    linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.5) 50%, transparent 70%) 0 0 / 200% 100%,
+    var(--bg-subtle);
+}
+.plugins-home__media-skeleton.is-active {
+  animation: plugins-home-shimmer 1.6s ease-in-out infinite;
+}
+.plugins-home__media-fallback {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 22% 18%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 34%),
+    linear-gradient(135deg, color-mix(in srgb, var(--accent-tint) 64%, white), var(--bg-subtle));
+}
+.plugins-home__media-fallback-glyph {
+  color: color-mix(in srgb, var(--accent) 74%, var(--text));
+  font-family: var(--serif);
+  font-size: 52px;
+  font-weight: 600;
+  line-height: 1;
+  opacity: 0.86;
+}
+@keyframes plugins-home-shimmer {
+  to {
+    background-position: -200% 0, 0 0;
+  }
+}

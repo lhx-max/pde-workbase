@@ -1,0 +1,86 @@
+{
+  "viewport": {
+    "width": 840,
+    "height": 960
+  },
+  "zoom": "50%",
+  "nodes": [
+    {
+      "id": "basic-storyboard-mv14vw1o-2ol9",
+      "classes": "react-flow__node react-flow__node-basicCanvas nopan selected selectable draggable",
+      "selected": true,
+      "rect": {
+        "x": 259,
+        "y": 141,
+        "width": 660,
+        "height": 151,
+        "top": 141,
+        "right": 919,
+        "bottom": 292,
+        "left": 259
+      }
+    },
+    {
+      "id": "storyboard-assets:basic-storyboard-mv14vw1o-2ol9:character",
+      "classes": "react-flow__node react-flow__node-storyboardAssetGroup nopan selectable draggable",
+      "selected": false,
+      "rect": {
+        "x": -11,
+        "y": 141,
+        "width": 230,
+        "height": 68.09375,
+        "top": 141,
+        "right": 219,
+        "bottom": 209.09375,
+        "left": -11
+      }
+    },
+    {
+      "id": "storyboard-assets:basic-storyboard-mv14vw1o-2ol9:scene",
+      "classes": "react-flow__node react-flow__node-storyboardAssetGroup nopan selectable draggable",
+      "selected": false,
+      "rect": {
+        "x": -11,
+        "y": 366,
+        "width": 230,
+        "height": 68.09375,
+        "top": 366,
+        "right": 219,
+        "bottom": 434.09375,
+        "left": -11
+      }
+    }
+  ],
+  "overlays": [
+    {
+      "label": "镜头 1 景别编辑",
+      "classes": "z-[var(--layer-tooltip)] rounded-[var(--radius-lg)] border-0 bg-bg-elevated text-text shadow-[var(--shadow-md)] outline-none w-72 origin-(--radix-popover-content-transform-origin) p-4 storyboard-field-popover home-workbench-popover",
+      "rect": {
+        "x": 541,
+        "y": 258.5,
+        "width": 91.271728515625,
+        "height": 57.04486083984375,
+        "top": 258.5,
+        "right": 632.271728515625,
+        "bottom": 315.54486083984375,
+        "left": 541
+      },
+      "padding": "0px"
+    },
+    {
+      "label": "镜头 1 画面描述编辑",
+      "classes": "z-[var(--layer-tooltip)] rounded-[var(--radius-lg)] border-0 bg-bg-elevated text-text shadow-[var(--shadow-md)] outline-none w-72 origin-(--radix-popover-content-transform-origin) p-4 storyboard-field-popover storyboard-field-popover--wide home-workbench-popover",
+      "rect": {
+        "x": 402.5,
+        "y": 258.5,
+        "width": 164.12445068359375,
+        "height": 101.2169189453125,
+        "top": 258.5,
+        "right": 566.6244506835938,
+        "bottom": 359.7169189453125,
+        "left": 402.5
+      },
+      "padding": "0px"
+    }
+  ]
+}

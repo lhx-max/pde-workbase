@@ -1,0 +1,41 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 960
+  },
+  "zoom": "100%",
+  "nodes": [
+    {
+      "id": "img-mv14vt6r-xevo",
+      "classes": "react-flow__node react-flow__node-imageAsset nopan selected selectable draggable",
+      "selected": true,
+      "rect": {
+        "x": 300,
+        "y": 262,
+        "width": 840,
+        "height": 564,
+        "top": 262,
+        "right": 1140,
+        "bottom": 826,
+        "left": 300
+      }
+    }
+  ],
+  "overlays": [
+    {
+      "label": "字号",
+      "classes": "min-w-[152px] overflow-x-hidden overflow-y-auto max-h-(--radix-dropdown-menu-content-available-height) z-[var(--layer-tooltip)] rounded-[var(--radius-lg)] border-0 bg-bg-elevated text-text shadow-[var(--shadow-md)] outline-none p-[5px] workbench-host-menu minimax-annotation-font-menu",
+      "rect": {
+        "x": 477,
+        "y": 134,
+        "width": 80.9375,
+        "height": 266,
+        "top": 134,
+        "right": 557.9375,
+        "bottom": 400,
+        "left": 477
+      },
+      "padding": "5px"
+    }
+  ]
+}

@@ -1,0 +1,434 @@
+/* ── 策划案建档卡 ──────────────────────────────────────────
+   纯展示的建档凭证：标题 + 已建档药丸 + 时间，没有按钮，没有状态分支。
+   视觉跟公共工作流评审卡对齐：19px/800 紧标题、16px 圆角、
+   两段投影；不套灰托盘——里面只有一层内容，套了反而多出一层空壳。 */
+.canvas-workbench .canvas-node.plan-archive-node {
+  width: 340px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--bg-surface);
+  box-shadow: 0 1px 2px rgba(11, 11, 15, 0.03), 0 6px 18px rgba(11, 11, 15, 0.045);
+}
+.canvas-workbench .canvas-node.plan-archive-node:hover {
+  box-shadow: 0 1px 2px rgba(11, 11, 15, 0.05), 0 10px 26px rgba(11, 11, 15, 0.07);
+}
+.canvas-workbench .plan-archive-node .node-inner { padding: 18px 18px 16px; }
+/* 建档卡的标题区占满整行（没有 node-topline 那种预留位），操作条只能绝对定位
+   压在右上角。原来这里定位的是 .node-remove 那个单独的 ✕，现在换成统一的
+   操作条，位置沿用不变。 */
+.canvas-workbench .plan-archive-node .canvas-node-actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+/*
+ * 标题必须比 .canvas-node h2 更具体。
+ *
+ * 基类那条是 `.canvas-node h2 { font-size: 21px; font-weight: 650 }`，选择器
+ * 权重 0-1-1；只写 `.plan-archive-title`（0-1-0）会整条输掉，卡上看到的还是
+ * 21px/650 的常规节点标题，跟评审卡对不上。加 .canvas-node 前缀提到 0-2-1 才生效。
+ */
+.canvas-workbench .canvas-node.plan-archive-node .plan-archive-title {
+  margin: 0;
+  /* 给右上角的移除按钮留位，避免长标题压到 × 底下 */
+  padding-right: 22px;
+  color: #0b0b0f;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+}
+/* 药丸与时间同处一行：两条都是元信息，各占一行会让这张只有三样东西的卡变高 */
+.canvas-workbench .plan-archive-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+.canvas-workbench .plan-archive-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  color: #8e8e96;
+  background: #ededf0;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.canvas-workbench .plan-archive-badge svg { flex: none; }
+.canvas-workbench .plan-archive-time {
+  color: #8e8e96;
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 创意卡：生成中载入态 */
+@keyframes node-dot-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+/* 等待用户操作：淡紫点带缓慢外扩光环，静止但可感知“在等你” */
+@keyframes node-wait-halo {
+  0%   { box-shadow: 0 0 0 0 var(--plan-accent-halo); }
+  70%  { box-shadow: 0 0 0 5px rgba(124, 127, 242, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(124, 127, 242, 0); }
+}
+
+/* footer */
+.canvas-workbench .node-footline {
+  display: flex; align-items: center; gap: 8px;
+}
+.canvas-workbench .node-updated {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; color: var(--text-tertiary); font-variant-numeric: tabular-nums;
+}
+
+/* ── 画板本地结果节点 ──────────────────────────────────────────
+   WorkflowStageCard 的轮次、候选项和操作样式归 @bezier/workbench-ui；
+   此处只保留画板自己渲染的 pending 节点与 ResultCard 加载骨架。 */
+.canvas-workbench .workflow-pending-card {
+  --kind: #262626;
+  --process-card-shadow: 0 1px 2px rgba(11, 11, 15, 0.03), 0 6px 18px rgba(11, 11, 15, 0.045);
+  width: 480px;
+  container-type: inline-size;
+  border: 0;
+  border-radius: 22px;
+  overflow: visible;
+  background: var(--bg-surface);
+  box-shadow: 0 1px 2px rgba(11, 11, 15, 0.04), 0 10px 30px rgba(11, 11, 15, 0.05);
+}
+.canvas-workbench .workflow-pending-card:hover {
+  border-color: transparent;
+  box-shadow: 0 1px 2px rgba(11, 11, 15, 0.05), 0 14px 36px rgba(11, 11, 15, 0.07);
+}
+.canvas-workbench .workflow-pending-card > .node-handle {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+.canvas-workbench .workflow-pending-card > .node-handle::after { content: none; }
+.canvas-workbench .workflow-pending-card .node-inner { padding: 16px 12px 12px; }
+.canvas-workbench .workflow-pending-card .node-drag-surface {
+  margin: -16px -12px 0;
+  padding: 16px 12px 0;
+}
+.canvas-workbench .workflow-pending-card .node-title-row {
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 0 4px;
+}
+.canvas-workbench .workflow-pending-card .node-title-row h2 {
+  flex: none;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.canvas-workbench .workflow-pending-meta {
+  color: #8e8e96;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.canvas-workbench .workflow-pending-card .canvas-result-loading {
+  padding: 4px 0 0;
+  background: transparent;
+  box-shadow: none;
+}
+.canvas-workbench .workflow-pending-card.status-failed { border-color: #d8a5a0; }
+.canvas-workbench .workflow-pending-error {
+  margin: 8px 4px 2px;
+  color: #8f3d35;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.canvas-workbench .canvas-result-loading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--bg-surface);
+  box-shadow: var(--process-card-shadow);
+}
+.canvas-workbench .canvas-result-spinner,
+.canvas-workbench .process-eval-spinner {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid color-mix(in srgb, var(--kind) 18%, transparent);
+  border-top-color: var(--kind);
+  border-radius: 50%;
+  animation: canvas-result-spin 700ms linear infinite;
+}
+.canvas-workbench .canvas-result-skeletons {
+  display: grid;
+  flex: 1;
+  gap: 8px;
+  min-width: 0;
+}
+.canvas-workbench .canvas-result-skeleton {
+  height: 10px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, #f2f2ef 25%, #e6e6e2 50%, #f2f2ef 75%);
+  background-size: 200% 100%;
+  animation: canvas-result-shimmer 1.3s ease-in-out infinite;
+}
+.canvas-workbench .canvas-result-skeleton:nth-child(2) { width: 82%; }
+.canvas-workbench .canvas-result-skeleton:nth-child(3) { width: 64%; }
+.canvas-workbench .canvas-result-summary {
+  margin: -2px 0 14px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+@keyframes canvas-result-spin { to { transform: rotate(360deg); } }
+@keyframes canvas-result-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+.canvas-workbench .process-eval {
+  --pe-accent: #404040;
+  --pe-soft: var(--process-soft, #f7f7f5);
+  --pe-line: var(--process-line, #eeeef1);
+  overflow: hidden;
+  /*
+   * 评测卡跟方向列表是同一层级，所以用同一套壳：无边框、16px 圆角、投影。
+   * 原先它是 1px 描边 + 11px 圆角，跟下面的白卡一眼就不是一套东西。
+   */
+  border: 0;
+  border-radius: 16px;
+  background: var(--bg-surface);
+  box-shadow: var(--process-card-shadow, 0 1px 2px rgba(11, 11, 15, 0.03), 0 6px 18px rgba(11, 11, 15, 0.045));
+}
+.canvas-workbench .process-eval.is-passed {
+  --pe-accent: #2f7654;
+  --pe-soft: #f2f7f3;
+  --pe-line: #dce9e0;
+}
+.canvas-workbench .process-eval.is-running { --pe-accent: var(--kind); }
+.canvas-workbench .process-eval.is-error { --pe-accent: #9f3f3f; --pe-soft: #fbf5f5; }
+.canvas-workbench .process-eval.is-stale { opacity: 0.72; }
+/*
+ * 未评测的空态：一张完整的卡，不是一行提示文字。
+ *
+ * 评测结果落回来时这里会长出评分条和维度列表，所以空态就要按卡的尺寸站住位置，
+ * 否则点一次「开始评测」整块会突然撑高，下面的候选被顶走。
+ */
+.canvas-workbench .process-eval-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 12px 11px 16px;
+  color: #8e8e96;
+  font-size: 13px;
+  font-weight: 600;
+}
+.canvas-workbench .process-eval-empty button,
+.canvas-workbench .process-eval-retry {
+  justify-self: start;
+  flex: none;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: var(--r-pill);
+  color: var(--text-inverse);
+  background: #0b0b0f;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.canvas-workbench .process-eval-empty button:hover:not(:disabled),
+.canvas-workbench .process-eval-retry:hover:not(:disabled) { background: #171717; }
+.canvas-workbench .process-eval-empty button:disabled,
+.canvas-workbench .process-eval-retry:disabled { cursor: wait; opacity: 0.48; }
+.canvas-workbench .process-eval-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 12px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.canvas-workbench .process-eval-head::-webkit-details-marker { display: none; }
+.canvas-workbench .process-eval-head:hover { background: var(--pe-soft); }
+.canvas-workbench .process-eval-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-tertiary);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+}
+.canvas-workbench .process-eval-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--pe-accent);
+}
+.canvas-workbench .process-eval-tag {
+  padding: 2px 7px;
+  border: 1px solid var(--pe-line);
+  border-radius: 999px;
+  color: var(--pe-accent);
+  background: var(--pe-soft);
+  font-size: 9.5px;
+  font-weight: 700;
+}
+.canvas-workbench .process-eval-score {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  margin-left: auto;
+}
+.canvas-workbench .process-eval-score strong {
+  color: var(--pe-accent);
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+}
+.canvas-workbench .process-eval-score span { color: var(--text-tertiary); font-size: 10px; }
+.canvas-workbench .process-eval-caret {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-left: 2px;
+  border-right: 1.5px solid var(--text-tertiary);
+  border-bottom: 1.5px solid var(--text-tertiary);
+  transform: rotate(45deg);
+  transition: transform 180ms ease;
+}
+.canvas-workbench .process-eval[open] .process-eval-caret { transform: rotate(225deg); }
+.canvas-workbench .process-eval-body {
+  display: grid;
+  gap: 10px;
+  padding: 11px 12px 12px;
+  border-top: 1px solid var(--pe-line);
+}
+.canvas-workbench .process-eval-verdict {
+  display: grid;
+  gap: 2px;
+  padding: 8px 9px;
+  border-radius: 8px;
+  background: var(--pe-soft);
+}
+.canvas-workbench .process-eval-verdict strong { color: var(--text-strong); font-size: 11.5px; }
+.canvas-workbench .process-eval-verdict span { color: var(--text-secondary); font-size: 10.5px; }
+.canvas-workbench .process-eval-cap {
+  margin: 0;
+  padding: 7px 9px;
+  border-radius: 8px;
+  color: #9f3030;
+  background: #fbf0f0;
+  font-size: 10.5px;
+}
+.canvas-workbench .process-eval-block { display: grid; gap: 5px; }
+.canvas-workbench .process-eval-block h4 {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 730;
+  letter-spacing: 0.04em;
+}
+.canvas-workbench .process-eval-block p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.55;
+}
+.canvas-workbench .process-eval-block.is-priority p { display: flex; align-items: baseline; gap: 7px; }
+.canvas-workbench .process-eval-block.is-priority b {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  color: var(--bg-surface);
+  background: var(--pe-accent);
+  font-size: 9px;
+}
+.canvas-workbench .process-eval-dims { display: grid; gap: 6px; }
+.canvas-workbench .process-eval-dims details {
+  overflow: hidden;
+  border: 1px solid var(--pe-line);
+  border-radius: 8px;
+}
+.canvas-workbench .process-eval-dims summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 11px;
+}
+.canvas-workbench .process-eval-dims summary::-webkit-details-marker { display: none; }
+.canvas-workbench .process-eval-dims summary > span { flex: none; color: var(--text-strong); font-weight: 630; }
+.canvas-workbench .process-eval-dims summary > i {
+  flex: 1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--border-subtle);
+}
+.canvas-workbench .process-eval-dims summary > i b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--pe-accent);
+}
+.canvas-workbench .process-eval-dims summary > strong { flex: none; color: var(--text-secondary); font-size: 11px; }
+.canvas-workbench .process-eval-dims details p {
+  margin: 0;
+  padding: 0 9px 7px;
+  color: var(--text-secondary);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+.canvas-workbench .process-eval-dims details small {
+  display: block;
+  padding: 0 9px 8px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  line-height: 1.5;
+}
+.canvas-workbench .process-eval-dims details small b { margin-right: 4px; color: var(--text-strong); }
+.canvas-workbench .process-eval-loading {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 12px;
+}
+.canvas-workbench .process-eval-loading-copy { display: grid; flex: 1; gap: 2px; }
+.canvas-workbench .process-eval-loading-copy strong { color: var(--text-strong); font-size: 11.5px; }
+.canvas-workbench .process-eval-loading-copy span { color: var(--text-tertiary); font-size: 10.5px; }
+
+/*
+ * 这里曾有一个 @container (max-width: 390px) 断点，专门把三列纵排回退成横排。
+ * 字段区已统一为横排一套，窄卡不再需要换布局，整块随之删除。
+ */
+@media (prefers-reduced-motion: reduce) {
+  .canvas-workbench .canvas-result-spinner,
+  .canvas-workbench .process-eval-spinner,
+  .canvas-workbench .canvas-result-skeleton { animation: none; }
+}
+.canvas-workbench .node-updated svg { flex: none; opacity: 0.55; width: 11px; height: 11px; }
+.canvas-workbench .node-avatars { display: inline-flex; margin-right: 2px; }
+.canvas-workbench .node-avatar {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 1.5px solid var(--bg-surface);
+  background: var(--bg-muted);
+  display: grid; place-items: center;
+  font-size: 9px; font-weight: 600; color: var(--text-secondary);
+}
+.canvas-workbench .node-avatar + .node-avatar { margin-left: -5px; }

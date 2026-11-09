@@ -1,0 +1,13 @@
+/** Read-only proof of the manual browser mockup result in the explicitly running cloud-dev host. */
+import {createHash} from 'node:crypto';import {writeFile} from 'node:fs/promises';import {createRequire} from 'node:module';
+const require=createRequire(new URL('../apps/server/package.json',import.meta.url));const sharp=require('sharp') as typeof import('sharp').default;
+const base='http://127.0.0.1:17462',project='image-tools-proof-20261022';
+const response=await fetch(`${base}/api/apps/image/instances/${project}/state`);if(!response.ok)throw Error('Image App state unavailable');const body=await response.json() as {data:{cards:Array<{nodeId:string;node:{name?:string;path?:string;naturalWidth?:number;naturalHeight?:number}}>}};
+const source=body.data.cards.find(v=>v.nodeId==='tool-proof-image'),result=body.data.cards.findLast(v=>v.node.name?.startsWith('Mario-样机-'));
+if(!source?.node.path||!result?.node.path||source.node.path===result.node.path)throw Error('Original or independent mockup output missing');
+async function read(path:string){const r=await fetch(`${base}/api/projects/${project}/files/${path.split('/').map(encodeURIComponent).join('/')}`);if(!r.ok)throw Error('Cloud result unreadable');const buffer=Buffer.from(await r.arrayBuffer());const meta=await sharp(buffer).metadata();return{buffer,meta,sha256:createHash('sha256').update(buffer).digest('hex')};}
+const original=await read(source.node.path),output=await read(result.node.path);if(original.meta.width!==output.meta.width||original.meta.height!==output.meta.height)throw Error('Mockup full-resolution dimensions lost');
+const a=await sharp(original.buffer).ensureAlpha().raw().toBuffer(),b=await sharp(output.buffer).ensureAlpha().raw().toBuffer();let changedPixels=0;for(let i=0;i<a.length;i+=4)if(a[i]!==b[i]||a[i+1]!==b[i+1]||a[i+2]!==b[i+2]||a[i+3]!==b[i+3])changedPixels++;
+if(changedPixels<100)throw Error('No actual design rendering in saved result');
+const report={verifiedAt:new Date().toISOString(),projectId:project,source:{nodeId:source.nodeId,path:source.node.path,sha256:original.sha256},result:{nodeId:result.nodeId,path:result.node.path,sha256:output.sha256,width:output.meta.width,height:output.meta.height,bytes:output.buffer.length},changedPixels,originalRetained:true,separateResult:true,fullResolution:true,modelCalls:0,storage:'Appwrite through the explicit cloud-dev host',editableProjectSaved:false};
+await writeFile(new URL('../docs/verification/image-ui-completion-20261022/ui-mockup-cloud-readback.json',import.meta.url),JSON.stringify(report,null,2));console.log(JSON.stringify(report));

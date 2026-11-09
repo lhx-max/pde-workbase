@@ -1,0 +1,67 @@
+/* Inquiry editing uses one surface; questions are separated by rules. */
+:global(.bezier-workbench) :global(.workflow-editor-node.is-kind-clarify).node {
+  padding: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 16px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+  transform: none;
+}
+:global(.bezier-workbench) :global(.workflow-editor-node.is-kind-clarify).node:global(.is-selected) {
+  border-color: var(--border-strong);
+}
+.card { padding: 18px 18px 12px; }
+.header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-right: 24px; min-height: 28px; cursor: grab; }
+.header > div { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.header strong { font-size: 15px; font-weight: 600; }
+.header small { color: var(--text-tertiary); font-size: 11px; white-space: nowrap; }
+.card .preview { height: 26px; min-height: 26px; padding: 0 8px; border-radius: 6px; font-size: 11px; color: var(--text-secondary); }
+.previewPopover :global(.workflow-intake-form .qf-custom) { flex-direction: row; }
+.modeSwitch { display: flex; gap: 18px; margin-top: 14px; border-bottom: 1px solid var(--border-subtle); }
+.card .modeSwitch button { height: 32px; min-height: 32px; padding: 0 0 8px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; font-size: 12px; font-weight: 500; color: var(--text-tertiary); box-shadow: none; }
+/* Keep generic Button hover/press styles from changing the tab indicator or position. */
+.card .modeSwitch button { transition: color 140ms cubic-bezier(0.23, 1, 0.32, 1); }
+.card .modeSwitch button:hover:not(:disabled),
+.card .modeSwitch button:active:not(:disabled) { background: transparent; border-color: transparent; color: var(--text-primary); transform: none; box-shadow: none; }
+.card .modeSwitch button[aria-pressed='true'],
+.card .modeSwitch button[aria-pressed='true']:hover:not(:disabled),
+.card .modeSwitch button[aria-pressed='true']:active:not(:disabled) { color: var(--text-strong); border-bottom-color: var(--text-strong); }
+.card .modeSwitch button:focus-visible { outline: 1px solid var(--border-strong); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .card .modeSwitch button { transition: none; } }
+.questionColumn { min-width: 0; }
+.questions { display: grid; }
+.question { display: grid; gap: 10px; padding: 16px 0; }
+.question + .question { border-top: 1px solid var(--border-subtle); }
+.question > header { display: flex; align-items: center; gap: 6px; }
+.question > header > strong { flex: 1; font-size: 12px; font-weight: 500; color: var(--text-secondary); }
+.card .question > header select { width: auto; height: 27px; min-height: 27px; padding-left: 8px; padding-right: 26px; border-color: transparent; border-radius: 6px; background-color: var(--bg-subtle); font-size: 11px; color: var(--text-secondary); }
+.selectField { position: relative; display: inline-flex; min-width: 0; }
+.card .selectField select { appearance: none; background-image: none; }
+/* Beat the global base-select padding rule so the selected text reserves space for our icon. */
+:global(.bezier-workbench) .card .selectField select:not([multiple]) { padding-inline-end: 28px; }
+/* The shared base-select popup adds a browser caret; this field already uses Lucide. */
+.selectField select::picker-icon { display: none; }
+.selectField > svg { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-tertiary); }
+.card .remove { display: grid; place-items: center; width: 24px; min-width: 24px; height: 26px; min-height: 26px; padding: 0; border-radius: 6px; color: var(--text-tertiary); }
+.card .remove:disabled { opacity: .35; }
+.card input:not([type='checkbox']), .card textarea, .card select { border: 1px solid var(--border-default); background-color: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: 12px; border-radius: 8px; box-shadow: none; }
+.card input:not([type='checkbox']) { width: 100%; height: 34px; min-height: 34px; padding: 0 10px; }
+.card input:not([type='checkbox']):focus-visible, .card textarea:focus-visible, .card select:focus-visible { border-color: var(--border-strong); outline: 1px solid var(--border-strong); outline-offset: 1px; }
+.optionField { display: grid; gap: 6px; }
+.optionField > span, .autoConfig label > span, .autoConfig legend { color: var(--text-tertiary); font-size: 11px; }
+.question > footer { display: flex; align-items: center; gap: 16px; }
+.question > footer label { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 11px; line-height: 18px; }
+.question > footer input { width: 13px; height: 13px; margin: 0; accent-color: var(--text-strong); }
+.card .addQuestion { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; height: 32px; min-height: 32px; border-radius: 8px; border: 0; background: var(--bg-subtle); color: var(--text-secondary); font-size: 12px; font-weight: 500; }
+.card .addQuestion:hover, .card .preview:hover, .card .remove:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-strong); }
+.autoConfig { display: grid; gap: 14px; padding: 16px 0 4px; }
+.autoConfig label { display: grid; gap: 7px; }
+.card .autoConfig textarea { width: 100%; min-height: 88px; padding: 10px; resize: vertical; line-height: 1.6; }
+.autoRow { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 16px; align-items: end; }
+.card .autoRow select { height: 30px; min-height: 30px; width: 100%; }
+.autoRow fieldset { display: flex; gap: 4px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.autoRow legend { margin-bottom: 7px; }
+.card .autoRow button { flex: 1; height: 30px; min-height: 30px; padding: 0 6px; border: 1px solid var(--border-subtle); border-radius: 6px; background: transparent; color: var(--text-tertiary); font-size: 11px; }
+.card .autoRow button[aria-pressed='true'] { background: var(--bg-subtle); color: var(--text-primary); border-color: var(--border-default); }
+.autoConfig > p { margin: 0; font-size: 11px; line-height: 1.6; color: var(--text-tertiary); }

@@ -1,0 +1,29 @@
+
+> @bezier/canvas-workbench@1.4.4 build /Users/zhuzhiheng/Desktop/canvas-workspace/packages/canvas-workbench
+> tsc -p tsconfig.build.json --emitDeclarationOnly
+
+
+> @canvas-workspace/web@0.1.0 build /Users/zhuzhiheng/Desktop/canvas-workspace/apps/web
+> next build
+
+▲ Next.js 16.2.6 (Turbopack)
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 5.5s
+  Running TypeScript ...
+  Finished TypeScript in 11.6s ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/3) ...
+✓ Generating static pages using 7 workers (3/3) in 252ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/[...path]
+├ ƒ /artifacts/[...path]
+└ ƒ /frames/[...path]
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand

@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "projects": [
+    {
+      "id": "drama-demo-3d3697f1-ce79-4fba-af4b-27f6ac705052",
+      "name": "念念有回响 · 本地素材 demo",
+      "skillId": null,
+      "designSystemId": null,
+      "createdAt": 1793953102822,
+      "updatedAt": 1793953102822,
+      "teamId": "local",
+      "createdBy": "local"
+    },
+    {
+      "id": "drama-demo-723ef80a-96f0-493f-9f53-3294c9c26583",
+      "name": "念念有回响 · 本地素材 demo",
+      "skillId": null,
+      "designSystemId": null,
+      "createdAt": 1793953128446,
+      "updatedAt": 1793953128446,
+      "teamId": "local",
+      "createdBy": "local"
+    },
+    {
+      "id": "drama-demo-72d25f93-dc7b-4dd9-9779-396367fb9c28",
+      "name": "念念有回响 · 本地素材 demo",
+      "skillId": null,
+      "designSystemId": null,
+      "createdAt": 1793953144248,
+      "updatedAt": 1793953144248,
+      "teamId": "local",
+      "createdBy": "local"
+    },
+    {
+      "id": "drama-demo-f98bbe1b-8659-4640-84b7-ed89d26ebdd3",
+      "name": "念念有回响 · 本地素材 demo",
+      "skillId": null,
+      "designSystemId": null,
+      "createdAt": 1793953185721,
+      "updatedAt": 1793953185721,
+      "teamId": "local",
+      "createdBy": "local"
+    },
+    {
+      "id": "drama-demo-e9e5ac99-bf6d-4fa0-a9a8-24ccafa1036a",
+      "name": "念念有回响 · 本地素材 demo",
+      "skillId": null,
+      "designSystemId": null,
+      "createdAt": 1793953207491,
+      "updatedAt": 1793953207491,
+      "teamId": "local",
+      "createdBy": "local"
+    },
+    {
+      "id": "drama-demo-5d85c5e8-5a1a-4ee6-be99-557ab015ec42",
+      "name": "念念有回响 · 本地素材 demo",
+      "skillId": null,
+      "designSystemId": null,
+      "createdAt": 1794033884748,
+      "updatedAt": 1794033884748,
+      "teamId": "local",
+      "createdBy": "local"
+    }
+  ],
+  "tabs": {}
+}

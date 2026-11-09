@@ -1,0 +1,116 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 960
+  },
+  "zoom": "50%",
+  "nodes": [
+    {
+      "id": "storyboard-gallery:v2:basic-storyboard-mv14vw1o-2ol9:shot",
+      "classes": "react-flow__node react-flow__node-storyboardGallery nopan selectable parent draggable",
+      "selected": false,
+      "rect": {
+        "x": 959,
+        "y": 141,
+        "width": 234,
+        "height": 211,
+        "top": 141,
+        "right": 1193,
+        "bottom": 352,
+        "left": 959
+      }
+    },
+    {
+      "id": "storyboard-stack:basic-storyboard-mv14vw1o-2ol9:shot:shot-80f89ccc-cd6d-47e9-8b3f-ea557cf93478",
+      "classes": "react-flow__node react-flow__node-storyboardImageStack nopan selectable draggable",
+      "selected": false,
+      "rect": {
+        "x": 971,
+        "y": 153,
+        "width": 210,
+        "height": 187,
+        "top": 153,
+        "right": 1181,
+        "bottom": 340,
+        "left": 971
+      }
+    },
+    {
+      "id": "basic-storyboard-mv14vw1o-2ol9",
+      "classes": "react-flow__node react-flow__node-basicCanvas nopan selected selectable draggable",
+      "selected": true,
+      "rect": {
+        "x": 259,
+        "y": 141,
+        "width": 660,
+        "height": 151,
+        "top": 141,
+        "right": 919,
+        "bottom": 292,
+        "left": 259
+      }
+    },
+    {
+      "id": "storyboard-assets:basic-storyboard-mv14vw1o-2ol9:character",
+      "classes": "react-flow__node react-flow__node-storyboardAssetGroup nopan selectable draggable",
+      "selected": false,
+      "rect": {
+        "x": -11,
+        "y": 141,
+        "width": 230,
+        "height": 68.09375,
+        "top": 141,
+        "right": 219,
+        "bottom": 209.09375,
+        "left": -11
+      }
+    },
+    {
+      "id": "storyboard-assets:basic-storyboard-mv14vw1o-2ol9:scene",
+      "classes": "react-flow__node react-flow__node-storyboardAssetGroup nopan selectable draggable",
+      "selected": false,
+      "rect": {
+        "x": -11,
+        "y": 366,
+        "width": 230,
+        "height": 68.09375,
+        "top": 366,
+        "right": 219,
+        "bottom": 434.09375,
+        "left": -11
+      }
+    }
+  ],
+  "overlays": [
+    {
+      "label": "镜头 1 运镜设置",
+      "classes": "z-[var(--layer-tooltip)] rounded-[var(--radius-lg)] border-0 bg-bg-elevated text-text shadow-[var(--shadow-md)] outline-none w-72 origin-(--radix-popover-content-transform-origin) p-4 video-node-camera-popover home-workbench-popover",
+      "rect": {
+        "x": 756.5,
+        "y": 259.5,
+        "width": 91.60693359375,
+        "height": 114.62921142578125,
+        "top": 259.5,
+        "right": 848.10693359375,
+        "bottom": 374.12921142578125,
+        "left": 756.5
+      },
+      "padding": "0px"
+    },
+    {
+      "label": "镜头 01 · 分镜图",
+      "classes": "z-[var(--layer-tooltip)] rounded-[var(--radius-lg)] border-0 bg-bg-elevated text-text shadow-[var(--shadow-md)] outline-none w-72 origin-(--radix-popover-content-transform-origin) p-4 storyboard-assets-popover home-workbench-popover",
+      "rect": {
+        "x": 288.5,
+        "y": 245,
+        "width": 155.823486328125,
+        "height": 252.00765991210938,
+        "top": 245,
+        "right": 444.323486328125,
+        "bottom": 497.0076599121094,
+        "left": 288.5
+      },
+      "padding": "0px"
+    }
+  ]
+}

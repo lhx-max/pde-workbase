@@ -1,0 +1,304 @@
+/* The only visual contract for prompt entry. This file is imported last from
+   styles/home/index.css so project-page legacy CSS cannot repaint the shared
+   component after it has rendered. Page classes remain as behavior hooks only. */
+.prompt-composer[data-prompt-composer][data-density] {
+  --prompt-composer-min-height: var(--home-ref-input-height, 150px);
+  --prompt-composer-radius: var(--home-ref-input-radius, 24px);
+  --prompt-composer-foreground: var(--home-ref-foreground, #000);
+  --prompt-composer-border: var(--home-ref-border, rgba(0, 0, 0, 0.08));
+  --prompt-composer-border-strong: var(--home-ref-border-strong, rgba(0, 0, 0, 0.14));
+  position: relative;
+  box-sizing: border-box;
+  container-name: prompt-composer;
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--prompt-composer-min-height);
+  gap: 8px;
+  margin: 0;
+  padding: 8px;
+  border: 0.5px solid var(--prompt-composer-border);
+  border-radius: var(--prompt-composer-radius);
+  background: var(--home-ref-card-surface, #fff);
+  box-shadow: var(
+    --home-ref-input-shadow,
+    0 10px 24px -20px rgba(17, 17, 19, 0.16), 0 1px 4px -3px rgba(17, 17, 19, 0.08)
+  );
+  cursor: default;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.prompt-composer[data-prompt-composer][data-density]:focus-within {
+  border-color: var(--prompt-composer-border-strong);
+  box-shadow: var(
+    --home-ref-input-shadow,
+    0 10px 24px -20px rgba(17, 17, 19, 0.16), 0 1px 4px -3px rgba(17, 17, 19, 0.08)
+  );
+}
+
+.prompt-composer[data-prompt-composer][data-density].is-drag-active {
+  border-color: color-mix(in srgb, var(--accent) 56%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.prompt-composer[data-prompt-composer][data-density].is-readonly {
+  background: var(--home-ref-card-surface, #fff);
+}
+
+.prompt-composer[data-prompt-composer][data-density] > * {
+  cursor: auto;
+}
+
+.prompt-composer[data-prompt-composer][data-density]
+  > .prompt-composer__editor[data-prompt-composer-editor] {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 90px;
+  padding: 0;
+  border: 0;
+  border-radius: calc(var(--prompt-composer-radius) - 6px);
+  background: transparent;
+  box-shadow: none;
+}
+
+.prompt-composer[data-prompt-composer][data-density]
+  > .prompt-composer__editor[data-prompt-composer-editor]:focus-within {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Both consumers use Lexical. These selectors intentionally outrank the old
+   chat-bezier composer rules so typography and text insets cannot diverge. */
+.prompt-composer[data-prompt-composer][data-density]
+  > [data-prompt-composer-editor]
+  .composer-input-editor {
+  min-height: 90px;
+  max-height: var(--home-hero-prompt-max-height, 180px);
+  border: 0;
+  background: transparent;
+}
+
+.prompt-composer[data-prompt-composer][data-density]
+  > [data-prompt-composer-editor]
+  .composer-input-editor
+  :is([contenteditable='true'], .composer-editable) {
+  min-height: 90px;
+  padding: 4px 8px 8px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 20px;
+  letter-spacing: 0;
+  caret-color: var(--text);
+}
+
+.prompt-composer[data-prompt-composer][data-density]
+  > [data-prompt-composer-editor]
+  :is(.composer-input-placeholder, .home-hero__carousel) {
+  top: 4px;
+  right: 8px;
+  left: 8px;
+  color: var(--text-soft);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 20px;
+  letter-spacing: 0;
+  opacity: 1;
+}
+
+/* Manual resize remains a supported state, but it changes only editor height;
+   it does not switch the component back to the project page's old visuals. */
+.prompt-composer[data-prompt-composer][data-density].is-resizable {
+  cursor: ns-resize;
+}
+
+.prompt-composer[data-prompt-composer][data-density].is-resizable > * {
+  cursor: auto;
+}
+
+.prompt-composer[data-prompt-composer][data-density].composer-shell--manual-height
+  > [data-prompt-composer-editor]
+  .composer-input-editor {
+  min-height: var(--composer-manual-h);
+  max-height: var(--composer-manual-h);
+}
+
+.prompt-composer[data-prompt-composer][data-density]
+  > .prompt-composer__toolbar[data-prompt-composer-toolbar] {
+  position: relative;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  min-height: 32px;
+  gap: 12px;
+  margin: 0;
+  padding: 8px 0 0;
+  border: 0;
+  background: transparent;
+}
+
+.prompt-composer__toolbar-group {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+.prompt-composer__toolbar-group--start {
+  flex: 1 1 auto;
+  overflow: visible;
+}
+
+.prompt-composer__toolbar-group--end {
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.prompt-composer__toolbar-spacer {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* Standard footer controls: transparent at rest, the same faint circular or
+   pill hover used by the homepage composer. */
+.prompt-composer[data-prompt-composer][data-density]
+  [data-prompt-composer-toolbar]
+  :is(.icon-btn, .composer-skill-trigger, .inline-switcher__chip, .composer-mode-tag) {
+  min-height: 32px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: color-mix(in srgb, var(--prompt-composer-foreground) 72%, transparent);
+}
+
+.prompt-composer[data-prompt-composer][data-density]
+  [data-prompt-composer-toolbar]
+  :is(.icon-btn, .composer-skill-trigger, .inline-switcher__chip, .composer-mode-tag):hover:not(:disabled),
+.prompt-composer[data-prompt-composer][data-density]
+  [data-prompt-composer-toolbar]
+  :is(.inline-switcher__chip, .composer-skill-trigger)[aria-expanded='true'] {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--prompt-composer-foreground) 7%, transparent);
+  color: var(--prompt-composer-foreground);
+  box-shadow: none;
+}
+
+.prompt-composer[data-prompt-composer][data-density]
+  [data-prompt-composer-toolbar]
+  .composer-skill-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.prompt-composer[data-prompt-composer][data-density]
+  [data-prompt-composer-toolbar]
+  .inline-switcher__chip {
+  width: auto;
+  max-width: 220px;
+  height: 32px;
+  padding: 0 12px;
+  gap: 4px;
+  border-radius: 999px;
+}
+
+.prompt-composer[data-prompt-composer][data-density]
+  [data-prompt-composer-toolbar]
+  :is(.composer-send, .home-hero__submit) {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  box-shadow: none;
+}
+
+.prompt-composer[data-prompt-composer][data-density].is-busy
+  [data-prompt-composer-toolbar] {
+  cursor: progress;
+}
+
+/* The project composer lives in a resizable split pane, so viewport media
+   queries cannot tell when its footer is actually short on room. Collapse by
+   the component's own inline size instead: the send/stop action always keeps
+   its hit area, the model readout yields first, then the capability labels. */
+@container prompt-composer (max-width: 520px) {
+  .prompt-composer[data-prompt-composer][data-density]
+    [data-prompt-composer-toolbar]
+    .inline-switcher__chip--icon {
+    box-sizing: border-box;
+    width: 32px;
+    min-width: 32px;
+    max-width: 32px;
+    padding: 0;
+    gap: 0;
+  }
+
+  .prompt-composer[data-prompt-composer][data-density]
+    [data-prompt-composer-toolbar]
+    .inline-switcher__chip--icon
+    :is(
+      .inline-switcher__chip-divider,
+      .inline-switcher__chip-conn,
+      .inline-switcher__chip-model-name,
+      .inline-switcher__campaign-badge
+    ) {
+    display: none;
+  }
+
+  .prompt-composer[data-prompt-composer][data-density]
+    [data-prompt-composer-toolbar]
+    .composer-send.stop {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    min-height: 32px;
+    padding: 0;
+    gap: 0;
+    border-radius: 50%;
+  }
+
+  .prompt-composer[data-prompt-composer][data-density]
+    [data-prompt-composer-toolbar]
+    .composer-send.stop
+    .composer-run-labels {
+    display: none;
+  }
+}
+
+.prompt-composer[data-prompt-composer][data-density][data-collapse-capabilities='true']
+  [data-prompt-composer-toolbar]
+  .home-hero__capability-trigger {
+  width: 32px;
+  min-width: 32px;
+  padding: 0;
+}
+
+.prompt-composer[data-prompt-composer][data-density][data-collapse-capabilities='true']
+  [data-prompt-composer-toolbar]
+  .home-hero__capability-trigger
+  span {
+  display: none;
+}

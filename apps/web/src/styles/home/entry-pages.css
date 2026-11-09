@@ -1,0 +1,17 @@
+/* EntryShell owns the vertical inset for secondary routes. Individual pages
+   own their complete visual layout in their component modules. */
+[data-testid="entry-view-drafts"][data-active="true"],
+[data-testid="entry-view-all-projects"][data-active="true"],
+[data-testid="entry-view-members"][data-active="true"],
+[data-testid="entry-view-dashboard"][data-active="true"],
+[data-testid="entry-view-workspace-settings"][data-active="true"] {
+  padding-top: var(--spacing-32);
+}
+
+/* Asset design systems and the Skill catalogue each provide their own safe
+   area through their public page composites. Keeping the shell inset at zero
+   prevents a second, conflicting top padding. */
+[data-testid="entry-view-design-systems"][data-active="true"],
+[data-testid="entry-view-plugins"][data-active="true"] {
+  padding-top: 0;
+}

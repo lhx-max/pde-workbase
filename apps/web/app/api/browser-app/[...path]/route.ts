@@ -1,0 +1,11 @@
+import { proxyBrowserAppRequest } from '../../../../src/server/browser-app-proxy';
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+const handler = (request: Request, context: { params: Promise<{ path?: string[] }> }) => proxyBrowserAppRequest(request, context.params);
+export const GET = handler;
+export const HEAD = handler;
+export const POST = handler;
+export const PUT = handler;
+export const PATCH = handler;
+export const DELETE = handler;
+export const OPTIONS = handler;

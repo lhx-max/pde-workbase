@@ -1,0 +1,8 @@
+/* Global keyframes shared by component styles. Keep index.css as an import-only manifest. */
+@keyframes orb-drift {
+  0%   { transform: translate(0, 0)    scale(1);    }
+  25%  { transform: translate(8%, 12%) scale(1.05); }
+  50%  { transform: translate(-6%, 8%) scale(0.96); }
+  75%  { transform: translate(10%,-8%) scale(1.03); }
+  100% { transform: translate(0, 0)    scale(1);    }
+}

@@ -1,0 +1,15 @@
+/* Application-wide action focus policy.
+ * The PostCSS focus-policy plugin gates only :focus-visible rules in pointer
+ * mode, including imported package/CSS Module rules. It leaves selected-state
+ * outlines and all text-entry focus styles intact. This low-specificity fallback
+ * suppresses the UA action outline, not authored selection/border/shadow styles.
+ * Keep it in Tailwind's base layer so selection utilities also outrank it.
+ * data-focus-indicators="always" on a control or ancestor opts out.
+ * Forced-colors keeps native focus cues, even before the runtime mounts.
+ */
+@layer base {
+  @media (forced-colors: none) {
+    /* Expanded to the shared semantic action selector by postcss-focus-policy. */
+    :--pointer-action-focus { outline: none; }
+  }
+}

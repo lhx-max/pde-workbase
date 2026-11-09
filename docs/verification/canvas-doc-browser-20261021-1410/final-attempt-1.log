@@ -1,0 +1,73 @@
+NEXT Canvas web ready: http://127.0.0.1:56182
+
+URLS {"canvas":"http://127.0.0.1:56187","doc":"http://127.0.0.1:56190","web":"http://127.0.0.1:56182","docUrl":"http://127.0.0.1:56190/?doc=合成正文-3a7b3575","root":"/var/folders/h4/2lhtpkgj43s9d8gfg3x6knc00000gn/T/canvas-doc-browser-data-Zduvc4"}
+BROWSER 155.0.8059.85
+CANVAS BUTTONS [
+  '',         '拆分镜', '生成图片',
+  '文生视频', '',       '',
+  '',         '',       '',
+  '',         '',       '',
+  '',         '',       '',
+  '',         '',       '',
+  '',         '',       '100%',
+  '',         '',       '',
+  '',         '',       ''
+]
+PASS open existing canonical doc without overwrite
+PASS standalone UI save propagates to embedded live editor
+PASS embedded UI save propagates to standalone live editor
+PASS standalone reload preserves body while canvas stays mounted for stale-event regression
+PASS overlapping UI conflict retains local draft and exposes remote body
+PASS explicit UI resolution persists selected draft to both entries
+PASS asset copy gets new identity and browser editing remains isolated
+FAIL canvas inline body edits and card duplication use separate document copies ExpectError: expect(received).toBe(expected) // Object.is equality
+
+Expected: "# CANVAS COPY ONLY EDIT"
+Received: "# CANVAS INLINE BODY EDIT"
+
+Call Log:
+- Timeout 5000ms exceeded while waiting on the predicate
+    at captureRawStack (/Users/zhuzhiheng/Desktop/canvas-workspace/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/lib/coreBundle.js:3130:17)
+    at callMatcherAsStep (/Users/zhuzhiheng/Desktop/canvas-workspace/node_modules/.pnpm/playwright@1.60.0/node_modules/playwright/lib/matchers/expect.js:12873:57)
+    at Object.toBe (/Users/zhuzhiheng/Desktop/canvas-workspace/node_modules/.pnpm/playwright@1.60.0/node_modules/playwright/lib/matchers/expect.js:12863:23)
+    at <anonymous> (/private/tmp/canvas-doc-browser-KXH8y7/browser.ts:91:104)
+    at async check (/private/tmp/canvas-doc-browser-KXH8y7/browser.ts:22:61)
+    at async <anonymous> (/private/tmp/canvas-doc-browser-KXH8y7/browser.ts:84:2) {
+  matcherResult: {
+    pass: false,
+    message: 'expect(received).toBe(expected) // Object.is equality\n' +
+      '\n' +
+      'Expected: "# CANVAS COPY ONLY EDIT"\n' +
+      'Received: "# CANVAS INLINE BODY EDIT"\n' +
+      '\n' +
+      'Call Log:\n' +
+      '- Timeout 5000ms exceeded while waiting on the predicate',
+    name: 'toBe'
+  }
+}
+ExpectError: expect(received).toBe(expected) // Object.is equality
+
+Expected: "# CANVAS COPY ONLY EDIT"
+Received: "# CANVAS INLINE BODY EDIT"
+
+Call Log:
+- Timeout 5000ms exceeded while waiting on the predicate
+    at captureRawStack (/Users/zhuzhiheng/Desktop/canvas-workspace/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/lib/coreBundle.js:3130:17)
+    at callMatcherAsStep (/Users/zhuzhiheng/Desktop/canvas-workspace/node_modules/.pnpm/playwright@1.60.0/node_modules/playwright/lib/matchers/expect.js:12873:57)
+    at Object.toBe (/Users/zhuzhiheng/Desktop/canvas-workspace/node_modules/.pnpm/playwright@1.60.0/node_modules/playwright/lib/matchers/expect.js:12863:23)
+    at <anonymous> (/private/tmp/canvas-doc-browser-KXH8y7/browser.ts:91:104)
+    at async check (/private/tmp/canvas-doc-browser-KXH8y7/browser.ts:22:61)
+    at async <anonymous> (/private/tmp/canvas-doc-browser-KXH8y7/browser.ts:84:2) {
+  matcherResult: {
+    pass: false,
+    message: 'expect(received).toBe(expected) // Object.is equality\n' +
+      '\n' +
+      'Expected: "# CANVAS COPY ONLY EDIT"\n' +
+      'Received: "# CANVAS INLINE BODY EDIT"\n' +
+      '\n' +
+      'Call Log:\n' +
+      '- Timeout 5000ms exceeded while waiting on the predicate',
+    name: 'toBe'
+  }
+}
+CLEANED temporary listeners and /var/folders/h4/2lhtpkgj43s9d8gfg3x6knc00000gn/T/canvas-doc-browser-data-Zduvc4

@@ -1,0 +1,88 @@
+{
+  "passed": false,
+  "checks": [
+    "Registry mounts original full canvas and resolves Provider instance",
+    "UI add-video-card action persists into the same Provider state",
+    "Provider edit appears in UI; old-key replay is stable; stale writes return 409"
+  ],
+  "error": "Error: expect(locator).not.toHaveAttribute(expected) failed\n\nLocator:  locator('[data-canvas-instance-id]')\nExpected: not \"ma-9fc3ba2d544ac381e33f2516339c4e3e5d86a8775f68d17099a302e4c8b18956\"\nReceived: \"ma-9fc3ba2d544ac381e33f2516339c4e3e5d86a8775f68d17099a302e4c8b18956\"\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.have.attribute.value\" with timeout 5000ms\n  - waiting for locator('[data-canvas-instance-id]')\n    14 × locator resolved to <section aria-label=\"画布工作区\" class=\"canvas-plugin-surface\" data-canvas-instance-id=\"ma-9fc3ba2d544ac381e33f2516339c4e3e5d86a8775f68d17099a302e4c8b18956\">…</section>\n       - unexpected value \"ma-9fc3ba2d544ac381e33f2516339c4e3e5d86a8775f68d17099a302e4c8b18956\"\n",
+  "errors": [],
+  "traffic": [
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4173/canvas-provider/open-platform/v1/instances/pi_workspace_a/actions/canvas.create",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4173/canvas-provider/open-platform/v1/instances/pi_workspace_a/actions/canvas.create",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/projects/ma-9fc3ba2d544ac381e33f2516339c4e3e5d86a8775f68d17099a302e4c8b18956/canvas/state",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/projects/ma-9fc3ba2d544ac381e33f2516339c4e3e5d86a8775f68d17099a302e4c8b18956/canvas/state",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/media/models",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/media/config",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/agents",
+      "status": 200
+    },
+    {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/projects/ma-9fc3ba2d544ac381e33f2516339c4e3e5d86a8775f68d17099a302e4c8b18956/canvas/state",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/projects/ma-9fc3ba2d544ac381e33f2516339c4e3e5d86a8775f68d17099a302e4c8b18956/canvas/revision",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/projects/ma-9fc3ba2d544ac381e33f2516339c4e3e5d86a8775f68d17099a302e4c8b18956/canvas/state",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/projects/ma-9fc3ba2d544ac381e33f2516339c4e3e5d86a8775f68d17099a302e4c8b18956/canvas/state",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/projects/ma-9fc3ba2d544ac381e33f2516339c4e3e5d86a8775f68d17099a302e4c8b18956/canvas/state",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/projects/ma-9fc3ba2d544ac381e33f2516339c4e3e5d86a8775f68d17099a302e4c8b18956/canvas/revision",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/projects/ma-9fc3ba2d544ac381e33f2516339c4e3e5d86a8775f68d17099a302e4c8b18956/canvas/revision",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4173/canvas-provider/api/projects/ma-9fc3ba2d544ac381e33f2516339c4e3e5d86a8775f68d17099a302e4c8b18956/canvas/revision",
+      "status": 200
+    }
+  ],
+  "body": "DA\nPLUGIN KIT\nHOST PREVIEW / V1\n设计画布\n素材收藏\n画布工作区\n文档编辑器\n实例\n完整画布 A\n完整画布 B\n未切换：Canvas persistence instance changed\n图片\n上传图片\nProvider verified 1792565354449\n\n暂无已配置的视频模型，请在设置的媒体页面配置提供商。已有作品已保留。\n\n100%"
+}

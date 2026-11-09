@@ -1,0 +1,8 @@
+/* Original ownership-switch geometry from upstream AssetLibraryControls; sources replace accounts. */
+.scopeList { display: inline-flex; padding: 3px; gap: 2px; background: var(--bg-subtle); border-radius: 9px; height: 36px; }
+.scopeButton { padding: 0 14px; height: 30px; border-radius: 6px; white-space: nowrap; font-size: 13px; font-weight: 500; color: var(--text-muted); }
+.scopeButton:hover { color: var(--text); }
+.scopeButton[data-state='active'] { background: var(--bg-panel); color: var(--text-strong); box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 8%, transparent); }
+.scopeListCompact { height:34px; padding:3px; gap:1px; border-radius:8px; background:color-mix(in srgb, var(--bg-subtle) 82%, var(--bg-panel)); }
+.scopeButtonCompact { min-width:46px; height:28px; padding:0 10px; border-radius:6px; font-size:12px; font-weight:500; }
+.scopeButtonCompact[data-state='active'] { box-shadow:0 1px 2px color-mix(in srgb, var(--text) 7%, transparent); }

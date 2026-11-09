@@ -1,0 +1,616 @@
+/* ─── image asset node ─────────────────────────── */
+.canvas-workbench .image-asset-node {
+  --kind: var(--visual-accent);
+  /* Image display width is the content width; borders must not consume it. */
+  box-sizing: content-box;
+  position: relative;
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-sm);
+  overflow: visible;
+  animation: nodeIn 220ms cubic-bezier(0.22,1,0.36,1) both;
+  transition: box-shadow 160ms ease, border-color 160ms ease;
+}
+.canvas-workbench .image-asset-node:hover {
+  box-shadow: var(--shadow-md);
+  border-color: color-mix(in srgb, var(--kind) 45%, var(--border-strong));
+}
+.canvas-workbench .image-asset-node.is-selected {
+  border-color: var(--text-strong, #202020);
+  box-shadow: 0 0 0 1px var(--text-strong, #202020), var(--shadow-md);
+}
+.canvas-workbench .image-asset-frame {
+  position: relative;
+  overflow: visible;
+  border-radius: calc(var(--r-md) - 1px);
+  background: var(--bg-muted);
+  cursor: grab;
+}
+.canvas-workbench .image-asset-media {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  pointer-events: none;
+  user-select: none;
+  border-radius: inherit;
+}
+.canvas-workbench .image-asset-node.is-generating,
+.canvas-workbench .image-asset-node.is-failed {
+  border-color: color-mix(in srgb, var(--border-default) 82%, transparent);
+  box-shadow: 0 8px 24px rgba(24, 26, 32, 0.06);
+}
+.canvas-workbench .image-asset-node.is-generating .image-asset-frame {
+  background:
+    linear-gradient(110deg, transparent 24%, rgba(255,255,255,0.76) 40%, transparent 56%) -140% 0 / 220% 100% no-repeat,
+    linear-gradient(145deg, #f5f6f8, #eceef2);
+  animation: imagePlaceholderSweep 2.1s ease-in-out infinite;
+}
+.canvas-workbench .image-asset-node.is-failed .image-asset-frame {
+  background: linear-gradient(145deg, #fff8f7, #f8efed);
+}
+.canvas-workbench .image-generation-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 24px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+.canvas-workbench .image-generation-state strong {
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 620;
+  letter-spacing: 0.02em;
+}
+.canvas-workbench .image-generation-state > span:last-child {
+  max-width: 86%;
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.canvas-workbench .image-generation-orbit {
+  width: 24px;
+  height: 24px;
+  margin-bottom: 3px;
+  border: 1.5px solid rgba(45, 49, 58, 0.14);
+  border-top-color: var(--visual-accent);
+  border-radius: 50%;
+  animation: imageOrbit 900ms linear infinite;
+}
+.canvas-workbench .image-generation-failed {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  margin-bottom: 3px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 700;
+}
+.canvas-workbench .image-failed-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.canvas-workbench .image-failed-actions button {
+  height: 28px;
+  min-width: 56px;
+  padding: 0 12px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--r-pill);
+  background: rgba(255,255,255,0.78);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+.canvas-workbench .image-failed-actions button:hover {
+  border-color: var(--border-strong);
+  background: #fff;
+  color: var(--text-strong);
+}
+.canvas-workbench .image-failed-actions button.is-danger {
+  color: var(--danger);
+}
+.canvas-workbench .image-failed-actions button.is-danger:hover {
+  border-color: color-mix(in srgb, var(--danger) 32%, var(--border-default));
+  background: var(--danger-soft);
+}
+@keyframes imageOrbit {
+  to { transform: rotate(360deg); }
+}
+@keyframes imagePlaceholderSweep {
+  0% { background-position: -140% 0, 0 0; }
+  65%, 100% { background-position: 180% 0, 0 0; }
+}
+/* hover / 选中含图片的节点时，把整个 react-flow 节点抬到最上层，
+   避免向上溢出的操作胶囊被相邻图片节点遮挡 */
+.canvas-workbench .xy-flow-host .react-flow__node:has(.image-asset-node:hover),
+.canvas-workbench .xy-flow-host .react-flow__node:has(.image-asset-node.is-selected),
+.canvas-workbench .xy-flow-host .react-flow__node:has(.image-action-capsule:hover) {
+  z-index: 1000 !important;
+}
+/* CropEditor owns this marker: keep its selection handles above neighboring images. */
+.canvas-workbench .xy-flow-host .react-flow__node:has([data-crop-editor]) {
+  z-index: 5000 !important;
+}
+.canvas-workbench .xy-flow-host .react-flow__node:has(.minimax-annotation-v2) {
+  z-index: 5000 !important;
+}
+.canvas-workbench .image-action-capsule {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%) translateY(calc(-100% - 14px));
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 44px;
+  padding: 4px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--r-pill);
+  background: rgba(255,255,255,0.94);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+.canvas-workbench .image-asset-node.is-selected .image-action-capsule,
+.canvas-workbench .basic-output-generator.is-selected .image-action-capsule,
+.canvas-workbench .react-flow__node.selected .image-action-capsule {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(calc(-100% - 14px));
+}
+.canvas-workbench .xy-flow-host.has-multiselection :is(.image-action-capsule, .basic-output-primary-actions, .canvas-node-actions, .basic-text-floating-toolbar-host) {
+  display: none;
+}
+.canvas-workbench .image-action-capsule button {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-pill);
+  color: var(--text-secondary);
+  transition: color 120ms, background 120ms;
+}
+.canvas-workbench .image-action-capsule button.has-label {
+  width: auto;
+  padding: 0 11px;
+  display: inline-flex;
+  gap: 7px;
+  white-space: nowrap;
+  color: #29292d;
+  font-size: 12.5px;
+  font-weight: 620;
+}
+.canvas-workbench .image-action-capsule button.has-label span { line-height: 1; }
+.canvas-workbench .image-action-capsule button:hover {
+  color: var(--text-strong);
+  background: var(--bg-hover);
+}
+.canvas-workbench .image-action-capsule button.is-danger:hover {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+.canvas-workbench .image-action-capsule button[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%) translateY(2px);
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: rgba(23, 23, 23, 0.88);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1.2;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+.canvas-workbench .image-action-capsule button[data-tip]:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.canvas-workbench .image-action-capsule svg { width: 17px; height: 17px; }
+.canvas-workbench .image-capsule-divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: var(--border-default);
+}
+.canvas-workbench .image-action-capsule button.is-active {
+  color: var(--visual-accent);
+  background: rgba(217, 184, 114, 0.14);
+}
+/* Colour editor styles are owned by ImageAdjustOverlay.module.css. */
+
+/* ─── prompt card node ──────────────────────────── */
+.canvas-workbench .prompt-card-node {
+  position: relative;
+  width: 360px;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: 14px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+  animation: nodeIn 220ms cubic-bezier(0.22,1,0.36,1) both;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.canvas-workbench .prompt-card-node:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+.canvas-workbench .prompt-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 54px;
+  padding: 11px 13px 10px 15px;
+  border-bottom: 1px solid var(--border-subtle);
+  cursor: grab;
+}
+.canvas-workbench .prompt-card-head > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.canvas-workbench .prompt-card-head span {
+  color: var(--visual-accent);
+  font-size: 9px;
+  font-weight: 720;
+  letter-spacing: 0.14em;
+}
+.canvas-workbench .prompt-card-head strong {
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 650;
+}
+.canvas-workbench .prompt-card-head > button {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: var(--r-sm);
+  color: var(--text-tertiary);
+  font-size: 18px;
+}
+.canvas-workbench .prompt-card-head > button:hover {
+  background: var(--bg-hover);
+  color: var(--text-strong);
+}
+.canvas-workbench .prompt-card-editor {
+  display: block;
+  width: 100%;
+  height: 250px;
+  padding: 15px;
+  resize: vertical;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: "SFMono-Regular", "Cascadia Code", "Roboto Mono", monospace;
+  font-size: 11px;
+  line-height: 1.72;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(37, 42, 52, 0.22) transparent;
+}
+.canvas-workbench .prompt-card-editor::-webkit-scrollbar { width: 4px; }
+.canvas-workbench .prompt-card-editor::-webkit-scrollbar-track { background: transparent; }
+.canvas-workbench .prompt-card-editor::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(37, 42, 52, 0.18);
+}
+.canvas-workbench .prompt-card-editor::-webkit-scrollbar-thumb:hover { background: rgba(37, 42, 52, 0.32); }
+.canvas-workbench .prompt-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--bg-muted) 52%, transparent);
+}
+.canvas-workbench .prompt-card-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  border-radius: var(--r-md);
+  font-size: 11px;
+  font-weight: 620;
+}
+.canvas-workbench .prompt-copy {
+  gap: 6px;
+  padding: 0 10px;
+  color: var(--text-secondary);
+}
+.canvas-workbench .prompt-copy:hover { background: var(--bg-hover); color: var(--text-strong); }
+.canvas-workbench .prompt-copy svg { width: 15px; height: 15px; }
+.canvas-workbench .prompt-generate {
+  padding: 0 14px;
+  background: #202228;
+  color: #fff;
+}
+.canvas-workbench .prompt-generate:hover:not(:disabled) { background: #08090b; }
+.canvas-workbench .prompt-generate:disabled { opacity: 0.44; cursor: not-allowed; }
+
+/* ---------- 继续生图弹出面板 ---------- */
+.canvas-workbench .image-continue-panel {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 16px);
+  width: 320px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 20;
+  cursor: default;
+}
+.canvas-workbench .image-group-continue-panel {
+  top: -48px;
+  left: calc(100% + 16px);
+}
+.canvas-workbench .icp-ref-group {
+  max-width: 100%;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.canvas-workbench .icp-ref-group .icp-ref-thumb { flex: 0 0 56px; }
+.canvas-workbench .image-continue-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.canvas-workbench .image-continue-head strong { font-size: 14px; color: var(--text-strong); font-weight: 650; }
+.canvas-workbench .image-continue-head button {
+  width: 24px; height: 24px; display: grid; place-items: center;
+  border-radius: var(--r-sm); color: var(--text-tertiary); font-size: 18px;
+  transition: background 120ms, color 120ms;
+}
+.canvas-workbench .image-continue-head button:hover { background: var(--bg-hover); color: var(--text-strong); }
+.canvas-workbench .icp-field { display: flex; flex-direction: column; gap: 7px; }
+.canvas-workbench .icp-field-grow { flex: 1 1 auto; min-width: 0; }
+.canvas-workbench .icp-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.canvas-workbench .icp-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.canvas-workbench .icp-ratio-row { flex-wrap: nowrap; }
+.canvas-workbench .icp-chip {
+  min-width: 30px; height: 32px; padding: 0 11px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border-default); border-radius: var(--r-md);
+  font-size: 12px; font-weight: 600; color: var(--text-secondary);
+  transition: all 120ms;
+}
+.canvas-workbench .icp-chip-grow { flex: 1 1 0; padding: 0 6px; }
+.canvas-workbench .icp-chip:hover { border-color: var(--border-strong); color: var(--text-strong); }
+.canvas-workbench .icp-chip.is-active {
+  border-color: var(--visual-accent); color: var(--visual-accent);
+  background: rgba(217, 184, 114, 0.12);
+}
+.canvas-workbench .icp-options-row { display: flex; align-items: flex-end; gap: 12px; }
+.canvas-workbench .icp-stepper {
+  display: inline-flex; align-items: center; gap: 2px;
+  border: 1px solid var(--border-default); border-radius: var(--r-md);
+  padding: 2px; height: 32px;
+}
+.canvas-workbench .icp-stepper button {
+  width: 28px; height: 26px; display: grid; place-items: center;
+  border-radius: var(--r-sm); color: var(--text-secondary); font-size: 15px;
+}
+.canvas-workbench .icp-stepper button:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-strong); }
+.canvas-workbench .icp-stepper button:disabled { opacity: 0.35; cursor: default; }
+.canvas-workbench .icp-stepper strong { min-width: 24px; text-align: center; font-size: 13px; color: var(--text-strong); }
+.canvas-workbench .icp-estimate { font-size: 11px; color: var(--text-tertiary); }
+.canvas-workbench .icp-ref { display: flex; gap: 8px; }
+.canvas-workbench .icp-ref-thumb {
+  width: 56px; height: 56px; border-radius: var(--r-md); overflow: hidden;
+  border: 1px solid var(--border-default);
+}
+.canvas-workbench .icp-ref-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.canvas-workbench .icp-brief {
+  width: 100%; min-height: 72px; padding: 9px 11px; resize: vertical;
+  border: 1px solid var(--border-default); border-radius: var(--r-md);
+  font-size: 13px; line-height: 1.5; color: var(--text-primary); background: var(--bg-surface);
+}
+.canvas-workbench .icp-brief:focus { border-color: var(--text-strong); outline: none; }
+.canvas-workbench .icp-submit {
+  height: 40px; border-radius: var(--r-md);
+  background: var(--visual-accent); color: #3a2f13; font-size: 14px; font-weight: 650;
+  transition: opacity 140ms;
+}
+.canvas-workbench .icp-submit:hover { opacity: 0.88; }
+.canvas-workbench .image-asset-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  padding: 5px 10px;
+  border-radius: var(--r-pill);
+  background: rgba(23, 23, 23, 0.82);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 550;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ─── image group + selection capsule ─────────── */
+.canvas-workbench .image-group-node {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 14px;
+  border: 1px dashed rgba(15, 23, 42, 0.14);
+  background: rgba(15, 23, 42, 0.015);
+  box-sizing: border-box;
+  cursor: grab;
+}
+.canvas-workbench .image-group-node.is-selected,
+.canvas-workbench .image-group-node.is-hot {
+  border-color: rgba(15, 23, 42, 0.22);
+  background: rgba(15, 23, 42, 0.03);
+}
+.canvas-workbench .image-group-operation-error {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 8px;
+  padding: 8px 12px;
+  max-width: 360px;
+  border-radius: var(--radius-button, 8px);
+  background: var(--bg-panel, white);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-sm);
+  font-size: 12px;
+}
+/* 标签：与框左对齐，底边距框 12px；padding-bottom 同时作为 hover 热区桥 */
+.canvas-workbench .image-group-chrome {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  z-index: 6;
+  padding: 0 0 12px;
+  pointer-events: auto;
+}
+.canvas-workbench .image-group-anchor {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+}
+.canvas-workbench .image-group-label {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: var(--r-pill);
+  background: rgba(255,255,255,0.96);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: grab;
+  pointer-events: auto;
+  box-sizing: border-box;
+  flex: none;
+}
+.canvas-workbench .image-group-label.node-drag-surface {
+  margin: 0;
+  padding: 0 12px;
+}
+.canvas-workbench .image-group-label span {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+.canvas-workbench .image-group-label svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  display: block;
+}
+/* 组内单图：不显示自己的操作胶囊 */
+.canvas-workbench .image-asset-node.is-grouped {
+  box-shadow: none;
+  border-color: transparent;
+  background: transparent;
+}
+.canvas-workbench .image-asset-node.is-grouped:not(.is-selected):hover {
+  box-shadow: none;
+  border-color: transparent;
+}
+.canvas-workbench .image-asset-node.is-grouped.is-selected {
+  border-color: var(--text-strong, #202020);
+  box-shadow: 0 0 0 1px var(--text-strong, #202020), var(--shadow-md);
+}
+.canvas-workbench .image-asset-node.is-grouped .image-asset-frame { cursor: grab; }
+
+.canvas-workbench .selection-group-capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 32px;
+  padding: 3px;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+.canvas-workbench .selection-group-capsule button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  min-height: 26px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: var(--r-pill);
+  color: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  background: transparent;
+  transition: color 120ms, background 120ms;
+}
+.canvas-workbench .selection-group-capsule button:hover:not(:disabled) {
+  color: var(--text-strong, #202020);
+  background: var(--bg-hover, rgb(0 0 0 / 6%));
+}
+.canvas-workbench .selection-group-capsule button:focus-visible {
+  outline: 2px solid var(--text-muted, #888);
+  outline-offset: -2px;
+}
+.canvas-workbench .selection-group-capsule .selection-group-dismiss {
+  width: 26px;
+  min-width: 26px;
+  padding: 0;
+  justify-content: center;
+}
+.canvas-workbench .selection-group-divider {
+  width: 1px;
+  height: 14px;
+  margin: 0 2px;
+  background: var(--border-default, #ddd);
+}
+.canvas-workbench .selection-group-capsule button svg {
+  width: 14px;
+  height: 14px;
+}
+.canvas-workbench .selection-group-count {
+  padding: 0 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}

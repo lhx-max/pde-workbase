@@ -1,0 +1,319 @@
+/* ============================================================= */
+/*  画布工作台 — Modern SaaS UI                                    */
+/*  Inter + 圆角 + 浅灰边框 + 大白卡 + 彩虹渐变光斑                    */
+/* ============================================================= */
+
+/* Scope root. This block used to be `:root`, which made the ported canvas palette
+   GLOBAL: `--bg-app: #f2f2f2` landed on <html> and silently repainted every DA
+   surface that reads the token — most visibly the home composer's input card
+   (`.home-hero__input-card { background: var(--bg-app) }`), which rendered gray
+   instead of white. Canvas tokens must live on the canvas subtree only; the host owns
+   :root (apps/web/src/styles/tokens.css). Keep in sync with the KEEP_GLOBAL
+   list in the historical stylesheet scoping script, which no longer exempts :root. */
+.canvas-workbench {
+  /* Type */
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'ss01';
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Base */
+  --bg-app:      #f2f2f2;
+  --bg-surface:  #ffffff;
+  --bg-muted:    #f7f7f7;
+  --bg-hover:    rgba(0, 0, 0, 0.04);
+  --bg-active:   rgba(0, 0, 0, 0.07);
+
+  /* Text */
+  --text-strong:     #0a0a0a;
+  --text-primary:    #171717;
+  --text-secondary:  #525252;
+  --text-tertiary:   #a3a3a3;
+  --text-quaternary: #d4d4d4;
+  --text-inverse:    #ffffff;
+
+  /* Border */
+  --border-default: #e5e5e5;
+  --border-strong:  #d4d4d4;
+  --border-subtle:  #f0f0f0;
+
+  /* Accent */
+  --accent:       #2f3540;
+  --accent-hover: #1a1e26;
+  --accent-soft:  rgba(47, 53, 64, 0.09);
+  /* 方案统一强调色：淡紫。所有卡片的状态点 / 徽标 / 强调文字统一走这套 */
+  --plan-accent:      #7c7ff2;
+  --plan-accent-ink:  #5457e6;
+  --plan-accent-soft: rgba(124, 127, 242, 0.12);
+  --plan-accent-halo: rgba(124, 127, 242, 0.30);
+
+  /* 生图强调色：淡雅柔黄（沙金），用于区分生图卡与方案卡。
+     去掉高饱和的刺眼感，偏暖米调；ink 更深用于文字 / KICKER。 */
+  --visual-accent:      #d9b872;
+  --visual-accent-ink:  #8a6a2e;
+  --visual-accent-soft: rgba(217, 184, 114, 0.16);
+  --visual-accent-halo: rgba(217, 184, 114, 0.32);
+
+  /* 视频强调色：低饱和雾蓝，与淡紫 / 沙金构成互不打架的三色 */
+  --video-accent:      #7fa4c9;
+  --video-accent-ink:  #4a6d8c;
+  --video-accent-soft: rgba(127, 164, 201, 0.16);
+  --video-accent-halo: rgba(127, 164, 201, 0.32);
+
+  /* Semantic */
+  --success:      #16a34a;
+  --success-soft: rgba(22, 163, 74, 0.10);
+  --warning:      #d97706;
+  --warning-soft: rgba(217, 119, 6, 0.10);
+  --danger:       #dc2626;
+  --danger-soft:  rgba(220, 38, 38, 0.10);
+
+  /* Shadow */
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,0.09), 0 4px 8px rgba(0,0,0,0.04);
+
+  /* Radius */
+  --r-sm:   6px;
+  --r-md:   10px;
+  --r-lg:   16px;
+  --r-xl:   20px;
+  --r-pill: 999px;
+
+  /* Ribbon colors */
+  --rb1: #f87171;
+  --rb2: #fb923c;
+  --rb3: #facc15;
+  --rb4: #4ade80;
+  --rb5: #38bdf8;
+  --rb6: #818cf8;
+
+  color: var(--text-primary);
+  background: var(--bg-app);
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.5;
+
+  /* ---------------------------------------------------------------------
+   * 关键：把画布子树里所有 `position: fixed` 后代（.workbench-shell /
+   * .home-layer / .flow-home 等）的定位基准从「浏览器视口」改成
+   * 「.canvas-workbench 本身」。
+   *
+   * 早期画布是独立全屏 SPA，这些元素用 fixed + inset:0 贴满视口。平移进宿主
+   * 后画布只是「设计文件」Tab 里的一块区域，若仍相对视口定位，画布 banner
+   * 会顶到页面最上方、画布铺满整屏，挡住 DA 的 Tab 条与左侧聊天框。
+   *
+   * CSS 规范：祖先只要有 transform / filter / perspective 之一为非 none，
+   * 就会成为其 fixed 后代的包含块。这里用 transform 建立包含块，配合
+   * position: relative 与 100%×100% 尺寸，让整套 fixed 布局被约束在容器内，
+   * 且不改动既有布局语义。
+   * ------------------------------------------------------------------- */
+  position: relative;
+  /* A 2D transform keeps fixed descendants scoped without forcing the whole
+     infinite canvas into a GPU texture (tile exhaustion causes flashing). */
+  transform: translate(0, 0);
+}
+
+.canvas-workbench * { box-sizing: border-box; }
+.canvas-workbench button, .canvas-workbench input, .canvas-workbench textarea, .canvas-workbench select { font: inherit; color: inherit; }
+.canvas-workbench button { background: transparent; border: 0; padding: 0; cursor: pointer; }
+.canvas-workbench button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/*
+ * React Flow moves keyboard focus onto the selected node shell so canvas
+ * shortcuts keep working. The shell already exposes selection through the
+ * node's own neutral border/resizer; suppress the browser's extra focus ring
+ * here so it cannot leak the app accent (orange/yellow) around every card.
+ * Interactive controls inside the card keep their normal focus-visible ring.
+ */
+.canvas-workbench [data-canvas-node-surface]:focus,
+.canvas-workbench [data-canvas-node-surface]:focus-visible {
+  outline: none;
+}
+
+.canvas-workbench .workbench-shell, .canvas-workbench .home-layer { position: fixed; inset: 0; }
+
+/* =============================================================== */
+/*  HOME LAYOUT                                                      */
+/* =============================================================== */
+.canvas-workbench .flow-home {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  display: flex;
+  background: var(--bg-app);
+}
+
+/* =============================================================== */
+/*  CANVAS                                                           */
+/* =============================================================== */
+.canvas-workbench .flow-canvas-host {
+  flex: 1 1 auto;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.canvas-workbench .flow-canvas,
+.canvas-workbench .xy-flow-host {
+  flex: 1 1 auto;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+}
+/* The host owns canvas keyboard shortcuts, but it is not an actionable
+   control. Suppress Chromium's full-surface focus ring; interactive controls
+   inside the canvas keep their own :focus-visible treatment. */
+.canvas-workbench .xy-flow-host:focus,
+.canvas-workbench .xy-flow-host:focus-visible {
+  outline: none;
+}
+/* The canvas owns this palette, including the shared toolbar's appearance
+   previews (data-pattern/data-tone). Default follows the host header surface;
+   warm gray preserves the previous canvas fill. Do not change other editors. */
+.canvas-workbench .flow-canvas,
+.canvas-workbench .xy-flow-host,
+.canvas-workbench [data-pattern][data-tone='default'] {
+  background-color: var(--bg-panel, var(--bg-surface));
+}
+.canvas-workbench .xy-flow-host[data-canvas-tone='warm-gray'],
+.canvas-workbench [data-pattern][data-tone='warm-gray'] {
+  background-color: var(--bg-app);
+}
+.canvas-workbench .xy-flow-host[data-canvas-tone='cool-gray'] { background: #f2f4f7; }
+.canvas-workbench .xy-flow-host[data-canvas-tone='paper'] { background: #f8f5ed; }
+.canvas-workbench .xy-flow-host[data-canvas-tone='sage'] { background: #eef4ef; }
+.canvas-workbench .xy-flow-host[data-canvas-tone='mist-blue'] { background: #eef4f8; }
+.canvas-workbench .xy-flow-host[data-canvas-tone='lavender'] { background: #f3f0fb; }
+.canvas-workbench .xy-flow-host[data-canvas-tone='blush'] { background: #fcf1f2; }
+.canvas-workbench .xy-flow-host[data-canvas-tone='sand'] { background: #f8f1e7; }
+.canvas-workbench .flow-canvas:active,
+.canvas-workbench .xy-flow-host.mode-pointer .react-flow,
+.canvas-workbench .xy-flow-host.mode-pointer .react-flow__pane { cursor: default; }
+.canvas-workbench .xy-flow-host.mode-hand,
+.canvas-workbench .xy-flow-host.mode-hand .react-flow,
+.canvas-workbench .xy-flow-host.mode-hand .react-flow__pane,
+.canvas-workbench .xy-flow-host.mode-hand .react-flow__node,
+.canvas-workbench .xy-flow-host.mode-hand .node-drag-surface {
+  cursor: grab !important;
+}
+/* 抓手模式下，卡片内部可交互控件恢复各自光标，不被 grab 覆盖 */
+.canvas-workbench .xy-flow-host.mode-hand .nodrag,
+.canvas-workbench .xy-flow-host.mode-hand .nopan,
+.canvas-workbench .xy-flow-host.mode-hand .react-flow__node button,
+.canvas-workbench .xy-flow-host.mode-hand .react-flow__node a,
+.canvas-workbench .xy-flow-host.mode-hand .react-flow__node label,
+.canvas-workbench .xy-flow-host.mode-hand .react-flow__node select {
+  cursor: pointer !important;
+}
+.canvas-workbench .xy-flow-host.mode-hand .react-flow__node input,
+.canvas-workbench .xy-flow-host.mode-hand .react-flow__node textarea,
+.canvas-workbench .xy-flow-host.mode-hand .react-flow__node [contenteditable="true"] {
+  cursor: text !important;
+}
+.canvas-workbench .xy-flow-host.mode-hand:active,
+.canvas-workbench .xy-flow-host.mode-hand .react-flow__pane:active,
+.canvas-workbench .xy-flow-host.mode-hand .node-drag-surface:active {
+  cursor: grabbing !important;
+}
+.canvas-workbench .xy-flow-host .react-flow {
+  width: 100%;
+  height: 100%;
+}
+.canvas-workbench .xy-flow-host .react-flow__node {
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+}
+/*
+ * Suspend decorative work while dragging. Do not explicitly promote even the
+ * active node: it may be a region containing many images and large editors.
+ */
+.canvas-workbench .xy-flow-host .react-flow__node.dragging {
+  --shadow-xs: none;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  will-change: auto;
+}
+.canvas-workbench .xy-flow-host .react-flow__node.dragging *,
+.canvas-workbench .xy-flow-host .react-flow__node.dragging *::before,
+.canvas-workbench .xy-flow-host .react-flow__node.dragging *::after {
+  animation-play-state: paused !important;
+  transition-duration: 0s !important;
+}
+.canvas-workbench .xy-flow-host .react-flow__node.dragging :is(
+  .node-handle,
+  .basic-node-handle,
+  .basic-node-resizer-line,
+  .basic-node-resizer-handle,
+  .image-action-capsule
+) {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+.canvas-workbench .xy-flow-host .react-flow__attribution { display: none; }
+.canvas-workbench .node-handle {
+  width: 22px !important;
+  height: 22px !important;
+  border: 1.5px solid #fff !important;
+  border-radius: 999px !important;
+  background: #98a2b3 !important;
+  color: #fff !important;
+  opacity: 0;
+  transition: opacity 120ms ease, background 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.12);
+  cursor: crosshair;
+}
+.canvas-workbench .node-handle::after {
+  content: '+';
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1;
+  transform: translateY(-0.5px);
+  pointer-events: none;
+}
+.react-flow__node:hover .node-handle,
+.react-flow__node.selected .node-handle,
+.canvas-workbench .node-handle.connecting,
+.canvas-workbench .node-handle-connectingfrom,
+.canvas-workbench .node-handle-connectingto,
+.canvas-workbench .node-handle.is-open {
+  opacity: 1;
+}
+.canvas-workbench .node-handle-plus {
+  background: var(--plan-accent) !important;
+  border-color: #fff !important;
+  cursor: pointer;
+}
+.canvas-workbench .node-handle-plus:hover,
+.canvas-workbench .node-handle-plus.is-open {
+  background: var(--plan-accent-ink) !important;
+  transform: scale(1.06);
+  box-shadow: 0 4px 14px var(--plan-accent-halo);
+}
+.canvas-workbench .xy-drop-hint {
+  position: absolute;
+  inset: 18px;
+  z-index: 6;
+  border: 1.5px dashed color-mix(in srgb, var(--visual-accent) 55%, white);
+  border-radius: 16px;
+  background: var(--visual-accent-soft);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+.canvas-workbench .xy-flow-host.is-file-drag .xy-drop-hint { opacity: 1; }

@@ -1,0 +1,50 @@
+/* Cross-component layout contract for the titlebar, icon rail and detail panel.
+   Component-owned controls and list styling live in their CSS Modules. */
+.workspace-shell.app-navigation-shell {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 48px minmax(0, 1fr);
+  padding-bottom: 6px;
+  padding-right: 6px;
+  background: var(--bg-subtle);
+  transition: none;
+}
+.workspace-shell.app-navigation-shell > .workspace-shell__body {
+  grid-column: 1;
+  grid-row: 2;
+}
+.app-navigation-shell .entry-shell--no-header::after { display: none; }
+.workspace-shell.app-navigation-shell .entry-shell--no-header .entry {
+  grid-template-columns: 56px minmax(0, 1fr);
+  background: transparent;
+  transition: grid-template-columns 200ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.workspace-shell.app-navigation-shell .entry-shell--no-header .entry.entry--rail-open {
+  grid-template-columns: var(--app-navigation-expanded-width, 300px) minmax(0, 1fr);
+}
+.app-navigation-shell .workspace-tabs-popover { top: 55px; max-height: min(620px, calc(100vh - 72px)); }
+.app-navigation-shell .entry-main,
+.app-navigation-shell .project-workbench-main {
+  margin-top: 0;
+  border-radius: 0 14px 14px 0;
+  background: var(--bg);
+}
+.app-navigation-shell:not(:has(.entry--rail-open)) .entry-main,
+.app-navigation-shell:not(:has(.entry--rail-open)) .project-workbench-main { border-top-left-radius: 14px; border-bottom-left-radius: 14px; }
+/* Native vibrancy remains visible only through the outer window chrome. */
+.workspace-shell--desktop[data-host-platform='darwin'].app-navigation-shell { background: color-mix(in srgb, var(--bg) 20%, transparent); }
+@media (max-width: 760px) {
+  .workspace-shell.app-navigation-shell .entry-shell--no-header .entry.entry--rail-open { grid-template-columns: 56px minmax(0, 1fr); }
+  .app-navigation-shell .entry-nav-frame.is-open { width: min(var(--app-navigation-expanded-width, 300px), calc(100vw - 52px)); position: relative; }
+  .app-navigation-shell .entry-nav-frame.is-open > .entry-navigation-details {
+    background: var(--bg-panel);
+    box-shadow: 12px 0 28px color-mix(in srgb, var(--text-strong) 10%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-shell.app-navigation-shell .entry-shell--no-header .entry { transition: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .workspace-shell--desktop[data-host-platform='darwin'].app-navigation-shell { background: var(--bg-subtle); }
+}
+
+.workspace-shell.app-navigation-shell[data-navigation-resizing='true'] .entry-shell--no-header .entry { transition: none; }

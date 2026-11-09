@@ -1,0 +1,64 @@
+/* ============================================================
+   Composer mode tag (规划 / plan)
+   ------------------------------------------------------------
+   Resting reads like a bare label — mode glyph + text, no box
+   (ref image 2). On hover it turns into a soft gray pill and the
+   leading glyph swaps to a filled circle-× to advertise "click to
+   clear" (ref image 3). Without this it fell through to the global
+   <button> base and rendered as a bordered square.
+   ============================================================ */
+.composer-mode-tag {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 140ms var(--ease-out),
+    color 140ms var(--ease-out);
+}
+.composer-mode-tag:hover,
+.composer-mode-tag:focus-visible {
+  outline: none;
+  background: var(--bg-subtle);
+  color: var(--text-strong);
+}
+.composer-mode-tag__mode-icon,
+.composer-mode-tag__close-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Resting: show the mode glyph, hide the close affordance. */
+.composer-mode-tag__close-icon {
+  display: none;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--text-muted) 26%, transparent);
+  color: var(--bg-panel, #fff);
+}
+/* Hover/focus: swap the leading glyph for the filled circle-×. */
+.composer-mode-tag:hover .composer-mode-tag__mode-icon,
+.composer-mode-tag:focus-visible .composer-mode-tag__mode-icon {
+  display: none;
+}
+.composer-mode-tag:hover .composer-mode-tag__close-icon,
+.composer-mode-tag:focus-visible .composer-mode-tag__close-icon {
+  display: inline-flex;
+}
+.composer-mode-tag:hover .composer-mode-tag__close-icon {
+  background: color-mix(in srgb, var(--text-strong) 55%, transparent);
+}

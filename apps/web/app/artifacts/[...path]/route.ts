@@ -1,0 +1,10 @@
+import { proxyCanvasRequest } from '../../../src/server/proxy';
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const GET = proxyCanvasRequest;
+export const HEAD = proxyCanvasRequest;
+export const POST = proxyCanvasRequest;
+export const PUT = proxyCanvasRequest;
+export const PATCH = proxyCanvasRequest;
+export const DELETE = proxyCanvasRequest;
+export const OPTIONS = proxyCanvasRequest;

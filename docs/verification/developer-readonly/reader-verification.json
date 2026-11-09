@@ -1,0 +1,108 @@
+{
+  "passed": true,
+  "verifiedAt": "2026-10-21T09:03:42.396Z",
+  "readerUserId": "roprobed3f319582ba84224956c",
+  "authentication": "fresh ordinary account/session; no admin key",
+  "checks": [
+    {
+      "name": "temporary ordinary reader account created",
+      "status": 201
+    },
+    {
+      "name": "ordinary account login",
+      "status": 201
+    },
+    {
+      "name": "reader identity independently verified",
+      "status": 200
+    },
+    {
+      "name": "canvas_app_dev: authenticated default read",
+      "status": 200
+    },
+    {
+      "name": "canvas_app_dev: anonymous denied",
+      "status": 404
+    },
+    {
+      "name": "canvas_app_dev: create denied",
+      "status": 401
+    },
+    {
+      "name": "canvas_app_dev: update denied",
+      "status": 401
+    },
+    {
+      "name": "canvas_app_dev: delete denied",
+      "status": 401
+    },
+    {
+      "name": "doc_app_dev: authenticated default read",
+      "status": 200
+    },
+    {
+      "name": "doc_app_dev: anonymous denied",
+      "status": 404
+    },
+    {
+      "name": "doc_app_dev: create denied",
+      "status": 401
+    },
+    {
+      "name": "doc_app_dev: update denied",
+      "status": 401
+    },
+    {
+      "name": "doc_app_dev: delete denied",
+      "status": 401
+    },
+    {
+      "name": "canvas_assets_v2: file readable",
+      "status": 200
+    },
+    {
+      "name": "canvas_assets_v2: anonymous file denied",
+      "status": 401
+    },
+    {
+      "name": "canvas_assets_v2: file update denied",
+      "status": 401
+    },
+    {
+      "name": "canvas_assets_v2: file delete denied",
+      "status": 401
+    },
+    {
+      "name": "canvas_assets_v2: upload denied",
+      "status": 401
+    },
+    {
+      "name": "doc_assets_v2: file readable",
+      "status": 200
+    },
+    {
+      "name": "doc_assets_v2: anonymous file denied",
+      "status": 401
+    },
+    {
+      "name": "doc_assets_v2: file update denied",
+      "status": 401
+    },
+    {
+      "name": "doc_assets_v2: file delete denied",
+      "status": 401
+    },
+    {
+      "name": "doc_assets_v2: upload denied",
+      "status": 401
+    },
+    {
+      "name": "canvas-coi: writer function execution denied",
+      "status": 401
+    },
+    {
+      "name": "doc-api: writer function execution denied",
+      "status": 401
+    }
+  ]
+}

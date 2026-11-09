@@ -1,0 +1,47 @@
+@import url('https://rsms.me/inter/inter.css');
+@import './styles/canvas-foundation.css';
+@import './styles/canvas-media-nodes.css';
+@import './styles/canvas-generation-nodes.css';
+@import './styles/canvas-resource-dialogs.css';
+@import './styles/canvas-visual-options.css';
+@import './styles/canvas-review.css';
+@import './styles/canvas-process-flow.css';
+@import './styles/canvas-local-results.css';
+@import './styles/canvas-controls.css';
+@import './styles/canvas-effects.css';
+@import './styles/canvas-image-editors.css';
+@import './styles/canvas-video-node.css';
+/* Next transpiles CSS-module class maps from workspace packages but can omit
+   their emitted side effect. Pull the detailed editor sheet through the
+   package's canonical style manifest as well, so the mapped classes have
+   rules in every host. */
+@import './styles/canvas-node-actions.css';
+@import './styles/canvas-edges.css';
+/* Presentation-only LOD and offscreen paint policy; never hides node handles. */
+@import './styles/canvas-performance.css';
+@import './styles/canvas-result-history.css';
+
+/* ── card-pack-demo: memo card ─────────────────────────────────────────────── */
+.demo-memo {
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary, #1a1a1a);
+  min-height: 60px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  cursor: text;
+}
+.demo-memo-textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  font-family: inherit;
+  color: var(--text-primary, #1a1a1a);
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+}

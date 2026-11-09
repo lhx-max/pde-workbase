@@ -1,0 +1,4 @@
+.dialog { display:flex; flex-direction:column; width:min(1440px,calc(100vw - 64px)); max-width:none; height:calc(100vh - 64px); padding:0; gap:0; overflow:hidden; }
+.header { display:flex; flex-direction:row; align-items:center; justify-content:space-between; flex:none; padding:16px 20px; }
+.body { display:flex; flex:1; min-height:0; padding:0 20px 20px; }
+@media(max-width:640px){.dialog{width:100vw;height:100dvh;border-radius:0;}.body{padding:0 8px 8px;}}

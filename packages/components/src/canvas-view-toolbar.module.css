@@ -1,0 +1,139 @@
+.toolbar {
+  position: absolute;
+  z-index: 30;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 2px;
+  border: 1px solid color-mix(in srgb, var(--border-default, #dedede) 88%, transparent);
+  border-radius: 9px;
+  color: var(--text-tertiary, #777);
+  background: color-mix(in srgb, var(--bg-surface, #fff) 92%, transparent);
+  box-shadow: 0 3px 12px rgba(16, 24, 40, .055);
+  backdrop-filter: blur(12px);
+}
+.toolbar > button,
+.anchor > button {
+  width: 27px;
+  min-width: 27px;
+  height: 27px;
+  min-height: 27px;
+  padding: 0;
+  border-radius: 6px;
+  color: inherit;
+}
+.toolbar > button:hover,
+.anchor > button:hover,
+.toolbar .active {
+  color: var(--text-strong, #252525);
+  background: color-mix(in srgb, var(--text-strong, #252525) 8%, transparent);
+}
+.toolbar svg { width: 15px; height: 15px; flex: none; }
+/* All panels align to the toolbar's right edge, not its individual buttons.
+   This keeps the leftmost tidy trigger from opening beyond the canvas edge. */
+.anchor { display: flex; align-items: center; }
+.divider { width: 1px; height: 18px; margin: 0 4px; background: color-mix(in srgb, var(--border-default, #dedede) 72%, transparent); }
+.anchor > .zoomValue {
+  width: auto;
+  min-width: 64px;
+  gap: 3px;
+  padding: 0 7px 0 8px;
+  color: var(--text-secondary, #555);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.zoomValue svg { width: 13px; height: 13px; }
+/* The component boundary must outrank host canvas button resets, independent
+   of stylesheet import order. Keep that specificity local to these panels. */
+.toolbar .popover {
+  position: absolute;
+  z-index: 35;
+  top: calc(100% + 8px);
+  right: 0;
+  box-sizing: border-box;
+  width: 184px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 120px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
+  border: 1px solid color-mix(in srgb, var(--border-default, #dedede) 75%, transparent);
+  border-radius: 12px;
+  color: var(--text-secondary, #555);
+  background: var(--bg-surface, #fff);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--text-strong, #252525) 9%, transparent);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.toolbar .popover button:disabled { opacity: .45; cursor: not-allowed; }
+.toolbar .popover button:focus-visible { outline: 2px solid var(--text-strong, #252525); outline-offset: -2px; }
+.toolbar .popover button:active { transform: none; }
+.toolbar .tidyMenu { width: 280px; }
+.toolbar .tidyAction,
+.toolbar .zoomMenu > button {
+  display: flex;
+  width: 100%;
+  height: auto;
+  min-height: 32px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary, #555);
+  text-align: left;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: normal;
+}
+.toolbar .tidyAction { min-height: 54px; }
+.toolbar .tidyAction:hover:not(:disabled),
+.toolbar .zoomMenu > button:hover:not(:disabled) { background: var(--bg-subtle, #f5f5f5); }
+.tidyAction > svg { align-self: flex-start; margin-top: 3px; color: var(--text-tertiary, #777); }
+.tidyAction > span { display: grid; min-width: 0; gap: 3px; }
+.tidyAction b { color: var(--text-strong, #252525); font-size: 12px; font-weight: 500; }
+.tidyAction small { color: var(--text-tertiary, #777); font-size: 11px; line-height: 1.5; }
+.menuSeparator { height: 1px; margin: 5px 8px; background: color-mix(in srgb, var(--border-default, #dedede) 65%, transparent); }
+.toolbar .appearanceMenu { width: 276px; padding: 14px; }
+.appearanceMenu header { display: flex; align-items: center; justify-content: space-between; min-height: 24px; margin-bottom: 14px; }
+.appearanceMenu header strong { color: var(--text-strong, #252525); font-size: 13px; font-weight: 600; }
+.toolbar .appearanceMenu header button { display: grid; width: 24px; min-width: 24px; height: 24px; min-height: 24px; place-items: center; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-tertiary, #777); }
+.toolbar .appearanceMenu header button:hover { background: var(--bg-subtle, #f5f5f5); color: var(--text-strong, #252525); }
+.appearanceMenu fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.appearanceMenu fieldset + fieldset { margin-top: 16px; }
+.appearanceMenu legend { padding: 0; margin-bottom: 8px; color: var(--text-tertiary, #777); font-size: 11px; }
+.optionGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.toolbar .option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  gap: 0;
+  padding: 4px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary, #555);
+  transition: background-color 140ms cubic-bezier(0.23, 1, 0.32, 1), border-color 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.toolbar .option:hover:not(:disabled) { border-color: var(--border-default, #dedede); background: var(--bg-subtle, #f5f5f5); }
+.toolbar .option.selected { border-color: var(--text-tertiary, #777); background: var(--bg-subtle, #f5f5f5); box-shadow: none; }
+.option small { display: flex; min-height: 24px; align-items: center; justify-content: center; color: var(--text-secondary, #555); font-size: 11px; font-weight: 400; line-height: 1.4; white-space: normal; text-align: center; }
+.preview { display: block; box-sizing: border-box; width: 100%; height: 40px; flex: none; border: 1px solid color-mix(in srgb, var(--border-default, #dedede) 65%, transparent); border-radius: 5px; background-color: #fff; }
+.preview[data-tone='warm-gray'] { background-color: #eee9df; }
+.preview[data-tone='cool-gray'] { background-color: #e7eef5; }
+.preview[data-pattern='dots'] { background-image: radial-gradient(circle, var(--text-tertiary, #777) 1px, transparent 1px); background-size: 12px 12px; background-position: 5px 5px; }
+.preview[data-pattern='grid'] { background-image: linear-gradient(var(--border-default, #dedede) 1px, transparent 1px), linear-gradient(90deg, var(--border-default, #dedede) 1px, transparent 1px); background-size: 12px 12px; background-position: -1px -1px; }
+.check { position: absolute; top: 7px; right: 7px; display: grid; width: 14px; height: 14px; place-items: center; border-radius: 50%; background: var(--text-strong, #252525); color: var(--bg-surface, #fff); }
+.check svg { width: 10px; height: 10px; }
+@media (prefers-reduced-motion: reduce) {
+  .toolbar .popover button { transition: none; }
+}

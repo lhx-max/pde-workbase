@@ -1,0 +1,24 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 960
+  },
+  "nodes": [],
+  "overlays": [
+    {
+      "label": "导出剪辑",
+      "classes": "ClipDetailedEditor-module__-lbRZG__exportPanel exportPanel",
+      "rect": {
+        "x": 500,
+        "y": 342.40625,
+        "width": 440,
+        "height": 275.1875,
+        "top": 342.40625,
+        "right": 940,
+        "bottom": 617.59375,
+        "left": 500
+      },
+      "padding": "0px"
+    }
+  ]
+}

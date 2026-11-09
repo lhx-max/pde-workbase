@@ -1,312 +1,295 @@
-# @bezier/canvas-pack-drama-audio
+# 画布工作区
 
-短剧配音编辑工作台原型，基于 `designai-app-canvas` 卡片包扩展，卡种为 `card.drama.audio`。产品目标是：用户输入短剧视频，通过视频理解生成 dense caption，整理为可编辑配音稿，按段生成 TTS，结合原视频同步试听并导出成片。
+四 App 当前部署候选与验收边界见 [2026-10-23 部署交付](deployment/DELIVERY-20261023.md)：固定四服务镜像、Image 0.9.1 组件、私有存储首次初始化和可复现证据；正式 MA/Agent/staging 的未通过项单独列明。
 
-**当前交付是交互原型、模型文本适配和部署制品，不是已完成的短剧自动配音产品。** 已实现内容、目标能力及待验收项分别列出，不能用 mock 流转、接口存在或构建通过替代真实业务闭环。
+> 2026-10-21 网页采集最新进展：画布内浏览器入口已挂载采集 App；一个 Chrome 扩展合并划词、图片和资源批量采集，真实 Appwrite/Chrome 闭环已验收。安装物、数据归属和未上线边界见 [网页采集接入](docs/web-collector-integration.zh-CN.md)。下文原生桌面浏览器段落属于历史提取能力，不代表当前纯在线产品。
 
-## 1. 业务痛点与研究目标
+从 Bezier/Loom 原仓库独立抽取的画布创作工作区。保留原画布、组件、样式和交互，包含原 **画布／资产／采集** 三个入口及独立本地资产库，并通过隔离文档接入 **MF 开放对话 UI**；不恢复原聊天产品或原账号／团队平台。
 
-目标用户：短剧制作、运营、配音和视频二创人员。以下痛点为当前业务假设，仍需真实用户和有使用权限的素材验证。
+原始版本：`319e5eee556a3641d2ee68a6111a36ddc7a1eff7`。来源与授权见 [NOTICE](NOTICE) 和 [LICENSE](LICENSE)。
 
-| 痛点 | 产品目标 | 当前进展 |
-| --- | --- | --- |
-| 视频内容、配音稿和音轨分散在多种工具中 | 同一工作台看画面、改稿、试听和定位 | 卡内视频选择播放、音频独立试听、时间戳定位已实现；浏览器媒体交互待验收 |
-| dense caption 是画面描述，不等于可朗读的配音稿 | 视频理解与文案改写分成两个可检查阶段 | caption 数据接口和面板已实现；万擎文本改写适配已实现，真实调用待验收 |
-| 改一句台词往往需要重生成整段配音 | 稳定段 ID、段级编辑与局部 TTS 重生成 | 文案/区间/换源决策可编辑；TTS 尚未接入 |
-| 配音时长和镜头不一致 | 视频时间为统一主时钟，检查时长并同步调度 | 当前有区间映射和时长差提示；统一播放调度尚未实现 |
-| 用户难以判断生成是否完成、结果是否过期 | 明确任务状态、版本、来源、恢复与重试 | provider 来源标记已实现；异步任务、过期状态和恢复合同待补 |
-| 大素材编辑、导出容易阻塞页面 | 非破坏性 EDL、波形分层、后台合成 | EDL 核心和 JSON 导出已实现；性能指标尚未实测 |
+本轮画布/文档/草图/生图按 [统一交付合同](docs/four-app-delivery-contract.zh-CN.md) 验收，结果与阻塞见 [统一验收记录](docs/verification/four-app-acceptance-20261021/README.md)。
 
-研究重点：非破坏性编辑决策模型、时间戳驱动的视听对齐、人与 Agent 共用业务操作、按段生成与条件回填，以及可替换模型和媒体存储适配。
+启动服务必须显式配置 Appwrite；仅隔离测试允许 `CANVAS_STORAGE_MODE=local-test`。MA 写动作配置 `APP_WRITE_GRANTS_JSON`；跨 App 转发 MA 凭据必须配置精确 `CANVAS_TRUSTED_APP_ORIGINS`（逗号分隔，仅 HTTPS 或明确 loopback HTTP），否则拒绝转发。实例可见不自动授予写入权限。
 
-## 2. 整体技术 pipeline
+## 开发规范入口
 
-```text
-真实短剧视频
-  │
-  ├─ 本地文件选择 → Blob URL → 浏览器 video 播放原片及原声音
-  │                         └─ 播放时间 → 当前台词展示 / 点击段定位
-  │
-  └─ 上传适配接口（待接宿主授权文件口）
-       ↓
-    权威媒体资源引用（目标 Appwrite 私有存储）
-       ↓
-    视频理解 / dense caption（媒体输入协议待确认）
-       ↓
-    captions：段 ID、视频起止时间、画面描述、可选缩略图
-       ↓
-    万擎 OpenAI-compatible 文本改写
-       │  chat/completions：已有 captions + 人工草稿 → 配音稿
-       │  WQ_API_KEY 仅服务端读取
-       ↓
-    用户审核和编辑稿件
-       │  改文字 / 段边界 / 停顿 / 音量 / 静音 / 换源 / 对齐
-       ↓
-    TTS Provider 接口（尚未接服务）
-       ↓
-    段级音频资源、真实时长、任务回执（待实现）
-       ↓
-    原视频 + 原声音 + 新配音 + 字幕
-       ├─ 统一主时钟的实时混合预览（待实现）
-       └─ 后台合成 MP4 与可恢复导出（待实现）
-```
+开发者和 AI Agent 开工前先读仓库内的 [App 平台开发 Skill](.devin/skills/designai-app-platform/SKILL.md)。没有项目背景时，从其中的 [App架构与开发白皮书](.devin/skills/designai-app-platform/docs/app-development-handbook.zh-CN.md) 开始；新 App 使用 [开发与接入合同模板](.devin/skills/designai-app-platform/templates/APP_CONTRACT.template.md)。规范覆盖独立前后端、卡包与深编辑、MA-V 接入、CLI/安装交付及分级验收。仓库负责人、相关文档和Appwrite桶用途/审批见[资源目录](.devin/skills/designai-app-platform/docs/platform-resource-catalog.zh-CN.md)；后续开发涉及规范边界时在同一交付同步更新。Agent 入口同时见 [AGENTS.md](AGENTS.md)。
 
-当前真实落地的路径：本地文件预览代码 + 可编辑 EDL + caption/稿件面板 + 万擎文本协议适配 + EDL JSON 输出。早期使用占位 MP4 字节和 mock 数据的演示，只证明请求/数据流转，不证明视频可播放、模型看懂视频或 TTS/成片合成完成。
+## 项目结构与接入关系
 
-### 2.1 运行架构和职责
+**App 是有业务、后端和权威数据的小产品；npm 包是交付物。** 卡包安装到画布，画布/文档组件及包装层安装到宿主，CLI安装到MA执行环境，后端独立部署。
 
 ```text
-卡片包 renderer（React 18 类型约束）
-  ├─ 卡身交互、临时本地媒体预览
-  └─ onPatch → 宿主注入保存通道
-
-卡片包纯服务端注册入口
-  └─ card.drama.audio.* → 画布操作管道 → 数据补丁 / 文件口
-                                    └─ providers.ts → 外部模型
-
-正常运行目标：Appwrite Functions + 数据库/私有桶
-本地隔离验证：apps/server + apps/web + 显式 local-test 工作目录
+卡包 → 画布组件 → MA-V画布App包装层 → 基座标签页
+文档组件 → 画布详情 / 独立页面 / MA-V文档App包装层
+界面 → API适配器 → App后端 → 各自权威存储
+MA → CLI或正式工具 → 认证网关/Provider → 同一App后端
 ```
 
-平台维护卡片信封（身份、位置、尺寸和操作通道）；本包维护 JSON `data`。不能修改冻结区、绕过授权或把本地缓存当云端权威资源。复杂媒体任务若需要独立深编辑 App，应先与负责人确认参赛范围和互联合同，不能擅自增加部署架构。
-
-### 2.2 EDL、版本与实时效果
-
-- EDL 保存资源引用和编辑决策，不直接修改源视频/音频字节。
-- `dataVersion: 3`；读取旧数据补默认字段，已有兼容测试。未来版本和未知字段的迁移行为仍需进一步严格校验。
-- 改文字后当前时间对应的文字展示更新，**不等于声音已变化**。实际改声需要 TTS 重生成成功。
-- 当前音频播放器是独立试听；区间、增益、静音和换源决策尚未应用到真实混音播放。
-- 目标应拆开资源源区间和视频目标区间，尤其是短 TTS take 替换主音源时不能沿用主源偏移。
-- 通用操作有 revision/operationId/回执机制；模型调用有成本且可能结果不确定，不应自动重试。任务输入快照、取消、去重及版本条件回填待补。
-- 单卡 JSON 合同上限 256KB。当前仅避免媒体字节入卡，**未严格控制 captions、缩略图、段数和总序列化大小**，不能声称大小恒定或长素材内存恒定。
-
-## 3. 已完成工作
-
-| 模块 | 实现 | 实际验收边界 |
-| --- | --- | --- |
-| 包挂载 | 前端 renderer、纯服务端入口，构建期注册卡种和动作 | 本地能力清单发现已验证；云端动作尚未验收 |
-| 台词编辑 | 台词、段区间、停顿、音量、静音、换源、视频区间对齐 | EDL 数据编辑，不等于音视频字节已处理 |
-| 段拆分/合并 | UI 中点拆分、并下段 | 已有交互代码；边界/异源合并/视频对齐保留规则需专项测试 |
-| 时间轴 | 双轨区间块、对齐虚线、时长差提示 | 不是音频波形；两轨时间尺度尚待统一；拖拽浏览器验收待补 |
-| 视觉排版 | 视频/caption 紫色、配音蓝色、文档橙色、换源青色，统计徽章 | 主题对比度、布局溢出与无障碍尚未实测 |
-| 本地媒体预览 | video/audio 文件选择、Blob URL 释放、视频定位、文字展示、解码失败提示 | 不上传、不持久化；缺浏览器执行环境，媒体播放交互尚未验收 |
-| caption/配音文档 | 面板、可选缩略图、caption 转台词段、稿件应用为台本 | 真实视频理解未验收；已有 mock 来源需持续明确标记 |
-| 万擎 | OpenAI-compatible 文本请求、系统提示、拒绝空白/截断结果、来源记录模型 ID | 隔离 HTTP fixture 验证通过，真实模型调用待安全配置密钥 |
-| TTS/上传 | 可替换 TypeScript 接口；TTS 缺省明确不可用 | 接口预留，不是服务接通 |
-| 输出 | EDL v3 JSON、摘要、卡内预览和复制、服务端文件写入 | 不是可播放 MP4/配音成片；剪贴板失败反馈待补 |
-| 部署 | 本地实例启动、Appwrite 上传闭包打包 | 未上传或激活云端，未正式登记 |
-
-### 3.1 代码目录
-
-```text
-packages/canvas-pack-drama-audio/
-  src/
-    index.ts          前端卡包入口
-    server.ts         服务端卡种/动作/Agent 元数据
-    audio-card.tsx    编辑界面、MediaPreview、上传接口类型
-    types.ts          dataVersion 3、段、caption、配音稿结构
-    schema.ts         参数与路径校验
-    edl.ts            时间轴、对齐差、EDL 清单与摘要
-    ops.ts            卡片动作
-    providers.ts      generic 模型接口、万擎文本适配、TTS 接口
-  tests/
-    schema.test.ts
-    edl-ops.test.ts
-    providers.test.ts
-  README.md
-  REQUIREMENTS.md
-```
-
-挂载：`packages/canvas-workbench/src/packs.ts` 和 `apps/server/src/card-packs.ts`。对应消费包的 package.json 与 pnpm-lock.yaml 登记依赖。未执行 git commit。
-
-## 4. 输入输出接口
-
-### 4.1 本地素材与上传
-
-卡内文件选择只创建临时 Blob URL，不把 File、本机绝对路径或媒体字节写进 `data`。重开需要重新选择文件。
-
-```ts
-interface DramaAudioUploadAdapter {
-  upload(file: File, signal?: AbortSignal): Promise<{ relativePath: string }>;
-}
-```
-
-该接口尚未注入到默认 renderer。真实上传须复用宿主授权文件服务；平台已有 `POST /api/projects/:id/upload`，但卡包不直接 fetch 内部 API。云端大视频需先确认目标环境文件上限和获批的分片/直传方案。
-
-### 本地多模态 demo
-
-`pnpm --filter @bezier/canvas-pack-drama-audio demo` 启动显式 local-test 服务，`demo:import` 将 `demo/materials/` 的视频和稿件导入新实例。配音卡是稿件唯一编辑入口，不再创建会漂移的文字卡副本；工程视频通过本包隔离 demo adapter 读取，浏览器加载真实 metadata 后保存时长。此 adapter 仅在 `127.0.0.1`、带 local-test 标记的 demo 卡启用，普通卡包不获得额外宿主能力。
-
-现有 demo 已迁移为两块 `card.drama.audio`：`stage=rewrite` 读取视频和原解说词、编辑内置 prompt，并调用 `rewrite`；`stage=edit` 接收用户确认的逐句稿件和视频区间，执行逐句 VoxCPM 配音、停顿/增益/静音/截取及视频主时钟试听。`demo:repair` 迁移既有实例并保留原音频和稿件，不删除旧资源。
-
-视觉调用使用示例中的 OpenAI-compatible chat/completions、system/user messages、temperature/max_tokens 路径；额外将真实视频抽样帧作为 `image_url` 发送。需配置 `WQ_API_KEY`、`WQ_VISION_MODEL` 和适用 `WQ_API_BASE`；不将文本 `WQ_MODEL` 当视觉模型。最多 12 张带时间戳的 320px JPEG，每帧≤100KB、请求≤1.2MB；帧不保存到卡片。模型输出严格 JSON 台词列表，1–80句、有序非重叠区间，错误/截断/不可用不得回退 mock。采样帧不等于完整视频或音轨；建议区间必须人工确认。
-
-确认交付记录源卡和 revision；替换已有下游稿件需显式确认，旧音频字节仍保留。逐句 TTS 成功后立即上传和条件回填，输入变化则不覆盖结果；不自动重跑失败或不确定的模型请求。视频是唯一主时钟，源截取与视频区间独立；段后停顿占区间尾部留白，静音不压缩时间，WebAudio 实际应用总/段增益。音频超出区间会标红并裁切试听，不自动拉伸，也不宣称已对齐。统一双轨共用视频时间比例。
-
-本次规范影响：只扩展本包业务数据及 rewrite 动作，demo adapter 限 loopback/local-test；不变更 SDK、宿主、身份或云存储合同。真实浏览器视频解码、抽帧和缺少视觉配置失败路径已验证；万擎真实视觉调用仍待安全配置，逐句 TTS/混音完整验收与云端验收分开报告。
-
-### 4.2 万擎文本配音稿
-
-| 环境变量 | 用途 |
+| 位置 | 责任 / 入口 |
 | --- | --- |
-| `DRAMA_AUDIO_PROVIDER=wanqing` | 显式选择万擎文本生成；不使用 mock 默认成功 |
-| `WQ_API_KEY` | 服务端密钥，通过安全环境配置，不进源码、卡片数据或文档 |
-| `WQ_API_BASE` | 可选，默认 `https://wanqing-api.corp.kuaishou.com/api/gateway/v1/endpoints` |
-| `WQ_MODEL` | 可选，默认 `ep-7wk3ep-1792046051430404420` |
+| `apps/web` | 独立画布工作台、页面和本宿主适配 |
+| `apps/server` | 业务、文件、操作回执、COI/Provider与存储；[服务端说明](apps/server/README.md) |
+| `packages/canvas-surface` | 对外画布组件；[安装、props、CSS与限制](packages/canvas-surface/README.md) |
+| `packages/canvas-cli` | 独立HTTP客户端与Skill；[安装与使用](packages/canvas-cli/README.md) |
+| `packages/canvas-card-sdk` / `packages/canvas-pack-*` | 卡包类型、渲染器、纯服务端kind/动作入口；[卡包合同](.devin/skills/designai-app-platform/docs/canvas-card-pack.zh-CN.md) |
+| `packages/contracts` | 共享纯类型/协议；前后端不互相导入私有实现 |
+| [独立文档仓 `design/designai-app-doc`](https://git.corp.kuaishou.com/design/designai-app-doc) | 公司Git私有仓，默认main；文档后端、权威正文和 `@ks-designai/doc-surface`。Git权限与npm/数据权限分开；本机未提交改动不等于线上已有 |
+| [独立草图仓 `design/designai-app-sketch`](https://git.corp.kuaishou.com/design/designai-app-sketch) | 草图场景归 `sketch_app_dev` / `sketch_assets_v2`；开发云端闭环及私有存储27项外部CLI/HTTP Provider检查通过，后者身份使用合同fixture；断网恢复及本机卡片/详情同实例读回已验。最新边界见该仓 `docs/readiness-fixes-20261021.zh-CN.md`；`@ks-designai/sketch-surface@0.1.2`已发布内网npm并经registry下载、仓外构建验证；[实时快照与重复打开补验](docs/verification/sketch-live-preview/README.md)，正式MA/staging未验 |
+| 外部MA-V / Plugin Kit | 身份、目录/实例、会话、宿主和MA调度；我们适配已有合同，不修改其内部机制 |
+| `e2e` / `docs/verification` | 集成验收与运行证据 |
 
-请求：`POST <WQ_API_BASE>/chat/completions`，Bearer 认证，`messages` 为系统提示和已有 caption/草稿。响应读取 `choices[0].message.content`。办公网/运行环境地址应按实际网络可达性选择。
+画布保存卡片/连线/布局；绑定文档的权威正文归文档App，画布保留可编辑镜像。正文保存与镜像同步分别确认。卡片详情打开原绑定，使用资产则创建独立副本。详见 [架构](docs/architecture.md)、[双App关系与状态](docs/canvas-doc-relationship-and-status.zh-CN.md)。
 
-原文本接口仅确认文本协议；两卡 demo 新增抽帧 `image_url` 请求实现，需视觉模型实际接收验证，不发送本机路径冒充视频输入。
+## 后端数据与开发者只读访问
 
-既有兼容入口：`DENSE_CAPTION_API_URL` + `DENSE_CAPTION_API_KEY`、`DUBBING_API_URL` + `DUBBING_API_KEY`。generic caption 当前只发工程引用和时长，必须由真实业务适配器解决媒体访问。响应 schema、总大小、图片 MIME 与域名/重定向限制待加强。
+租户/团队与卡片权限的实际接入见 [团队云端接入](docs/tenant-cloud-integration.zh-CN.md)：画布/文档归属字段已补入开发云库，App侧支持MA身份验证、团队卡种规则、后端越权拒绝及空缓存恢复。真实MA登录/部署与npm发布尚须另验，不能由隔离身份fixture或旧安装包推断通过。
 
-`DRAMA_AUDIO_PROVIDER=mock` 仅限显式隔离测试。mock 是固定描述，不是实际视频推理；来源必须显示 `mock`。
+**开发方向（2026-10-21）**：后续以 Appwrite 云端为默认存储与真实验收环境，缺少云端配置须明确报错，不静默回退本地。本地仅用于显式隔离测试或可丢弃缓存；项目目录和身份沿用基座合同。历史本地路径的启动示例不代表推荐的正式云端运行方式，现有云端缺口见 [本地/云端核对](docs/local-cloud-data-audit-20261021.zh-CN.md)。桌面旧 `canvas-data` 已清理，不重新创建。
 
-### 4.3 TTS 预留
+文档源码从上面的公司Git仓获取；业务接口由对应App服务提供。Appwrite API `https://frontend-cloud.corp.kuaishou.com/v1`，项目 `grworkspace`；画布库/桶 `canvas_app_dev` / `canvas_assets_v2`，文档库/桶 `doc_app_dev` / `doc_assets_v2`。这些资源已在2026-10-21完成默认只读配置与真实账号验证。
 
-```ts
-interface TtsRequest {
-  text: string;
-  voiceId: string;
-  segmentId: string;
-}
+**默认已登录用户可读上述Appwrite资源，无需逐人申请；不能新增、实际修改、删除或上传。匿名不可读，写入只给明确维护者/服务身份。** 普通读者也不能执行两条带写权限的云函数。使用自己的平台用户会话读取，不发维护者cookie、函数key或通用 `CANVAS_AUTH_TOKEN`；写入联调用自己的隔离测试环境。Appwrite读取不等于向所有COI/Provider业务接口发放通用token，也不代表其他库/管理员权限被改变。
 
-interface TtsResult {
-  audioRef: string;
-  durationMs: number;
-  provider: string;
-}
+实际读取路径见 [开发者访问说明](docs/developer-read-only-access.zh-CN.md)，7个集合/2个桶/2条写函数的配置及25项真实验证见 [只读验收](docs/verification/developer-readonly/README.md)。保护已在云端生效；通用HTTP业务token的细粒度reader角色仍需另接，不能只靠README写“不要修改”。
 
-interface TtsProvider {
-  synthesize(request: TtsRequest, signal?: AbortSignal): Promise<TtsResult>;
-}
+## 内网 npm 安装与交付状态
+
+2026-10-21 已从快手内网 `https://npm.corp.kuaishou.com/` 查询到画布/文档/CLI三个固定版本；草图0.1.2另已发布并从registry读回验证。安装需要公司网络和读取权限；升级以实际发布记录为准。
+
+| 包 | 版本 | 安装位置 / 作用 |
+| --- | --- | --- |
+| `@ks-designai/canvas-surface` | `0.1.2` | 宿主前端项目，画布组件与CSS |
+| `@ks-designai/doc-surface` | `0.1.2` | 宿主前端项目，文档编辑器与CSS |
+| `@ks-designai/sketch-surface` | `0.1.2` | 草图编辑器、`/da`包装与纯Node `/manifest`；后端独立部署 |
+| `@ks-designai/canvas-cli` | `0.1.1` | MA容器/工作区或开发者环境，调用真实App后端 |
+
+前端消费方在自己的项目中安装：
+
+```sh
+npm install @ks-designai/canvas-surface@0.1.2 @ks-designai/doc-surface@0.1.2 \
+  react@18.3.1 react-dom@18.3.1 @xyflow/react@12.8.5 \
+  --registry=https://npm.corp.kuaishou.com/
 ```
 
-缺省实现抛 `TTS_UNAVAILABLE`。实际接入还需段版本、任务 ID、幂等键、音色/情绪、真实字节存储、音频时长和取消/恢复合同；不能将此最小接口直接当作生产完成。
+命名导出、CSS和API注入按包说明接入；安装依赖不会自动出现宿主菜单。还需要包装层、manifest、Provider配置与实例映射。当前画布组件共用宿主的一份React renderer，不捆绑第二份React。
 
-### 4.4 已注册的 15 个动作
+CLI安装到实际执行命令的环境（Node 24），不另启服务或另存一份画布：
 
-前缀均为 `card.drama.audio.`：
+```sh
+npm install -g @ks-designai/canvas-cli@0.1.1 --registry=https://npm.corp.kuaishou.com/
+canvas-cli --version
+canvas-cli --help
+export CANVAS_SERVER_URL='https://<当前执行环境可达的画布API地址>'
+canvas-cli apps list
+```
 
-| 动作 | 输入 | 输出/职责 |
-| --- | --- | --- |
-| attach | audioRef、durationMs、可选 videoRef/videoDurationMs/segments | 初始化媒体引用与段决策 |
-| script | script 或 null | 台本文本 |
-| upsert | segment | 新增/替换台词段 |
-| remove | segmentId | 删除台词段，不删除整张卡 |
-| gap | segmentId、gapMs | 段后停顿 |
-| gain | gain、可选 segmentId | 总/段级音量决策 |
-| mute | segmentId、muted | 静音决策 |
-| trim | 可选 startMs/endMs | 配音源裁剪窗口 |
-| video | videoRef、videoDurationMs | 视频引用 |
-| align | segmentId、可选 videoStartMs/videoEndMs | 视频区间对齐 |
-| rebind | segmentId、audioRef 或 null | 段级换源 |
-| span | segmentId、可选 startMs/endMs | 配音源段边界 |
-| analyze | 空对象 | generic caption provider 结果 |
-| compose | 可选 script | 万擎/兼容 provider 配音稿 |
-| export | 空对象 | EDL JSON 工程文件及摘要 |
+地址占位符要替换；远端MA的loopback不指向开发者电脑。认证凭据按部署合同通过环境/密钥管理注入，不写进提示词或仓库；`CANVAS_TEAM_ID/CANVAS_USER_ID`只是上下文。实例参数使用解析后的业务画布ID。包内 `skills/canvas-cli/SKILL.md` 需按MA正式加载机制安装，npm安装不会自动注册工具或授予执行权限。
 
-HTTP 调用必须带当前 revision 和唯一幂等键：
+[干净安装与真实读写记录](docs/verification/npm-distribution/local-install.json) 已覆盖三个包、CLI发现画布/文档、创建/读写/读回、重放、旧版本冲突与错误非零退出；另有 [浏览器渲染截图](docs/verification/npm-distribution/installed-components.png)。本地 tarball 与内网按包名下载均已复验，见 [内网安装记录](docs/verification/npm-distribution/registry-install.json)；不代表正式 MA 或 staging 通过。
+
+## 开发、联调与验收导航
+
+| 你要做什么 | 入口 |
+| --- | --- |
+| 零背景开发独立App | [白皮书](.devin/skills/designai-app-platform/docs/app-development-handbook.zh-CN.md) → [合同模板](.devin/skills/designai-app-platform/templates/APP_CONTRACT.template.md) → [API与接入规范](.devin/skills/designai-app-platform/docs/app-development-spec.zh-CN.md) |
+| 开发卡包、嵌卡与深编辑 | [卡包合同](.devin/skills/designai-app-platform/docs/canvas-card-pack.zh-CN.md)、[互联协议](.devin/skills/designai-app-platform/docs/canvas-app-interop.zh-CN.md)、[卡种能力矩阵](.devin/skills/designai-app-platform/docs/canvas-card-capability-matrix.zh-CN.md) |
+| 查数据、版本、复制和恢复 | [数据模型](.devin/skills/designai-app-platform/docs/data-model.zh-CN.md)、[正文增补合同](.devin/skills/designai-app-platform/docs/document-sync-contract.zh-CN.md) |
+| 接一涵MA-V基座 | [接入与验收记录](docs/ma-base-integration-acceptance.zh-CN.md) |
+| 看本地模拟登记效果 | [启动与复现](docs/verification/ma-registration-simulation/README.md)：18581代理原宿主18580；只模拟登记相关数据，组件使用真实本地服务，不改云端登记 |
+| 查规范修正与工程缺口 | [规范审计](docs/app-development-standards-audit.zh-CN.md)；包分发部分是审计时快照，最新可发现版本见上表 |
+| 查草图排障、云端深编辑与交付陷阱 | [Skill内草图案例](.devin/skills/designai-app-platform/docs/sketch-integration-cases.zh-CN.md)：规范覆盖核对、根因、解决方案及失败验收 |
+| 查实际通过范围 | [功能对照](docs/feature-parity.md)、[运行记录](docs/runtime-verification.md)、[双App状态](docs/canvas-doc-relationship-and-status.zh-CN.md) |
+
+**验收分开报告**：独立业务 → 卡片互联（适用时）→ 可安装交付 → 模拟宿主 → 正式登记与认证 → MA自主调用 → staging。npm可发现和本地读写不能证明后面各门已通过。以下原独立工作区的能力概览应结合部署profile与最新状态阅读，不代表每个嵌入包都包含整套工作台/原生能力。
+
+### 草图当前交付边界（2026-10-21）
+
+草图源码已推送功能分支，见[草稿MR !1](https://git.corp.kuaishou.com/design/designai-app-sketch/-/merge_requests/1)，不代表已合入main。本机草图服务17612使用云端开发库；私有staging资源为 `grworkspace/sketch_app_staging_v2/sketches` + `sketch_assets_staging`，仅完成资源准备和测试，服务未部署远端。正式MA登记/真实Agent调用、容器实建与staging验收仍待接入。画布侧本轮绑定/权限适配尚在当前工作区，不属于该草图MR；各仓Git状态独立核对。详细配置/复现从[草图仓README](https://git.corp.kuaishou.com/design/designai-app-sketch/-/blob/feat/zhuzhiheng-sketch-cloud-app/README.md)进入，不把本机端口写成生产配置。
+
+## 原独立工作区的能力概览
+
+下面保留原提取范围的说明；当前App拆分、可用入口与各部署限制以顶部导航和功能对照为准，已删除的历史能力不能据此恢复。
+
+- 原画布及图片、文本、草图、分镜、视频、剪辑、网页、演示文稿节点。
+- 原顶部标签及浏览器、草图、文本、剪辑入口。
+- **画布**侧栏：项目文件、上传、预览、搜索、筛选、引用计数、定位、重命名、删除及拖入画布。
+- **资产**侧栏与展开资产库：本地空间、文件夹、文本／文件创建、上传、元数据、收藏、批量管理、版本、导出、导入画布及从画布保存。复用原卡片、筛选器和检查器；数据不依赖原账号。
+- **采集**侧栏：原内嵌浏览器、项目采集托盘、来源记录、加入画布、保存到资产库及展开到浏览器标签。
+- 原 Markdown／文档编辑器、Excalidraw 草图编辑器、HTML/PPT 查看器与手动编辑、媒体预览和剪辑导出；DOCX/PPTX/XLSX/PDF 保留原结构化文本预览及下载，不是完整 Office 排版或编辑器。
+- 独立后端：画布 JSON、修订冲突、文件／目录、版本、产物清单、候选交付、任务回执和工作流执行。
+- 原生 Electron 浏览器宿主：WebView 导航、历史、书签、参考站点、资源观测与授权读取、页面／图片捕获、页面归档和经系统 Save As 确认的下载。浏览器批量资源与外部扩展采集进入资产库；采集托盘保留项目文件。
+- 独立网页采集扩展、原保存后检查器及受条件限制的登录接续；安装须由用户确认并手动加载导出的扩展包，不会静默修改真实浏览器配置。
+- 可替换的 Agent、媒体、目录、外部资产来源与宿主接口。没有配置的外部能力会明确报错，不会模拟成功。
+
+**验证状态与限制见 [功能对照表](<docs/feature-parity.md>) 和 [运行记录](<docs/runtime-verification.md>)。** 复制代码、类型检查通过与真实交互验收是不同层次。三入口、资产／空间、原生浏览器／采集和 Office 文本预览已有真实验证；外部扩展实际采集写入已通过，但保存后编辑问题修复后的完整原生复验由用户选择暂缓，不能记为全链路验收通过。
+
+最新[全量 UI 排查报告](<docs/full-ui-audit.md>)补齐根级样式顺序、资产卡片、提示层、统一资源选择器及演示等遗漏；27 个自动 UI 场景连续两轮通过。报告附[原始截图索引](<e2e/evidence/full-ui-audit/README.md>)与未验范围，扩展复验仍未完成。
+
+## 界面语言
+
+默认使用**简体中文**，包括画布／资产／采集、浏览器、编辑与保存提示、桌面自有弹窗和扩展浮层；首次打开不再随英语浏览器或系统自动显示英文，旧的自动检测语言也不会覆盖中文默认值。明确保存的英文偏好及嵌入时的显式语言选项仍受尊重。
+
+应用显示名为“画布工作区”；包名、命令、API、文件格式和协议标识保持不变。用户自有文件名、内容与工作表名称不自动翻译；外部网页、操作系统和浏览器自己管理的权限页面仍使用各自语言。中文界面验收见 [运行记录](<docs/runtime-verification.md>)。
+
+## 安装与构建
+
+要求 Node **24.x**、pnpm **10.33.2**。视频导出需要 `ffmpeg` 与 `ffprobe` 可执行文件；桌面扩展打包需要系统 `zip`。Electron 为桌面浏览器模式所需；纯 Web 模式不具备跨域页面的原生 DOM／资源采集能力。
+
+```sh
+node --version
+corepack enable
+corepack prepare pnpm@10.33.2 --activate
+pnpm install
+
+pnpm --filter @bezier/release --filter @bezier/contracts --filter @bezier/host --filter @bezier/components -r run build
+pnpm --filter @bezier/workbench-core --filter @bezier/workbench-ui --filter @bezier/canvas-workbench -r run build
+pnpm --filter @canvas/mf-bridge build
+pnpm --filter @canvas/mf-ui build
+pnpm --filter @canvas/server build
+pnpm --filter @canvas/desktop build
+pnpm --filter @canvas-workspace/web build
+```
+
+`@bezier/*` 是保留的本仓库内部包名，均通过 workspace 解析，不需要原仓库、原 daemon 或原应用数据库。
+
+## 启动
+
+先提供**明确的绝对数据根路径**；数据规则见 [AGENTS.md](AGENTS.md#safety-and-data)。启动器不会查找或复用原应用数据。
+
+```sh
+export CANVAS_DATA_DIR='<你明确选择的绝对路径>'
+pnpm tools-dev run web --data-dir "$CANVAS_DATA_DIR" --production
+```
+
+默认 Web 地址 `http://127.0.0.1:17573`，API 地址 `http://127.0.0.1:17456`。端口由启动器统一传入；端口被占用会失败，不会杀死或接管其他应用。省略 `--production` 使用 Next 开发模式。
+
+需要完整的原生浏览器功能时：
+
+```sh
+pnpm tools-dev run desktop --data-dir "$CANVAS_DATA_DIR" --production
+```
+
+桌面模式自动为后端到原生宿主的连接生成仅本次进程使用的传输密钥，并使用独立浏览器 profile。API 的可选 `CANVAS_AUTH_TOKEN` 与该原生宿主密钥相互独立。`Ctrl+C` 停止本次启动的进程。可通过 `--daemon-port`、`--web-port`、`--browser-host-port` 和 `--desktop-user-data` 配置独立实例；并发实例必须使用不同的数据根、profile 和端口。原生能力说明见 [架构中的原生宿主边界](docs/architecture.md)。
+
+## 三个入口与本地资产库
+
+在画布底部工具栏打开资产侧栏，然后切换 **画布／资产／采集**。资产页右上角可展开原资产库；空间菜单提供创建、重命名和删除。删除空间默认把内容移至默认空间，只有明确取消“移动资产”并确认删除时才永久删除内容，不删除项目。
+
+资产库由当前服务的数据根独立持久化。空间、文件夹与项目是不同概念；把资产加入画布会导入指定版本的真实字节，并记录项目使用关系，不把全局资产 ID 伪装成项目文件路径。保存对话框在用户确认前不写入，失败可保留草稿重试。
+
+浏览器菜单内的 **Browser extension／浏览器扩展** 打开原扩展设置。书签、参考站点与采集开关通过后端持久化，不再仅存于浏览器 localStorage。原生浏览器和采集需要桌面模式；Web 会明确说明能力不可用，不以普通 iframe 冒充完整浏览器。
+
+AI 元数据分析和外部模板目录是可选适配器，默认不可用；手动编辑元数据不受影响。浏览器“加入引用”只暂存引用，**不会立即启动 Agent**；用户下一次明确提交任务后才发送。
+
+## MF 开放对话 UI
+
+顶部 **MF 对话** 打开独立侧栏，不替换画布／资产／采集。实际使用锁定版本 `@ks-kp/agent-ui@0.1.5-beta.18`；安装需要有权访问公司 npm 源，仓库不保存 npm 或 MF 登录凭据。
+
+- 画布组件包保留 React 18.3.1 的依赖／类型约束；Next 16 App Router 浏览器实际采用其自带的 React DOM `19.3.0-canary-3f0b9e61-20260317`，不能把安装声明当实际渲染器版本。MF 独立使用 React／ReactDOM 19.2.3，在同一监听端口的保留域名 `mf.localhost` 中运行；实测两个文档各一份 DOM 渲染器。该域名避开 SDK 的 localhost 开发令牌提取分支，不代理 `/sso-health`，不向浏览器暴露 SSO 令牌。版本化消息桥校验来源、窗口、项目、实例、请求及响应；MF 域名不能直接访问普通画布 API。
+- 未配置时明确显示不可用，不加载完整 MF SDK、不发起 MF 模型请求，也不伪造会话。后端配置方式及同源／鉴权限制见 [MF 服务端说明](<apps/server/README.md>)，UI 能力和限制见 [MF 集成说明](<docs/mf-integration.md>)。
+- 显式勾选 MF 作为画布执行方后，只有 MF 发起生成；本地 Agent 适配器不再重复执行。同一画布任务登记、消息发送、模型结束和实际交付是不同阶段。
+- **画布定向生成要求新建 MF 对话**。当前 SDK 对已有会话复用客户端 run ID，无法可靠关联每次新提交；不会自动切换会话或清除草稿。普通历史对话和引用暂存不因此禁用。
+- 只有受控交付工具通过任务、输入、修订及取消检查后，才写入画布。取消操作保证阻止本地晚到交付，不等于确认远程 MF 已停止或不再计费；远程停止使用 MF 原生停止入口。
+- MF 云资源与本地资产库保持不同来源，必须显式导入真实字节。云端文件管理未开放；原生树可能仍显示相关 SDK 菜单，界面已有明确说明。可选 Office/PDF 云预览未部署其运行资产，明确不可用；原本地 Office 文本预览不受影响。
+
+此凭据模式**仅支持单用户环回部署**，不支持共享公网或改写来源的反向代理。真实 MF 登录、云端 Origin 放行、模型与 WebMCP 端到端验收仍需后续提供授权配置；本地 HTTPS/SSE/WebSocket 测试服务不是云端登录成功的证据。完整边界、证据与后续清单见 [MF 接入与验收](<docs/mf-integration.md>)。
+
+## 接入 Agent
+
+### HTTP 适配器
+
+无需添加对话系统。将服务端配置指向自己的 Agent HTTP 端点：
+
+```sh
+export CANVAS_AGENT_ADAPTER_URL='https://your-agent.example/execute'
+export CANVAS_AGENT_ADAPTER_TOKEN='<可选，仅服务端持有>'
+pnpm tools-dev run web --data-dir "$CANVAS_DATA_DIR" --production
+```
+
+适配器接收独立任务、请求及隔离工作区信息，返回文本与可选多文件产物。远程调用只携带已授权输入的校验字节，不会打包整个项目。准确协议见 [服务端适配器说明](<apps/server/README.md>)，共享 DTO 见 [canvas-workspace.ts](<packages/contracts/src/api/canvas-workspace.ts>)。不要把凭据写进画布 JSON、项目文件或浏览器本地存储。
+
+一个最小交付结构：
 
 ```json
 {
-  "input": {
-    "nodeId": "dub-3",
-    "params": { "script": "已有画面描述或配音草稿" }
-  },
-  "expectedRevision": 123
+  "content": "生成结果正文，或者与绑定输出格式一致的内容",
+  "files": [
+    { "path": "outputs/example/data.json", "content": "{\"value\":1}", "encoding": "utf8" }
+  ]
 }
 ```
 
-`expectedRevision` 在顶层。通过 `GET /api/apps/canvas/instances/<id>/state` 读取实际 revision 后调用动作端点，幂等键置于 `idempotency-key` 请求头。此例为信封形状，不是固定可重放测试 revision。
+文件路径是项目相对路径，不允许绝对路径、越界和符号链接逃逸。原文本节点的普通生成仍自动回填；显式 `outputKind: 'text'` 才进入候选模式，由宿主调用 adopt API。没有新增原界面不存在的 Apply 面板。迟到结果不能覆盖后来的编辑；执行成功、候选保存和应用成功是不同状态。
 
-模型结果非确定性；仅纯编辑和 EDL 渲染是确定性的。注册动作可被协议发现，不代表自然语言指令识别或真实 Agent 编排已经验收。
+### 进程内／自定义服务接入
 
-## 5. 待解决问题与实施优先级
+使用 [server.ts](apps/server/src/server.ts) 的 `createCanvasServer`，注入自己的 Agent、媒体、能力目录和外部资产适配器。后端与 CLI 共用 HTTP 协议，调用端不需要导入后端私有实现。
 
-| 优先级 | 待办 | 影响/验收出口 |
-| --- | --- | --- |
-| P0 | 获取获准真实短剧素材、安全配置万擎密钥，确认网络和视频输入协议 | 不能用 mock 宣称真实 dense caption；真实文本和视频理解分开验收 |
-| P0 | 宿主注入授权上传、媒体读取 URL 和动作 transport | 本地 File 预览不等于上传；生成按钮需有真实服务端操作通道 |
-| P0 | 安装 Playwright 浏览器，补真实解码、播放、定位、拖拽和保存恢复 E2E | 当前仅 HTTP 200/构建证明，不能标浏览器交互通过 |
-| P0 | 限制总 data 大小、段/caption 数、缩略图体积，严格 schema 与版本兼容 | 避免 256KB 合同越界、损坏数据、未知字段丢失 |
-| P0 | 接入成熟 TTS，定义任务身份/版本/幂等/取消/回填 | 文字编辑才能实际改变声音；失败恢复且不盲目重跑成本任务 |
-| P1 | 重构统一时间轴，区分源偏移与视频目标时间，修复 pointer cancel/轨道命中/缩放 | 真实拖拽与音画定位一致；两轨不同时间尺度不能当同步对齐 |
-| P1 | 拆分/合并的最短区间、停顿、异源、静音和视频对齐规则 | 不能丢弃后段配音源或创建零时长段；补纯函数及交互测试 |
-| P1 | 版本过期状态、音频资源读取、统一主时钟调度和即时混音试听 | 当前增益/静音/换源仅改决策；改稿需提示旧音频过期 |
-| P1 | 云函数后台合成、二进制文件适配、导出任务及回执恢复 | `ctx.files` 当前字符串口不能直接存真实视频；输出 MP4 与预览一致 |
-| P1 | 主题对比度、卡片布局、虚拟列表和文件/错误反馈 | 长稿件、caption 面板不能溢出；操作状态不是只有颜色 |
-| P1 | Appwrite 目标 profile 审批、函数配置、私有存储及真实授权验证 | 云端写入读回、空缓存恢复、权限拒绝与函数网络实测 |
-| P2 | 自然语言编辑确认面板、测试集、SUS 与性能阶梯评测 | 首任务 ≤5min、AI 一次成功率 ≥70%、新增单测覆盖 ≥60% 等指标需证据 |
+嵌入前端时使用 [canvas-workbench 公共出口](packages/canvas-workbench/src/index.ts) 的 `CanvasWorkbenchSurface` 与 `createCanvasTaskSubmitter`。`transport` 支持独立 API 地址、请求函数、身份头和浏览器资源 URL；[工作区组合层](apps/web/src/components/FileWorkspace.tsx) 接入原标签、编辑器和项目资产侧栏。
 
-### 5.1 已发现的底座接缝，避免过度概括
+**实例边界：** 原画布仍有宿主／Agent 模块级桥接状态。同一 JS 页面同时挂载多个活动画布尚不具备完整隔离保证；使用独立页面／窗口承载不同工作区。独立任务客户端与后端请求显式绑定项目，不意味着全部原 UI 单例已被改造成多实例。
 
-- HTTP `node.delete` 等通用操作对白名单外 `card.*` 卡种有拒绝记录；**不能推断画布 UI 删除一定失败**，UI 存在兼容状态写入路径，需分别验证。
-- 本包渲染 props 没有现成上传/媒体 transport，但浏览器本地 File/Blob 可预览。服务端 `ctx.files` 有字符串 read/write，不是“完全没有文件读取”。
-- 云函数包含完整业务域的制品已打包，但 card.* 的函数内真实可调用性、身份、存储和模型网络要重新验收；历史 503/partial 记录不构成协议永久禁止。
-- 普通 handler Error 的标准业务错误转换需核验；失败不得伪装成功，敏感请求/密钥不得进入报错或日志。
-- 卡包依然只在允许的包目录和挂载点开发。若需要修改宿主 props、SDK、菜单或云资源配置，提交给资源/代码负责人确认，不绕过冻结区。
+## CLI 与 API
 
-## 6. 运行、构建与部署
-
-环境：Node 24、pnpm 10.33.2；新增代码 TypeScript。前端入口源码直出给 Turbopack，服务端入口 esbuild bundle + tsc 声明，包内相对 import 无后缀。
+给MA安装的独立 `canvas-cli` 见上方“内网 npm 安装与交付状态”。下面是仓内 `canvas-server` 的源码/服务端兼容入口，不是独立CLI安装方式：
 
 ```sh
-pnpm install
-pnpm --filter @bezier/canvas-pack-drama-audio run build
+pnpm --filter @canvas/server exec node dist/cli.js --help
+
+CANVAS_SERVER_URL=http://127.0.0.1:17456 \
+  pnpm --filter @canvas/server exec node dist/cli.js request GET /api/projects --json
+```
+
+通用 `request METHOD /api/path --body-file FILE|- --prompt-file FILE|- --json` 可以调用同一套画布、文件、版本、任务和工作流接口。长提示可从文件或标准输入读取。
+
+`assets` 提供 `info/list/get/create/upload/patch/batch/versions/content/export/spaces/uses/metadata/analysis/prompt/import/save`；`browser preferences` 读写书签、参考站点与采集开关。它们与 UI 调用同一套 HTTP API，不另开数据库。二进制内容用 `--output FILE` 输出，文件必须不存在；上传用 `--file FILE --mime MIME`，元数据和修订参数用 `--body-file FILE|-`。协议与示例见 [服务端说明](<apps/server/README.md>)。
+
+浏览器资源命令使用原生宿主签发的会话授权；不能凭项目 ID 自行铸造读取权限。系统 Save As、扩展安装及真实账号登录的同意操作只在 GUI 中完成，CLI 不提供绕过确认的通道。
+
+主要协议实现：
+
+- [画布状态与修订](apps/server/src/routes/canvas.ts)
+- [项目文件、目录、预览、标签和事件](apps/server/src/routes/files.ts)
+- [Agent 任务和候选交付说明](apps/server/README.md)
+- [浏览器资源授权协议](<apps/server/src/routes/browser-resources.ts>)
+- [本地资产库、空间、版本、导入与保存](<apps/server/src/routes/asset-library.ts>)
+- [浏览器偏好设置](<packages/contracts/src/api/browser-preferences.ts>)
+- [共享项目内容布局](packages/contracts/src/project-layout.ts)
+
+## 验证
+
+```sh
 pnpm guard
 pnpm typecheck
-pnpm --filter @bezier/canvas-pack-drama-audio run test
-pnpm --filter @canvas-workspace/web run build
+pnpm --filter @bezier/canvas-workbench test
+pnpm --filter @canvas/server test
+pnpm --filter @canvas/desktop test
+pnpm --filter @canvas-workspace/web test
+pnpm --filter @canvas/e2e test
+pnpm --filter @canvas/e2e exec playwright install chromium
+pnpm --filter @canvas/e2e test:ui
 ```
 
-没有额外 lint 脚本时沿用本仓 guard/typecheck，不宣称未执行的检查通过。
+测试使用隔离数据根及显式适配器，不需要真实 Agent 密钥。若使用本机已安装的 Chrome，可通过 `CANVAS_E2E_BROWSER_CHANNEL=chrome pnpm --filter @canvas/e2e test:ui` 选择它，测试仍使用临时 profile，不访问日常浏览数据。原生 Electron 验证需要图形会话以及允许其自身沙箱启动的系统环境；不要使用 `--no-sandbox` 绕过失败。原生验证与 Web 验证不能互相替代。完整状态见 [功能对照表](<docs/feature-parity.md>)。
 
-当前本地隔离 profile（不是上线方案）：
+## 明确不包含
 
-```sh
-CANVAS_STORAGE_MODE=local-test DRAMA_AUDIO_PROVIDER=wanqing \
-  pnpm tools-dev run web \
-  --data-dir /tmp/drama-audio-runtime-check \
-  --daemon-port 17460 --web-port 17580
-```
+- 原对话产品、聊天历史数据库、内置模型进程管理平台。
+- 原账号／团队资产平台和团队协作权限后台。这里的本地资产库独立运行，不需要这些平台。
+- 原产品更新器、发布控制台或托管账号登录服务。
 
-浏览器：`http://127.0.0.1:17580`；本地 API：`http://127.0.0.1:17460`。这是一次演示配置，端口、目录、实例不应成为生产默认。已有 `drama-1/dub-3` 保存数据可能带早期 mock 来源，重开后必须如实展示。万擎缺 `WQ_API_KEY` 时不可用。
+独立采集扩展与原浏览器登录接续已经纳入；Pinterest 接续保留原 macOS、未打包开发模式限制，并须用户明确同意。真实账号登录、日常浏览器安装与系统弹窗人工确认不会由自动化验收擅自执行。
 
-正常云端 profile 使用负责人批准的 Appwrite 配置；缺配置、schema 或授权时拒绝，不静默回退本地。云端权威数据不放驻留 Express 容器。
+项目资产、本地资产库、画布产物和项目版本均属于本工作区的核心能力。
 
-打包 Appwrite 上传闭包（不远端变更）：
+## 公司 npm 交付
 
-```sh
-pnpm --filter @canvas/canvas-coi run deploy
-```
+画布组件、文档组件与独立 Agent CLI 的固定版本、安装方式、联调证据及验收边界见 [npm 交付记录](docs/verification/npm-distribution/README.md)。
 
-上传目录：`functions/canvas-coi/.deploy/`。本次生成的临时归档：`/tmp/drama-audio-canvas-coi.tar.gz`。
+### 浏览器 App 组件接入（2026-10-21）
 
-- 归档 SHA-256：`359873df0fd1419a69086dbecb5adae1c19055ee49180efe6e7c24c9975e3ad7`
-- 函数 bundle SHA-256：`7eac7d1d5b4327adb1bc586e3b4d90eb8c9543ba71e7e1546cb4f4652c75f8de`
-- 这些摘要属于本次制品快照；源码或重新打包变化后必须重新核对。
-- 未上传/激活云端；实际操作按 `functions/canvas-coi/deploy.sh` 运维清单审批执行，不随部署修改 scopes/execute/ACL，保留上一 deploymentId 以回滚。
+浏览器通过 `@ks-designai/browser-surface@0.1.1` 组件挂载在画布 App 标签页中，不创建浏览器卡片；数据请求通过 `/api/browser-app` 到浏览器自己的后端与 Appwrite。当前已本地安装 tarball，真实菜单创建、组件渲染及云端实例读回通过；Web 原生采集、正式 MA 授权、registry 发布与 staging 另验。[接入与验收记录](docs/verification/browser-embed-20261021/README.md)。
 
-## 7. 实际证据与未验收项
-
-| 检查 | 当前证据 |
-| --- | --- |
-| 全仓 guard | 最近执行通过（2021 文件、20 manifests） |
-| 全仓 typecheck | 最近执行通过，依赖构建完成后不再以早期缺制品报错当作现存基线问题 |
-| 本包 tests | 最近执行 71 用例通过；不等于单测覆盖率 ≥60%，覆盖率尚未测量 |
-| 本包 build / apps/server build / apps/web build | 最近执行通过 |
-| server/workbench 回归 | 早期版本记录 655/264 用例通过；最新预览改动后未重新执行这两套回归，不当作本次新 UI 证据 |
-| 本地实际运行 | 重启后前端/API HTTP 200，能力清单 15 动作，drama-1 数据恢复读回 |
-| 万擎协议 | 隔离 HTTP fixture 验证 chat/completions 路径、model/messages/Bearer 和结果不泄露 key；真实万擎调用未执行 |
-| 浏览器 UI | Playwright 启动失败：未安装对应 Chromium；真实解码、同步、剪贴板、拖拽及可视效果待验收 |
-| Appwrite | 上传闭包生成；未部署/激活，云端业务动作和权限未验收 |
-| 完整业务闭环 | 尚未完成：真实视频理解、TTS、混合试听、MP4 导出及真实业务案例缺证据 |
-
-## 8. 比赛交付口径与规范影响
-
-应交付可交互编辑器，不是仅靠脚本跑通的黑盒：人可以定位、审核、修改和手动兜底，Agent 使用同一业务动作服务。易用性 30%、完整度 30%、性能 40% 均需真实场景和指定素材/机器实测；当前不声明全部达标。
-
-本包不改变平台信封协议。新增 data/Provider/上传/TTS 预留属于业务合同扩展，后续接入二进制资源、异步任务、云端部署和深编辑壳时须同步适用合同和资源审批；不能只更新 README 后就宣称规范和部署完整。
-
-[REQUIREMENTS.md](./REQUIREMENTS.md) 保留早期需求与验证历史，其中“恒 ≤256KB”“闭环完成”“所有业务卡 UI 删除失败”等旧描述不得作为当前事实。**本文按实现/已验收/待接入/待验收区分状态，作为当前汇总入口。**
+浏览器重复打开复用本画布已有标签；重复顶栏已移除，采集入口在浏览器菜单中按需加载。[性能与界面验收](docs/verification/browser-open-performance/README.md)。

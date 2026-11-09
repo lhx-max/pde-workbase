@@ -1,0 +1,10 @@
+{
+  "checks": [],
+  "errors": [],
+  "responses": [],
+  "failures": [
+    {
+      "error": "page.evaluate: TypeError: Cannot read properties of undefined (reading 'id')\n    at <anonymous>:2:367\n    at Array.map (<anonymous>)\n    at <anonymous>:2:353\n    at <anonymous>:2:440\n    at Array.map (<anonymous>)\n    at <anonymous>:2:433\n    at <anonymous>:2:1846\n    at eval (eval at evaluate (:302:30), <anonymous>:1:56)\n    at UtilityScript.evaluate (<anonymous>:304:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)\n    at fiber (/private/tmp/canvas-doc-browser-KXH8y7/fiber-diagnostic.ts:110:61)\n    at <anonymous> (/private/tmp/canvas-doc-browser-KXH8y7/fiber-diagnostic.ts:114:9)"
+    }
+  ]
+}

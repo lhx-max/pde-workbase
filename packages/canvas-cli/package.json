@@ -1,0 +1,37 @@
+{
+  "name": "@ks-designai/canvas-cli",
+  "version": "0.1.2",
+  "description": "HTTP-only canvas and App CLI for agent execution environments.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "bin": {
+    "canvas-cli": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "publishConfig": {
+    "registry": "https://npm.corp.kuaishou.com/"
+  },
+  "scripts": {
+    "build": "tsx tools/build.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "tsx": "4.22.3",
+    "@types/node": "24.12.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@git.corp.kuaishou.com/design/designai-app-canvas.git",
+    "directory": "packages/canvas-cli"
+  }
+}

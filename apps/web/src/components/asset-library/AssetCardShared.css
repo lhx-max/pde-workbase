@@ -1,0 +1,329 @@
+@import './AssetMediaSurface.css';
+
+/* Shared standalone consumer styles; extracted verbatim from Bezier
+ * 319e5eee556a3641d2ee68a6111a36ddc7a1eff7, apps/web/src/styles/home/community-assets.css
+ * source lines 8-14, 74-282, 620-625, 678-704, 713-767, 898-907, 915 (one newline between spans).
+ * Keep global selectors: these are shared component/portal contracts, not Home UI.
+ */
+/* BEGIN FROZEN RULES */
+.collection-card__media-actions.community-template-card__actions {
+  bottom: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.community-template-thumb__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  user-select: none;
+  transition: transform 320ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.community-template-thumb__media {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.community-template-thumb__html {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-panel);
+}
+
+.community-template-thumb__motion {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-panel);
+}
+
+.community-template-thumb__motion-poster,
+.community-template-thumb__motion-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.community-template-thumb__motion-poster {
+  object-fit: cover;
+  object-position: top center;
+  opacity: 1;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.community-template-thumb__motion-frame {
+  width: 250%;
+  height: 250%;
+  border: 0;
+  pointer-events: none;
+  transform: scale(0.4);
+  transform-origin: top left;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.community-template-thumb__motion.is-active.is-ready .community-template-thumb__motion-poster {
+  opacity: 0;
+}
+
+.community-template-thumb__motion.is-active.is-ready .community-template-thumb__motion-frame {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .community-template-thumb__motion-frame {
+    display: none;
+  }
+}
+
+.community-template-thumb__html-frame {
+  position: absolute;
+  inset: 0;
+  /* Template examples are authored as wide, desktop canvases. The old 4.5×
+     virtual viewport made a 16:9 deck occupy only the upper half of a card.
+     2.5× keeps the source responsive while filling the preview crop. */
+  width: 250%;
+  height: 250%;
+  border: 0;
+  pointer-events: none;
+  transform: scale(0.4);
+  transform-origin: top left;
+  opacity: 0;
+  transition: opacity 160ms ease-out;
+}
+
+.community-template-thumb__html.is-ready .community-template-thumb__html-frame {
+  opacity: 1;
+}
+
+.community-template-thumb__html .deck-thumbnail-shadow-host {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  contain: strict;
+  opacity: 0;
+  transition: opacity 160ms ease-out;
+}
+
+.community-template-thumb__html.is-ready .deck-thumbnail-shadow-host {
+  opacity: 1;
+}
+
+.community-template-thumb__html--slides .community-template-thumb__html-frame {
+  width: 300%;
+  height: 300%;
+  transform: scale(0.333333);
+}
+
+.community-template-thumb__media .plugins-home__media-img,
+.community-template-thumb__media .plugins-home__media-video {
+  object-position: top center;
+  user-select: none;
+}
+
+.community-template-thumb {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+}
+
+.community-template-thumb__paper {
+  display: grid;
+  align-content: center;
+  gap: 10px;
+  width: min(78%, 380px);
+  min-height: 58%;
+  padding: 28px;
+  border-radius: 5px;
+  background: var(--bg);
+  box-shadow: 0 24px 70px -36px color-mix(in srgb, #000 48%, transparent);
+}
+
+.community-template-thumb__line {
+  display: block;
+  height: 5px;
+  border-radius: 99px;
+  background: var(--template-accent);
+}
+
+.community-template-thumb__line.is-short {
+  width: 42%;
+  opacity: 0.32;
+}
+
+.community-template-thumb__paper strong {
+  color: var(--text-strong);
+  font-size: 28px;
+  line-height: 1;
+}
+
+.community-template-thumb__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.community-template-thumb__grid span {
+  height: 42px;
+  border-radius: var(--radius-medium, 4px);
+  background: color-mix(in srgb, var(--template-accent) 14%, var(--bg-panel));
+}
+
+.community-template-thumb--image,
+.community-template-thumb--video {
+  background:
+    radial-gradient(circle at 76% 30%, color-mix(in srgb, var(--template-accent) 48%, transparent), transparent 24%),
+    linear-gradient(180deg, #111, #080808);
+}
+
+.community-template-thumb--image .community-template-thumb__paper,
+.community-template-thumb--video .community-template-thumb__paper {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--template-accent) 35%, #111), #111);
+  color: #fff;
+}
+
+.community-template-thumb--image .community-template-thumb__paper strong,
+.community-template-thumb--video .community-template-thumb__paper strong {
+  color: #fff;
+}
+
+.community-template-thumb--prototype .community-template-thumb__paper {
+  width: min(86%, 460px);
+  min-height: 72%;
+}
+
+.community-template-thumb--prototype .community-template-thumb__grid {
+  grid-template-columns: 0.72fr 1fr 1fr;
+}
+
+.community-template-thumb--prototype .community-template-thumb__grid span {
+  height: 54px;
+}
+
+.community-template-thumb--hyperframes {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--template-accent) 18%, transparent) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--template-accent) 16%, transparent) 1px, transparent 1px),
+    color-mix(in srgb, var(--template-accent) 6%, var(--bg-panel));
+  background-size: 22px 22px;
+}
+
+.community-template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(288px, 1fr));
+  gap: var(--spacing-20);
+  align-items: start;
+}
+
+.community-template-card__preview {
+  position: relative;
+  display: grid;
+  min-height: 0;
+  flex: none;
+  width: 100%;
+  place-items: center;
+  /* Design templates are predominantly Deck / canvas outputs. Match their
+     native wide composition instead of putting every 16:9 preview into a
+     taller generic card frame. */
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--bg-panel);
+  border-radius: inherit;
+}
+
+.community-template-card--image .community-template-card__preview {
+  display: block;
+  aspect-ratio: auto;
+  background: var(--bg-subtle);
+}
+
+.community-template-card--image .community-template-thumb__media,
+.community-template-card--image .community-template-thumb__html {
+  height: auto;
+  aspect-ratio: 16 / 9;
+}
+
+.community-template-thumb__natural-image {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: var(--bg-subtle);
+}
+
+.community-template-thumb__natural-image.is-loaded {
+  aspect-ratio: auto;
+}
+
+.community-template-thumb__natural-image .community-template-thumb__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0;
+  transition: opacity 180ms var(--ease-out), transform 320ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.community-template-thumb__natural-image.is-loaded .community-template-thumb__image {
+  height: auto;
+  opacity: 1;
+}
+
+.community-template-thumb__image,
+.community-template-thumb__media .plugins-home__media-img,
+.community-template-thumb__media .plugins-home__media-video {
+  transition: transform 320ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.community-template-card:hover .community-template-thumb__image,
+.community-template-card:hover .community-template-thumb__media .plugins-home__media-img,
+.community-template-card:hover .community-template-thumb__media .plugins-home__media-video {
+  transform: scale(1.015);
+}
+
+.community-template-card__action {
+  min-width: 0;
+  border-color: rgb(255 255 255 / 88%);
+  background: #fff;
+  color: #171717;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 14%);
+}
+
+.community-template-card--image .community-template-card__action {
+  min-width: 148px;
+}
+
+.community-template-card__action:hover:not(:disabled) {
+  border-color: #fff;
+  background: rgb(255 255 255 / 92%);
+  color: #171717;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .community-template-card,
+.community-template-card__preview::after,
+.community-template-card__media-meta,
+.community-template-card__actions,
+.community-template-thumb__image,
+.community-template-thumb__media .plugins-home__media-img,
+.community-template-thumb__media .plugins-home__media-video {
+    transition: none;
+  }
+
+}

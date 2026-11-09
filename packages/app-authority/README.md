@@ -1,0 +1,7 @@
+# App authority
+
+Server-side adapter for MA's published `/api/ma-v/v1/me` and application-instance read endpoints. The caller supplies request-scoped MA SSO, selected tenant and application-instance headers. `maAuthorityFromEnvironment` reads the same MAV_API_TRANSPORT/MAV_APPWRITE_ENDPOINT/MAV_APPWRITE_PROJECT_ID or MAV_API_ORIGIN configuration as the host. MA must authenticate that user and authorize that instance in that tenant. Apps retain their own asset ownership checks, including `bizId` and instance mapping; verifying identity alone does not authorize every asset.
+
+This package does not mint credentials or claim that a particular live MA deployment accepts the contract. REST and Appwrite Function transports share the same checks. Plain `x-team-id` and `x-user-id` are never authentication. Configure a trusted HTTPS endpoint; loopback HTTP exists only for isolated contract tests.
+
+`createAppWriteAuthorizer(APP_WRITE_GRANTS_JSON)` evaluates service-owned, exact action delegations over actors already verified by MA. Empty config denies every write. A grant contains exact `teamId`, `bizId`, `userId`, optional `applicationId`/`applicationInstanceId`, and explicit `actions`. No wildcard or role field is accepted. This helper is not an MA membership directory or proof of a production MA action-authorization API. Callers must verify the actor first and retain their own resource ownership checks.
