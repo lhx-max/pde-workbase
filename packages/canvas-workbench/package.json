@@ -31,6 +31,7 @@
   "dependencies": {
     "@bezier/canvas-card-sdk": "workspace:*",
     "@bezier/canvas-pack-demo": "workspace:*",
+    "@bezier/canvas-pack-drama-audio": "workspace:*",
     "@bezier/components": "workspace:*",
     "@bezier/contracts": "workspace:*",
     "@bezier/workbench-core": "workspace:*",

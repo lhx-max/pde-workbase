@@ -19,10 +19,12 @@ type CardPackLike = {
  * `card.<team>.<name>.<verb>`. One import line per pack (build-time, v1). */
 import demoPackServer from '@bezier/canvas-pack-demo/server';
 import imagePackServer from '@ks-designai/image-card-pack/server';
+import dramaAudioPackServer from '@bezier/canvas-pack-drama-audio/server';
 
 const CARD_PACKS: CardPackLike[] = [
   demoPackServer,
   imagePackServer, // Independent image App metadata; existing native renderer/actions stay in canvas.
+  dramaAudioPackServer, // 短剧配音音频编辑卡（card.drama.audio）
   // import yourPack from '@team/canvas-pack-yourbiz/server';
   // yourPack,
 ];
