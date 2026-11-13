@@ -7,23 +7,27 @@ import { DEFAULT_REWRITE_PROMPT, REWRITE_BODY_MAX_BYTES, validateRewriteLines, v
 const image = `data:image/jpeg;base64,${Buffer.from([255, 216, 255, 224, 0, 2, 255, 217]).toString('base64')}`;
 const input: VideoRewriteRequest = { script: '原稿', prompt: DEFAULT_REWRITE_PROMPT, videoRef: 'inputs/video.mp4', videoDurationMs: 4000, frames: [{ atMs: 0, image }, { atMs: 2000, image }] };
 const lines = [{ id: 'line-1', text: '改写台词', videoStartMs: 0, videoEndMs: 2000 }, { id: 'line-2', text: '第二段', videoStartMs: 2000, videoEndMs: 4000 }];
+const observations = [{ atMs: 0, ocr: '帧内字幕', visual: '画面描述一' }, { atMs: 2000, ocr: '', visual: '画面描述二' }];
 let server: Server;
 let base: string;
 let requests: { path: string | undefined; body: Record<string, any>; authorization: string | undefined }[];
-let output: unknown;
+let visionOutput: Record<string, unknown>;
+let textOutput: Record<string, unknown>;
 let redirect: boolean;
 
 beforeEach(async () => {
   requests = [];
-  output = { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ lines }) } }] };
+  visionOutput = { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ frames: observations }) } }] };
+  textOutput = { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ lines }) } }] };
   redirect = false;
   server = createServer(async (req, res) => {
     let raw = '';
     for await (const chunk of req) raw += chunk;
-    requests.push({ path: req.url, body: raw ? JSON.parse(raw) : {}, authorization: req.headers.authorization });
+    const body = raw ? JSON.parse(raw) : {};
+    requests.push({ path: req.url, body, authorization: req.headers.authorization });
     if (redirect) { res.writeHead(302, { location: `${base}/unexpected` }); res.end(); return; }
     res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify(output));
+    res.end(JSON.stringify(body.model === 'fixture-vision' ? visionOutput : textOutput));
   });
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   const address = server.address();
@@ -41,28 +45,64 @@ afterEach(async () => {
 });
 
 describe('generateVideoRewrite', () => {
-  it('使用独立视觉模型、时间戳和 image_url，并返回严格结构', async () => {
+  it('视觉步只读帧 OCR/视觉信息，文本步用观测改写，两段调用严格结构', async () => {
     const result = await generateVideoRewrite(input);
-    expect(result).toEqual({ lines, doc: '改写台词\n第二段', provider: 'wanqing:fixture-vision' });
-    expect(requests).toHaveLength(1);
-    const request = requests[0];
-    expect(request.path).toBe('/v1/chat/completions');
-    expect(request.authorization).toBe('Bearer fixture-key');
-    expect(request.body.model).toBe('fixture-vision');
-    expect(request.body.response_format).toEqual({ type: 'json_object' });
-    expect(request.body.messages[0].content).toContain('帧采样不是连续视频');
-    expect(request.body.messages[0].content).toContain('不得编造未观测内容');
-    expect(request.body.messages[1].content).toEqual([
-      { type: 'text', text: JSON.stringify({ script: input.script, prompt: input.prompt, videoRef: input.videoRef, videoDurationMs: input.videoDurationMs }) },
+    expect(result).toEqual({
+      provider: 'wanqing:fixture-text-only',
+      visionProvider: 'wanqing:fixture-vision',
+      observations,
+      lines,
+      doc: '改写台词\n第二段',
+    });
+    expect(requests).toHaveLength(2);
+    for (const request of requests) {
+      expect(request.path).toBe('/v1/chat/completions');
+      expect(request.authorization).toBe('Bearer fixture-key');
+      expect(request.body.response_format).toEqual({ type: 'json_object' });
+    }
+    const vision = requests[0];
+    expect(vision.body.model).toBe('fixture-vision');
+    expect(vision.body.messages[0].content).toContain('你是视频帧观测器，不是台词编辑');
+    expect(vision.body.messages[0].content).toContain('不生成、不改写、不建议任何台词');
+    expect(vision.body.messages[1].content).toEqual([
       { type: 'text', text: '视频采样帧时间戳：0ms' }, { type: 'image_url', image_url: { url: image } },
       { type: 'text', text: '视频采样帧时间戳：2000ms' }, { type: 'image_url', image_url: { url: image } },
     ]);
+    expect(JSON.stringify(vision.body.messages)).not.toContain('原稿');
+    expect(JSON.stringify(vision.body.messages)).not.toContain(DEFAULT_REWRITE_PROMPT);
+    const text = requests[1];
+    expect(text.body.model).toBe('fixture-text-only');
+    expect(text.body.messages[0].content).toContain('不得直接把 ocr 文字当台词');
+    expect(text.body.messages[0].content).toContain('第三人称');
+    expect(text.body.messages[0].content).toContain('禁止生成角色对白');
+    expect(text.body.messages[0].content).toContain('原解说稿是剧情主线与事实依据');
+    expect(text.body.messages[0].content).toContain('不机械地按采样帧等分');
+    expect(text.body.messages[0].content).toContain('原稿未提供');
+    expect(DEFAULT_REWRITE_PROMPT).toContain('第三人称');
+    expect(DEFAULT_REWRITE_PROMPT).toContain('不生成角色对白');
+    expect(JSON.parse(text.body.messages[1].content)).toEqual({
+      script: input.script, prompt: input.prompt, videoRef: input.videoRef, videoDurationMs: input.videoDurationMs, frameObservations: observations,
+    });
+    expect(JSON.stringify(result)).not.toContain('fixture-key');
   });
 
-  it.each(['WQ_VISION_MODEL', 'WQ_API_KEY'])('缺少 %s 显式不可用且不请求网络', async name => {
+  it.each(['WQ_VISION_MODEL', 'WQ_MODEL', 'WQ_API_KEY'])('缺少 %s 显式不可用且不请求网络', async name => {
     vi.stubEnv(name, '');
     await expect(generateVideoRewrite(input)).rejects.toThrow('REWRITE_UNAVAILABLE');
     expect(requests).toHaveLength(0);
+  });
+
+  it.each([
+    { vision: { choices: [] }, text: {} },
+    { vision: { choices: [{ finish_reason: 'length', message: { content: '{}' } }] }, text: {} },
+    { vision: { choices: [{ finish_reason: 'stop', message: { content: '```json\n{}\n```' } }] }, text: {} },
+    { vision: { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ frames: [observations[0]] }) } }] }, text: {} },
+    { vision: { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ frames: [{ ...observations[0], atMs: 999 }, observations[1]] }) } }] }, text: {} },
+    { vision: { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ frames: [{ atMs: 0, ocr: '', visual: '' }, observations[1]] }) } }] }, text: {} },
+  ])('拒绝视觉步不完整或非法响应 %#', async value => {
+    visionOutput = value.vision;
+    await expect(generateVideoRewrite(input)).rejects.toThrow('card.drama.audio:');
+    expect(requests).toHaveLength(1);
   });
 
   it.each([
@@ -71,13 +111,14 @@ describe('generateVideoRewrite', () => {
     { choices: [{ finish_reason: 'stop', message: { content: '```json\n{}\n```' } }] },
     { choices: [{ finish_reason: 'stop', message: { content: '[]' } }] },
     { choices: [{ finish_reason: 'stop', message: { content: '{}' } }] },
-  ])('拒绝不完整或非法结构响应 %#', async value => {
-    output = value;
+  ])('拒绝文本步不完整或非法结构响应 %#', async value => {
+    textOutput = value;
     await expect(generateVideoRewrite(input)).rejects.toThrow('card.drama.audio:');
+    expect(requests).toHaveLength(2);
   });
 
   it('拒绝 provider 非法区间，不排序、不截断、不修复', async () => {
-    output = { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ lines: [{ ...lines[0], videoEndMs: 5000 }] }) } }] };
+    textOutput = { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ lines: [{ ...lines[0], videoEndMs: 5000 }] }) } }] };
     await expect(generateVideoRewrite(input)).rejects.toThrow();
   });
 
@@ -140,10 +181,12 @@ describe('rewrite handler', () => {
     const before = structuredClone(node);
     const result = await call(node, { ...input });
     expect(result).toEqual({ data: {
-      rewriteLines: lines, rewriteDoc: '改写台词\n第二段', rewriteProvider: 'wanqing:fixture-vision', rewriteConfirmed: false,
+      rewriteLines: lines, rewriteDoc: '改写台词\n第二段', rewriteProvider: 'wanqing:fixture-text-only',
+      rewriteVisionProvider: 'wanqing:fixture-vision', rewriteObservations: observations, rewriteConfirmed: false,
       rewriteInput: { script: input.script, prompt: input.prompt, videoRef: input.videoRef, videoDurationMs: input.videoDurationMs },
     } });
     expect(JSON.stringify(result)).not.toContain(image);
+    expect(JSON.stringify(result)).not.toContain('fixture-key');
     expect(node).toEqual(before);
   });
 

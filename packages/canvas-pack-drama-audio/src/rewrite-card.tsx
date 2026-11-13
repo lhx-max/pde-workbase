@@ -94,7 +94,22 @@ function waitForDelivery(task: Promise<unknown>, signal: AbortSignal): Promise<v
 }
 
 const fieldStyle: React.CSSProperties = { width: '100%', boxSizing: 'border-box', padding: 6, borderRadius: 4, border: '1px solid var(--border-default, #d9d9d9)', background: 'var(--bg-app, #fff)', color: 'var(--text-primary, #1a1a1a)', fontSize: 12 };
-const buttonStyle: React.CSSProperties = { padding: '4px 8px', borderRadius: 4, border: '1px solid var(--border-default, #d9d9d9)', background: 'var(--bg-app, #fff)', color: 'var(--text-primary, #1a1a1a)', cursor: 'pointer' };
+const buttonStyle: React.CSSProperties = { padding: '6px 10px', borderRadius: 6, border: '1px solid #93c5fd', background: '#eff6ff', color: '#1e40af', fontWeight: 600, cursor: 'pointer' };
+const primaryButtonStyle: React.CSSProperties = { ...buttonStyle, borderColor: '#1d4ed8', background: '#2563eb', color: '#fff' };
+const confirmButtonStyle: React.CSSProperties = { ...buttonStyle, borderColor: '#047857', background: '#059669', color: '#fff' };
+const summaryRowStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none', minHeight: 24, padding: '2px 4px', borderRadius: 4, border: '1px solid var(--border-default, #d9d9d9)', background: 'var(--bg-app, #fff)' };
+const summaryTextStyle: React.CSSProperties = { flex: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' };
+const scrollListStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 300, overflowY: 'auto', padding: '2px', borderRadius: 4 };
+
+interface ObservationView { atMs: number; ocr: string; visual: string }
+
+function readObservations(value: unknown): ObservationView[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is ObservationView => !!item && typeof item === 'object' && !Array.isArray(item)
+    && typeof (item as ObservationView).atMs === 'number'
+    && typeof (item as ObservationView).ocr === 'string'
+    && typeof (item as ObservationView).visual === 'string');
+}
 
 export function RewriteCard(props: CardRenderProps) {
   const { node, onPatch } = props;
@@ -104,6 +119,8 @@ export function RewriteCard(props: CardRenderProps) {
   const [promptDraft, setPromptDraft] = React.useState<string | null>(null);
   const [durationDraft, setDurationDraft] = React.useState<number | null>(null);
   const [linesDraft, setLinesDraft] = React.useState<RewriteLine[] | null>(null);
+  const [expandedLineId, setExpandedLineId] = React.useState<string | null>(null);
+  const [showObservations, setShowObservations] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [status, setStatus] = React.useState<string | null>(null);
   const controllerRef = React.useRef<AbortController | null>(null);
@@ -114,12 +131,15 @@ export function RewriteCard(props: CardRenderProps) {
     setPromptDraft(null);
     setDurationDraft(null);
     setLinesDraft(null);
+    setExpandedLineId(null);
+    setShowObservations(false);
     setStatus(null);
   }, [node.id]);
   const script = scriptDraft ?? (typeof data.script === 'string' ? data.script : '');
   const prompt = promptDraft ?? (typeof data.rewritePrompt === 'string' ? data.rewritePrompt : DEFAULT_REWRITE_PROMPT);
   const duration = durationDraft ?? (typeof data.videoDurationMs === 'number' ? data.videoDurationMs : 0);
   const lines = linesDraft ?? (Array.isArray(data.rewriteLines) ? data.rewriteLines as RewriteLine[] : []);
+  const observations = readObservations(data.rewriteObservations);
   const dirty = scriptDraft !== null || promptDraft !== null || durationDraft !== null || linesDraft !== null;
   let videoUrl: string | undefined;
   let mediaError: string | null = null;
@@ -198,18 +218,48 @@ export function RewriteCard(props: CardRenderProps) {
     <label>改写要求<textarea disabled={busy} style={fieldStyle} rows={4} maxLength={20_000} value={prompt} onChange={event => setPromptDraft(event.target.value)} /></label>
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
       <button style={buttonStyle} disabled={busy} onClick={save}>保存原稿、改写要求与台词</button>
-      <button style={buttonStyle} disabled={busy || dirty || !videoUrl || !projectId} onClick={() => void runRewrite()}>采样视频并改写</button>
+      <button style={{ ...primaryButtonStyle, opacity: busy || dirty || !videoUrl || !projectId ? 0.45 : 1 }} disabled={busy || dirty || !videoUrl || !projectId} onClick={() => void runRewrite()}>采样视频并改写</button>
       {busy && <button style={buttonStyle} onClick={() => controllerRef.current?.abort()}>停止等待（不自动重跑）</button>}
     </div>
     <div>最多 12 张 320px JPEG 采样帧；不是连续视频或音轨，不能证明未采样期间的内容。</div>
     {lines.length > 0 && <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <strong>生成台词 · {typeof data.rewriteProvider === 'string' ? data.rewriteProvider : '未知来源'} · {data.rewriteConfirmed === true && !dirty ? '已确认' : '未确认'}</strong>
-      {lines.map((line, index) => <div key={line.id}>
-        <label>台词 {index + 1}<textarea disabled={busy} style={fieldStyle} value={line.text} maxLength={2_000} onChange={event => editLine(index, { text: event.target.value })} /></label>
-        <label>视频起 ms<input disabled={busy} type="number" min={0} max={duration} step={1} value={line.videoStartMs} onChange={event => editLine(index, { videoStartMs: event.target.valueAsNumber })} /></label>
-        <label>视频止 ms<input disabled={busy} type="number" min={0} max={duration} step={1} value={line.videoEndMs} onChange={event => editLine(index, { videoEndMs: event.target.valueAsNumber })} /></label>
-      </div>)}
-      <button style={buttonStyle} disabled={busy || dirty || !projectId} onClick={() => void deliver()}>确认交给配音编辑卡</button>
+      <div style={scrollListStyle}>
+        {lines.map((line, index) => {
+          const expanded = expandedLineId === line.id;
+          return <div key={line.id} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={summaryRowStyle} role="button" tabIndex={0} onClick={() => setExpandedLineId(expanded ? null : line.id)}
+              onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setExpandedLineId(expanded ? null : line.id); } }}>
+              <span style={{ flexShrink: 0 }}>{index + 1}.</span>
+              <span style={{ flexShrink: 0, color: 'var(--text-secondary, #666)' }}>{line.videoStartMs}–{line.videoEndMs}ms</span>
+              <span style={summaryTextStyle} title={line.text}>{line.text}</span>
+              <span style={{ flexShrink: 0, color: 'var(--text-secondary, #666)' }}>{expanded ? '收起 ▲' : '展开 ▼'}</span>
+            </div>
+            {expanded && <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label>台词 {index + 1}<textarea disabled={busy} style={fieldStyle} value={line.text} maxLength={2_000} onChange={event => editLine(index, { text: event.target.value })} /></label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <label>起 ms<input disabled={busy} type="number" min={0} max={duration} step={1} value={line.videoStartMs} onChange={event => editLine(index, { videoStartMs: event.target.valueAsNumber })} /></label>
+                <label>止 ms<input disabled={busy} type="number" min={0} max={duration} step={1} value={line.videoEndMs} onChange={event => editLine(index, { videoEndMs: event.target.valueAsNumber })} /></label>
+              </div>
+            </div>}
+          </div>;
+        })}
+      </div>
+      {observations.length > 0 && <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={summaryRowStyle} role="button" tabIndex={0} onClick={() => setShowObservations(!showObservations)}
+          onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setShowObservations(!showObservations); } }}>
+          <span style={summaryTextStyle}>画面观测 · {observations.length} 帧（OCR 与视觉描述，非连续视频）</span>
+          <span style={{ flexShrink: 0, color: 'var(--text-secondary, #666)' }}>{showObservations ? '收起 ▲' : '展开 ▼'}</span>
+        </div>
+        {showObservations && <div style={{ ...scrollListStyle, fontSize: 11 }}>
+          {observations.map((observation, index) => <div key={index} style={{ padding: '4px 6px', border: '1px dashed var(--border-default, #d9d9d9)', borderRadius: 4 }}>
+            <div>帧 {index + 1} · {observation.atMs}ms{typeof data.rewriteVisionProvider === 'string' ? ` · ${data.rewriteVisionProvider}` : ''}</div>
+            {observation.ocr && <div>OCR：{observation.ocr}</div>}
+            {observation.visual && <div>画面：{observation.visual}</div>}
+          </div>)}
+        </div>}
+      </div>}
+      <button style={{ ...confirmButtonStyle, opacity: busy || dirty || !projectId ? 0.45 : 1 }} disabled={busy || dirty || !projectId} onClick={() => void deliver()}>确认交给配音编辑卡</button>
     </section>}
     {status && <div role="status" aria-live="polite">{status}</div>}
   </div>;

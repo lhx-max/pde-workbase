@@ -70,4 +70,6 @@ export interface DramaAudioData {
   dubbingDoc: string | null;
   /** v3：配音文档生成来源；null = 未生成过。 */
   dubbingProvider: string | null;
+  /** v3：TTS 音色/风格描述（VoxCPM control_instruction）；null = 使用默认解说风格。 */
+  voiceInstruction: string | null;
 }

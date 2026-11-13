@@ -42,6 +42,7 @@ export function emptyDramaAudioData(): DramaAudioData {
     captionProvider: null,
     dubbingDoc: null,
     dubbingProvider: null,
+    voiceInstruction: null,
   };
 }
 
@@ -60,6 +61,7 @@ export function readDramaAudioData(node: Record<string, unknown>): DramaAudioDat
     ...(source as Partial<DramaAudioData>),
     segments: segments.map(item => normalizeSegment(item)),
     captions: captions as DramaAudioData['captions'],
+    voiceInstruction: typeof source.voiceInstruction === 'string' && source.voiceInstruction.trim() ? source.voiceInstruction : null,
   };
   data.dataVersion = DRAMA_AUDIO_DATA_VERSION;
   return data;
@@ -85,6 +87,21 @@ function normalizeSegment(item: unknown): DramaAudioSegment {
 /** 段有序化（按 startMs 升序，同起点按 id 稳定排序——保证决策可复现）。 */
 export function sortSegments(segments: DramaAudioSegment[]): DramaAudioSegment[] {
   return [...segments].sort((a, b) => a.startMs - b.startMs || a.id.localeCompare(b.id));
+}
+
+/** 视频窗口整体平移：保持时长，clamp 到 0..videoDurationMs；窗口非法或时长非法返回 null。 */
+export function shiftSegmentWindow(
+  segment: { videoStartMs: number | null; videoEndMs: number | null },
+  deltaMs: number,
+  videoDurationMs: number,
+): { videoStartMs: number; videoEndMs: number } | null {
+  const { videoStartMs, videoEndMs } = segment;
+  if (videoStartMs === null || videoEndMs === null || !(videoEndMs > videoStartMs)) return null;
+  if (!Number.isFinite(deltaMs) || !Number.isFinite(videoDurationMs) || videoDurationMs <= 0) return null;
+  const span = videoEndMs - videoStartMs;
+  const maxStart = Math.max(0, videoDurationMs - span);
+  const start = Math.min(Math.max(0, Math.round(videoStartMs + deltaMs)), Math.round(maxStart));
+  return { videoStartMs: start, videoEndMs: start + span };
 }
 
 /** 裁剪窗口：null 端用源边界兜底。 */

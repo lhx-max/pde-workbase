@@ -14,7 +14,7 @@
     }
   },
   "scripts": {
-    "demo": "CANVAS_STORAGE_MODE=local-test pnpm --dir ../.. tools-dev run web --data-dir \"$PWD/demo/runtime\"",
+    "demo": "CANVAS_STORAGE_MODE=local-test DRAMA_TTS_ENABLED=1 DRAMA_TTS_PYTHON=\"$PWD/demo/models/.venv/bin/python\" DRAMA_TTS_APP=\"$PWD/demo/models/VoxCPM/app.py\" DRAMA_TTS_MODEL=\"$PWD/demo/models/VoxCPM2\" pnpm --dir ../.. tools-dev run web --data-dir \"$PWD/demo/runtime\"",
     "demo:import": "node demo/import.ts",
     "demo:repair": "node demo/repair.ts",
     "build": "esbuild src/server.ts --bundle --format=esm --platform=node --target=node24 --packages=external --outfile=dist/server.mjs && tsc -p tsconfig.build.json --emitDeclarationOnly",

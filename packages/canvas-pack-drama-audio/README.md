@@ -139,7 +139,11 @@ interface DramaAudioUploadAdapter {
 
 现有 demo 已迁移为两块 `card.drama.audio`：`stage=rewrite` 读取视频和原解说词、编辑内置 prompt，并调用 `rewrite`；`stage=edit` 接收用户确认的逐句稿件和视频区间，执行逐句 VoxCPM 配音、停顿/增益/静音/截取及视频主时钟试听。`demo:repair` 迁移既有实例并保留原音频和稿件，不删除旧资源。
 
-视觉调用使用示例中的 OpenAI-compatible chat/completions、system/user messages、temperature/max_tokens 路径；额外将真实视频抽样帧作为 `image_url` 发送。需配置 `WQ_API_KEY`、`WQ_VISION_MODEL` 和适用 `WQ_API_BASE`；不将文本 `WQ_MODEL` 当视觉模型。最多 12 张带时间戳的 320px JPEG，每帧≤100KB、请求≤1.2MB；帧不保存到卡片。模型输出严格 JSON 台词列表，1–80句、有序非重叠区间，错误/截断/不可用不得回退 mock。采样帧不等于完整视频或音轨；建议区间必须人工确认。
+配音编辑卡 UI 扩展（v3.1，data 加可选 `voiceInstruction`，旧卡兜底 null）：台词句默认折叠为摘要行、点击选中句展开完整编辑；时间轴台词块支持拖拽整体平移（保持时长、clamp 0..videoDurationMs，纯函数 `shiftSegmentWindow` 可测）；音色预设下拉+自定义描述（传入 VoxCPM `control_instruction`，全稿与逐句两条链路均读取 `data.voiceInstruction`）；试听倍速 0.5x–2x（设置 video.playbackRate，WebAudio 排程跟随同一倍率，不改变生成音频字节）。拖拽与折叠的浏览器交互尚待 Playwright 实测，不宣称已验收。
+
+改写卡 UI（v3.2）：生成台词逐句折叠为摘要行（点击展开编辑，列表 maxHeight 300px 滚动），不再整卡平铺；新增「画面观测」折叠区展示每帧 OCR/视觉描述（data 加可选 `rewriteObservations`、`rewriteVisionProvider`，旧卡兜底为空不渲染）。折叠/滚动的浏览器交互尚待 Playwright 实测。
+
+视觉改写为两段链路（v3.2）：第一段 `WQ_VISION_MODEL` 只做帧观测——对每张采样帧输出 `{atMs, ocr, visual}`（ocr 如实转录帧内可见文字、visual 客观描述画面），system 强限制为视频帧观测器、不生成不改写不建议任何台词，请求不含原稿与 prompt；观测与采样帧逐一对应，数量/时间戳/空观测不一致即失败。第二段 `WQ_MODEL` 以原稿为台词依据、结合帧观测改写，明确禁止直接把 ocr 文字当台词，水印、平台名、标题、免责声明等非台词文字不得进入台词。需配置 `WQ_API_KEY`、`WQ_VISION_MODEL`、`WQ_MODEL` 和适用 `WQ_API_BASE`，缺任一在发网络前 fail-fast。最多 12 张带时间戳的 320px JPEG，每帧≤100KB、请求≤1.2MB；帧不保存到卡片，观测摘要（每帧 ocr/visual 各≤2000 字符）存入卡片供人工核对。文本步输出严格 JSON 台词列表，1–80句、有序非重叠区间，错误/截断/不可用不得回退 mock。采样帧不等于完整视频或音轨；建议区间必须人工确认。
 
 确认交付记录源卡和 revision；替换已有下游稿件需显式确认，旧音频字节仍保留。逐句 TTS 成功后立即上传和条件回填，输入变化则不覆盖结果；不自动重跑失败或不确定的模型请求。视频是唯一主时钟，源截取与视频区间独立；段后停顿占区间尾部留白，静音不压缩时间，WebAudio 实际应用总/段增益。音频超出区间会标红并裁切试听，不自动拉伸，也不宣称已对齐。统一双轨共用视频时间比例。
 

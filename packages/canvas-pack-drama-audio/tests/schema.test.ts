@@ -104,6 +104,7 @@ describe('edl: 时间轴与裁剪', () => {
     captionProvider: null,
     dubbingDoc: null,
     dubbingProvider: null,
+    voiceInstruction: null,
   };
 
   it('无裁剪时全部段有效', () => {

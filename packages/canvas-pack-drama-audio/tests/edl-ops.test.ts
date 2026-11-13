@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { dramaAudioOps as ops } from '../src/ops';
-import { exportPathFor, renderExportManifest, readDramaAudioData, timelineOf } from '../src/edl';
+import { exportPathFor, renderExportManifest, readDramaAudioData, shiftSegmentWindow, timelineOf } from '../src/edl';
 import type { DramaAudioData } from '../src/types';
 
 type Files = {
@@ -311,5 +311,33 @@ describe('handler 确定性（幂等重放安全）', () => {
     const first = await (ops[verb] as typeof ops.gap)(nodeOf('a15', payload), params, ctxOf(makeFiles()));
     const second = await (ops[verb] as typeof ops.gap)(nodeOf('a15', payload), params, ctxOf(makeFiles()));
     expect(second).toEqual(first);
+  });
+});
+
+describe('v3.1 voiceInstruction 音色描述兜底', () => {
+  it('旧卡缺字段读 null；非字符串归 null；有效字符串保留', () => {
+    expect(dataOf(void 0).voiceInstruction).toBeNull();
+    expect(readDramaAudioData({ id: 'x', kind: 'card.drama.audio', data: { voiceInstruction: 123 } }).voiceInstruction).toBeNull();
+    expect(readDramaAudioData({ id: 'x', kind: 'card.drama.audio', data: { voiceInstruction: '   ' } }).voiceInstruction).toBeNull();
+    expect(readDramaAudioData({ id: 'x', kind: 'card.drama.audio', data: { voiceInstruction: '温柔女声' } }).voiceInstruction).toBe('温柔女声');
+  });
+});
+
+describe('shiftSegmentWindow 视频窗口整体平移', () => {
+  it('保持时长平移并四舍五入', () => {
+    expect(shiftSegmentWindow({ videoStartMs: 1_000, videoEndMs: 3_000 }, 500, 10_000)).toEqual({ videoStartMs: 1_500, videoEndMs: 3_500 });
+  });
+  it('clamp 到 0..videoDurationMs 边界', () => {
+    expect(shiftSegmentWindow({ videoStartMs: 1_000, videoEndMs: 3_000 }, -5_000, 10_000)).toEqual({ videoStartMs: 0, videoEndMs: 2_000 });
+    expect(shiftSegmentWindow({ videoStartMs: 1_000, videoEndMs: 3_000 }, 20_000, 10_000)).toEqual({ videoStartMs: 8_000, videoEndMs: 10_000 });
+  });
+  it('span 超过总时长时贴 0 起点', () => {
+    expect(shiftSegmentWindow({ videoStartMs: 0, videoEndMs: 12_000 }, 3_000, 10_000)).toEqual({ videoStartMs: 0, videoEndMs: 12_000 });
+  });
+  it('非法窗口、非法时长或非法位移返回 null', () => {
+    expect(shiftSegmentWindow({ videoStartMs: null, videoEndMs: 3_000 }, 100, 10_000)).toBeNull();
+    expect(shiftSegmentWindow({ videoStartMs: 3_000, videoEndMs: 3_000 }, 100, 10_000)).toBeNull();
+    expect(shiftSegmentWindow({ videoStartMs: 1_000, videoEndMs: 3_000 }, Number.NaN, 10_000)).toBeNull();
+    expect(shiftSegmentWindow({ videoStartMs: 1_000, videoEndMs: 3_000 }, 100, 0)).toBeNull();
   });
 });

@@ -23,6 +23,15 @@ function audioPath(value: unknown): value is string {
     && value.split('/').every(part => part !== '' && part !== '.' && part !== '..');
 }
 
+export function resolvePlaybackDuration(savedMs: number, measuredMs: number): number {
+  if (nonnegative(measuredMs) && measuredMs > 0) return measuredMs;
+  return nonnegative(savedMs) ? savedMs : 0;
+}
+
+export function playbackDriftMs(anchorVideoMs: number, anchorAudioSeconds: number, videoMs: number, audioSeconds: number, rate: number): number {
+  return videoMs - (anchorVideoMs + (audioSeconds - anchorAudioSeconds) * 1000 * rate);
+}
+
 export function buildPlaybackPlan(data: Pick<DramaAudioData, 'segments' | 'audioRef' | 'masterGain'> | unknown, currentVideoMs: number): PlaybackPlanItem[] {
   if (!nonnegative(currentVideoMs) || !data || typeof data !== 'object') return [];
   const raw = data as Record<string, unknown>;

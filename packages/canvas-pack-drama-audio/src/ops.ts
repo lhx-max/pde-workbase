@@ -29,6 +29,7 @@ import {
 import { DRAMA_AUDIO_DATA_VERSION, type DramaAudioData, type DramaAudioSegment } from './types';
 import { generateCaptions, generateDubbing, generateVideoRewrite } from './providers';
 import { validateRewriteRequest } from './rewrite';
+import { ensureLocalTts } from './local-tts';
 
 type Patch = { data?: Record<string, unknown> };
 
@@ -122,6 +123,7 @@ export const attach: CardPackOpHandler = async (node, params) => {
     videoRef,
     videoDurationMs,
     captions: videoRef === previous.videoRef ? previous.captions : [],
+    voiceInstruction: previous.voiceInstruction,
     captionProvider: videoRef === previous.videoRef ? previous.captionProvider : null,
     dubbingDoc: videoRef === previous.videoRef ? previous.dubbingDoc : null,
     dubbingProvider: videoRef === previous.videoRef ? previous.dubbingProvider : null,
@@ -271,17 +273,29 @@ export const rewrite: CardPackOpHandler = async (node, params) => {
   const data = node.data as Record<string, unknown>;
   if (data.stage !== 'rewrite') throw new Error('card.drama.audio: 目标不是改写卡');
   if (data.script !== input.script || data.rewritePrompt !== input.prompt || data.videoRef !== input.videoRef || data.videoDurationMs !== input.videoDurationMs) throw new Error('card.drama.audio: 原稿、prompt、视频或时长与已保存节点不一致，请先保存');
-  const { provider, lines, doc } = await generateVideoRewrite(input);
+  const { provider, visionProvider, observations, lines, doc } = await generateVideoRewrite(input);
   return { data: {
     rewriteLines: lines,
     rewriteDoc: doc,
     rewriteProvider: provider,
+    rewriteVisionProvider: visionProvider,
+    rewriteObservations: observations,
     rewriteInput: { script: input.script, prompt: input.prompt, videoRef: input.videoRef, videoDurationMs: input.videoDurationMs },
     rewriteConfirmed: false,
   } };
 };
 
+export const startTts: CardPackOpHandler = async (node, params, ctx) => {
+  const data = node.data as Record<string, unknown> | undefined;
+  if (!data || data.demoProfile !== 'local-test' || data.demoProjectId !== ctx.projectId
+    || !ctx.projectId.startsWith('drama-demo-')) throw new Error('TTS 启动仅支持同实例本地演示卡');
+  if (Object.keys(params).length) throw new Error('TTS 启动不接受客户端进程或路径参数');
+  await ensureLocalTts();
+  return { data: { ttsServiceStatus: 'ready' } };
+};
+
 export const dramaAudioOps = {
+  'start-tts': startTts,
   attach,
   script,
   upsert,

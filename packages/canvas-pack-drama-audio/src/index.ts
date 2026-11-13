@@ -1,5 +1,6 @@
 import { createElement } from 'react';
 import { RewriteCard } from './rewrite-card';
+import { DubbingListCard } from './dubbing-list-card';
 import { DubbingEditor } from './dubbing-editor';
 import { AudioCard } from './audio-card';
 import type { CardPack } from '@bezier/canvas-card-sdk';
@@ -8,7 +9,7 @@ import type { CardPack } from '@bezier/canvas-card-sdk';
 const dramaAudioPack: CardPack = {
   name: '@bezier/canvas-pack-drama-audio',
   cards: [
-    { kind: 'card.drama.audio', render: props => createElement(props.node.data?.stage === 'rewrite' ? RewriteCard : props.node.data?.stage === 'edit' ? DubbingEditor : AudioCard, props) },
+    { kind: 'card.drama.audio', render: props => createElement(props.node.data?.stage === 'rewrite' ? RewriteCard : props.node.data?.stage === 'line-list' ? DubbingListCard : props.node.data?.stage === 'edit' ? DubbingEditor : AudioCard, props) },
   ],
 };
 

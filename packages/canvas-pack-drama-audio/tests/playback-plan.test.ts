@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPlaybackPlan } from '../src/playback-plan';
+import { buildPlaybackPlan, playbackDriftMs, resolvePlaybackDuration } from '../src/playback-plan';
 import { emptyDramaAudioData } from '../src/edl';
 import type { DramaAudioSegment } from '../src/types';
 
@@ -14,6 +14,20 @@ function segment(changes: Partial<DramaAudioSegment> = {}): DramaAudioSegment {
 function data(segments = [segment()]) {
   return { ...emptyDramaAudioData(), masterGain: 1, audioRef: 'voice/main.wav', videoDurationMs: 10000, segments };
 }
+
+describe('播放时钟与媒体时长', () => {
+  it('实测时长优先，未载入时使用已保存时长', () => {
+    expect(resolvePlaybackDuration(10000, 12000)).toBe(12000);
+    expect(resolvePlaybackDuration(10000, 0)).toBe(10000);
+    expect(resolvePlaybackDuration(NaN, NaN)).toBe(0);
+  });
+
+  it.each([0.5, 1, 1.5, 2])('按 %sx 视频倍率比对音频时钟', rate => {
+    expect(playbackDriftMs(2000, 10, 2000 + 1000 * rate, 11, rate)).toBe(0);
+    expect(playbackDriftMs(2000, 10, 2000 + 1000 * rate - 150, 11, rate)).toBe(-150);
+    expect(playbackDriftMs(2000, 10, 2000 + 1000 * rate + 150, 11, rate)).toBe(150);
+  });
+});
 
 describe('buildPlaybackPlan 视频主时钟', () => {
   it('未来片段按视频开始时刻延迟，偏移包含源截取起点', () => {

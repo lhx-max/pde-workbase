@@ -1,6 +1,6 @@
 import { assertInteger, assertProjectRelativePath, DURATION_MS_MAX } from './schema';
 
-export const DEFAULT_REWRITE_PROMPT = '请根据原稿和带时间戳的视频采样帧，将台词改写为自然、清晰、可朗读的中文短剧配音稿。保留原稿含义，只使用原稿或已观测画面提供的信息，不编造未观测的剧情、动作、声音或人物关系。按视频时间顺序输出不重叠的台词区间，所有内容均需人工确认。';
+export const DEFAULT_REWRITE_PROMPT = '请将原解说稿改写为第三人称的中文短剧剧情解说，像解说员向观众讲清这段故事，而不是替角色编写对白。以原稿为主线，保留人物关系、关键事件、因果和转折，结合采样帧观测核对画面；原稿已明确的剧情不因采样稀疏而删成零散字幕。语言口语化、紧凑、连贯，每句推进剧情，删掉重复、空泛评价和无关铺垫。不生成角色对白，不逐帧报幕，不拼接 OCR 字幕、水印或免责声明，不输出分析过程、写作建议、标题、开场套话或关注引导。不编造原稿和画面未提供的人物关系、事件或声音。按剧情节奏分段给出建议配音区间，不机械地每张采样帧对应一句；时间区间有序、不重叠，均需人工确认。';
 export const REWRITE_BODY_MAX_BYTES = 1_200_000;
 export const REWRITE_FRAME_MAX_BYTES = 100_000;
 

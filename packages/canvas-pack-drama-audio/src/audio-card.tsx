@@ -4,6 +4,7 @@ import type { CardRenderProps } from '@bezier/canvas-card-sdk';
 import { alignShiftMs, readDramaAudioData, renderExportManifest, timelineOf, totalDurationMs, trimWindow } from './edl';
 import { GAP_MS_MAX } from './schema';
 import type { DramaAudioData, DramaAudioSegment } from './types';
+import { VoicePicker } from './voice-picker';
 
 /** 短剧配音编辑卡 v2：视频 + 配音双轨时间轴。
  * 上轨 = 视频画面区间（按 videoDurationMs 投影），下轨 = 台词配音段。
@@ -32,6 +33,10 @@ const styles = {
   input: {
     padding: '3px 6px', fontSize: 11, border: '1px solid var(--border-default, #d9d9d9)', borderRadius: 4,
     background: 'var(--bg-app, #fff)', color: 'var(--text-primary, #1a1a1a)', minWidth: 54, width: 64,
+  },
+  select: {
+    padding: '3px 6px', fontSize: 11, border: '1px solid var(--border-default, #d9d9d9)', borderRadius: 4,
+    background: 'var(--bg-app, #fff)', color: 'var(--text-primary, #1a1a1a)',
   },
   textarea: {
     width: '100%', minHeight: 56, padding: '6px 8px', fontSize: 11, lineHeight: 1.5,
@@ -413,6 +418,7 @@ export function AudioCard({ node, onPatch, onOpenFile }: CardRenderProps) {
           <button className="nodrag nopan" style={styles.button} disabled={calling || data.videoDurationMs <= 0} onClick={() => void runAction('analyze')}>解析绑定视频</button>
           <button className="nodrag nopan" style={styles.button} disabled={calling || scriptDraft !== null} onClick={() => void runAction('compose')}>生成配音文档</button>
         </div>}
+        {demoProjectId && <div className="nodrag nopan"><VoicePicker value={data.voiceInstruction} styles={styles as unknown as Record<string, React.CSSProperties>} onChange={next => commitData({ ...data, voiceInstruction: next })} /></div>}
         {calling && <button className="nodrag nopan" style={styles.button} onClick={() => ttsController.current?.abort()}>停止等待（不自动重跑）</button>}
         {callStatus && <div role="status">{callStatus}</div>}
         {data.captions.map(caption => <div key={caption.id} style={styles.panelVideo}>{formatMs(caption.startMs)}–{formatMs(caption.endMs)} · {caption.text}</div>)}
@@ -449,6 +455,7 @@ export function AudioCard({ node, onPatch, onOpenFile }: CardRenderProps) {
         <button className="nodrag nopan" style={styles.buttonPrimary} disabled={calling || scriptDraft !== null || !data.script} onClick={() => void generateAudio()}>按当前稿件重新生成配音</button>
         {callStatus && <div role="status">{callStatus}</div>}
       </div>}
+      {demoProjectId && <div className="nodrag nopan"><VoicePicker value={data.voiceInstruction} styles={styles as unknown as Record<string, React.CSSProperties>} onChange={next => commitData({ ...data, voiceInstruction: next })} /></div>}
       <div style={styles.row}>
         <span style={styles.label}>配音源</span>
         <span className="nodrag" style={{ ...styles.value, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{data.audioRef}</span>
