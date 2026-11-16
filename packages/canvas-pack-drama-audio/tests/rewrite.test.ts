@@ -2,7 +2,7 @@ import { createServer, type Server } from 'node:http';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateVideoRewrite } from '../src/providers';
 import { rewrite } from '../src/ops';
-import { DEFAULT_REWRITE_PROMPT, REWRITE_BODY_MAX_BYTES, validateRewriteLines, validateRewriteRequest, type VideoRewriteRequest } from '../src/rewrite';
+import { DEFAULT_REWRITE_PROMPT, insertRewriteLine, changeRewriteWindow, REWRITE_BODY_MAX_BYTES, validateRewriteLines, validateRewriteRequest, type VideoRewriteRequest } from '../src/rewrite';
 
 const image = `data:image/jpeg;base64,${Buffer.from([255, 216, 255, 224, 0, 2, 255, 217]).toString('base64')}`;
 const input: VideoRewriteRequest = { script: '原稿', prompt: DEFAULT_REWRITE_PROMPT, videoRef: 'inputs/video.mp4', videoDurationMs: 4000, frames: [{ atMs: 0, image }, { atMs: 2000, image }] };
@@ -42,6 +42,27 @@ beforeEach(async () => {
 afterEach(async () => {
   vi.unstubAllEnvs();
   await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+});
+
+describe('逐句结构和区间编辑', () => {
+  it('前后插句平分当前区间且不移动邻句', () => {
+    const before = insertRewriteLine(lines, 'line-1', 'before', 'new-line', 4000);
+    expect(before.map(line => [line.id, line.videoStartMs, line.videoEndMs])).toEqual([['new-line', 0, 1000], ['line-1', 1000, 2000], ['line-2', 2000, 4000]]);
+    const after = insertRewriteLine(lines, 'line-1', 'after', 'new-line', 4000);
+    expect(after[0].videoEndMs).toBe(1000);
+    expect(after[1].videoStartMs).toBe(1000);
+    expect(lines[0].videoEndMs).toBe(2000);
+  });
+  it('整段平移保持时长，边缘调整钳制有效范围', () => {
+    expect(changeRewriteWindow(lines[0], -1000, 'move', 4000)).toMatchObject({ videoStartMs: 0, videoEndMs: 2000 });
+    expect(changeRewriteWindow(lines[0], 1000, 'move', 4000)).toMatchObject({ videoStartMs: 1000, videoEndMs: 3000 });
+    expect(changeRewriteWindow(lines[0], 3000, 'start', 4000).videoStartMs).toBe(1999);
+    expect(changeRewriteWindow(lines[0], -3000, 'end', 4000).videoEndMs).toBe(1);
+  });
+  it('重复 ID 和超短区间拒绝插入', () => {
+    expect(() => insertRewriteLine(lines, 'line-1', 'after', 'line-2', 4000)).toThrow();
+    expect(() => insertRewriteLine([{ ...lines[0], videoEndMs: 1 }], 'line-1', 'after', 'new-line', 4000)).toThrow();
+  });
 });
 
 describe('generateVideoRewrite', () => {

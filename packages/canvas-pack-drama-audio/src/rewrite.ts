@@ -81,6 +81,28 @@ export function validateRewriteLines(value: unknown, videoDurationMs: number): R
   return lines;
 }
 
+export function insertRewriteLine(lines: RewriteLine[], targetId: string, position: 'before' | 'after', id: string, durationMs: number): RewriteLine[] {
+  if (lines.length >= 80) throw new Error('最多支持 80 句');
+  const index = lines.findIndex(line => line.id === targetId);
+  const target = lines[index];
+  if (!target || target.videoEndMs - target.videoStartMs < 2) throw new Error('当前区间太短，无法插入，请先调整区间');
+  const middle = Math.floor((target.videoStartMs + target.videoEndMs) / 2);
+  const added = { id, text: '请输入新增台词', videoStartMs: position === 'before' ? target.videoStartMs : middle, videoEndMs: position === 'before' ? middle : target.videoEndMs };
+  const kept = { ...target, ...(position === 'before' ? { videoStartMs: middle } : { videoEndMs: middle }) };
+  const next = lines.flatMap((line, at) => at === index ? position === 'before' ? [added, kept] : [kept, added] : [line]);
+  return validateRewriteLines(next, durationMs);
+}
+
+export function changeRewriteWindow(line: RewriteLine, deltaMs: number, mode: 'move' | 'start' | 'end', durationMs: number): RewriteLine {
+  if (![deltaMs, durationMs, line.videoStartMs, line.videoEndMs].every(Number.isFinite) || durationMs < 1) throw new Error('视频区间无效');
+  const delta = Math.round(deltaMs);
+  if (mode === 'start') return { ...line, videoStartMs: Math.max(0, Math.min(line.videoEndMs - 1, line.videoStartMs + delta)) };
+  if (mode === 'end') return { ...line, videoEndMs: Math.min(durationMs, Math.max(line.videoStartMs + 1, line.videoEndMs + delta)) };
+  const span = line.videoEndMs - line.videoStartMs;
+  const start = Math.max(0, Math.min(durationMs - span, line.videoStartMs + delta));
+  return { ...line, videoStartMs: start, videoEndMs: start + span };
+}
+
 export function rewriteDocOf(lines: RewriteLine[]): string {
   return lines.map(line => line.text).join('\n');
 }

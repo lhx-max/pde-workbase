@@ -3,6 +3,7 @@ import type { CardRenderProps } from '@bezier/canvas-card-sdk';
 import { demoMediaUrl, demoProjectOf, ensureDubbingListCard, effectiveLineVoice, lineGenerationCurrent, startDemoTts, synthesizeDemoLines } from './demo-adapter';
 import { readDramaAudioData, shiftSegmentWindow } from './edl';
 import { buildPlaybackPlan, playbackDriftMs, resolvePlaybackDuration } from './playback-plan';
+import { insertRewriteLine, validateRewriteLines, type RewriteLine as TimedRewriteLine } from './rewrite';
 import type { DramaAudioSegment } from './types';
 import { VoicePicker } from './voice-picker';
 
@@ -70,14 +71,20 @@ function NumberField({ label, value, max, onChange }: {
     }} /></label>;
 }
 
-export function DubbingEditor({ node, onPatch, listOnly = false }: CardRenderProps & { listOnly?: boolean }) {
+export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRef, selectedLineId, onLineSelect }: CardRenderProps & {
+  listOnly?: boolean;
+  externalVideoRef?: React.RefObject<HTMLVideoElement>;
+  selectedLineId?: string | null;
+  onLineSelect?: (id: string | null) => void;
+}) {
   const data = useMemo(() => readDramaAudioData(node), [node.data]);
   const raw = node.data ?? {};
   const project = demoProjectOf(node);
   const lines = readLines(raw.rewriteLines);
   const confirmed = Array.isArray(raw.confirmedLineIds) ? raw.confirmedLineIds.filter((id): id is string => typeof id === 'string') : [];
   const rows = [...lines, ...data.segments.filter(segment => !lines.some(line => line.id === segment.id)).map(segment => ({ id: segment.id, text: segment.label, videoStartMs: segment.videoStartMs, videoEndMs: segment.videoEndMs }))];
-  const video = useRef<HTMLVideoElement>(null);
+  const internalVideo = useRef<HTMLVideoElement>(null);
+  const video = externalVideoRef ?? internalVideo;
   const context = useRef<AudioContext | null>(null);
   const buffers = useRef(new Map<string, AudioBuffer>());
   const sources = useRef(new Set<{ source: AudioBufferSourceNode; gain: GainNode }>());
@@ -99,6 +106,13 @@ export function DubbingEditor({ node, onPatch, listOnly = false }: CardRenderPro
   const [currentMs, setCurrentMs] = useState(0);
   const [mediaDurationMs, setMediaDurationMs] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const undoChange = useRef<{ before: Record<string, unknown>; after: string } | null>(null);
+  const [canUndo, setCanUndo] = useState(false);
+  useEffect(() => {
+    if (selectedLineId === undefined) return;
+    setExpandedId(selectedLineId);
+    if (selectedLineId) setShowLineList(true);
+  }, [selectedLineId]);
   const [showLineList, setShowLineList] = useState(true);
   const lineList = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -334,7 +348,8 @@ export function DubbingEditor({ node, onPatch, listOnly = false }: CardRenderPro
 
   function selectLine(id: string) {
     setExpandedId(id);
-    if (listOnly || !project) return;
+    onLineSelect?.(id);
+    if (externalVideoRef || listOnly || !project) return;
     window.dispatchEvent(new CustomEvent('drama-demo-select-line', { detail: { project, nodeId: node.id, lineId: id } }));
     void ensureDubbingListCard(project, node.id)
       .then(() => patch({ selectedDubbingLineId: id }))
@@ -344,6 +359,40 @@ export function DubbingEditor({ node, onPatch, listOnly = false }: CardRenderPro
   function patch(changes: Record<string, unknown>) {
     const current = latest.current;
     current.onPatch({ data: { ...current.raw, stage: 'edit', ...changes } });
+  }
+
+  function changeLineStructure(id: string, action: 'before' | 'after' | 'delete') {
+    if (generating || startingTts) return;
+    const current = latest.current;
+    try {
+      const original = readLines(current.raw.rewriteLines) as TimedRewriteLine[];
+      if (action === 'delete' && !window.confirm('删除本句及时间轴片段？原音频文件保留，可撤销本次删除。')) return;
+      const addedId = `line-${crypto.randomUUID()}`;
+      const nextLines = action === 'delete' ? original.filter(line => line.id !== id) : insertRewriteLine(original, id, action, addedId, videoDurationMs);
+      const nextSegments = current.data.segments.filter(segment => action !== 'delete' || segment.id !== id).map(segment => {
+        const line = nextLines.find(item => item.id === segment.id);
+        return line ? { ...segment, videoStartMs: line.videoStartMs, videoEndMs: line.videoEndMs } : segment;
+      });
+      const next = { ...current.raw, rewriteLines: nextLines, script: nextLines.map(line => line.text).join('\n'), segments: nextSegments,
+        confirmedLineIds: confirmed.filter(value => value !== id), selectedDubbingLineId: null };
+      undoChange.current = { before: structuredClone(current.raw), after: JSON.stringify(next) };
+      setCanUndo(true);
+      current.onPatch({ data: next });
+      const selected = action === 'delete' ? nextLines[0]?.id ?? null : addedId;
+      setExpandedId(selected);
+      onLineSelect?.(selected);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : '句子编辑失败'); }
+  }
+
+  function undoStructure() {
+    const change = undoChange.current;
+    if (!change) return;
+    if (JSON.stringify(latest.current.raw) !== change.after) { setError('数据已变化，不能覆盖后续编辑，请先读回'); return; }
+    latest.current.onPatch({ data: change.before });
+    undoChange.current = null;
+    setCanUndo(false);
+    setExpandedId(null);
+    onLineSelect?.(null);
   }
 
   function editLineVoice(id: string, value: string | null) {
@@ -376,6 +425,12 @@ export function DubbingEditor({ node, onPatch, listOnly = false }: CardRenderPro
         ...('videoEndMs' in changes ? { videoEndMs: changes.videoEndMs } : {}) } : line),
       confirmedLineIds: Array.isArray(current.raw.confirmedLineIds) ? current.raw.confirmedLineIds.filter(value => value !== id) : [],
     } : {};
+    if (timing) {
+      try {
+        const lines = readLines(extra.rewriteLines) as TimedRewriteLine[];
+        validateRewriteLines(lines, videoDurationMs);
+      } catch (reason) { setError(reason instanceof Error ? reason.message : '区间冲突'); return; }
+    }
     patch({ ...extra, segments: current.data.segments.map(segment => segment.id === id ? { ...segment, ...changes } : segment) });
   }
 
@@ -523,11 +578,13 @@ export function DubbingEditor({ node, onPatch, listOnly = false }: CardRenderPro
 
   return <section className="nodrag nopan" style={styles.root} onPointerDown={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
     {!listOnly && <>
+    <details open={!externalVideoRef}>
+    <summary style={styles.collapsedRow}>整体配音设置与播放控制</summary>
     <strong>逐句配音编辑</strong>
     <div style={styles.hint}>视频是唯一主时钟。自动建议尚待逐句确认；静音不压缩视频，停顿保留在视频区间尾部。</div>
     {!project && <div style={styles.warning}>本地 demo 项目不可用；不会回退或模拟生成成功。</div>}
-    {videoUrl ? <video ref={video} src={videoUrl} controls muted={!originalAudio} preload="metadata" style={{ width: '100%', maxHeight: 260, background: '#000', borderRadius: 6 }}
-      onError={() => { stop(); setError('视频读取失败，无法同步试听'); }} /> : <div style={styles.warning}>未绑定有效视频工程文件</div>}
+    {videoUrl && !externalVideoRef ? <video ref={video} src={videoUrl} controls muted={!originalAudio} preload="metadata" style={{ width: '100%', maxHeight: 260, background: '#000', borderRadius: 6 }}
+      onError={() => { stop(); setError('视频读取失败，无法同步试听'); }} /> : !externalVideoRef && <div style={styles.warning}>未绑定有效视频工程文件</div>}
     <div style={styles.row}>
       <label><input type="checkbox" checked={originalAudio} onChange={event => setOriginalAudio(event.target.checked)} />播放视频原声（默认关闭）</label>
       <NumberField label="总音量 0..2" value={data.masterGain} max={2} onChange={value => { if (value !== null) patch({ masterGain: value }); }} />
@@ -552,7 +609,8 @@ export function DubbingEditor({ node, onPatch, listOnly = false }: CardRenderPro
     {mediaDurationMs > 0 && Math.abs(mediaDurationMs - data.videoDurationMs) > 50 && <div style={styles.warning}>已按视频实际时长同步时间轴；保存时长与媒体不同，配音区间仍需人工核对。</div>}
     <div role="status" style={styles.hint}>{loadStatus}{generationStatus && <div>{generationStatus}</div>}</div>
     {error && <div role="alert" style={styles.error}>{error}</div>}
-    <div style={styles.panel}>
+    </details>
+    {!externalVideoRef && <div style={styles.panel}>
       <div style={styles.row}><strong>统一视频时间轴</strong><span style={styles.hint}>0 — {Math.round(videoDurationMs)} ms；上下轨共用比例，点击台词定位</span></div>
       <div>视频画面 / 原声（{originalAudio ? '原声开启' : '原声关闭'}）</div>
       <div style={styles.track} onClick={seekTrack}>
@@ -577,25 +635,31 @@ export function DubbingEditor({ node, onPatch, listOnly = false }: CardRenderPro
             if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectLine(line.id); seek(start); }
           }}>{line.text}{segment?.muted ? '（静音）' : ''}{dragging ? '（拖拽中）' : ''}</div>;
       })}<div style={{ position: 'absolute', left: `${videoDurationMs > 0 ? Math.min(100, currentMs / videoDurationMs * 100) : 0}%`, top: 0, bottom: 0, width: 2, background: '#dc2626', pointerEvents: 'none' }} /></div>
-    </div>
+    </div>}
     </>}
-    {!listOnly && <button style={styles.button} disabled={!project} onClick={() => {
+    {!listOnly && !externalVideoRef && <button style={styles.button} disabled={!project} onClick={() => {
       if (!project) return;
       void ensureDubbingListCard(project, node.id).catch(reason => setError(reason instanceof Error ? reason.message : '列表卡创建失败'));
     }}>显示配音句列表卡</button>}
-    {listOnly && <>
+    {(listOnly || externalVideoRef) && <>
     <strong>配音句列表与细节编辑</strong>
     <div role="status" style={styles.hint}>{typeof raw.ttsStatus === 'string' ? raw.ttsStatus : '等待逐句生成'}{generationStatus && ` · ${generationStatus}`}</div>
     {error && <div role="alert" style={styles.error}>{error}</div>}
     <div style={styles.row}>
       <strong>配音句列表 · {rows.length} 句</strong>
       <button style={styles.button} aria-expanded={showLineList} onClick={() => setShowLineList(value => !value)}>{showLineList ? '收起配音列表' : '展开配音列表'}</button>
-      <button style={styles.button} disabled={!expandedId} onClick={() => setExpandedId(null)}>收起句子编辑</button>
+      <button style={styles.button} disabled={!expandedId} onClick={() => { setExpandedId(null); onLineSelect?.(null); }}>收起句子编辑</button>
+      <button style={styles.button} disabled={!canUndo || generating} onClick={undoStructure}>撤销增删</button>
+      {externalVideoRef && expandedId && <>
+        <button style={styles.button} disabled={rows.findIndex(line => line.id === expandedId) <= 0} onClick={() => selectLine(rows[rows.findIndex(line => line.id === expandedId) - 1]!.id)}>上一句</button>
+        <button style={styles.button} disabled={rows.findIndex(line => line.id === expandedId) >= rows.length - 1} onClick={() => selectLine(rows[rows.findIndex(line => line.id === expandedId) + 1]!.id)}>下一句</button>
+      </>}
     </div>
     {showLineList && <div ref={lineList} role="region" aria-label="配音句滚动列表" tabIndex={0}
-      style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 340, overflowY: 'auto', overscrollBehavior: 'contain', padding: 2, scrollbarGutter: 'stable' }}
+      style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 8, maxHeight: externalVideoRef ? undefined : 340, overflowY: externalVideoRef ? 'visible' : 'auto', overscrollBehavior: 'contain', padding: 2, scrollbarGutter: 'stable' }}
       onWheel={event => event.stopPropagation()}>
-    {rows.map((line, index) => {
+    {rows.filter(line => !externalVideoRef || !expandedId || line.id === expandedId).map((line) => {
+      const index = rows.findIndex(item => item.id === line.id);
       const segment = data.segments.find(item => item.id === line.id);
       const start = segment ? segment.videoStartMs : line.videoStartMs;
       const end = segment ? segment.videoEndMs : line.videoEndMs;
@@ -607,8 +671,8 @@ export function DubbingEditor({ node, onPatch, listOnly = false }: CardRenderPro
       const expanded = expandedId === line.id;
       const badge = raw.ttsActiveLineId === line.id ? '生成中' : drag?.id === line.id && drag.moved ? '拖拽中' : segment?.muted ? '静音' : stale ? '配音过期' : !segment ? '未生成' : confirmed.includes(line.id) ? '已确认' : '待确认';
       return <div key={line.id} data-line-id={line.id} style={{ ...styles.panel, flexShrink: 0 }}>
-        <div style={styles.collapsedRow} onClick={() => setExpandedId(expanded ? null : line.id)} role="button" tabIndex={0}
-          onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setExpandedId(expanded ? null : line.id); } }}>
+        <div style={styles.collapsedRow} onClick={() => { setExpandedId(expanded ? null : line.id); onLineSelect?.(expanded ? null : line.id); }} role="button" tabIndex={0}
+          onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setExpandedId(expanded ? null : line.id); onLineSelect?.(expanded ? null : line.id); } }}>
           <strong>第 {index + 1} 句</strong>
           <span style={styles.collapsedText} title={line.text}>{line.text}</span>
           <span style={styles.badge}>{badge}</span>
@@ -623,6 +687,12 @@ export function DubbingEditor({ node, onPatch, listOnly = false }: CardRenderPro
             const ids = latest.current.raw.confirmedLineIds;
             patch({ confirmedLineIds: [...new Set([...(Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : []), line.id])] });
           }}>确认本句区间</button>
+        </div>
+        <div style={styles.row}>
+          <button style={styles.button} disabled={generating || startingTts} onClick={() => changeLineStructure(line.id, 'before')}>前插一句</button>
+          <button style={styles.button} disabled={generating || startingTts} onClick={() => changeLineStructure(line.id, 'after')}>后插一句</button>
+          <button style={styles.dangerButton} disabled={generating || startingTts} onClick={() => changeLineStructure(line.id, 'delete')}>删除本句</button>
+          <span style={styles.hint}>插入会平分本句视频区间；旧音频保留，区间需重新确认。</span>
         </div>
         <label>台词标签<textarea value={line.text} style={{ ...styles.input, display: 'block', width: '100%', boxSizing: 'border-box', minHeight: 52 }}
           onChange={event => editLine(line.id, event.target.value)} /></label>

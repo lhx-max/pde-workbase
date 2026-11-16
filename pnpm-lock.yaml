@@ -100,6 +100,9 @@ importers:
       '@base-ui-components/react':
         specifier: 1.0.0-rc.0
         version: 1.0.0-rc.0(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@bezier/canvas-pack-drama-audio':
+        specifier: workspace:*
+        version: link:../../packages/canvas-pack-drama-audio
       '@bezier/canvas-workbench':
         specifier: workspace:*
         version: link:../../packages/canvas-workbench
