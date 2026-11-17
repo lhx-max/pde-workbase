@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPlaybackPlan, playbackDriftMs, resolvePlaybackDuration } from '../src/playback-plan';
+import { buildDirectorPlaybackPlan, buildPlaybackPlan, gainAt, playbackDriftMs, resolvePlaybackDuration } from '../src/playback-plan';
 import { emptyDramaAudioData } from '../src/edl';
 import type { DramaAudioSegment } from '../src/types';
 
@@ -18,6 +18,7 @@ function data(segments = [segment()]) {
 describe('播放时钟与媒体时长', () => {
   it('实测时长优先，未载入时使用已保存时长', () => {
     expect(resolvePlaybackDuration(10000, 12000)).toBe(12000);
+    expect(resolvePlaybackDuration(173477, 173476.62099999998)).toBe(173477);
     expect(resolvePlaybackDuration(10000, 0)).toBe(10000);
     expect(resolvePlaybackDuration(NaN, NaN)).toBe(0);
   });
@@ -127,5 +128,20 @@ describe('buildPlaybackPlan 视频主时钟', () => {
     const before = JSON.stringify(input);
     buildPlaybackPlan(input, 3500);
     expect(JSON.stringify(input)).toBe(before);
+  });
+});
+
+describe('director audio layers', () => {
+  it('solo plays a separately imported background asset on the video clock', () => {
+    const data = { directorBackgroundRef: 'inputs/media/music.wav', directorBackgroundDurationMs: 8000, directorBackgroundGain: 0.7 };
+    expect(buildDirectorPlaybackPlan(data, 2000, 6000, 'original')).toEqual([]);
+    expect(buildDirectorPlaybackPlan(data, 2000, 6000, 'background')).toEqual([expect.objectContaining({
+      track: 'background', offsetMs: 2000, delayMs: 0, durationMs: 4000, gain: 0.7,
+    })]);
+  });
+
+  it('holds the selected gain and ramps back to the track level on both boundaries', () => {
+    const regions = [{ startMs: 100, endMs: 1100, track: 'voice' as const, gain: 0.5, fadeMs: 200 }];
+    expect([0, 100, 200, 500, 1000, 1100].map(ms => gainAt(regions, ms))).toEqual([1, 1, 0.75, 0.5, 0.75, 1]);
   });
 });

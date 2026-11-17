@@ -1,4 +1,5 @@
-import { validateRewriteLines, rewriteDocOf } from './rewrite';
+import { validateRewriteLines, rewriteDocOf, type RewriteLine } from './rewrite';
+import type { DramaAudioSegment } from './types';
 import { assertProjectRelativePath } from './schema';
 
 export function demoProjectOf(node: Record<string, unknown>): string | null {
@@ -59,6 +60,61 @@ export function lineGenerationCurrent(data: Record<string, unknown>, lineId: str
   const texts = data.generatedLineTexts as Record<string, unknown> | undefined;
   const voices = data.generatedLineVoices as Record<string, unknown> | undefined;
   return texts?.[lineId] === text && voices?.[lineId] === effectiveLineVoice(data, lineId);
+}
+
+export function dubbingCounts(data: Record<string, unknown>) {
+  const lines = (Array.isArray(data.rewriteLines) ? data.rewriteLines : []) as RewriteLine[];
+  const segments = (Array.isArray(data.segments) ? data.segments : []) as DramaAudioSegment[];
+  const withAudio = lines.filter(line => segments.some(segment => segment.id === line.id && (segment.audioRefOverride || data.audioRef)));
+  const current = withAudio.filter(line => lineGenerationCurrent(data, line.id, line.text)).length;
+  return { total: lines.length, current, missing: lines.length - withAudio.length, stale: withAudio.length - current,
+    confirmed: lines.filter(line => Array.isArray(data.confirmedLineIds) && data.confirmedLineIds.includes(line.id)).length };
+}
+
+export type DubbingCandidate = {
+  lineId: string; text: string; voice: string; videoRef: unknown; audioRef: string; durationMs: number; previousSource?: string | null;
+};
+
+function lineAudioSource(data: Record<string, unknown>, lineId: string) {
+  const segment = (Array.isArray(data.segments) ? data.segments as DramaAudioSegment[] : []).find(item => item.id === lineId);
+  return segment ? segment.audioRefOverride ?? (typeof data.audioRef === 'string' ? data.audioRef : null) : null;
+}
+
+export function candidateMatches(data: Record<string, unknown>, candidate: DubbingCandidate) {
+  return candidate.videoRef === data.videoRef && effectiveLineVoice(data, candidate.lineId) === candidate.voice
+    && (candidate.previousSource === undefined || candidate.previousSource === lineAudioSource(data, candidate.lineId))
+    && Array.isArray(data.rewriteLines) && data.rewriteLines.some(line => line.id === candidate.lineId && line.text === candidate.text);
+}
+
+export function adoptDubbingCandidate(data: Record<string, unknown>, candidate: DubbingCandidate): Record<string, unknown> {
+  if (!candidateMatches(data, candidate)) throw new Error('这句台词、音色或视频已变化，请重新生成候选。');
+  const line = (data.rewriteLines as RewriteLine[]).find(item => item.id === candidate.lineId)!;
+  const segments = (Array.isArray(data.segments) ? data.segments : []) as DramaAudioSegment[];
+  const old = segments.find(segment => segment.id === line.id);
+  const take: DramaAudioSegment = { id: line.id, label: line.text, startMs: 0, endMs: candidate.durationMs,
+    gapMs: old?.gapMs ?? 0, gain: old?.gain ?? (data.lineGains as Record<string, number> | undefined)?.[line.id] ?? 1,
+    muted: old?.muted ?? false, videoStartMs: line.videoStartMs, videoEndMs: line.videoEndMs,
+    audioRefOverride: candidate.audioRef };
+  return {
+    audioRef: data.audioRef ?? candidate.audioRef,
+    durationMs: Math.max(Number(data.durationMs ?? 0), candidate.durationMs),
+    segments: old ? segments.map(segment => segment.id === line.id ? take : segment) : [...segments, take],
+    generatedLineTexts: { ...(data.generatedLineTexts as Record<string, string> | undefined), [line.id]: line.text },
+    generatedLineVoices: { ...(data.generatedLineVoices as Record<string, string> | undefined), [line.id]: candidate.voice },
+  };
+}
+
+export async function generateDubbingCandidate(projectId: string, nodeId: string, lineId: string, signal: AbortSignal): Promise<DubbingCandidate> {
+  const before = await readDubbingListSource(projectId, nodeId, signal);
+  const line = (before.data.rewriteLines as RewriteLine[] | undefined)?.find(item => item.id === lineId);
+  if (!line?.text?.trim() || line.text.length > 2000) throw new Error('台词需为 1–2000 字符');
+  const voice = effectiveLineVoice(before.data, line.id);
+  await startDemoTts(projectId, nodeId, signal);
+  const take = await generateTake(projectId, line.text, voice, signal);
+  const candidate = { lineId, text: line.text, voice, videoRef: before.data.videoRef, previousSource: lineAudioSource(before.data, lineId), ...take };
+  const after = await readDubbingListSource(projectId, nodeId, signal);
+  if (!candidateMatches(after.data, candidate)) throw new Error('生成期间输入已变化，候选未应用。');
+  return candidate;
 }
 
 function generationInput(data: Record<string, unknown>): string {
@@ -188,6 +244,11 @@ export async function patchDubbingListSource(projectId: string, sourceNodeId: st
     ? { ...source, data: nextData } : item), signal);
 }
 
+function lineIsLocked(data: Record<string, unknown>, line: { videoStartMs: number; videoEndMs: number }) {
+  const edit = data.directorEdit as { locks?: { startMs: number; endMs: number }[] } | undefined;
+  return Array.isArray(edit?.locks) && edit.locks.some(range => range.startMs < line.videoEndMs && range.endMs > line.videoStartMs);
+}
+
 export async function synthesizeDemoLines(projectId: string, nodeId: string, signal: AbortSignal, onProgress: (message: string) => void, onlyLineId?: string) {
   let current = await snapshot(projectId, signal);
   let node = current.state.workbenchBasicNodes?.find((item: { id: string }) => item.id === nodeId);
@@ -201,33 +262,32 @@ export async function synthesizeDemoLines(projectId: string, nodeId: string, sig
   if (gains && Object.values(gains).some(value => typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 2)) throw new Error('本句音量必须为 0..2');
   if (overrides && Object.values(overrides).some(value => typeof value !== 'string' || value.length > 200)) throw new Error('本句音色描述最多 200 字符');
   if (onlyLineId && !lines.some(line => line.id === onlyLineId)) throw new Error('目标台词不存在');
-  onProgress('正在检查并启动本地 TTS，首次合成将加载模型，请勿重复提交');
+  const requested = onlyLineId ? lines.filter(line => line.id === onlyLineId) : lines;
+  const missing = requested.filter(line => !lineAudioSource(node.data, line.id));
+  const available = missing.filter(line => !lineIsLocked(node.data, line));
+  if (!missing.length) {
+    onProgress('缺失配音已补齐。要替换已有配音，请打开对应句子生成候选。');
+    return;
+  }
+  if (!available.length) throw new Error('待补齐的台词位于锁定区间，请先解锁。');
   await startDemoTts(projectId, nodeId, signal);
-  for (let index = 0; index < lines.length; index++) {
-    const line = lines[index]!;
-    if (onlyLineId && line.id !== onlyLineId) continue;
+  for (const [index, line] of available.entries()) {
     current = await snapshot(projectId, signal);
     node = current.state.workbenchBasicNodes.find((item: { id: string }) => item.id === nodeId);
-    if (generationInput(node.data) !== input) throw new Error('台词或视频已变化，请停止后重新确认');
-    if (lineGenerationCurrent(node.data, line.id, line.text) && node.data.segments?.some((segment: { id: string }) => segment.id === line.id)) continue;
-    onProgress(`逐句配音 ${index + 1}/${lines.length}，请勿重复提交`);
-    await patchNodes(projectId, current, current.state.workbenchBasicNodes.map((item: { id: string; data: Record<string, unknown> }) => item.id === nodeId
-      ? { ...item, data: { ...item.data, ttsStatus: `正在生成 ${index + 1}/${lines.length}`, ttsActiveLineId: line.id } } : item), signal);
+    if (generationInput(node.data) !== input) throw new Error('台词或视频已变化，请重新确认');
+    if (lineAudioSource(node.data, line.id) || lineIsLocked(node.data, line)) continue;
+    onProgress(`正在补齐第 ${index + 1}/${available.length} 句`);
     const voice = effectiveLineVoice(node.data, line.id);
     const take = await generateTake(projectId, line.text, voice, signal);
     current = await snapshot(projectId, signal);
     node = current.state.workbenchBasicNodes.find((item: { id: string }) => item.id === nodeId);
-    if (generationInput(node.data) !== input) throw new Error('生成期间输入变化；音频已保留，未回填');
-    const old = node.data.segments?.find((segment: { id: string }) => segment.id === line.id);
-    const segment = { id: line.id, label: line.text, startMs: 0, endMs: take.durationMs, gapMs: old?.gapMs ?? 0, gain: old?.gain ?? node.data.lineGains?.[line.id] ?? 1,
-      muted: old?.muted ?? false, videoStartMs: old?.videoStartMs ?? line.videoStartMs, videoEndMs: old?.videoEndMs ?? line.videoEndMs, audioRefOverride: take.audioRef };
-    const segments = [...(node.data.segments ?? []).filter((item: { id: string }) => item.id !== line.id), segment];
-    const next = current.state.workbenchBasicNodes.map((item: { id: string; data: Record<string, unknown> }) => item.id === nodeId ? {
-      ...item, data: { ...item.data, audioRef: item.data.audioRef ?? take.audioRef, durationMs: Math.max(Number(item.data.durationMs ?? 0), take.durationMs), segments,
-        generatedLineTexts: { ...(item.data.generatedLineTexts as Record<string, string> ?? {}), [line.id]: line.text },
-        generatedLineVoices: { ...(item.data.generatedLineVoices as Record<string, string> ?? {}), [line.id]: voice }, ttsActiveLineId: null, ttsStatus: `已生成 ${index + 1}/${lines.length}` },
-    } : item);
-    await patchNodes(projectId, current, next, signal);
+    if (generationInput(node.data) !== input || lineAudioSource(node.data, line.id) || lineIsLocked(node.data, line)) {
+      throw new Error('生成期间输入或音轨已变化，音频已保留且尚未应用');
+    }
+    const related = adoptDubbingCandidate(node.data, { lineId: line.id, text: line.text, voice, videoRef: node.data.videoRef, ...take });
+    const data = { ...node.data, ...related, ttsStatus: null, ttsActiveLineId: null };
+    await patchNodes(projectId, current, current.state.workbenchBasicNodes.map((item: { id: string }) => item.id === nodeId
+      ? { ...node, data } : item), signal);
   }
-  onProgress('逐句配音已回填；请确认视频区间并载入同步试听');
+  onProgress(missing.length === available.length ? '逐句配音已回填；请确认视频区间并载入同步试听' : '已补齐未锁定的台词；锁定区间保留原状。');
 }

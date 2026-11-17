@@ -8,7 +8,7 @@ import type { CardPack } from '@bezier/canvas-card-sdk';
 /** 短剧配音音频编辑卡片包：渲染挂载入口（前端 `packs.ts` 引用）。 */
 export { DubbingEditor } from './dubbing-editor';
 export { changeRewriteWindow, validateRewriteLines } from './rewrite';
-export { synthesizeDemoLines, demoMediaUrl } from './demo-adapter';
+export { synthesizeDemoLines, demoMediaUrl, demoProjectOf, readDubbingListSource, patchDubbingListSource, dubbingCounts } from './demo-adapter';
 const dramaAudioPack: CardPack = {
   name: '@bezier/canvas-pack-drama-audio',
   cards: [
@@ -17,3 +17,10 @@ const dramaAudioPack: CardPack = {
 };
 
 export default dramaAudioPack;
+
+export { effectiveLineVoice } from './demo-adapter';
+export { buildDirectorPlaybackPlan, buildPlaybackPlan, resolvePlaybackDuration, gainAt, gainRegionsOf, originalGainOf, scheduleMixGain } from './playback-plan';
+export type { RewriteLine as TimedDubbingLine } from './rewrite';
+export type { DramaAudioSegment } from './types';
+export type { AudioLayer, AudioListenMode, GainRegion } from './playback-plan';
+export type { DubbingPlayback, PlaybackRange } from './dubbing-editor';

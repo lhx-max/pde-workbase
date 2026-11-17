@@ -173,6 +173,14 @@ pnpm tools-dev run desktop --data-dir "$CANVAS_DATA_DIR" --production
 
 桌面模式自动为后端到原生宿主的连接生成仅本次进程使用的传输密钥，并使用独立浏览器 profile。API 的可选 `CANVAS_AUTH_TOKEN` 与该原生宿主密钥相互独立。`Ctrl+C` 停止本次启动的进程。可通过 `--daemon-port`、`--web-port`、`--browser-host-port` 和 `--desktop-user-data` 配置独立实例；并发实例必须使用不同的数据根、profile 和端口。原生能力说明见 [架构中的原生宿主边界](docs/architecture.md)。
 
+## 短剧导演本地 Demo
+
+短剧导演工作台入口为 `/session-apps?projectId=<项目 ID>`。直接在时间刻度、原声、背景音乐或配音轨空白处拖动框选，按住 Shift 可追加。拖动配音片段可移动，拖两端可裁剪声音与对应区间。支持真实波形、播放头分割、复制粘贴、撤销、面板拖动与布局记忆；点击轨道名称可调整轨道音量。也可以在「选区与试听」里精确输入起止时间。右上角可切换深色或浅色，设置保存在当前浏览器。打开具体项目画布时使用 `/?projectId=<项目 ID>`，可在画布改写卡生成并交付逐句台词。
+
+「导出与交接」提供 WAV、SRT、MP4 和剪辑交接包。MP4 使用支持 H.264/AAC 编码的浏览器，单个选区可单独导出。录制期间需要保持工作台在前台。交接包包含素材、音轨和工程清单。
+
+本地试用请按 [短剧 Demo 启动指南](packages/canvas-pack-drama-audio/README.md) 复制随仓样例、启动隔离服务，并按需配置万擎和本地 VoxCPM。
+
 ## 三个入口与本地资产库
 
 在画布底部工具栏打开资产侧栏，然后切换 **画布／资产／采集**。资产页右上角可展开原资产库；空间菜单提供创建、重命名和删除。删除空间默认把内容移至默认空间，只有明确取消“移动资产”并确认删除时才永久删除内容，不删除项目。
@@ -230,6 +238,16 @@ pnpm tools-dev run web --data-dir "$CANVAS_DATA_DIR" --production
 嵌入前端时使用 [canvas-workbench 公共出口](packages/canvas-workbench/src/index.ts) 的 `CanvasWorkbenchSurface` 与 `createCanvasTaskSubmitter`。`transport` 支持独立 API 地址、请求函数、身份头和浏览器资源 URL；[工作区组合层](apps/web/src/components/FileWorkspace.tsx) 接入原标签、编辑器和项目资产侧栏。
 
 **实例边界：** 原画布仍有宿主／Agent 模块级桥接状态。同一 JS 页面同时挂载多个活动画布尚不具备完整隔离保证；使用独立页面／窗口承载不同工作区。独立任务客户端与后端请求显式绑定项目，不意味着全部原 UI 单例已被改造成多实例。
+
+### 音频工作台使用帮助
+
+工作台顶部点击「使用帮助」，可按目录阅读、搜索操作、查看常见问题并下载 Word 手册；关闭后回到当前编辑位置。手册按「入口 → 操作步骤 → 完成结果 → 注意事项」组织，首次使用从「快速开始」完成一句编辑。
+
+- [在线文档源码：音频工作台使用手册](docs/audio-workbench-user-guide.zh-CN.md)
+- [下载 Word 手册](apps/web/public/help/audio-workbench-manual.docx)
+- [手册优化与平台接入变更记录（2026-11-17）](docs/verification/audio-workbench-manual-20261117/README.md)
+
+平台帮助内容维护在 `apps/web/app/session-apps/manual-content.json`；更新时应同步 Markdown 和 Word 下载件，避免版本不一致。帮助面板沿用工作台深浅主题，不写入工程数据。
 
 ## CLI 与 API
 
