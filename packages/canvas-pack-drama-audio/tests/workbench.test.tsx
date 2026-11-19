@@ -134,7 +134,7 @@ describe('贴合视频', () => {
   const overrun = () => ({ videoDurationMs: 5000, rewriteLines: lines, audioRef: null,
     segments: [take('l1', 2200, [0, 1500]), take('l2', 1000, [2000, 3500])],
     generatedLineTexts: { l1: '第一句解说', l2: '第二句解说' }, generatedLineVoices: { l1: '自然清晰的普通话解说', l2: '自然清晰的普通话解说' } });
-  const fit = () => fireEvent.click(screen.getByRole('button', { name: '贴合视频' }));
+  const fit = () => fireEvent.click(within(screen.getByRole('region', { name: '画布与配音编辑' })).getByRole('button', { name: '贴合视频' }));
 
   it('配音比区间长时，贴合视频按真实时长排布，不再截断', () => {
     let latest: Record<string, any> = {};
@@ -333,7 +333,7 @@ describe('音频工作台交互', () => {
     fireEvent.click(screen.getByRole('button', { name: '切换到浅色模式' }));
     expect(main.getAttribute('data-theme')).toBe('light');
     fireEvent.click(screen.getByRole('button', { name: '收起左侧栏' }));
-    expect(screen.getByRole('button', { name: '展开素材' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '展开配音助手与素材' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '展开左侧栏' }));
     fireEvent.click(screen.getByRole('button', { name: '视频 / 原声' }));
     fireEvent.click(screen.getByRole('button', { name: '配音音轨' }));

@@ -17,6 +17,7 @@ import { splitClip, trimClip, copyClip, pasteClip, deleteClip } from './clip-edi
 import type { ClipClipboard } from './clip-edits';
 import { SplitClipDialog } from './split-clip-dialog';
 import { VoicePicker } from '../voice-picker';
+import { AssistantPanel, type AssistantHost } from './assistant-panel';
 import { TrackInspector } from './track-inspector';
 import { ManualDialog } from './manual-dialog';
 import { DirectorTools } from './director-tools';
@@ -613,6 +614,69 @@ export function Workbench({ node: editorNode, onPatch, media, onClose }: CardRen
     window.addEventListener('pointerdown', close);
     return () => window.removeEventListener('pointerdown', close);
   }, [clipMenu]);
+  const assistantHost: AssistantHost = {
+    context: { lines: rewriteLines.map(line => ({ id: line.id, text: line.text })), selectedId: selectedTrack ? null : selectedLineId },
+    read: () => editor.draftData() ?? {},
+    disabled: projectBusy,
+    autoFit,
+    apply(plan) {
+      if (projectBusy) return { ok: false, message: '正在处理其他任务，请稍后再试。' };
+      const current = editor.draftData() ?? {};
+      let changes = plan.changes;
+      let message: string | undefined;
+      if (plan.retime && autoFit && durationMs > 0) {
+        try {
+          const fit = fitTimeline({ ...current, ...changes }, durationMs);
+          changes = { ...changes, ...fit.changes };
+          message = describeFit(fit.report);
+        } catch { /* 贴合不了时只应用修改本身 */ }
+      }
+      try {
+        assertUnlocked(current, changes);
+        editor.patch(changes);
+      } catch (error) {
+        return { ok: false, message: error instanceof Error ? error.message : '修改未应用' };
+      }
+      // 修改和贴合已一次提交，不再触发自动贴合，保证一步撤销。
+      fittedSignature.current = signatureFor({ ...current, ...changes });
+      return { ok: true, ...(message ? { message } : {}) };
+    },
+    run(command) {
+      switch (command.op) {
+        case 'select': {
+          const line = trackLines.find(item => item.id === rewriteLines[command.line]?.id);
+          if (!line) return '找不到这句。';
+          selectTrackLine(line);
+          return `已定位到第 ${command.line + 1} 句。`;
+        }
+        case 'fit':
+          if (!durationMs || !trackLines.length) return '需要先导入视频和台词。';
+          return fitToVideo() || '贴合失败，请查看提示。';
+        case 'generate':
+          if (!voiceReady) return '本机配音需要在 127.0.0.1 打开页面并启动 VoxCPM。';
+          if (!counts.missing && !counts.stale && !offlineCount) return '所有句子都已有最新配音。';
+          void generateVoice(counts.missing ? 'missing' : offlineCount ? 'offline' : 'stale');
+          return counts.missing ? `开始补齐 ${counts.missing} 句缺失配音，进度显示在页面底部。` : offlineCount ? `开始重新生成未载入的 ${offlineCount} 句。` : `开始更新 ${counts.stale} 句配音。`;
+        case 'check': {
+          const issues = deliveryIssues(editor.draftData() ?? {}, durationMs);
+          return issues.length ? `发现 ${issues.length} 个问题：\n${issues.map(issue => `· ${issue}`).join('\n')}` : '检查未发现问题，可以导出。';
+        }
+        case 'play':
+          if (!videoUrl) return '视频还没有载入。';
+          void playback.current?.play();
+          return '开始同步播放。';
+        case 'undo':
+          if (!editor.history.undo.length) return '没有可以撤销的修改。';
+          editor.moveHistory('undo');
+          return '已撤销上一步。';
+        case 'export':
+          if (command.kind === 'mp4' && !videoUrl) return '视频还没有载入，不能导出 MP4。';
+          void deliver(command.kind);
+          return { srt: '正在导出字幕 SRT…', wav: '正在导出 WAV…', mp4: '正在录制 MP4，请保持页面在前台…', zip: '正在打包剪辑交接包…' }[command.kind];
+      }
+    },
+    undo: () => editor.moveHistory('undo'),
+  };
   const chooseTrack = (track: TimelineTrack) => { setSelectedTrack(track); setInspectorTab('content'); };
   const clipActions = <>
     <button className={styles.iconAction} title="在播放头分割 · S" disabled={!selectedLineId || !!selectedTrack || projectBusy} onClick={() => clipCommand('split')}><Scissors size={15} />分割</button>
@@ -652,14 +716,15 @@ export function Workbench({ node: editorNode, onPatch, media, onClose }: CardRen
       <aside id="workbench-drawer" className={drawer ? styles.drawer : styles.sideRail} aria-label="素材侧栏"
         onKeyDown={event => { if (event.key === 'Escape') setDrawer(false); }}>
         {drawer ? <>
-          <div className={styles.panelHeader}><h2 className={styles.panelTitle}>素材</h2>
+          <div className={styles.panelHeader}><h2 className={styles.panelTitle}>配音助手</h2>
             <button type="button" className={styles.sideIcon} aria-label="收起左侧栏" title="收起左侧栏" onClick={() => setDrawer(false)}><PanelLeftClose size={18} /></button>
           </div>
         </> : <>
           <button type="button" className={styles.sideIcon} aria-label="展开左侧栏" title="展开左侧栏" onClick={() => setDrawer(true)}><PanelLeftOpen size={18} /></button>
-          <button type="button" className={styles.sideEntry} aria-label="展开素材" onClick={() => setDrawer(true)}><FolderOpen size={18} /><span>素材</span></button>
+          <button type="button" className={styles.sideEntry} aria-label="展开配音助手与素材" onClick={() => setDrawer(true)}><FolderOpen size={18} /><span>助手</span></button>
         </>}
-        {drawer && <><div className={styles.assetSummary}><span className={styles.eyebrow}>当前工程</span><strong>{editorData.videoRef?.split('/').pop() ?? '尚未导入视频'}</strong><span>{displayTime(durationMs)} · {trackLines.length} 句台词</span><span>配音 {counts.current}/{counts.total} · 待更新 {counts.stale}</span></div>
+        {drawer && <><AssistantPanel host={assistantHost} />
+          <div className={styles.assetSummary}><span className={styles.eyebrow}>当前工程</span><strong>{editorData.videoRef?.split('/').pop() ?? '尚未导入视频'}</strong><span>{displayTime(durationMs)} · {trackLines.length} 句台词</span><span>配音 {counts.current}/{counts.total} · 待更新 {counts.stale}</span></div>
           <details className={styles.assetImports} open={importsOpen} onToggle={event => setImportsOpen(event.currentTarget.open)}>
             <summary>导入与替换素材</summary>
             <div className={styles.toolbar} aria-label="导入与替换素材">
