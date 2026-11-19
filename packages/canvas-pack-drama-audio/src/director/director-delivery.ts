@@ -1,3 +1,4 @@
+import { buildHandoffZip } from './handoff-zip';
 import { requireMedia, type MediaLookup } from './media';
 import { encodeWav, exportSubtitles, linesOf, renderMix } from './director-media';
 import { directorOf } from './director-edits';
@@ -9,13 +10,17 @@ async function readResponse(mediaUrl: MediaLookup, ref: string, signal: AbortSig
   return response.blob();
 }
 
+function archiveFilename(ref: string) {
+  const name = ref.split('/').at(-1)?.replace(/[\\:\p{Cc}]/gu, '_');
+  return name && name !== '.' && name !== '..' ? name : 'media';
+}
+
 export async function exportHandoff(data: EditData, mediaUrl: MediaLookup, duration: number, mode: ListenMode, signal: AbortSignal) {
-  const { default: JSZip } = await import('jszip');
-  const zip = new JSZip();
+  const entries: { path: string; content: Blob }[] = [];
   const media = Object.create(null) as Record<string, string>;
   if (typeof data.videoRef === 'string') {
-    const path = '主视频/' + data.videoRef.split('/').at(-1);
-    zip.file(path, await readResponse(mediaUrl, data.videoRef, signal));
+    const path = '主视频/' + archiveFilename(data.videoRef);
+    entries.push({ path, content: await readResponse(mediaUrl, data.videoRef, signal) });
     media[data.videoRef] = path;
   }
   const refs = new Set<string>();
@@ -28,39 +33,37 @@ export async function exportHandoff(data: EditData, mediaUrl: MediaLookup, durat
   for (const note of directorOf(data).notes ?? []) for (const ref of note.audioRefs) refs.add(ref);
   for (const [index, ref] of [...refs].entries()) {
     if (media[ref]) continue;
-    const path = `配音源/${index + 1}-${ref.split('/').at(-1)}`;
-    zip.file(path, await readResponse(mediaUrl, ref, signal));
+    const path = `配音源/${index + 1}-${archiveFilename(ref)}`;
+    entries.push({ path, content: await readResponse(mediaUrl, ref, signal) });
     media[ref] = path;
   }
-  if (linesOf(data).length) zip.file('台词.srt', await exportSubtitles(data, duration).arrayBuffer());
+  if (linesOf(data).length) entries.push({ path: '台词.srt', content: exportSubtitles(data, duration) });
   const range = { startMs: 0, endMs: duration };
   if (hasVoice) {
     const voice = await renderMix(data, mediaUrl, range, 'voice', signal);
-    zip.file('配音轨.wav', await encodeWav(voice).arrayBuffer());
+    entries.push({ path: '配音轨.wav', content: encodeWav(voice) });
   }
   if (typeof data.directorBackgroundRef === 'string' && data.directorBackgroundRef) {
     const ref = data.directorBackgroundRef;
     if (!media[ref]) {
-      const path = '背景音乐/' + ref.split('/').at(-1);
-      zip.file(path, await readResponse(mediaUrl, ref, signal));
+      const path = '背景音乐/' + archiveFilename(ref);
+      entries.push({ path, content: await readResponse(mediaUrl, ref, signal) });
       media[ref] = path;
     }
     const background = await renderMix(data, mediaUrl, range, 'background', signal);
-    zip.file('背景音乐轨.wav', await encodeWav(background).arrayBuffer());
+    entries.push({ path: '背景音乐轨.wav', content: encodeWav(background) });
   }
   if ((mode === 'original' || mode === 'mix') && data.videoRef) {
     const original = await renderMix(data, mediaUrl, range, 'original', signal);
-    zip.file('原声轨.wav', await encodeWav(original).arrayBuffer());
+    entries.push({ path: '原声轨.wav', content: encodeWav(original) });
   }
   if (mode === 'mix') {
     const mix = await renderMix(data, mediaUrl, range, mode, signal);
-    zip.file('混音.wav', await encodeWav(mix).arrayBuffer());
+    entries.push({ path: '混音.wav', content: encodeWav(mix) });
   }
-  zip.file('工程清单.json', JSON.stringify({ version: 1, durationMs: duration, listenMode: mode, media, data }, null, 2));
-  signal.throwIfAborted();
-  const blob = await zip.generateAsync({ type: 'blob' }, () => signal.throwIfAborted());
-  signal.throwIfAborted();
-  return blob;
+  const manifest = { version: 1, durationMs: duration, listenMode: mode, media, data };
+  entries.push({ path: '工程清单.json', content: new Blob([JSON.stringify(manifest, null, 2)]) });
+  return buildHandoffZip(entries, signal);
 }
 
 function waitFor(video: HTMLVideoElement, event: 'loadeddata' | 'seeked', signal: AbortSignal) {

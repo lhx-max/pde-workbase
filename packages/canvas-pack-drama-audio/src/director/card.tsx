@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import type { CardRenderProps } from '@bezier/canvas-card-sdk';
 import { useSessionMedia } from './media';
 import { Workbench } from './workbench';
@@ -31,10 +30,15 @@ export function DirectorCard(props: CardRenderProps) {
   return <div className={`${styles.cardEntry} nodrag nopan nowheel`}>
     <p>{lineCount} 句台词 · {segmentCount} 个配音片段</p>
     <button type="button" ref={openButton} aria-haspopup="dialog" onClick={() => setOpened(true)}>打开短剧配音编辑器</button>
-    {opened && createPortal(<dialog ref={modal} className={`${styles.cardDialog} nodrag nopan nowheel`}
-      aria-label="短剧配音编辑器" onCancel={event => { event.preventDefault(); close(); }}
+    {/* Canvas shortcut handlers recognize overlays through the explicit role. */}
+    {opened && <dialog ref={modal} role="dialog" className={`${styles.cardDialog} nodrag nopan nowheel`}
+      aria-label="短剧配音编辑器" onCancel={event => {
+        if (event.target !== event.currentTarget) return;
+        event.preventDefault();
+        close();
+      }}
       onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()} onWheel={event => event.stopPropagation()}>
       <Workbench {...props} media={media} onClose={close} />
-    </dialog>, document.body)}
+    </dialog>}
   </div>;
 }

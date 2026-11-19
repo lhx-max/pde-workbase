@@ -173,10 +173,6 @@ pnpm tools-dev run desktop --data-dir "$CANVAS_DATA_DIR" --production
 
 桌面模式自动为后端到原生宿主的连接生成仅本次进程使用的传输密钥，并使用独立浏览器 profile。API 的可选 `CANVAS_AUTH_TOKEN` 与该原生宿主密钥相互独立。`Ctrl+C` 停止本次启动的进程。可通过 `--daemon-port`、`--web-port`、`--browser-host-port` 和 `--desktop-user-data` 配置独立实例；并发实例必须使用不同的数据根、profile 和端口。原生能力说明见 [架构中的原生宿主边界](docs/architecture.md)。
 
-## 画布内短剧配音卡
-
-在画布里创建 `card.drama.audio`，从卡面打开短剧配音编辑器。卡内提供视频采帧、逐句配音、时间轴、同步试听和 WAV／SRT／MP4／剪辑交接包。台词与剪辑参数跟随卡片保存，音视频在会话内载入。使用方式及接口边界见[短剧卡包说明](packages/canvas-pack-drama-audio/README.md)。
-
 ## 短剧导演本地 Demo
 
 短剧导演工作台入口为 `/session-apps?projectId=<项目 ID>`。直接在时间刻度、原声、背景音乐或配音轨空白处拖动框选，按住 Shift 可追加。拖动配音片段可移动，拖两端可裁剪声音与对应区间。支持真实波形、播放头分割、复制粘贴、撤销、面板拖动与布局记忆；点击轨道名称可调整轨道音量。也可以在「选区与试听」里精确输入起止时间。右上角可切换深色或浅色，设置保存在当前浏览器。打开具体项目画布时使用 `/?projectId=<项目 ID>`，可在画布改写卡生成并交付逐句台词。

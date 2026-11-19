@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, BookOpen, Search, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookOpen, Search, X } from './icons';
 import { manual, searchManual } from './manual';
 import styles from './manual.module.css';
 

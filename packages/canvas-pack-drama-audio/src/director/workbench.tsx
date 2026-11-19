@@ -1,6 +1,6 @@
 'use client';
 
-import { Copy, Scissors, ClipboardPaste, Trash2, Magnet, Undo2, Redo2, FolderOpen, PanelLeftClose, PanelLeftOpen, BookOpen, X } from 'lucide-react';
+import { Copy, Scissors, ClipboardPaste, Trash2, Magnet, Undo2, Redo2, FolderOpen, PanelLeftClose, PanelLeftOpen, BookOpen, X } from './icons';
 import type { CSSProperties } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CardRenderProps } from '@bezier/canvas-card-sdk';
