@@ -126,5 +126,4 @@ export * from './workflow-editing.js';
 export * from './deck-template/schemas.js';
 
 export * from './api/creation-preferences.js';
-export * from './api/ma-applications.js';
 export type {CanvasImageReference} from './api/canvas-image-reference.js';

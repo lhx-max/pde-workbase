@@ -13,7 +13,6 @@
   "dependencies": {
     "@base-ui-components/react": "1.0.0-rc.0",
     "@bezier/canvas-workbench": "workspace:*",
-    "@bezier/canvas-pack-drama-audio": "workspace:*",
     "@bezier/components": "workspace:*",
     "@bezier/contracts": "workspace:*",
     "@bezier/host": "workspace:*",
@@ -34,7 +33,6 @@
     "clsx": "2.1.1",
     "dompurify": "3.4.2",
     "jspdf": "4.2.1",
-    "jszip": "3.10.1",
     "lucide-react": "0.468.0",
     "mammoth": "1.11.0",
     "micromark": "4.0.2",

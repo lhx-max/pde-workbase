@@ -7,7 +7,7 @@ const root = path.resolve(fileURLToPath(new URL('../', import.meta.url)));
 const errors: string[] = [];
 // Generated upload closures and immutable evidence have their own manifest
 // checks; only maintained source participates in source/import governance.
-const excluded = new Set(['node_modules', 'dist', '.git', '.next', '.tmp', '.deploy', 'artifacts', 'test-results', 'playwright-report', '.venv']);
+const excluded = new Set(['node_modules', 'dist', '.git', '.next', '.tmp', '.deploy', 'artifacts', 'test-results', 'playwright-report']);
 const files: string[] = [];
 function visit(directory: string) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {

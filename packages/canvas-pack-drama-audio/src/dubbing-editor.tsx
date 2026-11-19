@@ -167,17 +167,6 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
   const selectLineRef = useRef(selectLine);
   selectLineRef.current = selectLine;
   useEffect(() => {
-    if (!listOnly) return;
-    const select = (event: Event) => {
-      const detail = (event as CustomEvent).detail;
-      if (detail?.nodeId !== node.id || typeof detail.lineId !== 'string') return;
-      setShowLineList(true);
-      setExpandedId(detail.lineId);
-    };
-    window.addEventListener('drama-demo-select-line', select);
-    return () => window.removeEventListener('drama-demo-select-line', select);
-  }, [listOnly, node.id]);
-  useEffect(() => {
     if (listOnly && typeof raw.selectedDubbingLineId === 'string') {
       setShowLineList(true);
       setExpandedId(raw.selectedDubbingLineId);
@@ -625,7 +614,6 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     queue.current = null;
     previewEndMs.current = null;
     previewData.current = null;
-    if (listOnly) window.dispatchEvent(new CustomEvent('drama-demo-preview', { detail: { nodeId: node.id, stop: true } }));
   }
 
   function reviewCandidate(take: DubbingCandidate, start: number | null, end: number | null) {
@@ -645,24 +633,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     } catch (reason) { setError(reason instanceof Error ? reason.message : '采用候选失败'); }
   }
 
-  useEffect(() => {
-    if (listOnly) return;
-    const listener = (event: Event) => {
-      const detail = (event as CustomEvent).detail;
-      if (detail?.nodeId !== node.id) return;
-      if (detail.stop) stopCandidatePreview();
-      else if (detail.play) void playPreview(detail.start, detail.end, detail.preview);
-      else seek(detail.start);
-    };
-    window.addEventListener('drama-demo-preview', listener);
-    return () => window.removeEventListener('drama-demo-preview', listener);
-  }, [node.id, listOnly]);
-
   function seek(ms: number | null) {
-    if (listOnly) {
-      window.dispatchEvent(new CustomEvent('drama-demo-preview', { detail: { nodeId: node.id, start: ms } }));
-      return;
-    }
     if (!video.current || !finiteMs(ms)) return;
     playRequest.current++;
     queue.current = null;
@@ -679,10 +650,6 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
   }
 
   async function playPreview(startMs?: number | null, endMs?: number | null, preview?: Pick<DramaAudioData, 'segments' | 'audioRef' | 'masterGain'>, ranges?: PlaybackRange[], loop = false) {
-    if (listOnly) {
-      window.dispatchEvent(new CustomEvent('drama-demo-preview', { detail: { nodeId: node.id, start: startMs, end: endMs, play: true, preview } }));
-      return;
-    }
     const element = video.current;
     if (!element) return;
     const request = ++playRequest.current;
