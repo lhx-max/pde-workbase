@@ -50,6 +50,71 @@ const transcript = () => within(screen.getByRole('region', { name: '台词浏览
 const inspector = () => within(screen.getByRole('complementary', { name: '内容编辑与交付' }));
 const saveStatus = () => document.querySelector('[data-save-state]')!;
 
+describe('配音音轨', () => {
+  const take = (id: string, window: [number, number]) => ({ id, label: id, startMs: 0, endMs: 1800, gapMs: 0, gain: 1, muted: false, videoStartMs: window[0], videoEndMs: window[1], audioRefOverride: `session/voice/${id}.wav` });
+  const touching = [
+    { id: 'l1', text: '第一句解说', videoStartMs: 0, videoEndMs: 2000 },
+    { id: 'l2', text: '第二句解说', videoStartMs: 2000, videoEndMs: 4000 },
+    { id: 'l3', text: '第三句解说', videoStartMs: 4000, videoEndMs: 6000 },
+  ];
+
+  it('没有配音的句子不出现在配音音轨上', () => {
+    open({ videoDurationMs: 10_000, rewriteLines: touching, segments: [take('l1', [0, 2000])] });
+    expect(document.querySelector('[data-preview-line-id="l1"]')).toBeTruthy();
+    expect(document.querySelector('[data-preview-line-id="l2"]')).toBeNull();
+    expect(transcript().getByText('第二句解说')).toBeTruthy();
+  });
+
+  it('拖动整段时相邻句子让位，不再因重叠失败', () => {
+    let latest: Record<string, any> = {};
+    open({ videoDurationMs: 10_000, rewriteLines: touching, segments: [take('l1', [0, 2000]), take('l2', [2000, 4000])] },
+      patch => { latest = { ...latest, ...(patch as { data: Record<string, unknown> }).data }; });
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, right: 1000, bottom: 40, width: 1000, height: 40, x: 0, y: 0, toJSON: () => ({}) });
+    Element.prototype.setPointerCapture ??= vi.fn();
+    const clip = document.querySelector('[data-preview-line-id="l1"]')!;
+    fireEvent.pointerDown(clip, { pointerId: 1, isPrimary: true, button: 0, clientX: 500 });
+    fireEvent.pointerMove(clip, { pointerId: 1, isPrimary: true, clientX: 550 });
+    fireEvent.pointerUp(clip, { pointerId: 1, isPrimary: true, clientX: 550 });
+    const windows = (latest.rewriteLines as { id: string; videoStartMs: number; videoEndMs: number }[]).map(line => [line.id, line.videoStartMs, line.videoEndMs]);
+    // 第二句有 1.8 秒配音，只能缩到 1.8 秒，于是整体顺延；第三句没有配音，缩短自己的区间让位。
+    expect(windows).toEqual([['l1', 500, 2500], ['l2', 2500, 4300], ['l3', 4300, 6000]]);
+    expect(screen.getByText(/相邻 2 句已让位/u)).toBeTruthy();
+  });
+});
+
+describe('画布保存有往返延迟', () => {
+  afterEach(() => { vi.useRealTimers(); });
+  /** 像真实画布一样：每次修改经服务端往返后才回传。 */
+  function SlowHost({ delay, onNode }: { delay: number; onNode: (node: CardPackNode) => void }) {
+    const [node, setNode] = useState<CardPackNode>({ id: 'drama-1', kind: 'card.drama.audio', x: 0, y: 0, data: { videoDurationMs: 5000, rewriteLines: lines } });
+    onNode(node);
+    return <DirectorCard node={node} selected onPatch={patch => {
+      setTimeout(() => setNode(current => ({ ...current, data: { ...(current.data ?? {}), ...(patch.data ?? {}) } })), delay);
+    }} />;
+  }
+
+  it('连续输入时台词立即显示，切到下一句后上一句的修改仍然保存', async () => {
+    vi.useFakeTimers();
+    let latest: CardPackNode | null = null;
+    render(<SlowHost delay={300} onNode={node => { latest = node; }} />);
+    fireEvent.click(screen.getByRole('button', { name: '打开短剧配音编辑器' }));
+    fireEvent.click(transcript().getByText('第一句解说').closest('button')!);
+    const box = () => inspector().getByLabelText('台词内容') as HTMLTextAreaElement;
+    for (const value of ['第一句解说A', '第一句解说AB', '第一句解说ABC']) {
+      fireEvent.change(box(), { target: { value } });
+      await act(async () => { vi.advanceTimersByTime(120); });
+      expect(box().value).toBe(value);
+    }
+    expect(transcript().getByText('第一句解说ABC')).toBeTruthy();
+    fireEvent.click(transcript().getByText('第二句解说').closest('button')!);
+    await act(async () => { vi.advanceTimersByTime(2000); });
+    expect((latest!.data!.rewriteLines as { text: string }[])[0]!.text).toBe('第一句解说ABC');
+    expect(saveStatus().getAttribute('data-save-state')).toBe('synced');
+    fireEvent.click(transcript().getByText('第一句解说ABC').closest('button')!);
+    expect(box().value).toBe('第一句解说ABC');
+  });
+});
+
 describe('音频工作台交互', () => {
   it('从台词列表选句后在右侧编辑，并能换句', () => {
     open();

@@ -23,6 +23,9 @@ import { DirectorTools } from './director-tools';
 import { assertUnlocked, directorOf, displayTime, listenLabel, makeRange, moveRangeBoundary, overlaps, rewriteWindows } from './director-edits';
 import type { EditData, ListenMode, TimeRange } from './director-edits';
 import { useCardEdits } from './use-card-edits';
+import { minimumSpanOf, rippleWindows } from './ripple';
+
+const segmentsIn = (source: EditData): EditorSegment[] => Array.isArray(source.segments) ? source.segments as EditorSegment[] : [];
 import { audioDurationOf, deliveryIssues, download, exportSubtitles, exportWav, importScript, importVoice, linesOf, videoDurationOf } from './director-media';
 import styles from './workbench.module.css';
 
@@ -269,15 +272,17 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
     } finally { setMediaBusy(false); }
   }
 
-  const data = editorNode?.data ?? {};
+  // 以本地草稿渲染：画布保存有往返延迟，直接读回传数据会让刚输入的内容闪回旧值。
+  const data = editor.draftData() ?? {};
+  const draftNode = { ...editorNode, data };
   const director = directorOf(data);
   const editorData = data as { videoRef?: string | null; videoDurationMs?: number; segments?: EditorSegment[]; rewriteLines?: EditorSegment[]; confirmedLineIds?: string[] };
   const hasBackground = typeof data.directorBackgroundRef === 'string' && Boolean(data.directorBackgroundRef);
   const backgroundEnd = Math.min(Number(data.directorBackgroundDurationMs) || 0, Number(editorData.videoDurationMs) || Infinity);
   const videoUrl = editorData.videoRef ? media.resolve(editorData.videoRef) ?? '' : '';
   const durationMs = resolvePlaybackDuration(Number(editorData.videoDurationMs ?? 0), videoSize.durationMs);
-  const counts = dubbingCounts(editorNode?.data ?? {});
-  const checking = editorNode ? deliveryIssues(editorNode.data ?? {}, durationMs) : [];
+  const counts = dubbingCounts(data);
+  const checking = editorNode ? deliveryIssues(data, durationMs) : [];
   const projectBusy = mediaBusy || generating || lineGenerating || deliveryBusy;
   const segments = Array.isArray(editorData.segments) ? editorData.segments : [];
   const rewriteLines = linesOf(data);
@@ -358,9 +363,22 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
     try {
       const next = changeRewriteWindow({ id: drag.line.id, text: drag.line.text ?? drag.line.label ?? '', videoStartMs: drag.line.videoStartMs!, videoEndMs: drag.line.videoEndMs! }, snapDelta(drag), drag.mode, durationMs);
       const window = { startMs: next.videoStartMs, endMs: next.videoEndMs };
-      const changes = drag.mode === 'move' ? rewriteWindows(editor.draftData() ?? {}, { [next.id]: window }, durationMs)
-        : trimClip(editor.draftData() ?? {}, next.id, window, durationMs);
-      if (applyEdit(changes)) setToolStatus(`区间更新为 ${displayTime(next.videoStartMs)} – ${displayTime(next.videoEndMs)}`);
+      const current = editor.draftData() ?? {};
+      const audioMs = (lineId: string) => { const item = segmentsIn(current).find(segment => segment.id === lineId); return item ? (item.endMs ?? 0) - (item.startMs ?? 0) : undefined; };
+      const rows = (linesOf(current).length ? linesOf(current) : voiced.map(line => ({ id: line.id, text: line.text ?? line.label ?? '', videoStartMs: line.videoStartMs!, videoEndMs: line.videoEndMs! })))
+        .map(line => ({ ...line, minMs: minimumSpanOf(line.text, audioMs(line.id)) }));
+      // 相邻句子让位，避免一拖就和邻句重叠。
+      const windows = rippleWindows(rows, next.id, window, durationMs);
+      const placed = windows[next.id] ?? window;
+      const others = Object.fromEntries(Object.entries(windows).filter(([id]) => id !== next.id));
+      let changes: EditData;
+      if (drag.mode === 'move') changes = rewriteWindows(current, windows, durationMs);
+      else {
+        const shifted = Object.keys(others).length ? rewriteWindows(current, others, durationMs) : {};
+        changes = { ...shifted, ...trimClip({ ...current, ...shifted }, next.id, placed, durationMs) };
+      }
+      const pushed = Object.keys(others).length;
+      if (applyEdit(changes)) setToolStatus(`区间更新为 ${displayTime(placed.startMs)} – ${displayTime(placed.endMs)}${pushed ? `，相邻 ${pushed} 句已让位` : ''}`);
     } catch (reason) { setToolStatus(reason instanceof Error ? reason.message : '区间调整失败'); }
   }
   function timeAt(clientX: number, rect: DOMRect) {
@@ -600,7 +618,7 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
           <button type="button" className={styles.toolBtn} disabled={!editorNode || projectBusy} onClick={() => chooseVoice()}>导入整轨配音</button>
           <button type="button" className={styles.toolBtn} disabled={!editorNode || projectBusy} onClick={() => scriptInput.current?.click()}>导入台词</button>
           <button type="button" className={styles.toolBtn} disabled={!editorNode || projectBusy} onClick={() => backgroundInput.current?.click()}>{hasBackground ? '替换背景音乐' : '导入背景音乐'}</button>
-          {selectedLineId && linesOf(editorNode?.data ?? {}).some(line => line.id === selectedLineId) && <button type="button" className={styles.toolBtn} disabled={projectBusy} onClick={() => chooseVoice(selectedLineId)}>替换本句音频</button>}
+          {selectedLineId && linesOf(data).some(line => line.id === selectedLineId) && <button type="button" className={styles.toolBtn} disabled={projectBusy} onClick={() => chooseVoice(selectedLineId)}>替换本句音频</button>}
           <button type="button" className={`${styles.toolBtn} ${styles.toolBtnPrimary}`} disabled={!localVoiceAvailable() || projectBusy || !counts.missing} onClick={() => void generateVoice()}>{generating ? '生成中…' : '补齐缺失配音'}</button>
           {generating && <button type="button" className={styles.toolBtn} onClick={() => { generateController.current?.abort(); setToolStatus('已请求停止；已生成音频保留'); }}>停止</button>}
         </div>
@@ -620,7 +638,7 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
           <div className={styles.preview}>
             <div className={styles.previewMedia}>
             {videoUrl
-              ? <video ref={previewVideo} className={styles.previewVideo} style={{ aspectRatio: `${videoSize.width} / ${videoSize.height}`, width: `${240 * videoSize.width / videoSize.height}px` }}
+              ? <video ref={previewVideo} className={styles.previewVideo} style={{ aspectRatio: `${videoSize.width} / ${videoSize.height}` }}
                   src={videoUrl} controls preload="metadata" muted={!originalAudio} playsInline onLoadedMetadata={event => {
                     const video = event.currentTarget;
                     setVideoSize({ width: video.videoWidth || 16, height: video.videoHeight || 9, durationMs: Number.isFinite(video.duration) ? Math.round(video.duration * 1000) : 0 });
@@ -661,8 +679,8 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
               </div>
               <div className={styles.trackRow}>
                 <button className={styles.trackLabel} aria-pressed={selectedTrack === 'voice'} onClick={() => chooseTrack('voice')}>配音音轨</button>
-                <div className={styles.trackBase} title={`配音区间 ${voiced.length} 句`} onPointerDown={event => startRangeDrag(event, 'voice')} {...rangeHandlers}>
-                  {durationMs > 0 && voiced.filter(line => (line.videoEndMs ?? 0) > viewStart && (line.videoStartMs ?? 0) < viewEnd).map(segment => {
+                <div className={styles.trackBase} title={`已配音 ${segments.length} 句`} onPointerDown={event => startRangeDrag(event, 'voice')} {...rangeHandlers}>
+                  {durationMs > 0 && voiced.filter(line => segments.some(item => item.id === line.id) && (line.videoEndMs ?? 0) > viewStart && (line.videoStartMs ?? 0) < viewEnd).map(segment => {
                     const shown = trackGhost?.id === segment.id ? trackGhost : segment;
                     const start = Math.max(0, (Math.max(viewStart, shown.videoStartMs ?? 0) - viewStart) / viewSpan * 100);
                     const width = Math.max(0, (Math.min(viewEnd, shown.videoEndMs ?? 0) - Math.max(viewStart, shown.videoStartMs ?? 0)) / viewSpan * 100);
@@ -733,7 +751,7 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
           time={() => Math.round((previewVideo.current?.currentTime ?? 0) * 1000)} selectedId={selectedLineId}
           select={id => { const line = voiced.find(item => item.id === id); if (line) selectTrackLine(line); }}
           ranges={ranges} setRanges={setRanges} playback={playback} mode={listenMode} setMode={setListenMode}
-          disabled={projectBusy} patch={applyEdit} />}
+          disabled={projectBusy} patch={applyEdit} playing={Boolean(previewVideo.current && !previewVideo.current.paused)} />}
         </div>
         <div className={styles.horizontalDivider} {...workspace.separator('timeline')} />
         <section className={styles.transcript} aria-label="台词浏览">
@@ -781,7 +799,7 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
               <button className={styles.toolBtn} onClick={focusScript}>换一句</button></div>
           <div className={styles.editWorkspace}>
           {editorNode
-            ? <div className={styles.editorScroll}><DubbingEditor key={editorNode.id} node={editorNode} selected
+            ? <div className={styles.editorScroll}><DubbingEditor key={editorNode.id} node={draftNode} selected
                 externalVideoRef={previewVideo} selectedLineId={selectedLineId}
                 onLineSelect={id => {
                   setSelectedLineId(id);

@@ -26,7 +26,8 @@ export function useCardEdits(node: CardRenderProps['node'], onPatch: CardRenderP
   const current = useRef(source);
   const history = useRef(emptyHistory);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const awaiting = useRef(false);
+  /** 已交给画布、尚未回传的提交，按发送顺序排列。 */
+  const inflight = useRef<EditData[]>([]);
   const [status, setStatus] = useState<SaveStatus>({ state: 'synced', message: '修改由画布保存' });
 
   function clearTimer() {
@@ -38,7 +39,7 @@ export function useCardEdits(node: CardRenderProps['node'], onPatch: CardRenderP
 
   useEffect(() => {
     const guard = (event: BeforeUnloadEvent) => {
-      if (!awaiting.current) return;
+      if (!inflight.current.length) return;
       event.preventDefault();
       event.returnValue = '';
     };
@@ -49,19 +50,26 @@ export function useCardEdits(node: CardRenderProps['node'], onPatch: CardRenderP
   useLayoutEffect(() => {
     if (source === previous.current) return;
     previous.current = source;
-    if (same(source, current.current) || (awaiting.current && reflects(source, current.current))) {
+    const queue = inflight.current;
+    if (same(source, current.current) || (queue.length && reflects(source, current.current))) {
       // 以画布回传的完整内容为草稿基础，保留画布合并进来的其他字段。
       current.current = source;
-      if (awaiting.current) {
-        awaiting.current = false;
+      if (queue.length) {
+        inflight.current = [];
         clearTimer();
         setStatus({ state: 'synced', message: '已保存到画布' });
       }
       return;
     }
+    // 画布往返有延迟：回传的是较早的一次提交时，只确认到那一次，保留之后的本地编辑继续等待。
+    const acknowledged = queue.findIndex(item => reflects(source, item));
+    if (acknowledged >= 0) {
+      inflight.current = queue.slice(acknowledged + 1);
+      return;
+    }
     // 画布回传了与本地草稿不同的内容：以画布为准，避免覆盖其他窗口或 Agent 的修改。
-    const interrupted = awaiting.current;
-    awaiting.current = false;
+    const interrupted = queue.length > 0;
+    inflight.current = [];
     clearTimer();
     current.current = source;
     history.current = emptyHistory;
@@ -72,12 +80,12 @@ export function useCardEdits(node: CardRenderProps['node'], onPatch: CardRenderP
 
   function send(patch: EditData) {
     onPatch({ data: patch });
-    awaiting.current = true;
+    inflight.current = [...inflight.current, patch];
     clearTimer();
     setStatus({ state: 'pending', message: '保存中…' });
     timer.current = setTimeout(() => {
       timer.current = null;
-      if (!awaiting.current) return;
+      if (!inflight.current.length) return;
       setStatus({ state: 'unconfirmed', message: '画布尚未确认这次修改' });
     }, CONFIRM_TIMEOUT_MS);
   }

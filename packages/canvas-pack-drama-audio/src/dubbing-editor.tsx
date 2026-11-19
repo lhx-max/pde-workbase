@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CardRenderProps } from '@bezier/canvas-card-sdk';
-import { adoptDubbingCandidate, candidateMatches, dubbingCounts, effectiveLineVoice, lineGenerationCurrent, type DubbingCandidate } from './dubbing';
+import { adoptDubbingCandidate, candidateMatches, dubbingCounts, effectiveLineVoice, lineGenerationCurrent, voiceInstructionOf, type DubbingCandidate } from './dubbing';
 import { checkLocalVoice, fillMissing, generateCandidate, localVoiceAvailable } from './director/local-voice';
 import { requireMedia, type MediaLookup } from './director/media';
 import { readDramaAudioData, shiftSegmentWindow } from './edl';
 import { buildDirectorPlaybackPlan, gainAt, gainRegionsOf, originalGainOf, playbackDriftMs, resolvePlaybackDuration, scheduleMixGain, type AudioListenMode } from './playback-plan';
 import { insertRewriteLine, validateRewriteLines, type RewriteLine as TimedRewriteLine } from './rewrite';
 import type { DramaAudioData, DramaAudioSegment } from './types';
-import { VoicePicker } from './voice-picker';
+import { VoicePicker, voiceName } from './voice-picker';
 
 interface RewriteLine {
   id: string;
@@ -582,13 +582,13 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     setGenerating(true);
     onGenerationChange?.(true);
     setError('');
-    setGenerationStatus(onlyLineId ? '正在生成候选配音…' : '正在补齐缺失配音…');
+    setGenerationStatus(onlyLineId ? '正在生成新配音…' : '正在补齐缺失配音…');
     try {
       if (beforeGenerate && !await beforeGenerate()) throw new Error('请先解决草稿保存问题');
       if (onlyLineId) {
         const result = await generateCandidate(sessionMedia.readData, sessionMedia.add, onlyLineId, controller.signal);
         setCandidate(result);
-        setGenerationStatus('候选已就绪，可以试听后采用。');
+        setGenerationStatus('新配音已生成，先试听，满意就点「用这条」。');
       } else {
         const progress = (message: string) => {
           if (!controller.signal.aborted) setGenerationStatus(message);
@@ -620,7 +620,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     try {
       const adoption = adoptDubbingCandidate(latest.current.raw, take);
       void playPreview(start, end, { ...latest.current.data, ...adoption });
-    } catch (reason) { setError(reason instanceof Error ? reason.message : '无法试听候选'); }
+    } catch (reason) { setError(reason instanceof Error ? reason.message : '无法试听新配音'); }
   }
 
   function applyCandidate(take: DubbingCandidate) {
@@ -629,8 +629,8 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
       stopCandidatePreview();
       if (!patch(changes)) return;
       setCandidate(null);
-      setGenerationStatus('已采用候选配音。');
-    } catch (reason) { setError(reason instanceof Error ? reason.message : '采用候选失败'); }
+      setGenerationStatus('已换成新配音。');
+    } catch (reason) { setError(reason instanceof Error ? reason.message : '替换配音失败'); }
   }
 
   function seek(ms: number | null) {
@@ -795,22 +795,23 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
         {expanded && <>
         <label>{externalVideoRef ? '台词内容' : '台词标签'}<textarea value={line.text} style={{ ...styles.input, display: 'block', width: '100%', boxSizing: 'border-box', minHeight: externalVideoRef ? 92 : 52 }}
           onChange={event => editLine(line.id, event.target.value)} /></label>
-        <VoicePicker value={lineVoice} label="本句音色" defaultLabel="继承整体音色" defaultHint={`当前生效：${effectiveLineVoice(raw, line.id)}`}
+        <VoicePicker value={lineVoice} label="本句音色" defaultLabel={`跟随整体：${voiceName(voiceInstructionOf(raw))}`} defaultHint="这句没有单独设置音色，生成时用整体音色"
           styles={styles} onChange={value => editLineVoice(line.id, value)} />
         <div style={styles.row}>
           <NumberField label={externalVideoRef ? '本句音量（0–2）' : '本句音量 0..2'} value={lineGain} max={2} onChange={value => { if (value !== null) editLineGain(line.id, value); }} />
           <span style={styles.hint}>试听音量 = 总音量 × 本句音量；改音量无需重新生成</span>
-          <button style={styles.primaryButton} disabled={generating || startingTts || batchGenerating || loading || !canGenerate} onClick={() => void generate(line.id)}>生成本句配音候选</button>
+          <button style={styles.primaryButton} disabled={generating || startingTts || batchGenerating || loading || !canGenerate} title="用本机 VoxCPM 生成这一句；生成后先试听，满意再替换" onClick={() => void generate(line.id)}>{segment ? '重新生成' : '生成配音'}</button>
         </div>
         {generating && externalVideoRef && <button style={styles.button} onClick={() => generationController.current?.abort()}>停止等待配音</button>}
         {candidate?.lineId === line.id && <div style={styles.row}>
-          <strong>候选配音 · {(candidate.durationMs / 1000).toFixed(2)} 秒</strong>
-          <button style={styles.button} disabled={!validWindow(start, end) || !candidateMatches(raw, candidate) || loading} onClick={() => reviewCandidate(candidate, start, end)}>同步试听候选</button>
-          <button style={styles.successButton} disabled={!candidateMatches(raw, candidate)} onClick={() => applyCandidate(candidate)}>采用候选</button>
-          <button style={styles.button} onClick={() => { stopCandidatePreview(); setCandidate(null); setGenerationStatus('已放弃候选。'); }}>放弃候选</button>
+          <strong>新配音 · {(candidate.durationMs / 1000).toFixed(2)} 秒</strong>
+          <span style={styles.hint}>{segment ? '先试听，满意再替换当前配音' : '先试听，满意就用这条'}</span>
+          <button style={styles.button} disabled={!validWindow(start, end) || !candidateMatches(raw, candidate) || loading} onClick={() => reviewCandidate(candidate, start, end)}>试听</button>
+          <button style={styles.successButton} disabled={!candidateMatches(raw, candidate)} onClick={() => applyCandidate(candidate)}>用这条</button>
+          <button style={styles.button} onClick={() => { stopCandidatePreview(); setCandidate(null); setGenerationStatus('已放弃新配音。'); }}>不要</button>
           {!candidateMatches(raw, candidate) && <span style={styles.warning}>当前输入已变化，请重新生成。</span>}
         </div>}
-        {stale && <div style={styles.warning}>{legacy ? '旧配音缺少音色记录，可以正常试听。' : '文字或音色已修改，可以试听旧配音或生成候选。'}</div>}
+        {stale && <div style={styles.warning}>{legacy ? '旧配音缺少音色记录，可以正常试听。' : '文字或音色已修改，可以试听旧配音，或点「重新生成」。'}</div>}
         {!segment && <div style={styles.hint}>本句尚未生成真实音频。</div>}
         <div style={styles.row}>{!externalVideoRef && <strong>{line.id}</strong>}<span style={styles.hint}>{confirmed.includes(line.id) ? '已人工确认视频区间' : '自动建议尚待确认'}</span>
           {!externalVideoRef && <button style={styles.button} disabled={!validWindow(start, end)} onClick={() => seek(start)}>定位视频</button>}

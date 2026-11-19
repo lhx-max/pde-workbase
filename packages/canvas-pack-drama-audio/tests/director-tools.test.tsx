@@ -64,7 +64,8 @@ describe('导演工具：选区与试听', () => {
   });
 
   it('锁定选区后阻止修改其中的台词，解锁后恢复', () => {
-    const tools = open();
+    // 配音音轨只显示已有配音的句子，这里给第二句配上音频。
+    const tools = open({ segments: [{ id: 'l2', label: 'l2', startMs: 0, endMs: 1500, gapMs: 0, gain: 1, muted: false, videoStartMs: 2000, videoEndMs: 3500, audioRefOverride: 'session/voice/l2.wav' }] });
     selectLine('第二句解说');
     fireEvent.click(tools.getByRole('button', { name: '加入当前句' }));
     fireEvent.click(tools.getByRole('button', { name: '锁定选区' }));

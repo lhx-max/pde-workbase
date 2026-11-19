@@ -41,7 +41,7 @@ export function candidateMatches(data: Record<string, unknown>, candidate: Dubbi
 }
 
 export function adoptDubbingCandidate(data: Record<string, unknown>, candidate: DubbingCandidate): Record<string, unknown> {
-  if (!candidateMatches(data, candidate)) throw new Error('这句台词、音色或视频已变化，请重新生成候选。');
+  if (!candidateMatches(data, candidate)) throw new Error('这句台词、音色或视频已变化，请重新生成配音。');
   const line = (data.rewriteLines as RewriteLine[]).find(item => item.id === candidate.lineId)!;
   const segments = (Array.isArray(data.segments) ? data.segments : []) as DramaAudioSegment[];
   const old = segments.find(segment => segment.id === line.id);

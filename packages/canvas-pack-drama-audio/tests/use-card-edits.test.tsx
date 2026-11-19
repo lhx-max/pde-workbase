@@ -132,4 +132,28 @@ describe('卡片保存状态', () => {
     window.dispatchEvent(done);
     expect(done.defaultPrevented).toBe(false);
   });
+  it('画布回传较早的提交时保留之后的本地编辑，全部回传后才显示已保存', () => {
+    const { hook, onPatch, echo } = setup();
+    act(() => hook.result.current.patch({ script: 'A' }));
+    const first = onPatch.mock.lastCall?.[0]?.data as Record<string, unknown>;
+    act(() => hook.result.current.patch({ script: 'AB' }));
+    act(() => hook.result.current.patch({ script: 'ABC' }));
+    act(() => echo(first));
+    expect(hook.result.current.draftData().script).toBe('ABC');
+    expect(hook.result.current.status.state).toBe('pending');
+    expect(hook.result.current.history.undo).toHaveLength(3);
+    act(() => echo());
+    expect(hook.result.current.draftData().script).toBe('ABC');
+    expect(hook.result.current.status.state).toBe('synced');
+  });
+
+  it('在途时回传与任何提交都不同的内容，仍按外部修改处理', () => {
+    const { hook, external } = setup();
+    act(() => hook.result.current.patch({ script: 'A' }));
+    act(() => hook.result.current.patch({ script: 'AB' }));
+    act(() => external({ rewriteLines: [], stage: 'edit', script: '另一个窗口' }));
+    expect(hook.result.current.draftData().script).toBe('另一个窗口');
+    expect(hook.result.current.status.state).toBe('external');
+    expect(hook.result.current.history.undo).toHaveLength(0);
+  });
 });

@@ -31,9 +31,11 @@ type Props = {
   playback: RefObject<DubbingPlayback>;
   disabled: boolean;
   patch: (changes: EditData) => boolean;
+  /** 视频正在播放：播放键显示为暂停。 */
+  playing?: boolean;
 };
 
-export function DirectorTools({ data, mediaUrl, rows, duration, time, selectedId, select, ranges, setRanges, mode, setMode, playback, disabled, patch }: Props) {
+export function DirectorTools({ data, mediaUrl, rows, duration, time, selectedId, select, ranges, setRanges, mode, setMode, playback, disabled, patch, playing = false }: Props) {
   const state = directorOf(data);
   const [panel, setPanel] = useState<typeof PANELS[number][0]>('listen');
   const [feedback, setFeedback] = useState('');
@@ -147,11 +149,11 @@ export function DirectorTools({ data, mediaUrl, rows, duration, time, selectedId
 
   return <section className={styles.director} aria-label="导演工具">
     <div className={styles.actionRow}>
-      <button className={styles.toolBtnPrimary + ' ' + styles.toolBtn} disabled={!duration || disabled} onClick={() => {
+      <button className={styles.toolBtnPrimary + ' ' + styles.toolBtn} disabled={!duration || (disabled && !playing)} aria-pressed={playing} onClick={() => {
+        if (playing) { playback.current?.stop(); return; }
         if (time() >= duration - 1) playback.current?.seek(0);
         play();
-      }}>同步播放</button>
-      <button className={styles.toolBtn} onClick={() => playback.current?.stop()}>暂停</button>
+      }}>{playing ? '暂停' : '播放'}</button>
       <button className={styles.toolBtn} disabled={!duration || disabled || !time()} onClick={() => {
         const end = Math.min(time(), duration);
         const replay = makeRange(end - 3000, end, duration);

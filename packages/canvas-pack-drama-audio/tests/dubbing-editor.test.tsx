@@ -101,7 +101,14 @@ describe('逐句配音编辑', () => {
 
   it('非回环地址下不能生成本机配音', () => {
     const panel = editLine('第一句解说');
-    expect((panel.getByRole('button', { name: '生成本句配音候选' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((panel.getByRole('button', { name: '生成配音' }) as HTMLButtonElement).disabled).toBe(true);
     expect(panel.getByText('本句尚未生成真实音频。')).toBeTruthy();
+  });
+  it('已有配音时按钮显示「重新生成」，音色选项写明跟随的是哪个整体音色', () => {
+    const panel = editLine('第二句解说', { audioRef: 'session/voice/full.wav', segments: [segment], voiceInstruction: '温柔亲切的女声，语速平缓' });
+    expect(panel.getByRole('button', { name: '重新生成' })).toBeTruthy();
+    const voice = [...document.querySelectorAll('label')].find(label => label.textContent?.startsWith('本句音色'))!.querySelector('select')!;
+    expect(voice.options[voice.selectedIndex]!.textContent).toBe('跟随整体：温柔女声');
+    expect(panel.getByText('这句没有单独设置音色，生成时用整体音色')).toBeTruthy();
   });
 });

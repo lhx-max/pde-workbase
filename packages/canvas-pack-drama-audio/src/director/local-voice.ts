@@ -62,7 +62,7 @@ export async function generateCandidate(
   const audioRef = await addMedia(file);
   const candidate = { lineId, text: line.text, voice, videoRef: before.videoRef, previousSource: lineAudioSource(before, lineId), audioRef, durationMs };
   signal.throwIfAborted();
-  if (!candidateMatches(read(), candidate)) throw new Error('生成期间台词、音色或素材已变化。请重新生成候选。');
+  if (!candidateMatches(read(), candidate)) throw new Error('生成期间台词、音色或素材已变化。请重新生成配音。');
   return candidate;
 }
 

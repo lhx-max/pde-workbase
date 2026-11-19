@@ -11,6 +11,15 @@ export const VOICE_PRESETS: { value: string; label: string }[] = [
 ];
 
 const CUSTOM = '__custom__';
+
+/** 音色的简短名称：预设显示名称，自定义描述截断显示，未设置时为默认解说。 */
+export function voiceName(instruction: string | null | undefined): string {
+  const value = typeof instruction === 'string' ? instruction.trim() : '';
+  if (!value) return '默认解说';
+  const preset = VOICE_PRESETS.find(item => item.value === value);
+  if (preset) return preset.label;
+  return value.length > 12 ? `${value.slice(0, 12)}…` : value;
+}
 const MAX_VOICE_INSTRUCTION_LENGTH = 200;
 
 /** 音色选择：预设下拉 + 自定义描述输入；value 为 null 表示默认音色。 */
