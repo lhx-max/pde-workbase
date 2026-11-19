@@ -77,14 +77,6 @@ describe('导演工具：选区与试听', () => {
     expect(data().directorEdit.locks).toEqual([]);
   });
 
-  it('保存并采用时间方案', () => {
-    const tools = open();
-    fireEvent.click(within(tools.getByRole('group', { name: '时间方案 A' })).getByRole('button', { name: '存为 A' }));
-    expect(tools.getByText('已保存方案 A，包含 3 句的时间区间。')).toBeTruthy();
-    expect(Object.keys(data().directorEdit.arrangements.A.windows)).toEqual(['l1', 'l2', 'l3']);
-    fireEvent.click(within(tools.getByRole('group', { name: '时间方案 A' })).getByRole('button', { name: '采用 A' }));
-    expect(data().rewriteLines.map((line: { id: string }) => line.id)).toEqual(['l1', 'l2', 'l3']);
-  });
 });
 
 describe('导演工具：间隔与标记', () => {
@@ -122,7 +114,7 @@ describe('导演工具：间隔与标记', () => {
   });
 });
 
-describe('导演工具：音量与审阅', () => {
+describe('导演工具：音量', () => {
   it('调整总音量并为选区设置音量区间，可删除', () => {
     const tools = open();
     tab(tools, '音量');
@@ -151,13 +143,4 @@ describe('导演工具：音量与审阅', () => {
     expect(tools.getByText('请选中区间并填写有效的音量与渐变时长。')).toBeTruthy();
   });
 
-  it('为选区添加时间批注', () => {
-    const tools = open();
-    tab(tools, '审阅');
-    selectLine('第一句解说');
-    fireEvent.change(tools.getByLabelText('审阅批注'), { target: { value: '语气再轻一点' } });
-    fireEvent.click(tools.getByRole('button', { name: '添加时间批注' }));
-    expect(data().directorEdit.notes).toMatchObject([{ text: '语气再轻一点', range: { startMs: 0, endMs: 1500 } }]);
-    expect(tools.getByText('语气再轻一点', { exact: false })).toBeTruthy();
-  });
 });

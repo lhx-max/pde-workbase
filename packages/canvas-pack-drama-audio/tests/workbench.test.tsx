@@ -82,6 +82,53 @@ describe('配音音轨', () => {
   });
 });
 
+describe('左侧素材与批量配音', () => {
+  const take = (id: string, window: [number, number]) => ({ id, label: id, startMs: 0, endMs: 1400, gapMs: 0, gain: 1, muted: false, videoStartMs: window[0], videoEndMs: window[1], audioRefOverride: `session/voice/${id}.wav` });
+  const voicedData = () => ({ videoDurationMs: 5000, videoRef: 'session/video.mp4', rewriteLines: lines, segments: [take('l1', [0, 1500])],
+    generatedLineTexts: { l1: '第一句解说' }, generatedLineVoices: { l1: '自然清晰的普通话解说' } });
+  const imports = () => document.querySelector('details[class*="assetImports"]') as HTMLDetailsElement;
+
+  it('视频和台词都导入后，导入区默认收起；没有素材时展开', () => {
+    open(voicedData());
+    expect(imports().open).toBe(false);
+    cleanup();
+    open({});
+    expect(imports().open).toBe(true);
+  });
+
+  it('补齐配音不在导入区，而是放在台词列表标题旁，并显示缺几句', () => {
+    open(voicedData());
+    expect(within(imports()).queryByRole('button', { name: /补齐/ })).toBeNull();
+    const bar = within(screen.getByLabelText('批量配音'));
+    expect(bar.getByRole('button', { name: '补齐缺失配音（1 句）' })).toBeTruthy();
+    expect(screen.queryByText('画面采样与改写')).toBeNull();
+    expect(screen.queryByRole('button', { name: '打开画布主文件' })).toBeNull();
+  });
+
+  it('批量配音前可以先选整体音色', () => {
+    let latest: Record<string, unknown> = {};
+    open(voicedData(), patch => { latest = { ...latest, ...(patch as { data: Record<string, unknown> }).data }; });
+    const select = within(screen.getByLabelText('批量配音')).getByRole('combobox');
+    fireEvent.change(select, { target: { value: '温柔亲切的女声，语速平缓' } });
+    expect(latest.voiceInstruction).toBe('温柔亲切的女声，语速平缓');
+    expect(within(screen.getByLabelText('批量配音')).getByRole('button', { name: '补齐缺失配音（1 句）' })).toBeTruthy();
+  });
+
+  it('把一句设为音色基准后，其他句子跟随它，批量按钮提示更新', () => {
+    open(voicedData());
+    fireEvent.click(transcript().getByText('第一句解说').closest('button')!);
+    fireEvent.click(inspector().getByRole('button', { name: '设为音色基准' }));
+    expect(inspector().getByText('这句是音色基准，其他句子会按它的声音生成')).toBeTruthy();
+    const bar = within(screen.getByLabelText('批量配音'));
+    expect(bar.getByText(/按第 1 句的声音/u)).toBeTruthy();
+    fireEvent.click(transcript().getByText('第二句解说').closest('button')!);
+    const voice = [...document.querySelectorAll('label')].find(label => label.textContent?.startsWith('本句音色'))!.querySelector('select')!;
+    expect(voice.options[voice.selectedIndex]!.textContent).toBe('跟随第 1 句的音色');
+    fireEvent.click(bar.getByRole('button', { name: '取消基准' }));
+    expect(within(screen.getByLabelText('批量配音')).getByRole('combobox')).toBeTruthy();
+  });
+});
+
 describe('画布保存有往返延迟', () => {
   afterEach(() => { vi.useRealTimers(); });
   /** 像真实画布一样：每次修改经服务端往返后才回传。 */
@@ -238,14 +285,10 @@ describe('音频工作台交互', () => {
     expect(downloads).toHaveLength(0);
   });
 
-  it('工作区布局、主题、侧栏和轨道检查器可切换', () => {
+  it('主题、侧栏和轨道检查器可切换，已移除的工作区预设和轨高不再出现', () => {
     open();
-    fireEvent.click(screen.getByRole('button', { name: '快捷键' }));
-    expect(screen.getByText(/空格 播放\/暂停/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '台词精修' }));
-    fireEvent.click(screen.getByRole('button', { name: '音频剪辑' }));
-    fireEvent.click(screen.getByRole('button', { name: '混音检查' }));
-    fireEvent.click(screen.getByRole('button', { name: '重置布局' }));
+    for (const name of ['快捷键', '台词精修', '音频剪辑', '混音检查', '重置布局']) expect(screen.queryByRole('button', { name })).toBeNull();
+    expect(screen.queryByLabelText('音轨高度')).toBeNull();
     const main = screen.getByRole('main');
     expect(main.getAttribute('data-theme')).toBe('dark');
     fireEvent.click(screen.getByRole('button', { name: '切换到浅色模式' }));
@@ -256,7 +299,6 @@ describe('音频工作台交互', () => {
     fireEvent.click(screen.getByRole('button', { name: '视频 / 原声' }));
     fireEvent.click(screen.getByRole('button', { name: '配音音轨' }));
     fireEvent.change(screen.getByLabelText('音轨缩放'), { target: { value: '4' } });
-    fireEvent.change(screen.getByLabelText('音轨高度'), { target: { value: '72' } });
     fireEvent.click(screen.getByRole('button', { name: '跟随播放' }));
     fireEvent.click(screen.getByRole('button', { name: /吸附/ }));
     fireEvent.click(screen.getByRole('button', { name: '全片概览' }));

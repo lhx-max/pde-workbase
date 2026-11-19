@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CardRenderProps } from '@bezier/canvas-card-sdk';
-import { adoptDubbingCandidate, candidateMatches, dubbingCounts, effectiveLineVoice, lineGenerationCurrent, voiceInstructionOf, type DubbingCandidate } from './dubbing';
+import { adoptDubbingCandidate, candidateMatches, dubbingCounts, effectiveLineVoice, lineGenerationCurrent, voiceInstructionOf, voiceReferenceOf, type DubbingCandidate } from './dubbing';
 import { checkLocalVoice, fillMissing, generateCandidate, localVoiceAvailable } from './director/local-voice';
 import { requireMedia, type MediaLookup } from './director/media';
 import { readDramaAudioData, shiftSegmentWindow } from './edl';
@@ -105,6 +105,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
 }) {
   const data = useMemo(() => readDramaAudioData(node), [node.data]);
   const raw = node.data ?? {};
+  const reference = voiceReferenceOf(raw);
   const canGenerate = localVoiceAvailable();
   const lines = readLines(raw.rewriteLines);
   const confirmed = Array.isArray(raw.confirmedLineIds) ? raw.confirmedLineIds.filter((id): id is string => typeof id === 'string') : [];
@@ -586,14 +587,14 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     try {
       if (beforeGenerate && !await beforeGenerate()) throw new Error('请先解决草稿保存问题');
       if (onlyLineId) {
-        const result = await generateCandidate(sessionMedia.readData, sessionMedia.add, onlyLineId, controller.signal);
+        const result = await generateCandidate(sessionMedia.readData, sessionMedia.add, onlyLineId, controller.signal, sessionMedia.resolve);
         setCandidate(result);
         setGenerationStatus('新配音已生成，先试听，满意就点「用这条」。');
       } else {
         const progress = (message: string) => {
           if (!controller.signal.aborted) setGenerationStatus(message);
         };
-        await fillMissing(sessionMedia.readData, patch, sessionMedia.add, controller.signal, progress);
+        await fillMissing(sessionMedia.readData, patch, sessionMedia.add, controller.signal, progress, { resolve: sessionMedia.resolve });
       }
     } catch (reason) {
       if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : '配音生成失败');
@@ -694,8 +695,8 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     {!listOnly && <>
     <details open={!externalVideoRef} style={externalVideoRef ? { order: 2 } : undefined}>
     <summary style={styles.collapsedRow}>{externalVideoRef ? '整体音色与播放设置' : '整体配音设置与播放控制'}</summary>
-    <strong>逐句配音编辑</strong>
-    <div style={styles.hint}>视频是唯一主时钟。自动建议尚待逐句确认；静音不压缩视频，停顿保留在视频区间尾部。</div>
+    {!externalVideoRef && <><strong>逐句配音编辑</strong>
+    <div style={styles.hint}>视频是唯一主时钟。自动建议尚待逐句确认；静音不压缩视频，停顿保留在视频区间尾部。</div></>}
     {!canGenerate && <div style={styles.warning}>本机 VoxCPM 仅在回环地址下可用。</div>}
     {videoUrl && !externalVideoRef ? <video ref={video} src={videoUrl} controls muted={!originalAudio} preload="metadata" style={{ width: '100%', maxHeight: 260, background: '#000', borderRadius: 6 }}
       onError={() => { stop(); setError('视频读取失败，无法同步试听'); }} /> : !externalVideoRef && <div style={styles.warning}>未绑定有效视频工程文件</div>}
@@ -795,8 +796,19 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
         {expanded && <>
         <label>{externalVideoRef ? '台词内容' : '台词标签'}<textarea value={line.text} style={{ ...styles.input, display: 'block', width: '100%', boxSizing: 'border-box', minHeight: externalVideoRef ? 92 : 52 }}
           onChange={event => editLine(line.id, event.target.value)} /></label>
-        <VoicePicker value={lineVoice} label="本句音色" defaultLabel={`跟随整体：${voiceName(voiceInstructionOf(raw))}`} defaultHint="这句没有单独设置音色，生成时用整体音色"
+        <VoicePicker value={lineVoice} label="本句音色"
+          defaultLabel={reference && reference.lineId !== line.id ? `跟随第 ${Math.max(1, rows.findIndex(item => item.id === reference.lineId) + 1)} 句的音色` : `跟随整体：${voiceName(voiceInstructionOf(raw))}`}
+          defaultHint={reference && reference.lineId !== line.id ? '这句没有单独设置音色，生成时克隆音色基准的声音' : '这句没有单独设置音色，生成时用整体音色'}
           styles={styles} onChange={value => editLineVoice(line.id, value)} />
+        {reference?.lineId === line.id
+          ? <div style={styles.row}><span style={styles.hint}>这句是音色基准，其他句子会按它的声音生成</span>
+              <button style={styles.button} onClick={() => patch({ voiceReference: null })}>取消基准</button></div>
+          : segment && (segment.audioRefOverride ?? data.audioRef) && <div style={styles.row}>
+              <span style={styles.hint}>{reference ? '已有音色基准，可以改用这句' : '各句声音不统一时，选一句满意的作为基准'}</span>
+              <button style={styles.button} disabled={generating || loading} onClick={() => patch({ voiceReference: {
+                lineId: line.id, audioRef: segment.audioRefOverride ?? data.audioRef, startMs: segment.startMs, endMs: segment.endMs, text: line.text,
+                voice: (raw.generatedLineVoices as Record<string, unknown> | undefined)?.[line.id] ?? effectiveLineVoice(raw, line.id),
+              } })}>设为音色基准</button></div>}
         <div style={styles.row}>
           <NumberField label={externalVideoRef ? '本句音量（0–2）' : '本句音量 0..2'} value={lineGain} max={2} onChange={value => { if (value !== null) editLineGain(line.id, value); }} />
           <span style={styles.hint}>试听音量 = 总音量 × 本句音量；改音量无需重新生成</span>

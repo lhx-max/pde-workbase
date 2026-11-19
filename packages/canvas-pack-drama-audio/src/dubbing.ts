@@ -10,10 +10,40 @@ export function effectiveLineVoice(data: Record<string, unknown>, lineId: string
   return voiceInstructionOf(data)?.trim() ?? DEFAULT_VOICE_INSTRUCTION;
 }
 
+/** 音色基准：用某一句已生成的配音作为参考音频，让其余句子保持同一音色。 */
+export type VoiceReference = { lineId: string; audioRef: string; startMs: number; endMs: number; text: string; voice?: string };
+
+export function voiceReferenceOf(data: Record<string, unknown>): VoiceReference | null {
+  const raw = data.voiceReference as Partial<VoiceReference> | null | undefined;
+  if (!raw || typeof raw !== 'object') return null;
+  const { lineId, audioRef, startMs, endMs, text, voice } = raw;
+  if (typeof lineId !== 'string' || !lineId || typeof audioRef !== 'string' || !audioRef || typeof text !== 'string' || !text.trim() || text.length > 2000
+    || typeof startMs !== 'number' || typeof endMs !== 'number' || !Number.isFinite(startMs) || !Number.isFinite(endMs) || startMs < 0 || endMs <= startMs) return null;
+  return { lineId, audioRef, startMs, endMs, text, ...(typeof voice === 'string' ? { voice } : {}) };
+}
+
+/** 本句单独设置的音色描述（没有则为 null）。 */
+export function lineVoiceOverride(data: Record<string, unknown>, lineId: string): string | null {
+  const override = (data.lineVoiceInstructions as Record<string, unknown> | undefined)?.[lineId];
+  return typeof override === 'string' && override.trim() && override.length <= 200 ? override.trim() : null;
+}
+
+/**
+ * 生成这一句时实际使用的音色标识：没有基准时是音色描述；有基准时包含基准音频，
+ * 换基准会让其他句子显示「待更新」，基准句自身保持当前。
+ */
+export function voiceKeyOf(data: Record<string, unknown>, lineId: string): string {
+  const reference = voiceReferenceOf(data);
+  if (!reference) return effectiveLineVoice(data, lineId);
+  if (lineId === reference.lineId && reference.voice) return reference.voice;
+  const override = lineVoiceOverride(data, lineId);
+  return `音色基准 ${reference.audioRef}#${reference.startMs}-${reference.endMs}${override ? ` · ${override}` : ''}`;
+}
+
 export function lineGenerationCurrent(data: Record<string, unknown>, lineId: string, text: string): boolean {
   const texts = data.generatedLineTexts as Record<string, unknown> | undefined;
   const voices = data.generatedLineVoices as Record<string, unknown> | undefined;
-  return texts?.[lineId] === text && voices?.[lineId] === effectiveLineVoice(data, lineId);
+  return texts?.[lineId] === text && voices?.[lineId] === voiceKeyOf(data, lineId);
 }
 
 export function dubbingCounts(data: Record<string, unknown>) {
@@ -35,7 +65,7 @@ export function lineAudioSource(data: Record<string, unknown>, lineId: string) {
 }
 
 export function candidateMatches(data: Record<string, unknown>, candidate: DubbingCandidate) {
-  return candidate.videoRef === data.videoRef && effectiveLineVoice(data, candidate.lineId) === candidate.voice
+  return candidate.videoRef === data.videoRef && voiceKeyOf(data, candidate.lineId) === candidate.voice
     && (candidate.previousSource === undefined || candidate.previousSource === lineAudioSource(data, candidate.lineId))
     && Array.isArray(data.rewriteLines) && data.rewriteLines.some(line => line.id === candidate.lineId && line.text === candidate.text);
 }

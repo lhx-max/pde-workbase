@@ -4,21 +4,22 @@ import type { MediaLookup } from './media';
 
 import { useState } from 'react';
 import type { RefObject } from 'react';
-import { buildPlaybackPlan, gainRegionsOf, originalGainOf } from '../playback-plan';
+import { gainRegionsOf, originalGainOf } from '../playback-plan';
 import type { DubbingPlayback } from '../dubbing-editor';
 import type { GainRegion } from '../playback-plan';
 import type { RewriteLine as TimedDubbingLine } from '../rewrite';
-import { directorOf, displayTime, intersecting, lineFingerprint, listenLabel, makeRange, overlaps, rangeOf, rewriteWindows, shiftFollowing } from './director-edits';
+import { directorOf, displayTime, intersecting, listenLabel, makeRange, overlaps, rangeOf, shiftFollowing } from './director-edits';
 import type { EditData, ListenMode, TimeRange } from './director-edits';
 import styles from './workbench.module.css';
 
 const PANELS = [
-  ['listen', '选区与试听'], ['timing', '间隔与标记'], ['mix', '音量'], ['review', '审阅'],
+  ['listen', '选区与试听'], ['timing', '间隔与标记'], ['mix', '音量'],
 ] as const;
 
 type Props = {
   data: EditData;
-  mediaUrl: MediaLookup;
+  /** 保留以兼容调用方；批注与参考音频功能已移除。 */
+  mediaUrl?: MediaLookup;
   rows: TimedDubbingLine[];
   duration: number;
   time: () => number;
@@ -35,7 +36,7 @@ type Props = {
   playing?: boolean;
 };
 
-export function DirectorTools({ data, mediaUrl, rows, duration, time, selectedId, select, ranges, setRanges, mode, setMode, playback, disabled, patch, playing = false }: Props) {
+export function DirectorTools({ data, rows, duration, time, selectedId, select, ranges, setRanges, mode, setMode, playback, disabled, patch, playing = false }: Props) {
   const state = directorOf(data);
   const [panel, setPanel] = useState<typeof PANELS[number][0]>('listen');
   const [feedback, setFeedback] = useState('');
@@ -51,14 +52,11 @@ export function DirectorTools({ data, mediaUrl, rows, duration, time, selectedId
   const [gain, setGain] = useState(0.5);
   const [fade, setFade] = useState(200);
   const [clipboard, setClipboard] = useState<Pick<GainRegion, 'track' | 'gain' | 'fadeMs'> | null>(null);
-  const [note, setNote] = useState('');
-  const [reviewKind, setReviewKind] = useState<'voice' | 'caption'>('voice');
   const line = rows.find(row => row.id === selectedId);
   const selectedWindow = line ? rangeOf(line) : null;
   const area = ranges.length ? ranges : selectedWindow ? [selectedWindow] : [];
   const locked = state.locks ?? [];
   const markers = state.markers ?? [];
-  const notes = state.notes ?? [];
   const byTime = [...rows].sort((a, b) => a.videoStartMs - b.videoStartMs);
   const index = byTime.findIndex(row => row.id === line?.id);
   const preceding = index > 0 ? byTime[index - 1] : null;
@@ -67,8 +65,6 @@ export function DirectorTools({ data, mediaUrl, rows, duration, time, selectedId
   const hasBackground = Boolean(data.directorBackgroundRef);
   const listening: ListenMode[] = hasBackground ? ['mix', 'original', 'voice', 'background'] : ['mix', 'original', 'voice'];
   const liveRegions = [...gainRegionsOf(data, 'voice'), ...gainRegionsOf(data, 'original'), ...gainRegionsOf(data, 'background')];
-  const checked = (row: TimedDubbingLine) => state.review?.[`${reviewKind}/${row.id}`] === lineFingerprint(data, row, reviewKind);
-  const activeReview = line ?? byTime.find(row => !checked(row)) ?? byTime[0];
   const gap = gapDraft?.id === line?.id ? gapDraft?.value ?? currentGap : currentGap;
   const clampedGap = Math.round(Math.max(0, Math.min(duration, gap)));
   const saveDirector = (changes: Partial<typeof state>) => patch({ directorEdit: { ...state, ...changes } });
@@ -98,23 +94,6 @@ export function DirectorTools({ data, mediaUrl, rows, duration, time, selectedId
     }] : [];
   }
 
-  function saveArrangement(slot: 'A' | 'B') {
-    const items = area.length ? intersecting(rows, area) : rows;
-    if (!items.length) throw new Error('所选区间内没有台词。');
-    const windows = Object.fromEntries(items.map(row => [row.id, rangeOf(row)!]));
-    if (saveDirector({ arrangements: { ...state.arrangements, [slot]: { label: slot, windows } } })) {
-      setFeedback(`已保存方案 ${slot}，包含 ${items.length} 句的时间区间。`);
-    }
-  }
-
-  function applyArrangement(slot: 'A' | 'B', apply: boolean) {
-    const arrangement = state.arrangements?.[slot];
-    if (!arrangement) return;
-    const changes = rewriteWindows(data, arrangement.windows, duration);
-    if (apply) patch(changes);
-    else play(windowForDraft(changes, Object.keys(arrangement.windows)), false, { ...data, ...changes });
-  }
-
   function applyGain(preset: Pick<GainRegion, 'track' | 'gain' | 'fadeMs'>) {
     if (!area.length || !Number.isFinite(preset.gain) || !Number.isFinite(preset.fadeMs) || preset.fadeMs < 0) {
       throw new Error('请选中区间并填写有效的音量与渐变时长。');
@@ -133,19 +112,6 @@ export function DirectorTools({ data, mediaUrl, rows, duration, time, selectedId
     if (patch({ directorGainRegions: next })) setFeedback('选区音量已应用，播放与导出会使用该设置。');
   }
 
-  function audioRefs(ranges: TimeRange[]) {
-    return [...new Set(buildPlaybackPlan(data, 0).filter(item => ranges.some(range => overlaps(range, {
-      startMs: item.delayMs, endMs: item.delayMs + item.durationMs,
-    }))).map(item => item.audioRef))];
-  }
-
-  function nextReview(afterId?: string) {
-    const start = byTime.findIndex(row => row.id === afterId);
-    const queue = [...byTime.slice(start + 1), ...byTime.slice(0, Math.max(0, start))];
-    const next = queue.find(row => !checked(row));
-    if (next) { select(next.id); play([rangeOf(next)!]); }
-    else setFeedback('当前类别没有待审阅的台词。');
-  }
 
   return <section className={styles.director} aria-label="导演工具">
     <div className={styles.actionRow}>
@@ -169,7 +135,7 @@ export function DirectorTools({ data, mediaUrl, rows, duration, time, selectedId
       <span className={styles.panelHint}>{ranges.length ? `已选 ${ranges.length} 段 · ${intersecting(rows, ranges).length} 句` : '在时间轴框选，或点选一句台词'}</span>
     </div>
     <details className={styles.advancedTools}>
-    <summary>选区工具 · 音量、节奏与审阅</summary>
+    <summary>选区工具 · 音量与节奏</summary>
     <div className={styles.directorTabs} role="group" aria-label="编辑工具">
       {PANELS.map(([key, text]) => <button key={key} className={styles.tabButton} aria-pressed={panel === key} onClick={() => { setPanel(key); setFeedback(''); }}>{text}</button>)}
     </div>
@@ -214,14 +180,6 @@ export function DirectorTools({ data, mediaUrl, rows, duration, time, selectedId
           {locked.map((range, i) => <button key={i} className={styles.chip} disabled={disabled} onClick={() => saveDirector({ locks: locked.filter((_, index) => i !== index) })}>
             解锁 {displayTime(range.startMs)} – {displayTime(range.endMs)}
           </button>)}
-        </div>
-        <div className={styles.actionRow}>
-          <span className={styles.panelHint}>时间方案</span>
-          {(['A', 'B'] as const).map(slot => <span className={styles.controlGroup} role="group" aria-label={`时间方案 ${slot}`} key={slot}>
-            <button className={styles.chip} disabled={!rows.length || disabled} onClick={() => run(() => saveArrangement(slot))}>存为 {slot}</button>
-            <button className={styles.chip} disabled={!state.arrangements?.[slot] || disabled} onClick={() => run(() => applyArrangement(slot, false))}>试听 {slot}</button>
-            <button className={styles.chip} disabled={!state.arrangements?.[slot] || disabled} onClick={() => run(() => applyArrangement(slot, true))}>采用 {slot}</button>
-          </span>)}
         </div>
       </>}
       {panel === 'timing' && <>
@@ -299,43 +257,6 @@ export function DirectorTools({ data, mediaUrl, rows, duration, time, selectedId
           <button className={styles.chip} disabled={disabled} aria-label={`移除 ${displayTime(region.startMs)} 的音量调整`}
             onClick={() => patch({ directorGainRegions: liveRegions.filter(item => item !== region) })}>×</button>
         </span>)}</div>}
-      </>}
-      {panel === 'review' && <>
-        <div className={styles.actionRow}>
-          <select aria-label="审阅类型" value={reviewKind} onChange={event => setReviewKind(event.target.value as typeof reviewKind)}>
-            <option value="voice">核对配音</option><option value="caption">核对字幕</option>
-          </select>
-          <span role="status" className={styles.panelHint}>已核对 {rows.filter(checked).length}/{rows.length}</span>
-          <button className={styles.toolBtn} disabled={!activeReview || disabled} onClick={() => {
-            if (activeReview) { select(activeReview.id); play([rangeOf(activeReview)!]); }
-          }}>试听当前</button>
-          <button className={styles.toolBtn} disabled={!activeReview || disabled} onClick={() => {
-            if (activeReview && saveDirector({ review: { ...state.review, [`${reviewKind}/${activeReview.id}`]: lineFingerprint(data, activeReview, reviewKind) } })) nextReview(activeReview.id);
-          }}>通过并下一句</button>
-          <button className={styles.chip} disabled={!activeReview || disabled} onClick={() => nextReview(activeReview?.id)}>跳过</button>
-          {activeReview && <span className={styles.reviewText}>{activeReview.text}</span>}
-        </div>
-        <div className={styles.actionRow}>
-          <input aria-label="审阅批注" placeholder="给选区或当前句留批注" maxLength={300} value={note} onChange={event => setNote(event.target.value)} />
-          <button className={styles.toolBtn} disabled={!area.length || !note.trim() || disabled} onClick={() => {
-            if (saveDirector({ notes: [...notes, ...area.map(range => ({
-              id: crypto.randomUUID(), range, text: note.trim(), resolved: false, audioRefs: audioRefs([range]),
-            }))] })) setNote('');
-          }}>添加时间批注</button>
-        </div>
-        {notes.map(item => <div className={styles.actionRow} key={item.id}>
-          <button className={styles.chip} onClick={() => { setRanges([item.range]); play([item.range]); }}>{displayTime(item.range.startMs)} – {displayTime(item.range.endMs)}</button>
-          <span className={styles.reviewText}>{item.text}</span>
-          {!!item.audioRefs.length && <details className={styles.referenceAudio}><summary>{item.audioRefs.length} 个参考音频</summary>
-            {item.audioRefs.map((ref, index) => <audio key={ref} controls preload="none" aria-label={`参考音频 ${index + 1}`} src={mediaUrl(ref)} />)}
-          </details>}
-          <button className={styles.chip} disabled={disabled} onClick={() => saveDirector({ notes: notes.map(entry => entry.id === item.id ? {
-            ...entry, audioRefs: [...new Set([...entry.audioRefs, ...audioRefs([item.range])])],
-          } : entry) })}>附上当前配音</button>
-          <button className={styles.chip} disabled={disabled} onClick={() => saveDirector({ notes: notes.map(entry => entry.id === item.id ? {
-            ...entry, resolved: !entry.resolved,
-          } : entry) })}>{item.resolved ? '重新打开' : '标为已处理'}</button>
-        </div>)}
       </>}
       {feedback && <div className={styles.panelHint} role="status">{feedback}</div>}
     </div>

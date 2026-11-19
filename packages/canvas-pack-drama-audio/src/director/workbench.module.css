@@ -913,3 +913,12 @@ details.panel > summary { cursor: pointer; }
 .rewritePanel summary { cursor: pointer; }
 .rewritePanel textarea { width: 100%; box-sizing: border-box; margin: 6px 0; color: inherit; background: var(--bg-app); }
 .rewritePreview { max-height: 170px; overflow: auto; padding-left: 22px; }
+
+/* 左侧导入区可折叠；台词列表标题右侧放批量配音。 */
+.assetImports { border-top: 1px solid var(--border-default); padding-top: 10px; }
+.assetImports > summary { cursor: pointer; font-size: 12px; color: var(--text-secondary); padding: 2px 0 8px; }
+.assetImports .toolbar { flex-direction: column; align-items: stretch; padding: 0; border: 0; background: none; gap: 6px; }
+.assetImports .toolbar .toolBtn { padding: 10px 12px; text-align: left; }
+.voiceBar { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+.voiceBar .chip { margin-left: 4px; }
+.transcriptHeader { flex-wrap: wrap; gap: 8px; }
