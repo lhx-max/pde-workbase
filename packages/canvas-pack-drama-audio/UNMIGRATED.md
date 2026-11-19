@@ -9,7 +9,7 @@
 | 媒体持久化 | 画布持久保存台词、剪辑参数和素材引用。合同 v1 的渲染器没有授权的媒体读写口，视频和音频需要在本次会话中绑定；刷新后按文件内容恢复，或从交接包取回素材。 |
 | 在线改写与配音 | 卡内生成改写请求，由画布 Agent 或 CLI 提交 `card.drama.audio.rewrite`，需要服务端配置万擎。本机配音依赖已在运行的 VoxCPM（`pnpm voice`），且页面须运行于 `127.0.0.1`。 |
 | 文件导出 | 浏览器端导出 WAV、SRT、交接包，以及具备 H.264/AAC 编码时的 MP4。服务端动作通过 `ctx.files` 写入 SRT 和 EDL。 |
-| 宿主依赖 | 提交到官方基线时，除卡包目录外，还需要 `packs.ts`、`card-packs.ts` 两处注册行，以及 `canvas-workbench`、`apps/server` 的依赖声明和锁文件，这部分需与 Owner 确认。 |
+| 宿主依赖 | 提交到官方基线时，除卡包目录外，还需要 `packs.ts`、`card-packs.ts` 两处注册行，`canvas-workbench`、`apps/server` 各一行依赖声明（与基线参考包 `canvas-pack-demo` 的挂载方式相同），以及 `pnpm-lock.yaml` 中卡包自身的 40 行登记（只增不删，不改动其他包的条目）。这部分需与 Owner 确认。 |
 
 ## 待验收
 

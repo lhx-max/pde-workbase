@@ -114,8 +114,15 @@ PDE 挑战赛 M 端命题「多模态生成的编辑器应用开发」的交付�
 ```sh
 pnpm --filter @bezier/canvas-pack-drama-audio typecheck
 pnpm --filter @bezier/canvas-pack-drama-audio test
-pnpm --filter @bezier/canvas-pack-drama-audio test:coverage   # 覆盖率门槛：行与语句 ≥60%
 pnpm --filter @bezier/canvas-pack-drama-audio build           # 产出 ./server 入口
+```
+
+覆盖率门槛为行与语句 ≥60%（见 `vitest.config.ts`），当前为行 74.16%、语句 70.84%（371 个测试）。为了不改动工作区其他包的锁文件条目，卡包不常驻覆盖率插件；测量时临时安装，测完还原：
+
+```sh
+pnpm --filter @bezier/canvas-pack-drama-audio add -D @vitest/coverage-v8@4.1.6
+pnpm --filter @bezier/canvas-pack-drama-audio exec vitest run --coverage
+git checkout -- packages/canvas-pack-drama-audio/package.json pnpm-lock.yaml && pnpm install
 ```
 
 本地运行画布（显式隔离数据目录，仅用于开发验证，不代表云端验收）：
