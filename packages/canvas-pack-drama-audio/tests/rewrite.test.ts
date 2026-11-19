@@ -1,6 +1,7 @@
 import { createServer, type Server } from 'node:http';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateVideoRewrite } from '../src/providers';
+import { adoptRewriteDraft } from '../src/rewrite-draft';
 import { rewrite } from '../src/ops';
 import { DEFAULT_REWRITE_PROMPT, insertRewriteLine, changeRewriteWindow, REWRITE_BODY_MAX_BYTES, validateRewriteLines, validateRewriteRequest, type VideoRewriteRequest } from '../src/rewrite';
 
@@ -214,6 +215,19 @@ describe('rewrite handler', () => {
   it.each([{ script: '未保存' }, { prompt: '未保存' }, { videoRef: 'inputs/other.mp4' }, { videoDurationMs: 4001 }])('拒绝未保存输入 %#', async patch => {
     await expect(call(node, { ...input, ...patch })).rejects.toThrow('已保存节点不一致');
     expect(requests).toHaveLength(0);
+  });
+
+  it('普通配音卡保留当前稿件，预览后可采用并拒绝过期建议', async () => {
+    const target = { ...node, data: { ...node.data, stage: 'edit', rewriteLines: [lines[1]] } };
+    const result = await call(target, { ...input });
+    expect(result?.data).toEqual({ rewriteDraft: {
+      lines, provider: 'wanqing:fixture-text-only', visionProvider: 'wanqing:fixture-vision',
+      input: { script: input.script, prompt: input.prompt, videoRef: input.videoRef, videoDurationMs: input.videoDurationMs },
+    } });
+    const saved = { ...target.data, ...result?.data };
+    expect(saved.rewriteLines).toEqual([lines[1]]);
+    expect(adoptRewriteDraft(saved)).toMatchObject({ script: '改写台词\n第二段', rewriteLines: lines, segments: [], audioRef: null });
+    expect(() => adoptRewriteDraft({ ...saved, videoRef: 'inputs/other.mp4' })).toThrow('失效');
   });
 
   it('拒绝非改写卡', async () => {

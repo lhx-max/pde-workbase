@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CardRenderProps } from '@bezier/canvas-card-sdk';
-import { adoptDubbingCandidate, candidateMatches, type DubbingCandidate, dubbingCounts, generateDubbingCandidate, demoMediaUrl, demoProjectOf, ensureDubbingListCard, effectiveLineVoice, lineGenerationCurrent, startDemoTts, synthesizeDemoLines } from './demo-adapter';
+import { adoptDubbingCandidate, candidateMatches, dubbingCounts, effectiveLineVoice, lineGenerationCurrent, type DubbingCandidate } from './dubbing';
+import { generateDubbingCandidate, demoMediaUrl, demoProjectOf, ensureDubbingListCard, startDemoTts, synthesizeDemoLines } from './demo-adapter';
+import { checkLocalVoice, fillMissing, generateCandidate, localVoiceAvailable } from './director/local-voice';
+import { requireMedia, type MediaLookup } from './director/media';
 import { readDramaAudioData, shiftSegmentWindow } from './edl';
 import { buildDirectorPlaybackPlan, gainAt, gainRegionsOf, originalGainOf, playbackDriftMs, resolvePlaybackDuration, scheduleMixGain, type AudioListenMode } from './playback-plan';
 import { insertRewriteLine, validateRewriteLines, type RewriteLine as TimedRewriteLine } from './rewrite';
@@ -83,11 +86,16 @@ function NumberField({ label, value, max, onChange }: {
     onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }} /></label>;
 }
 
-export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRef, selectedLineId, onLineSelect, beforeGenerate, onGenerationChange, batchGenerating = false, onOriginalAudio, playback, listenMode, guardPatch }: CardRenderProps & {
+export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRef, selectedLineId, onLineSelect, sessionMedia, beforeGenerate, onGenerationChange, batchGenerating = false, onOriginalAudio, playback, listenMode, guardPatch }: CardRenderProps & {
   listOnly?: boolean;
   externalVideoRef?: React.RefObject<HTMLVideoElement>;
   selectedLineId?: string | null;
   onLineSelect?: (id: string | null) => void;
+  sessionMedia?: {
+    resolve: MediaLookup;
+    add: (file: File) => Promise<string>;
+    readData: () => Record<string, unknown>;
+  };
   beforeGenerate?: () => Promise<boolean>;
   onGenerationChange?: (generating: boolean) => void;
   batchGenerating?: boolean;
@@ -98,7 +106,8 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
 }) {
   const data = useMemo(() => readDramaAudioData(node), [node.data]);
   const raw = node.data ?? {};
-  const project = demoProjectOf(node);
+  const project = sessionMedia ? null : demoProjectOf(node);
+  const canGenerate = sessionMedia ? localVoiceAvailable() : Boolean(project);
   const lines = readLines(raw.rewriteLines);
   const confirmed = Array.isArray(raw.confirmedLineIds) ? raw.confirmedLineIds.filter((id): id is string => typeof id === 'string') : [];
   const rows = [...lines, ...data.segments.filter(segment => !lines.some(line => line.id === segment.id)).map(segment => ({ id: segment.id, text: segment.label, videoStartMs: segment.videoStartMs, videoEndMs: segment.videoEndMs }))];
@@ -182,7 +191,9 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
   editSegmentRef.current = editSegment;
   const videoDurationMs = resolvePlaybackDuration(data.videoDurationMs, mediaDurationMs);
   let videoUrl: string | undefined;
-  try { videoUrl = project && data.videoRef ? demoMediaUrl(project, data.videoRef) : undefined; }
+  try {
+    if (data.videoRef) videoUrl = sessionMedia ? sessionMedia.resolve(data.videoRef) : project ? demoMediaUrl(project, data.videoRef) : undefined;
+  }
   catch { videoUrl = undefined; }
   const videoDurationMsRef = useRef(videoDurationMs);
   videoDurationMsRef.current = videoDurationMs;
@@ -420,13 +431,15 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
 
   function patch(changes: Record<string, unknown>) {
     const current = latest.current;
-    const next = { ...current.raw, stage: 'edit', ...changes };
-    try { current.guardPatch?.(next); }
+    const next = { ...(sessionMedia?.readData() ?? current.raw), stage: 'edit', ...changes };
+    try {
+      current.guardPatch?.(next);
+      current.onPatch({ data: next });
+    }
     catch (reason) {
       setError(reason instanceof Error ? reason.message : '编辑未应用');
       return false;
     }
-    current.onPatch({ data: next });
     return true;
   }
 
@@ -513,7 +526,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
   }
 
   async function loadAudio(planData = latest.current.data as Pick<DramaAudioData, 'segments' | 'audioRef' | 'masterGain'>, mode = latest.current.listenMode ?? 'voice', at = 0) {
-    if (!project) return;
+    if (!project && !sessionMedia) return;
     stop();
     loaded.current = false;
     loadController.current?.abort();
@@ -531,7 +544,8 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
       if (!refs.length) throw new Error('尚无逐句配音，请先生成');
       await Promise.all(refs.map(async ref => {
         if (buffers.current.has(ref)) return;
-        const response = await fetch(demoMediaUrl(project, ref), { signal: controller.signal, redirect: 'error' });
+        const url = sessionMedia ? requireMedia(sessionMedia.resolve, ref) : demoMediaUrl(project!, ref);
+        const response = await fetch(url, { signal: controller.signal, redirect: 'error' });
         if (!response.ok) throw new Error(`音频读取失败 HTTP ${response.status}：${ref}`);
         const buffer = await audioContext.decodeAudioData(await response.arrayBuffer());
         if (controller.signal.aborted) return;
@@ -563,14 +577,15 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
   };
 
   async function startTtsService() {
-    if (!project || startingTts || generating || batchGenerating) return;
+    if (!canGenerate || startingTts || generating || batchGenerating) return;
     const controller = new AbortController();
     generationController.current = controller;
     setStartingTts(true);
     setError('');
-    setGenerationStatus('正在检查并启动本地 TTS…');
+    setGenerationStatus(sessionMedia ? '正在检查本地 TTS…' : '正在检查并启动本地 TTS…');
     try {
-      await startDemoTts(project, node.id, controller.signal);
+      if (sessionMedia) await checkLocalVoice(controller.signal);
+      else if (project) await startDemoTts(project, node.id, controller.signal);
       setGenerationStatus('本地 TTS 接口已就绪；首次生成将加载模型');
     } catch (reason) {
       if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : '本地 TTS 启动失败');
@@ -581,7 +596,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
   }
 
   async function generate(onlyLineId?: string) {
-    if (!project || generationController.current || batchGenerating) return;
+    if (!canGenerate || generationController.current || batchGenerating) return;
     const controller = new AbortController();
     generationController.current = controller;
     setGenerating(true);
@@ -591,14 +606,21 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     try {
       if (beforeGenerate && !await beforeGenerate()) throw new Error('请先解决草稿保存问题');
       if (onlyLineId) {
-        const result = await generateDubbingCandidate(project, node.id, onlyLineId, controller.signal);
+        const result = sessionMedia
+          ? await generateCandidate(sessionMedia.readData, sessionMedia.add, onlyLineId, controller.signal)
+          : await generateDubbingCandidate(project!, node.id, onlyLineId, controller.signal);
         setCandidate(result);
         setGenerationStatus('候选已就绪，可以试听后采用。');
       } else {
-        await ensureDubbingListCard(project, node.id, controller.signal);
-        await synthesizeDemoLines(project, node.id, controller.signal, message => {
+        const progress = (message: string) => {
           if (!controller.signal.aborted) setGenerationStatus(message);
-        });
+        };
+        if (sessionMedia) {
+          await fillMissing(sessionMedia.readData, patch, sessionMedia.add, controller.signal, progress);
+        } else if (project) {
+          await ensureDubbingListCard(project, node.id, controller.signal);
+          await synthesizeDemoLines(project, node.id, controller.signal, progress);
+        }
       }
     } catch (reason) {
       if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : '配音生成失败');
@@ -723,7 +745,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     <summary style={styles.collapsedRow}>{externalVideoRef ? '整体音色与播放设置' : '整体配音设置与播放控制'}</summary>
     <strong>逐句配音编辑</strong>
     <div style={styles.hint}>视频是唯一主时钟。自动建议尚待逐句确认；静音不压缩视频，停顿保留在视频区间尾部。</div>
-    {!project && <div style={styles.warning}>本地 demo 项目不可用；不会回退或模拟生成成功。</div>}
+    {!canGenerate && <div style={styles.warning}>{sessionMedia ? '本机 VoxCPM 仅在回环地址下可用。' : '本地 demo 项目不可用。'}</div>}
     {videoUrl && !externalVideoRef ? <video ref={video} src={videoUrl} controls muted={!originalAudio} preload="metadata" style={{ width: '100%', maxHeight: 260, background: '#000', borderRadius: 6 }}
       onError={() => { stop(); setError('视频读取失败，无法同步试听'); }} /> : !externalVideoRef && <div style={styles.warning}>未绑定有效视频工程文件</div>}
     <div style={styles.row}>
@@ -738,10 +760,10 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     </div>
     <VoicePicker value={data.voiceInstruction} styles={styles} onChange={next => patch({ voiceInstruction: next })} />
     <div style={styles.row}>
-      <button style={styles.button} disabled={!project || startingTts || generating} onClick={() => void startTtsService()}>{startingTts ? 'TTS 启动中…' : '启动 / 检查本地 TTS'}</button>
-      <button style={{ ...styles.primaryButton, opacity: !project || !rows.length || generating || loading || startingTts ? 0.45 : 1 }} disabled={!project || !counts.missing || generating || loading || startingTts || batchGenerating} onClick={() => void generate()}>补齐逐句配音</button>
+      <button style={styles.button} disabled={!canGenerate || startingTts || generating} onClick={() => void startTtsService()}>{startingTts ? 'TTS 启动中…' : sessionMedia ? '检查本地 TTS' : '启动 / 检查本地 TTS'}</button>
+      <button style={{ ...styles.primaryButton, opacity: !canGenerate || !rows.length || generating || loading || startingTts ? 0.45 : 1 }} disabled={!canGenerate || !counts.missing || generating || loading || startingTts || batchGenerating} onClick={() => void generate()}>补齐逐句配音</button>
       {generating && <button style={styles.dangerButton} onClick={() => { generationController.current?.abort(); setGenerationStatus('已请求停止；已有音频保留，未完成结果不自动重试'); }}>停止生成</button>}
-      <button style={styles.button} disabled={!project || !videoUrl || loading || generating} onClick={() => void loadAudio(latest.current.data, 'voice')}>载入配音试听</button>
+      <button style={styles.button} disabled={(!project && !sessionMedia) || !videoUrl || loading || generating} onClick={() => void loadAudio(latest.current.data, 'voice')}>载入配音试听</button>
       <button style={styles.successButton} disabled={!videoUrl || loading || generating} onClick={() => void playPreview()}>同步播放</button>
       <button style={styles.button} disabled={!videoUrl} onClick={stopCandidatePreview}>暂停</button>
     </div>
@@ -831,7 +853,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
         <div style={styles.row}>
           <NumberField label={externalVideoRef ? '本句音量（0–2）' : '本句音量 0..2'} value={lineGain} max={2} onChange={value => { if (value !== null) editLineGain(line.id, value); }} />
           <span style={styles.hint}>试听音量 = 总音量 × 本句音量；改音量无需重新生成</span>
-          <button style={styles.primaryButton} disabled={generating || startingTts || batchGenerating || loading || !project} onClick={() => void generate(line.id)}>生成本句配音候选</button>
+          <button style={styles.primaryButton} disabled={generating || startingTts || batchGenerating || loading || !canGenerate} onClick={() => void generate(line.id)}>生成本句配音候选</button>
         </div>
         {generating && externalVideoRef && <button style={styles.button} onClick={() => generationController.current?.abort()}>停止等待配音</button>}
         {candidate?.lineId === line.id && <div style={styles.row}>

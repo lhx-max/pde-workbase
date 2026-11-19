@@ -29,6 +29,8 @@ import {
 import { DRAMA_AUDIO_DATA_VERSION, type DramaAudioData, type DramaAudioSegment } from './types';
 import { generateCaptions, generateDubbing, generateVideoRewrite } from './providers';
 import { validateRewriteRequest } from './rewrite';
+import { currentRewriteInput, sameRewriteInput } from './rewrite-draft';
+import { makeSubtitles } from './subtitles';
 import { ensureLocalTts } from './local-tts';
 
 type Patch = { data?: Record<string, unknown> };
@@ -266,23 +268,39 @@ export const exportEdl: CardPackOpHandler = async (node, params, ctx) => {
   return fullPatch({ ...data, exportedPath: path, exportedDigest: digest });
 };
 
+export const exportSrt: CardPackOpHandler = async (node, params, ctx) => {
+  if (Object.keys(params).length) throw new Error('card.drama.audio: 导出字幕无需参数');
+  const data = node.data as Record<string, unknown> | undefined;
+  const duration = assertInteger('videoDurationMs', data?.videoDurationMs, 1, DURATION_MS_MAX);
+  const srt = makeSubtitles(data?.rewriteLines, duration);
+  const path = exportPathFor(node.id).replace(/\.json$/u, '.srt');
+  await ctx.files.write(ctx.projectId, path, srt);
+  return { data: { subtitlePath: path } };
+};
+
 export const rewrite: CardPackOpHandler = async (node, params) => {
   if (!params || typeof params !== 'object' || Array.isArray(params)) throw new Error('card.drama.audio: params 必须是 JSON 对象');
   const input = validateRewriteRequest(params);
   if (!node.data || typeof node.data !== 'object' || Array.isArray(node.data)) throw new Error('card.drama.audio: 目标不是改写卡');
   const data = node.data as Record<string, unknown>;
-  if (data.stage !== 'rewrite') throw new Error('card.drama.audio: 目标不是改写卡');
-  if (data.script !== input.script || data.rewritePrompt !== input.prompt || data.videoRef !== input.videoRef || data.videoDurationMs !== input.videoDurationMs) throw new Error('card.drama.audio: 原稿、prompt、视频或时长与已保存节点不一致，请先保存');
+  const stage = data.stage;
+  if (stage !== undefined && stage !== 'edit' && stage !== 'rewrite') throw new Error('card.drama.audio: 目标不是改写卡');
+  const current = currentRewriteInput(data);
+  if (!sameRewriteInput(input, current)) throw new Error('card.drama.audio: 原稿、prompt、视频或时长与已保存节点不一致，请先保存');
   const { provider, visionProvider, observations, lines, doc } = await generateVideoRewrite(input);
-  return { data: {
+  const patch = stage === 'rewrite' ? {
     rewriteLines: lines,
     rewriteDoc: doc,
     rewriteProvider: provider,
     rewriteVisionProvider: visionProvider,
     rewriteObservations: observations,
-    rewriteInput: { script: input.script, prompt: input.prompt, videoRef: input.videoRef, videoDurationMs: input.videoDurationMs },
+    rewriteInput: current,
     rewriteConfirmed: false,
-  } };
+  } : { rewriteDraft: { input: current, provider, visionProvider, lines } };
+  if (new TextEncoder().encode(JSON.stringify({ ...node, data: { ...data, ...patch } })).byteLength > 256 * 1024) {
+    throw new Error('card.drama.audio: 原稿与改写建议超出卡片容量，请分段改写');
+  }
+  return { data: patch };
 };
 
 export const startTts: CardPackOpHandler = async (node, params, ctx) => {
@@ -312,4 +330,5 @@ export const dramaAudioOps = {
   compose,
   rewrite,
   export: exportEdl,
+  'export-srt': exportSrt,
 } satisfies Record<string, CardPackOpHandler>;

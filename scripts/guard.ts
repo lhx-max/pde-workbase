@@ -12,6 +12,8 @@ const files: string[] = [];
 function visit(directory: string) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     if (excluded.has(entry.name)) continue;
+    // The root ignore rule reserves this directory for local data and tools.
+    if (directory === root && entry.name === '.runtime' && entry.isDirectory()) continue;
     const filename = path.join(directory, entry.name);
     const relative = path.relative(root, filename).split(path.sep).join('/');
     if (entry.isSymbolicLink()) {

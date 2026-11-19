@@ -1,4 +1,5 @@
 import { createElement } from 'react';
+import { DirectorCard } from './director/card';
 import { RewriteCard } from './rewrite-card';
 import { DubbingListCard } from './dubbing-list-card';
 import { DubbingEditor } from './dubbing-editor';
@@ -12,7 +13,19 @@ export { synthesizeDemoLines, demoMediaUrl, demoProjectOf, readDubbingListSource
 const dramaAudioPack: CardPack = {
   name: '@bezier/canvas-pack-drama-audio',
   cards: [
-    { kind: 'card.drama.audio', render: props => createElement(props.node.data?.stage === 'rewrite' ? RewriteCard : props.node.data?.stage === 'line-list' ? DubbingListCard : props.node.data?.stage === 'edit' ? DubbingEditor : AudioCard, props) },
+    {
+      kind: 'card.drama.audio',
+      render: props => {
+        const { node } = props;
+        const legacyDemo = (node.data?.demoProfile ?? node.demoProfile) === 'local-test'
+          && typeof (node.data?.demoProjectId ?? node.demoProjectId) === 'string';
+        if (!legacyDemo) return createElement(DirectorCard, props);
+        const stage = node.data?.stage;
+        if (stage === 'rewrite') return createElement(RewriteCard, props);
+        if (stage === 'line-list') return createElement(DubbingListCard, props);
+        return createElement(stage === 'edit' ? DubbingEditor : AudioCard, props);
+      },
+    },
   ],
 };
 
