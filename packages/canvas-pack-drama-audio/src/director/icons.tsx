@@ -261,3 +261,10 @@ export function AlignHorizontal(props: IconProps) {
     <path d="M20 22V2" />
   </Icon>;
 }
+
+export function ArrowUp(props: IconProps) {
+  return <Icon {...props}>
+    <path d="m5 12 7-7 7 7" />
+    <path d="M12 19V5" />
+  </Icon>;
+}

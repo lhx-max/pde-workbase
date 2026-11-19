@@ -1,6 +1,7 @@
 'use client';
 
 import { AlignHorizontal, AudioLines, Check, ChevronLeft, ChevronRight, ClipboardPaste, Copy, Download, FileText, Film, LocateFixed, Magnet, MoreHorizontal, Redo2, Scan, Scissors, Sparkles, Trash2, Undo2, Upload, X } from './icons';
+import { AssistantPanel, type AssistantHost } from './assistant-panel';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CardRenderProps } from '@bezier/canvas-card-sdk';
 import { DubbingEditor, type DubbingPlayback } from '../dubbing-editor';
@@ -25,7 +26,7 @@ import { describeFit, fitTimeline, joinsOf, LAYOUT, setJoin } from './layout';
 import { audioDurationOf, deliveryIssues, download, exportSubtitles, exportWav, importScript, importVoice, linesOf, videoDurationOf } from './director-media';
 import styles from './workbench.module.css';
 
-/** 音频编辑工作台：视频与时间轴并排，选中内容在右侧编辑。 */
+/** 音频编辑工作台：左侧配音助手，中间视频、时间轴和台词表，选中内容在右侧编辑。 */
 
 interface EditorSegment { leadMs?: number; speed?: number; fitSpeed?: number; startMs?: number; endMs?: number; gapMs?: number; gain?: number; audioRefOverride?: string | null; id: string; text?: string; label?: string; muted?: boolean; videoStartMs?: number | null; videoEndMs?: number | null }
 type TimelineTrack = 'original' | 'voice' | 'background';
@@ -64,6 +65,7 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
   const previewVideo = useRef<HTMLVideoElement>(null);
   const live = useRef(true);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(true);
   const [autoFit, setAutoFit] = useState(true);
   const [showExport, setShowExport] = useState(false);
   const scriptList = useRef<HTMLDivElement>(null);
@@ -617,20 +619,26 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
     viewport.addEventListener('wheel', wheel, { passive: false });
     return () => viewport.removeEventListener('wheel', wheel);
   }, [!editorData.videoRef && !trackLines.length]);
-  function fitToVideo(extra: EditData = {}, quiet = false) {
+  /** 贴合视频，成功时返回结果说明。 */
+  function fitToVideo(extra: EditData = {}, quiet = false): string | false {
     try {
       const current = { ...(editor.draftData() ?? {}), ...extra };
       const { changes, report } = fitTimeline(current, durationMs);
-      if (applyEdit({ ...extra, ...changes })) setToolStatus(describeFit(report));
-      return true;
+      const message = describeFit(report);
+      if (!applyEdit({ ...extra, ...changes })) return false;
+      setToolStatus(message);
+      return message;
     } catch (error) {
       if (!quiet) setToolStatus(error instanceof Error ? error.message : '贴合失败');
       return false;
     }
   }
   /** 配音音频或句间衔接变化时自动重新贴合；只看音频与衔接，不看窗口，避免和手动拖动互相覆盖。 */
-  const signatureOf = (joins: Record<string, number>) => JSON.stringify([segments.map(item => [item.id, item.audioRefOverride ?? null, item.startMs, item.endMs, item.gapMs, item.speed ?? 1]), joins, rewriteLines.map(line => [line.id, line.text])]);
-  const fitSignature = signatureOf(joinsOf(data));
+  const signatureFor = (source: EditData) => JSON.stringify([
+    (Array.isArray(source.segments) ? source.segments as EditorSegment[] : []).map(item => [item.id, item.audioRefOverride ?? null, item.startMs, item.endMs, item.gapMs, item.speed ?? 1]),
+    joinsOf(source), linesOf(source).map(line => [line.id, line.text]),
+  ]);
+  const fitSignature = signatureFor(data);
   const fittedSignature = useRef(fitSignature);
   useEffect(() => {
     if (fittedSignature.current === fitSignature) return;
@@ -640,8 +648,8 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
   function editJoin(value: number | null) {
     if (!selectedLineId) return;
     const change = setJoin(editor.draftData() ?? {}, selectedLineId, value);
-    fittedSignature.current = signatureOf(change.lineJoins as Record<string, number>);
-    if (!fitToVideo(change)) applyEdit(change);
+    fittedSignature.current = signatureFor({ ...(editor.draftData() ?? {}), ...change });
+    if (fitToVideo(change) === false) applyEdit(change);
   }
   const chooseTrack = (track: TimelineTrack) => { setSelectedTrack(track); };
   const clipButtons = (labels: boolean) => <>
@@ -663,6 +671,69 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
   const progress = counts.total ? Math.round(counts.current / counts.total * 100) : 0;
   const offlineCount = trackLines.filter(audioOffline).length;
   const voiceReady = localVoiceAvailable();
+  const assistantHost: AssistantHost = {
+    context: { lines: rewriteLines.map(line => ({ id: line.id, text: line.text })), selectedId: selectedTrack ? null : selectedLineId },
+    read: () => editor.draftData() ?? {},
+    disabled: projectBusy,
+    autoFit,
+    apply(plan) {
+      if (projectBusy) return { ok: false, message: '正在处理其他任务，请稍后再试。' };
+      const current = editor.draftData() ?? {};
+      let changes = plan.changes;
+      let message: string | undefined;
+      if (plan.retime && autoFit && durationMs > 0) {
+        try {
+          const fit = fitTimeline({ ...current, ...changes }, durationMs);
+          changes = { ...changes, ...fit.changes };
+          message = describeFit(fit.report);
+        } catch { /* 贴合不了时只应用修改本身 */ }
+      }
+      try {
+        assertUnlocked(current, changes);
+        editor.patch(changes);
+      } catch (error) {
+        return { ok: false, message: error instanceof Error ? error.message : '修改未应用' };
+      }
+      // 修改和贴合已一次提交，不再触发自动贴合，保证一步撤销。
+      fittedSignature.current = signatureFor({ ...current, ...changes });
+      return { ok: true, ...(message ? { message } : {}) };
+    },
+    run(command) {
+      switch (command.op) {
+        case 'select': {
+          const line = trackLines.find(item => item.id === rewriteLines[command.line]?.id);
+          if (!line) return '找不到这句。';
+          selectTrackLine(line);
+          return `已定位到第 ${command.line + 1} 句。`;
+        }
+        case 'fit':
+          if (!durationMs || !trackLines.length) return '需要先导入视频和台词。';
+          return fitToVideo() || '贴合失败，请查看提示。';
+        case 'generate':
+          if (!voiceReady) return '本机配音需要在 127.0.0.1 打开页面并启动 VoxCPM。';
+          if (!counts.missing && !counts.stale && !offlineCount) return '所有句子都已有最新配音。';
+          void generateVoice(counts.missing ? 'missing' : offlineCount ? 'offline' : 'stale');
+          return counts.missing ? `开始补齐 ${counts.missing} 句缺失配音，进度显示在画面下方。` : offlineCount ? `开始重新生成未载入的 ${offlineCount} 句。` : `开始更新 ${counts.stale} 句配音。`;
+        case 'check': {
+          const issues = deliveryIssues(editor.draftData() ?? {}, durationMs);
+          return issues.length ? `发现 ${issues.length} 个问题：\n${issues.map(issue => `· ${issue}`).join('\n')}` : '检查未发现问题，可以导出。';
+        }
+        case 'play':
+          if (!videoUrl) return '视频还没有载入。';
+          void playback.current?.play();
+          return '开始同步播放。';
+        case 'undo':
+          if (!editor.history.undo.length) return '没有可以撤销的修改。';
+          editor.moveHistory('undo');
+          return '已撤销上一步。';
+        case 'export':
+          if (command.kind === 'mp4' && !videoUrl) return '视频还没有载入，不能导出 MP4。';
+          void deliver(command.kind);
+          return { srt: '正在导出字幕 SRT…', wav: '正在导出 WAV…', mp4: '正在录制 MP4，请保持页面在前台…', zip: '正在打包剪辑交接包…' }[command.kind];
+      }
+    },
+    undo: () => editor.moveHistory('undo'),
+  };
   function importFiles(files: File[]) {
     const file = files[0];
     if (!file) return;
@@ -742,35 +813,10 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
           <button type="button" className={styles.toolBtn} disabled={projectBusy} onClick={() => chooseVoice()}>导入整轨配音</button></li>
       </ol>
       {toolStatus && <div className={styles.notice} role="status">{toolStatus}</div>}
-    </section> : <div className={styles.grid}>
-      <aside className={styles.lineList} aria-label="台词列表">
-        <div className={styles.listHeader}>
-          <div className={styles.progressText}>{trackLines.length} 句 · 配音 {counts.current}/{counts.total} · 待确认 {Math.max(0, counts.total - counts.confirmed)}</div>
-          <div className={styles.progressBar} aria-hidden="true"><span style={{ width: `${progress}%` }} /></div>
-          <div className={styles.listActions}>
-            <button type="button" className={styles.toolBtn} disabled={!voiceReady || projectBusy || (!counts.missing && !counts.stale && !offlineCount)}
-              title={!voiceReady ? '本机配音需要在 127.0.0.1 打开并启动 VoxCPM' : counts.missing ? '为没有配音的句子逐句生成' : offlineCount ? '刷新后丢失音频的句子重新生成' : '重新生成文字或音色已变化的句子'}
-              onClick={() => void generateVoice(counts.missing ? 'missing' : offlineCount ? 'offline' : counts.stale ? 'stale' : 'missing')}><Sparkles size={14} />{generating ? '生成中…' : counts.missing ? '补齐缺失配音' : offlineCount ? `重新生成未载入的 ${offlineCount} 句` : counts.stale ? `更新 ${counts.stale} 句配音` : '补齐缺失配音'}</button>
-            {generating && <button type="button" className={styles.toolBtn} onClick={() => { generateController.current?.abort(); setToolStatus('已请求停止；已生成音频保留'); }}>停止</button>}
-          </div>
-        </div>
-        <div ref={scriptList} className={styles.lineRows}>
-          {trackLines.map((line, index) => {
-            const state = lineState(line);
-            const isConfirmed = editorData.confirmedLineIds?.includes(line.id) ?? false;
-            const offline = audioOffline(line);
-            return <button type="button" className={styles.lineRow} key={line.id} data-script-line-id={line.id} data-offline={offline}
-              aria-pressed={!selectedTrack && selectedLineId === line.id} onClick={() => selectTrackLine(line)}>
-              <span className={styles.lineDot} data-state={state} title={offline ? `${LINE_STATE_LABEL[state]} · 音频未载入，需重新生成或恢复` : LINE_STATE_LABEL[state]} />
-              <span className={styles.lineNumber}>{String(index + 1).padStart(2, '0')}</span>
-              <span className={styles.lineText} title={line.text ?? line.label ?? ''}>{line.text ?? line.label ?? '未填写台词'}</span>
-              <span className={styles.lineStatus} data-confirmed={isConfirmed} title={isConfirmed ? '已确认' : '待确认'}>{isConfirmed && <Check size={13} />}</span>
-            </button>;
-          })}
-          {!trackLines.length && <div className={styles.editorEmpty}><p>还没有台词。</p><button type="button" className={styles.toolBtn} onClick={() => scriptInput.current?.click()}>导入台词</button></div>}
-        </div>
-        <RewritePanel data={data} read={editor.draftData} patch={applyEdit} mediaUrl={media.resolve} disabled={projectBusy} ask={ask} />
-      </aside>
+    </section> : <div className={styles.grid} data-assistant={assistantOpen ? 'open' : 'closed'}>
+      {assistantOpen
+        ? <AssistantPanel host={assistantHost} onCollapse={() => setAssistantOpen(false)} />
+        : <div className={styles.assistantRail}><button type="button" className={styles.iconAction} aria-label="打开配音助手" title="配音助手" onClick={() => setAssistantOpen(true)}><Sparkles size={17} /></button></div>}
       <section className={styles.stage} aria-label="视频与时间轴">
         <div className={styles.videoFrame}>
           {videoUrl
@@ -892,13 +938,42 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
           </div>}
         </div>
         {toolStatus && <div className={styles.notice} role="status">{toolStatus}</div>}
+        <section className={styles.transcript} aria-label="台词列表">
+          <div className={styles.transcriptHeader}>
+            <h2>台词</h2>
+            <span className={styles.progressText}>{trackLines.length} 句 · 配音 {counts.current}/{counts.total} · 待确认 {Math.max(0, counts.total - counts.confirmed)}</span>
+            <div className={styles.progressBar} aria-hidden="true"><span style={{ width: `${progress}%` }} /></div>
+            <span className={styles.spacer} />
+            <button type="button" className={styles.toolBtn} disabled={!voiceReady || projectBusy || (!counts.missing && !counts.stale && !offlineCount)}
+              title={!voiceReady ? '本机配音需要在 127.0.0.1 打开并启动 VoxCPM' : counts.missing ? '为没有配音的句子逐句生成' : offlineCount ? '刷新后丢失音频的句子重新生成' : '重新生成文字或音色已变化的句子'}
+              onClick={() => void generateVoice(counts.missing ? 'missing' : offlineCount ? 'offline' : counts.stale ? 'stale' : 'missing')}><Sparkles size={14} />{generating ? '生成中…' : counts.missing ? '补齐缺失配音' : offlineCount ? `重新生成未载入的 ${offlineCount} 句` : counts.stale ? `更新 ${counts.stale} 句配音` : '补齐缺失配音'}</button>
+            {generating && <button type="button" className={styles.toolBtn} onClick={() => { generateController.current?.abort(); setToolStatus('已请求停止；已生成音频保留'); }}>停止</button>}
+          </div>
+          <div ref={scriptList} className={styles.lineRows}>
+            {trackLines.map((line, index) => {
+              const state = lineState(line);
+              const isConfirmed = editorData.confirmedLineIds?.includes(line.id) ?? false;
+              const offline = audioOffline(line);
+              const timed = Number.isFinite(line.videoStartMs) && Number.isFinite(line.videoEndMs);
+              return <button type="button" className={styles.lineRow} key={line.id} data-script-line-id={line.id} data-offline={offline} data-state={state}
+                aria-pressed={!selectedTrack && selectedLineId === line.id} onClick={() => selectTrackLine(line)}>
+                <span className={styles.lineDot} data-state={state} title={offline ? `${LINE_STATE_LABEL[state]} · 音频未载入，需重新生成或恢复` : LINE_STATE_LABEL[state]} />
+                <span className={styles.lineNumber}>{String(index + 1).padStart(2, '0')}</span>
+                <span className={styles.lineText} title={line.text ?? line.label ?? ''}>{line.text ?? line.label ?? '未填写台词'}</span>
+                <span className={styles.lineRange}>{timed ? `${shortTime(line.videoStartMs!)}–${shortTime(line.videoEndMs!)}` : ''}</span>
+                <span className={styles.lineStatus} data-confirmed={isConfirmed} title={isConfirmed ? '已确认' : '待确认'}>{isConfirmed && <Check size={13} />}</span>
+              </button>;
+            })}
+            {!trackLines.length && <div className={styles.editorEmpty}><p>还没有台词。</p><button type="button" className={styles.toolBtn} onClick={() => scriptInput.current?.click()}>导入台词</button></div>}
+          </div>
+        </section>
       </section>
       <aside className={styles.inspector} aria-label="内容编辑">
         <div className={styles.inspectorBody}>
           {selectedTrack && <TrackInspector track={selectedTrack} data={data} disabled={projectBusy} mode={listenMode} setMode={setListenMode} patch={applyEdit} />}
           {!selectedLineId && !selectedTrack && <div className={styles.emptyInspector}>
             <h2>选一句开始编辑</h2>
-            <p>在左侧点一句台词，或点时间轴上的片段，就能修改台词、音色和音量。</p>
+            <p>在下方台词表点一句，或点时间轴上的片段，就能修改台词、音色和音量；也可以直接告诉左侧助手。</p>
             <button type="button" className={`${styles.toolBtn} ${styles.toolBtnPrimary}`} disabled={!trackLines.length} onClick={() => selectTrackLine(trackLines[0]!)}>编辑第一句</button>
           </div>}
           <div hidden={!selectedLineId || Boolean(selectedTrack)}>
@@ -942,6 +1017,7 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
           select={id => { const line = voiced.find(item => item.id === id); if (line) selectTrackLine(line); }}
           ranges={ranges} setRanges={setRanges} playback={playback} mode={listenMode} setMode={setListenMode}
           disabled={projectBusy} patch={applyEdit} />}
+        <RewritePanel data={data} read={editor.draftData} patch={applyEdit} mediaUrl={media.resolve} disabled={projectBusy} ask={ask} />
       </aside>
     </div>}
     {confirmation && <div role="alertdialog" aria-label="确认当前操作" className={styles.confirmBar}>

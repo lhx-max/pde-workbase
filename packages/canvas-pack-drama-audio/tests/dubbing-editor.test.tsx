@@ -31,7 +31,7 @@ const data = () => latest?.data as Record<string, any>;
 function editLine(text: string, extra: Record<string, unknown> = {}) {
   render(<Host initial={{ videoDurationMs: 6000, rewriteLines: lines, ...extra }} />);
   fireEvent.click(screen.getByRole('button', { name: '打开短剧配音编辑器' }));
-  fireEvent.click(within(screen.getByRole('complementary', { name: '台词列表' })).getByText(text).closest('button')!);
+  fireEvent.click(within(screen.getByRole('region', { name: '台词列表' })).getByText(text).closest('button')!);
   return within(screen.getByRole('complementary', { name: '内容编辑' }));
 }
 function commitNumber(field: HTMLElement, value: string) {

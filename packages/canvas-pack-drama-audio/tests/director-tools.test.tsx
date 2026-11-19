@@ -32,7 +32,7 @@ function open(extra: Record<string, unknown> = {}) {
   fireEvent.click(screen.getByRole('button', { name: '打开短剧配音编辑器' }));
   return within(screen.getByRole('region', { name: '导演工具' }));
 }
-const selectLine = (text: string) => fireEvent.click(within(screen.getByRole('complementary', { name: '台词列表' })).getByText(text).closest('button')!);
+const selectLine = (text: string) => fireEvent.click(within(screen.getByRole('region', { name: '台词列表' })).getByText(text).closest('button')!);
 const tab = (tools: ReturnType<typeof open>, name: string) => fireEvent.click(within(tools.getByRole('group', { name: '编辑工具' })).getByRole('button', { name }));
 const data = () => latest?.data as Record<string, any>;
 
@@ -71,7 +71,7 @@ describe('导演工具：选区与试听', () => {
     expect(data().directorEdit.locks).toEqual([{ startMs: 2000, endMs: 3500 }]);
     expect(document.querySelector('[data-preview-line-id="l2"]')?.getAttribute('data-locked')).toBe('true');
     fireEvent.click(screen.getAllByRole('button', { name: /删除/ })[0]!);
-    expect(within(screen.getByRole('complementary', { name: '台词列表' })).getByText('第二句解说')).toBeTruthy();
+    expect(within(screen.getByRole('region', { name: '台词列表' })).getByText('第二句解说')).toBeTruthy();
     fireEvent.click(tools.getByRole('button', { name: '解锁 2.00 秒 – 3.50 秒' }));
     expect(data().directorEdit.locks).toEqual([]);
   });

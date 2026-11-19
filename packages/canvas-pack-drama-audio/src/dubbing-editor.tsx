@@ -581,7 +581,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
       if (!refs.length) throw new Error('尚无逐句配音，请先生成');
       // 刷新后未恢复的音频在试听时跳过，不让整段试听失败。
       const missing = refs.filter(ref => !buffers.current.has(ref) && !sessionMedia.resolve(ref));
-      if (missing.length === refs.length) throw new Error(`这里的 ${missing.length} 段配音音频都未载入。可以在左侧重新生成，或从「⋯」恢复会话素材。`);
+      if (missing.length === refs.length) throw new Error(`这里的 ${missing.length} 段配音音频都未载入。可以在台词表上方重新生成，或从「⋯」恢复会话素材。`);
       await Promise.all(refs.filter(ref => !missing.includes(ref)).map(async ref => {
         if (buffers.current.has(ref)) return;
         const url = requireMedia(sessionMedia.resolve, ref);
@@ -599,7 +599,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
       }
       loaded.current = true;
       setLoadStatus(`已载入 ${refs.length - missing.length} 个音频源；按视频时钟试听`);
-      if (missing.length) setGenerationStatus(`${missing.length} 段配音音频未载入，试听时已跳过。可在左侧重新生成。`);
+      if (missing.length) setGenerationStatus(`${missing.length} 段配音音频未载入，试听时已跳过。可在台词表上方重新生成。`);
       schedule();
     } catch (reason) {
       if (!controller.signal.aborted) {

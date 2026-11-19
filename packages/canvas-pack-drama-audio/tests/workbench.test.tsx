@@ -47,7 +47,7 @@ function open(data: Record<string, unknown> = { videoDurationMs: 5000, rewriteLi
   return view;
 }
 
-const list = () => within(screen.getByRole('complementary', { name: '台词列表' }));
+const list = () => within(screen.getByRole('region', { name: '台词列表' }));
 const inspector = () => within(screen.getByRole('complementary', { name: '内容编辑' }));
 const row = (text: string) => list().getByText(text).closest('button')!;
 const saveStatus = () => document.querySelector('[data-save-state]')!;
@@ -62,7 +62,7 @@ describe('编辑器布局', () => {
     expect(start.getByRole('button', { name: '导入视频' })).toBeTruthy();
     expect(start.getByRole('button', { name: '导入台词' })).toBeTruthy();
     expect((screen.getByRole('button', { name: '导出' }) as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.queryByRole('complementary', { name: '台词列表' })).toBeNull();
+    expect(screen.queryByRole('region', { name: '台词列表' })).toBeNull();
   });
 
   it('台词列表显示进度和每句状态', () => {
@@ -292,7 +292,7 @@ describe('配音排布与贴合', () => {
   it('超出区间的句子标红，贴合视频后按配音时长连贯排布', () => {
     open(voiced());
     expect(row('第一句解说').querySelector('[data-state]')?.getAttribute('data-state')).toBe('over');
-    fireEvent.click(screen.getByRole('button', { name: '贴合视频' }));
+    fireEvent.click(within(screen.getByRole('region', { name: '视频与时间轴' })).getByRole('button', { name: '贴合视频' }));
     expect(windows()[0]).toEqual([0, 2200]);
     expect(windows()[1]![0]).toBeGreaterThan(2200);
     expect(screen.getByText(/配音排到 .* \/ 视频 0:05/u)).toBeTruthy();
@@ -317,7 +317,7 @@ describe('配音排布与贴合', () => {
 
   it('配音放不下时自动加速并在片段上显示倍率', () => {
     open({ ...voiced(), videoDurationMs: 3000, segments: [take('l1', 2000, [0, 1500]), take('l2', 1100, [2000, 3000])] });
-    fireEvent.click(screen.getByRole('button', { name: '贴合视频' }));
+    fireEvent.click(within(screen.getByRole('region', { name: '视频与时间轴' })).getByRole('button', { name: '贴合视频' }));
     const speeds = (data().segments as { fitSpeed?: number }[]).map(item => item.fitSpeed);
     expect(speeds.every(speed => speed !== undefined && speed > 1)).toBe(true);
     expect(screen.getByText(/2 句加速至 1\.\d\d×/u)).toBeTruthy();
