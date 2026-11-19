@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { evenScript } from './fixtures';
 import {
   assertUnlocked, directorOf, displayTime, intersecting, lineFingerprint, listenLabel, makeRange,
   moveRangeBoundary, overlaps, rangeOf, rewriteWindows, shiftFollowing,
@@ -6,7 +7,7 @@ import {
 import { importScript, importVoice, linesOf } from '../src/director/director-media';
 
 const duration = 6000;
-const captions = importScript({}, '甲\n乙\n丙', 4500);
+const captions = evenScript('甲\n乙\n丙', 4500);
 type Data = Record<string, unknown>;
 const data: Data = { ...captions, ...importVoice(captions, 'outputs/voice/take.wav', duration, duration), videoRef: 'inputs/media/clip.mp4' };
 const rows = linesOf(data);

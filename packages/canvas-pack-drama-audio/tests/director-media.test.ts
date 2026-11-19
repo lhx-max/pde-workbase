@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { evenScript } from './fixtures';
+import { estimateSpeechMs, LAYOUT } from '../src/director/layout';
 import {
   audioDurationOf, deliveryIssues, download, encodeWav, exportSubtitles, exportWav, importScript, importVoice,
   linesOf, renderMix, videoDurationOf,
@@ -21,7 +23,11 @@ class FakeOfflineContext {
   }
   async decodeAudioData(bytes: ArrayBuffer) {
     if (new TextDecoder().decode(bytes) === 'undecodable') throw new Error('decode');
-    return { duration: FakeOfflineContext.bufferSeconds };
+    const length = FakeOfflineContext.bufferSeconds * 1000;
+    return { duration: FakeOfflineContext.bufferSeconds, numberOfChannels: 1, sampleRate: 1000, length, getChannelData: () => new Float32Array(length) };
+  }
+  createBuffer(_channels: number, length: number, sampleRate: number) {
+    return { duration: length / sampleRate, stretched: true, copyToChannel: vi.fn() };
   }
   createBufferSource() {
     const source: Source = { buffer: null, connect: vi.fn((node: unknown) => node), start: vi.fn() };
@@ -40,7 +46,7 @@ class FakeOfflineContext {
 }
 
 const lookup = (ref: string) => `blob:${ref}`;
-const draft = importScript({}, '第一句\n第二句', 6000);
+const draft = evenScript('第一句\n第二句', 6000);
 const voiced: Record<string, unknown> = { ...draft, ...importVoice(draft, 'voice/take.wav', 5200, 6000), masterGain: 1 };
 
 function stubFetch(bodies: Record<string, { status?: number; body?: string }> = {}) {
@@ -65,9 +71,10 @@ afterEach(() => {
 });
 
 describe('导入台词', () => {
-  it('忽略空行，按视频时长均分区间，并生成合法 id', () => {
+  it('忽略空行，按字数比例安排区间，并生成合法 id', () => {
     const result = importScript({}, '  第一句 \r\n\n第二句\n', 6000);
-    expect(linesOf(result).map(line => [line.text, line.videoStartMs, line.videoEndMs])).toEqual([['第一句', 0, 3000], ['第二句', 3000, 6000]]);
+    const each = estimateSpeechMs('第一句');
+    expect(linesOf(result).map(line => [line.text, line.videoStartMs, line.videoEndMs])).toEqual([['第一句', 0, each], ['第二句', each + LAYOUT.maxGapMs, 2 * each + LAYOUT.maxGapMs]]);
     expect(linesOf(result).every(line => /^line-[0-9a-f-]+$/u.test(line.id))).toBe(true);
     expect(result).toMatchObject({ script: '第一句\n第二句', segments: [], confirmedLineIds: [], generatedLineTexts: {}, generatedLineVoices: {} });
   });
@@ -212,6 +219,17 @@ describe('离线混音', () => {
     expect([context!.channels, context!.length, context!.sampleRate]).toEqual([2, 6 * 44_100, 44_100]);
     expect(context!.sources.map(source => source.start.mock.calls[0])).toEqual([[0, 0, 3], [3, 3, 2.2]]);
     expect(context!.gains[0]!.gain.setValueAtTime).toHaveBeenCalledWith(1, 0);
+  });
+
+  it('变速片段使用保持音调的伸缩音频，并按倍率换算偏移', async () => {
+    stubFetch();
+    const segments = (voiced.segments as Record<string, unknown>[]).map((segment, index) => index === 1 ? { ...segment, fitSpeed: 1.25 } : segment);
+    await renderMix({ ...voiced, segments }, lookup, { startMs: 0, endMs: 6000 }, 'voice', new AbortController().signal);
+    const [context] = FakeOfflineContext.instances;
+    const [first, second] = context!.sources;
+    expect(first!.buffer).not.toMatchObject({ stretched: true });
+    expect(second!.buffer).toMatchObject({ stretched: true, duration: 8 });
+    expect(second!.start.mock.calls[0]![1]).toBeCloseTo(3 / 1.25, 5);
   });
 
   it('只渲染选中范围，并裁掉范围外和音源外的部分', async () => {

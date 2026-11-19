@@ -1,6 +1,8 @@
+import { planScriptWindows } from './layout';
+import { stretchBuffer } from './time-stretch';
 import { makeSubtitles } from '../subtitles';
 import { requireMedia, type MediaLookup } from './media';
-import { buildDirectorPlaybackPlan, gainRegionsOf, originalGainOf, scheduleMixGain } from '../playback-plan';
+import { buildDirectorPlaybackPlan, gainRegionsOf, originalGainOf, scheduleMixGain, segmentRate } from '../playback-plan';
 import { dubbingCounts, effectiveLineVoice } from '../dubbing';
 import { validateRewriteLines } from '../rewrite';
 import type { DramaAudioSegment } from '../types';
@@ -26,11 +28,10 @@ export function importScript(data: Data, source: string, duration: number): Data
   if (duration < texts.length) throw new Error('请先绑定视频，才能为台词安排时间区间。');
   const previous = linesOf(data);
   const reuseWindows = texts.length === previous.length;
-  const rows = validateRewriteLines(texts.map((text, index) => reuseWindows ? { ...previous[index], text } : {
-    id: `line-${crypto.randomUUID()}`, text,
-    videoStartMs: Math.floor(index * duration / texts.length),
-    videoEndMs: Math.floor((index + 1) * duration / texts.length),
-  }), duration);
+  // 句数不变时沿用原区间；否则按字数比例安排初始区间，生成配音后再按真实时长贴合。
+  const rows = validateRewriteLines(reuseWindows
+    ? texts.map((text, index) => ({ ...previous[index], text }))
+    : planScriptWindows(texts.map(text => ({ id: `line-${crypto.randomUUID()}`, text })), duration), duration);
   const unchanged = new Set(rows.filter((line, index) => reuseWindows && line.text === previous[index]?.text).map(line => line.id));
   const kept = segmentsOf(data).filter(segment => unchanged.has(segment.id));
   return {
@@ -120,7 +121,7 @@ export function deliveryIssues(data: Data, videoMs: number): string[] {
   if (counts.total > counts.confirmed) issues.push(`${counts.total - counts.confirmed} 句区间未确认`);
   const segments = segmentsOf(data);
   const truncated = segments.filter(segment => !segment.muted && segment.videoStartMs !== null && segment.videoEndMs !== null
-    && segment.endMs - segment.startMs > segment.videoEndMs - segment.videoStartMs - segment.gapMs).length;
+    && (segment.endMs - segment.startMs) / segmentRate(segment) > segment.videoEndMs - segment.videoStartMs + (segment.leadMs ?? 0) - segment.gapMs + 1).length;
   if (truncated) issues.push(`${truncated} 句音频会截断`);
   if (segments.some(segment => segment.videoEndMs !== null && segment.videoEndMs > videoMs)) issues.push('存在超出视频的片段');
   return issues;
@@ -146,9 +147,13 @@ export async function renderMix(
     buffers.set(ref, await read(ref));
   }
   const regions = { voice: gainRegionsOf(data, 'voice'), background: gainRegionsOf(data, 'background') };
+  const stretched = new Map<string, AudioBuffer>();
   for (const item of plan) {
-    const buffer = buffers.get(item.audioRef)!;
-    const duration = Math.min(item.durationMs / 1000, (durationMs - item.delayMs) / 1000, buffer.duration - item.offsetMs / 1000);
+    const key = `${item.audioRef}@${item.rate}`;
+    if (item.rate !== 1 && !stretched.has(key)) stretched.set(key, stretchBuffer(context, buffers.get(item.audioRef)!, item.rate));
+    const buffer = item.rate === 1 ? buffers.get(item.audioRef)! : stretched.get(key)!;
+    const offset = item.offsetMs / 1000 / item.rate;
+    const duration = Math.min(item.durationMs / 1000, (durationMs - item.delayMs) / 1000, buffer.duration - offset);
     if (duration <= 0) continue;
     const source = context.createBufferSource();
     const gain = context.createGain();
@@ -156,7 +161,7 @@ export async function renderMix(
     const sceneStart = startMs + item.delayMs;
     scheduleMixGain(gain.gain, regions[item.track], item.gain, sceneStart, sceneStart + duration * 1000, item.delayMs / 1000);
     source.connect(gain).connect(context.destination);
-    source.start(item.delayMs / 1000, item.offsetMs / 1000, duration);
+    source.start(item.delayMs / 1000, offset, duration);
   }
   if ((mode === 'mix' || mode === 'original') && typeof data.videoRef === 'string') {
     const source = context.createBufferSource();

@@ -4,7 +4,8 @@ import { adoptDubbingCandidate, candidateMatches, dubbingCounts, effectiveLineVo
 import { checkLocalVoice, fillMissing, generateCandidate, localVoiceAvailable } from './director/local-voice';
 import { requireMedia, type MediaLookup } from './director/media';
 import { readDramaAudioData, shiftSegmentWindow } from './edl';
-import { buildDirectorPlaybackPlan, gainAt, gainRegionsOf, originalGainOf, playbackDriftMs, resolvePlaybackDuration, scheduleMixGain, type AudioListenMode } from './playback-plan';
+import { buildDirectorPlaybackPlan, gainAt, gainRegionsOf, originalGainOf, playbackDriftMs, resolvePlaybackDuration, scheduleMixGain, segmentRate, type AudioListenMode } from './playback-plan';
+import { stretchBuffer } from './director/time-stretch';
 import { insertRewriteLine, validateRewriteLines, type RewriteLine as TimedRewriteLine } from './rewrite';
 import type { DramaAudioData, DramaAudioSegment } from './types';
 import { VoicePicker, voiceName } from './voice-picker';
@@ -25,6 +26,8 @@ export type DubbingPlayback = {
 };
 
 const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
+/** 每次排程覆盖的时间轴范围；超出部分在播放推进时续排。 */
+const SCHEDULE_HORIZON_MS = 30_000;
 
 const styles: Record<string, React.CSSProperties> = {
   root: { display: 'flex', flexDirection: 'column', gap: 12, padding: 12, fontSize: 12, color: 'var(--text-primary, #202124)', background: 'var(--bg-app, #fff)' },
@@ -63,7 +66,8 @@ function validWindow(start: unknown, end: unknown): boolean {
 function excessMs(segment: DramaAudioSegment): number {
   if (!validWindow(segment.videoStartMs, segment.videoEndMs)
     || !validWindow(segment.startMs, segment.endMs) || !finiteMs(segment.gapMs)) return 0;
-  return Math.max(0, segment.endMs - segment.startMs - Math.max(0, segment.videoEndMs! - segment.videoStartMs! - segment.gapMs));
+  // 按实际倍率（手动语速 × 贴合加速）换算成时间轴时长；leadMs 是提前进入的重叠部分。
+  return Math.max(0, (segment.endMs - segment.startMs) / segmentRate(segment) - Math.max(0, segment.videoEndMs! - segment.videoStartMs! + (segment.leadMs ?? 0) - segment.gapMs));
 }
 
 function NumberField({ label, value, max, onChange }: {
@@ -114,12 +118,14 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
   const video = externalVideoRef ?? internalVideo;
   const context = useRef<AudioContext | null>(null);
   const buffers = useRef(new Map<string, AudioBuffer>());
+  /** 保持音调变速后的音频，按「音源@倍率」缓存。 */
+  const stretched = useRef(new Map<string, AudioBuffer>());
   const sources = useRef(new Set<{ source: AudioBufferSourceNode; gain: GainNode }>());
   const loadController = useRef<AbortController | null>(null);
   const generationController = useRef<AbortController | null>(null);
   const epoch = useRef(0);
   const loaded = useRef(false);
-  const clockAnchor = useRef<{ videoMs: number; audioSeconds: number; rate: number } | null>(null);
+  const clockAnchor = useRef<{ videoMs: number; audioSeconds: number; rate: number; horizonMs: number } | null>(null);
   const previewEndMs = useRef<number | null>(null);
   const previewData = useRef<Pick<DramaAudioData, 'segments' | 'audioRef' | 'masterGain'> | null>(null);
   const queue = useRef<{ ranges: PlaybackRange[]; index: number; loop: boolean } | null>(null);
@@ -207,7 +213,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     const rate = element.playbackRate;
     if (!Number.isFinite(rate) || rate <= 0) return;
     const at = audioContext.currentTime;
-    clockAnchor.current = { videoMs: element.currentTime * 1000, audioSeconds: at, rate };
+    clockAnchor.current = { videoMs: element.currentTime * 1000, audioSeconds: at, rate, horizonMs: element.currentTime * 1000 + SCHEDULE_HORIZON_MS };
     try {
       const currentMs = element.currentTime * 1000;
       const current = latest.current;
@@ -218,17 +224,26 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
         const startMs = currentMs + item.delayMs;
         const availableMs = (previewEndMs.current ?? Infinity) - startMs;
         if (availableMs <= 0) continue;
-        const buffer = buffers.current.get(item.audioRef);
-        if (!buffer) continue;
-        const offset = item.offsetMs / 1000;
-        const duration = Math.min(item.durationMs / 1000, availableMs / 1000, buffer.duration - offset);
+        // 只排近一段时间的片段，变速伸缩按需计算；播放推进时同步循环会续排。
+        if (item.delayMs > SCHEDULE_HORIZON_MS) continue;
+        const original = buffers.current.get(item.audioRef);
+        if (!original) continue;
+        // 保持音调：句子语速和试听倍速都通过时间伸缩实现，播放时不改 playbackRate。
+        const factor = Math.round(item.rate * rate * 1000) / 1000;
+        const key = `${item.audioRef}@${factor}`;
+        let buffer = original;
+        if (factor !== 1) {
+          buffer = stretched.current.get(key) ?? stretchBuffer(audioContext, original, factor);
+          stretched.current.set(key, buffer);
+        }
+        const offset = item.offsetMs / 1000 / factor;
+        const duration = Math.min(item.durationMs / rate / 1000, availableMs / rate / 1000, buffer.duration - offset);
         if (duration <= 0) continue;
         const source = audioContext.createBufferSource();
         const gain = audioContext.createGain();
         const active = { source, gain };
         sources.current.add(active);
         source.buffer = buffer;
-        source.playbackRate.setValueAtTime(rate, at);
         source.connect(gain);
         gain.connect(audioContext.destination);
         source.onended = () => {
@@ -237,9 +252,9 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
           sources.current.delete(active);
         };
         const when = at + item.delayMs / 1000 / rate;
-        scheduleMixGain(gain.gain, regions[item.track], item.gain, startMs, startMs + duration * 1000, when, rate);
+        scheduleMixGain(gain.gain, regions[item.track], item.gain, startMs, startMs + duration * 1000 * rate, when, rate);
         source.start(when, offset, duration);
-        source.stop(when + duration / rate);
+        source.stop(when + duration);
       }
     } catch (reason) {
       stop();
@@ -298,7 +313,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
       if (!element.paused && !element.ended && !element.seeking && element.readyState >= 3 && loaded.current && audioContext) {
         const anchor = clockAnchor.current;
         if (audioContext.state === 'running') {
-          if (!anchor || anchor.rate !== element.playbackRate
+          if (!anchor || anchor.rate !== element.playbackRate || element.currentTime * 1000 > anchor.horizonMs - SCHEDULE_HORIZON_MS / 3
             || Math.abs(playbackDriftMs(anchor.videoMs, anchor.audioSeconds, element.currentTime * 1000, audioContext.currentTime, element.playbackRate)) > 80) schedule();
         } else if (performance.now() - lastResumeAt > 1000) {
           lastResumeAt = performance.now();
@@ -524,7 +539,10 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
       await audioContext.resume();
       const refs = [...new Set(planFor(planData, at, mode).map(item => item.audioRef))];
       if (!refs.length) throw new Error('尚无逐句配音，请先生成');
-      await Promise.all(refs.map(async ref => {
+      // 刷新后未恢复的音频在试听时跳过，不让整段试听失败。
+      const missing = refs.filter(ref => !buffers.current.has(ref) && !sessionMedia.resolve(ref));
+      if (missing.length === refs.length) throw new Error(`这里的 ${missing.length} 段配音音频都未载入。可以在台词列表上方重新生成，或在「导入与替换素材」里恢复会话素材。`);
+      await Promise.all(refs.filter(ref => !missing.includes(ref)).map(async ref => {
         if (buffers.current.has(ref)) return;
         const url = requireMedia(sessionMedia.resolve, ref);
         const response = await fetch(url, { signal: controller.signal, redirect: 'error' });
@@ -535,7 +553,8 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
       }));
       if (controller.signal.aborted) return;
       loaded.current = true;
-      setLoadStatus(`已载入 ${refs.length} 个音频源；按视频时钟试听，不自动拉伸`);
+      setLoadStatus(`已载入 ${refs.length - missing.length} 个音频源；按视频时钟试听，变速时保持音调`);
+      if (missing.length) setGenerationStatus(`${missing.length} 段配音音频未载入，试听时已跳过。可在台词列表上方重新生成。`);
       schedule();
     } catch (reason) {
       if (!controller.signal.aborted) {
@@ -555,7 +574,8 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     const at = video.current.currentTime * 1000;
     const mix = previewData.current ?? current.data;
     const plan = planFor(mix, at);
-    if (plan.some(item => !buffers.current.has(item.audioRef))) void loadAudio(mix, current.listenMode, at);
+    // 只为当前会话能读取的音频重新载入，未载入的音频跳过，避免反复失败。
+    if (plan.some(item => !buffers.current.has(item.audioRef) && sessionMedia.resolve(item.audioRef))) void loadAudio(mix, current.listenMode, at);
   };
 
   async function startTtsService() {
@@ -851,7 +871,8 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
         {segment && <>
           {!validWindow(start, end) && <div style={styles.warning}>视频区间未对齐或非法，本句不播放。</div>}
           {!validWindow(segment.startMs, segment.endMs) && <div style={styles.error}>源截取区间非法，本句不播放。</div>}
-          {over > 0 && <div style={styles.error}>时长超限 {Math.ceil(over)} ms：试听会截断超出视频允许区间的音频，不自动拉伸，未宣称对齐。</div>}
+          {over > 0 && <div style={styles.error}>配音比区间长 {Math.ceil(over)} ms，超出部分会被截掉。点时间轴上的「贴合视频」自动排布，或改短台词后重新生成。</div>}
+          {(segment.fitSpeed ?? 1) > 1 && <div style={styles.hint}>贴合视频时已保持音调加速到 {(segment.fitSpeed ?? 1).toFixed(2)} 倍。</div>}
           {finiteMs(end) && videoDurationMs > 0 && end > videoDurationMs && <div style={styles.error}>视频区间超过视频总时长，请调整。</div>}
           {buffer && segment.endMs > buffer.duration * 1000 + 1 && <div style={styles.error}>源截取超过真实音频时长 {Math.round(buffer.duration * 1000)} ms；试听仅播放实际存在的音频。</div>}
         </>}

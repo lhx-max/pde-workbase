@@ -129,6 +129,45 @@ describe('左侧素材与批量配音', () => {
   });
 });
 
+describe('贴合视频', () => {
+  const take = (id: string, audioMs: number, window: [number, number]) => ({ id, label: id, startMs: 0, endMs: audioMs, gapMs: 0, gain: 1, muted: false, videoStartMs: window[0], videoEndMs: window[1], audioRefOverride: `session/voice/${id}.wav` });
+  const overrun = () => ({ videoDurationMs: 5000, rewriteLines: lines, audioRef: null,
+    segments: [take('l1', 2200, [0, 1500]), take('l2', 1000, [2000, 3500])],
+    generatedLineTexts: { l1: '第一句解说', l2: '第二句解说' }, generatedLineVoices: { l1: '自然清晰的普通话解说', l2: '自然清晰的普通话解说' } });
+  const fit = () => fireEvent.click(screen.getByRole('button', { name: '贴合视频' }));
+
+  it('配音比区间长时，贴合视频按真实时长排布，不再截断', () => {
+    let latest: Record<string, any> = {};
+    open(overrun(), patch => { latest = { ...latest, ...(patch as { data: Record<string, unknown> }).data }; });
+    fireEvent.click(transcript().getByText('第一句解说').closest('button')!);
+    expect(inspector().getByText(/配音比区间长 700 ms/u)).toBeTruthy();
+    fit();
+    const windows = (latest.rewriteLines as { videoStartMs: number; videoEndMs: number }[]).map(line => [line.videoStartMs, line.videoEndMs]);
+    expect(windows[0]).toEqual([0, 2200]);
+    expect(windows[1]![0]).toBeGreaterThanOrEqual(2200);
+    expect(screen.getByText(/配音排到 .* \/ 视频/u)).toBeTruthy();
+    expect(inspector().queryByText(/配音比区间长/u)).toBeNull();
+  });
+
+  it('视频太短放不下时保持音调加速，片段上显示倍率', () => {
+    let latest: Record<string, any> = {};
+    open({ ...overrun(), videoDurationMs: 3000, segments: [take('l1', 2000, [0, 1500]), take('l2', 1100, [2000, 3000])] },
+      patch => { latest = { ...latest, ...(patch as { data: Record<string, unknown> }).data }; });
+    fit();
+    const speeds = (latest.segments as { fitSpeed?: number }[]).map(item => item.fitSpeed ?? 1);
+    expect(speeds.every(speed => speed > 1 && speed <= 1.15)).toBe(true);
+    expect(document.querySelectorAll('[class*="rateBadge"]').length).toBe(2);
+  });
+
+  it('自动贴合可以关闭', () => {
+    open(overrun());
+    const toggle = screen.getByRole('button', { name: '自动' });
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+  });
+});
+
 describe('画布保存有往返延迟', () => {
   afterEach(() => { vi.useRealTimers(); });
   /** 像真实画布一样：每次修改经服务端往返后才回传。 */

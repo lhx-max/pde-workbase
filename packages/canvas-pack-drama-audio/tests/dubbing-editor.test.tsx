@@ -96,7 +96,7 @@ describe('逐句配音编辑', () => {
 
   it('音频超过视频区间时提示截断', () => {
     const panel = editLine('第二句解说', { audioRef: 'session/voice/full.wav', segments: [{ ...segment, endMs: 2500 }] });
-    expect(panel.getByText(/时长超限/)).toBeTruthy();
+    expect(panel.getByText(/配音比区间长 \d+ ms，超出部分会被截掉/u)).toBeTruthy();
   });
 
   it('非回环地址下不能生成本机配音', () => {

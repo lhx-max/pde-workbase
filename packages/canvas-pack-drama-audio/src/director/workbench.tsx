@@ -7,7 +7,7 @@ import type { CardRenderProps } from '@bezier/canvas-card-sdk';
 import { DubbingEditor, type DubbingPlayback } from '../dubbing-editor';
 import { changeRewriteWindow, validateRewriteLines, type RewriteLine as TimedDubbingLine } from '../rewrite';
 import { dubbingCounts, voiceInstructionOf, voiceReferenceOf } from '../dubbing';
-import { resolvePlaybackDuration } from '../playback-plan';
+import { resolvePlaybackDuration, segmentRate } from '../playback-plan';
 import { assertMediaSize, type useSessionMedia } from './media';
 import { fillMissing, localVoiceAvailable } from './local-voice';
 import { exportHandoff, exportVideo } from './director-delivery';
@@ -24,6 +24,7 @@ import { assertUnlocked, directorOf, displayTime, listenLabel, makeRange, moveRa
 import type { EditData, ListenMode, TimeRange } from './director-edits';
 import { useCardEdits } from './use-card-edits';
 import { minimumSpanOf, rippleWindows } from './ripple';
+import { describeFit, fitTimeline, joinsOf, setJoin } from './layout';
 
 /** 台词列表标题里的音色选择沿用工作台配色。 */
 const voiceBarStyles: Record<string, CSSProperties> = {
@@ -37,11 +38,11 @@ import styles from './workbench.module.css';
 
 /** 音频编辑工作台：视频与时间轴并排，选中内容在右侧编辑。 */
 
-interface EditorSegment { startMs?: number; endMs?: number; gapMs?: number; gain?: number; audioRefOverride?: string | null; id: string; text?: string; label?: string; muted?: boolean; videoStartMs?: number | null; videoEndMs?: number | null }
+interface EditorSegment { leadMs?: number; speed?: number; fitSpeed?: number; startMs?: number; endMs?: number; gapMs?: number; gain?: number; audioRefOverride?: string | null; id: string; text?: string; label?: string; muted?: boolean; videoStartMs?: number | null; videoEndMs?: number | null }
 type TimelineTrack = 'original' | 'voice' | 'background';
 type BoundaryDrag = { range: TimeRange; index: number; edge: keyof TimeRange; pointer: number; x: number; width: number };
 
-export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClose }: CardRenderProps & {
+export function Workbench({ node: editorNode, onPatch, media, onClose }: CardRenderProps & {
   media: ReturnType<typeof useSessionMedia>;
   onClose: () => void;
 }) {
@@ -52,6 +53,8 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
   const [clipboard, setClipboard] = useState<{ project: string; clip: ClipClipboard } | null>(null);
   const [clipMenu, setClipMenu] = useState<{ x: number; y: number } | null>(null);
   const [snapping, setSnapping] = useState(true);
+  /** 配音变化后自动重新贴合视频。 */
+  const [autoFit, setAutoFit] = useState(true);
   const [showManual, setShowManual] = useState(false);
   const timelineViewport = useRef<HTMLDivElement>(null);
   const [followPlayhead, setFollowPlayhead] = useState(true);
@@ -308,8 +311,34 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
     const ref = audio ? audio.audioRefOverride ?? (typeof data.audioRef === 'string' ? data.audioRef : null) : null;
     return Boolean(ref) && !media.resolve(ref!);
   }).length;
+  /** 配音音频或句间衔接变化时自动重新贴合；不看台词文字和窗口，避免打字或手动拖动时区间跳动。 */
+  const signatureFor = (source: EditData) => JSON.stringify([
+    segmentsIn(source).map(item => [item.id, item.audioRefOverride ?? null, item.startMs, item.endMs, item.gapMs, item.speed ?? 1]),
+    joinsOf(source),
+  ]);
+  const fitSignature = signatureFor(data);
+  const fittedSignature = useRef(fitSignature);
+  useEffect(() => {
+    if (fittedSignature.current === fitSignature) return;
+    fittedSignature.current = fitSignature;
+    if (autoFit && durationMs > 0 && segments.length && !projectBusy) fitToVideo({}, true);
+  });
   const locks = director.locks ?? [];
   const isLocked = (line: EditorSegment) => locks.some(range => overlaps(range, { startMs: line.videoStartMs ?? 0, endMs: line.videoEndMs ?? 0 }));
+  /** 按真实配音时长连贯排布并贴合视频，成功时返回结果说明。 */
+  function fitToVideo(extra: EditData = {}, quiet = false): string | false {
+    try {
+      const current = { ...(editor.draftData() ?? {}), ...extra };
+      const { changes, report } = fitTimeline(current, durationMs);
+      const message = describeFit(report);
+      if (!applyEdit({ ...extra, ...changes })) return false;
+      setToolStatus(message);
+      return message;
+    } catch (error) {
+      if (!quiet) setToolStatus(error instanceof Error ? error.message : '贴合失败');
+      return false;
+    }
+  }
   function applyEdit(changes: EditData) {
     try {
       assertUnlocked(editor.draftData() ?? {}, changes);
@@ -387,8 +416,12 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
       const placed = windows[next.id] ?? window;
       const others = Object.fromEntries(Object.entries(windows).filter(([id]) => id !== next.id));
       let changes: EditData;
-      if (drag.mode === 'move') changes = rewriteWindows(current, windows, durationMs);
-      else {
+      if (drag.mode === 'move') {
+        changes = rewriteWindows(current, windows, durationMs);
+        // 记下与上一句的间隔，之后自动贴合会保留这次手动摆放的位置。
+        const previous = linesOf(current).filter(line => line.id !== next.id && line.videoEndMs <= placed.startMs).at(-1);
+        if (previous) changes = { ...changes, ...setJoin(current, next.id, placed.startMs - (windows[previous.id]?.endMs ?? previous.videoEndMs)) };
+      } else {
         const shifted = Object.keys(others).length ? rewriteWindows(current, others, durationMs) : {};
         changes = { ...shifted, ...trimClip({ ...current, ...shifted }, next.id, placed, durationMs) };
       }
@@ -658,7 +691,7 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
               : <div className={styles.previewVideo} role="status" style={{ display: 'grid', placeItems: 'center', color: 'var(--text-secondary)', fontSize: 12 }}>暂无视频</div>}
             </div>
             <div className={styles.previewTracks}>
-              <div className={styles.timelineToolbar}>{clipActions}<span className={styles.toolDivider} /><button className={styles.iconAction} aria-pressed={snapping} title="吸附片段边界和标记" onClick={() => setSnapping(value => !value)}><Magnet size={15} />吸附</button></div>
+              <div className={styles.timelineToolbar}>{clipActions}<span className={styles.toolDivider} /><button className={styles.iconAction} aria-pressed={snapping} title="吸附片段边界和标记" onClick={() => setSnapping(value => !value)}><Magnet size={15} />吸附</button><span className={styles.toolDivider} /><button className={styles.iconAction} disabled={projectBusy || !durationMs || !trackLines.length} title="按配音时长连贯排布，配音放不下时先压缩空白、再保持音调加速（最多 1.15 倍）" onClick={() => fitToVideo()}>贴合视频</button><button className={styles.chip} aria-pressed={autoFit} title="配音变化后自动重新贴合" onClick={() => setAutoFit(value => !value)}>自动</button></div>
               <div className={styles.chipRow}>
                 <button className={styles.chip} onClick={() => { setTrackView('all'); setTrackZoom(1); }}>全片概览</button>
                 <button className={styles.chip} disabled={!selectedLineId} onClick={() => { setTrackView('focused'); setTrackZoom(1); }}>当前句放大</button>
@@ -693,11 +726,14 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
                 <div className={styles.trackBase} title={`已配音 ${segments.length} 句`} onPointerDown={event => startRangeDrag(event, 'voice')} {...rangeHandlers}>
                   {durationMs > 0 && voiced.filter(line => segments.some(item => item.id === line.id) && (line.videoEndMs ?? 0) > viewStart && (line.videoStartMs ?? 0) < viewEnd).map(segment => {
                     const shown = trackGhost?.id === segment.id ? trackGhost : segment;
-                    const start = Math.max(0, (Math.max(viewStart, shown.videoStartMs ?? 0) - viewStart) / viewSpan * 100);
-                    const width = Math.max(0, (Math.min(viewEnd, shown.videoEndMs ?? 0) - Math.max(viewStart, shown.videoStartMs ?? 0)) / viewSpan * 100);
                     const audio = segments.find(item => item.id === segment.id);
-                    const visibleOffset = Math.max(0, viewStart - (shown.videoStartMs ?? 0));
-                    const waveSpan = Math.min(viewEnd, shown.videoEndMs ?? 0) - Math.max(viewStart, shown.videoStartMs ?? 0);
+                    const lead = trackGhost?.id === segment.id ? 0 : Math.max(0, audio?.leadMs ?? 0);
+                    const clipStart = (shown.videoStartMs ?? 0) - lead;
+                    const rate = audio ? segmentRate(audio) : 1;
+                    const start = Math.max(0, (Math.max(viewStart, clipStart) - viewStart) / viewSpan * 100);
+                    const width = Math.max(0, (Math.min(viewEnd, shown.videoEndMs ?? 0) - Math.max(viewStart, clipStart)) / viewSpan * 100);
+                    const visibleOffset = Math.max(0, viewStart - clipStart);
+                    const waveSpan = Math.min(viewEnd, shown.videoEndMs ?? 0) - Math.max(viewStart, clipStart);
                     const locked = isLocked(segment);
                     const status = !selectedTrack && selectedLineId === segment.id ? 'editing' : editorData.confirmedLineIds?.includes(segment.id) ? 'complete' : 'pending';
                     return <button type="button" key={segment.id} data-preview-line-id={segment.id} data-edit-status={status} data-locked={locked}
@@ -728,7 +764,7 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
                         if (event.shiftKey) {
                           if (event.detail === 0) toggleLineRange(segment);
                         } else if (event.detail === 0 || locked || projectBusy) selectTrackLine(segment);
-                      }}><span className={styles.clipName}>{locked ? '锁定 · ' : ''}{segment.text ?? segment.label ?? segment.id}</span><Waveform readPeaks={readPeaks} mediaUrl={media.resolve} audioRef={audio ? audio.audioRefOverride ?? data.audioRef as string : undefined} offsetMs={(audio?.startMs ?? 0) + visibleOffset} spanMs={waveSpan} playableMs={Math.max(0, Math.min((audio?.endMs ?? 0) - (audio?.startMs ?? 0), (shown.videoEndMs ?? 0) - (shown.videoStartMs ?? 0) - (audio?.gapMs ?? 0)) - visibleOffset)} gain={Number(data.masterGain ?? 1) * (audio?.gain ?? 1)} /></button>;
+                      }}>{lead > 0 && <span className={styles.overlapMark} title={`与上一句重叠 ${lead} ms`} style={{ width: `${Math.min(100, lead / Math.max(1, (shown.videoEndMs ?? 0) - clipStart) * 100)}%` }} />}{rate !== 1 && <span className={styles.rateBadge} title="保持音调变速">{rate.toFixed(2)}×</span>}<span className={styles.clipName}>{locked ? '锁定 · ' : ''}{segment.text ?? segment.label ?? segment.id}</span><Waveform readPeaks={readPeaks} mediaUrl={media.resolve} audioRef={audio ? audio.audioRefOverride ?? data.audioRef as string : undefined} offsetMs={(audio?.startMs ?? 0) + visibleOffset * rate} spanMs={waveSpan * rate} playableMs={Math.max(0, Math.min(((audio?.endMs ?? 0) - (audio?.startMs ?? 0)) / rate, (shown.videoEndMs ?? 0) - clipStart - (audio?.gapMs ?? 0)) - visibleOffset) * rate} gain={Number(data.masterGain ?? 1) * (audio?.gain ?? 1)} /></button>;
                   })}
                   {trackOverlay('voice')}
                 </div>
