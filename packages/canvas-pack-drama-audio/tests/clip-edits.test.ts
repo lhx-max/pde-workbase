@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { evenScript } from './fixtures';
 import { buildPlaybackPlan } from '../src/playback-plan';
 import { copyClip, deleteClip, pasteClip, splitClip, trimClip } from '../src/director/clip-edits';
 import { importScript, importVoice, linesOf } from '../src/director/director-media';
 
-const script = importScript({}, '这是一句完整台词', 4000);
+const script = evenScript('这是一句完整台词', 4000);
 type Data = Record<string, unknown>;
 const data: Data = { ...script, ...importVoice(script, 'voice.wav', 4000, 8000), masterGain: 1 };
 const id = linesOf(data)[0]!.id;
@@ -124,7 +125,7 @@ describe('复制、粘贴与删除', () => {
   });
 
   it('一个工程最多 80 句', () => {
-    const many = importScript({}, Array.from({ length: 80 }, (_, i) => `第${i}句`).join('\n'), 160_000);
+    const many = evenScript(Array.from({ length: 80 }, (_, i) => `第${i}句`).join('\n'), 160_000);
     const full = { ...many, ...importVoice(many, 'voice.wav', 160_000, 160_000) };
     const first = linesOf(full)[0]!.id;
     expect(() => pasteClip(full, copyClip(full, first), 159_000, 'extra', 170_000)).toThrow(/80 句/);

@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { evenScript } from './fixtures';
+import { estimateSpeechMs, LAYOUT } from '../src/director/layout';
 import {
   audioDurationOf, deliveryIssues, download, encodeWav, exportSubtitles, exportWav, importScript, importVoice,
   linesOf, renderMix, videoDurationOf,
@@ -40,7 +42,7 @@ class FakeOfflineContext {
 }
 
 const lookup = (ref: string) => `blob:${ref}`;
-const draft = importScript({}, '第一句\n第二句', 6000);
+const draft = evenScript('第一句\n第二句', 6000);
 const voiced: Record<string, unknown> = { ...draft, ...importVoice(draft, 'voice/take.wav', 5200, 6000), masterGain: 1 };
 
 function stubFetch(bodies: Record<string, { status?: number; body?: string }> = {}) {
@@ -65,9 +67,10 @@ afterEach(() => {
 });
 
 describe('导入台词', () => {
-  it('忽略空行，按视频时长均分区间，并生成合法 id', () => {
+  it('忽略空行，按字数比例安排区间，并生成合法 id', () => {
     const result = importScript({}, '  第一句 \r\n\n第二句\n', 6000);
-    expect(linesOf(result).map(line => [line.text, line.videoStartMs, line.videoEndMs])).toEqual([['第一句', 0, 3000], ['第二句', 3000, 6000]]);
+    const each = estimateSpeechMs('第一句');
+    expect(linesOf(result).map(line => [line.text, line.videoStartMs, line.videoEndMs])).toEqual([['第一句', 0, each], ['第二句', each + LAYOUT.maxGapMs, 2 * each + LAYOUT.maxGapMs]]);
     expect(linesOf(result).every(line => /^line-[0-9a-f-]+$/u.test(line.id))).toBe(true);
     expect(result).toMatchObject({ script: '第一句\n第二句', segments: [], confirmedLineIds: [], generatedLineTexts: {}, generatedLineVoices: {} });
   });

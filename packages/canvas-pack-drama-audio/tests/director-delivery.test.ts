@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { evenScript } from './fixtures';
 import { exportHandoff, exportVideo } from '../src/director/director-delivery';
 import { importScript, importVoice } from '../src/director/director-media';
 
@@ -49,7 +50,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-const draft = importScript({}, '第一句\n第二句', 6000);
+const draft = evenScript('第一句\n第二句', 6000);
 const voiced = { ...draft, ...importVoice(draft, 'voice/take.wav', 6000, 6000), masterGain: 1 };
 
 describe('剪辑交接包', () => {

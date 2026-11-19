@@ -22,17 +22,19 @@ PDE 挑战赛 M 端命题「多模态生成的编辑器应用开发」的交付�
 | 支持 | 说明 |
 | --- | --- |
 | 逐句编辑 | 改文字、逐句音色（预设或自定义描述）、逐句音量、静音、增删句子、画面入出点、音频裁剪、句尾留白 |
+| 音色一致 | 选一句满意的配音「设为音色基准」，其余句子以它为参考音频生成：没有单独音色的句子克隆基准音色（参考音频 + 参考文字），单独设了音色描述的句子以基准为参考并按描述调整语气；换基准后已有配音显示待更新，可在列表顶部一键「更新 N 句配音」 |
 | 时间轴剪辑 | 拖动移动和裁剪、分割、复制粘贴、删除、吸附标记、选区、锁定、句间停顿（只移动本句或连同后续） |
+| 连贯排布与贴合 | 「贴合视频」按真实配音时长让句子首尾相接，富余时间分到句间（每处最多 1.5 秒），配音变化后自动重新贴合；每句可设「与上一句」的空白或重叠（最多 500 ms，只在声音层重叠，字幕不重叠）；锁定区间里的句子作为锚点不移动；导入台词时按字数比例安排初始区间 |
 | 混音与审阅 | 原声、配音、背景音乐三轨音量，选区音量和渐变，A/B 时间方案，按句审阅，时间批注 |
 | 试听与导出 | 视频为主时钟的同步试听；导出 WAV（15 分钟以内）、SRT、MP4（依赖浏览器 H.264/AAC）、交接包 |
 | 撤销与保存 | 卡内撤销和重做（50 步），保存状态如实显示（见下文「保存」） |
 
 | 不支持 / 有前提 | 说明 |
 | --- | --- |
-| 媒体持久化 | 卡片合同 v1 没有给渲染器提供授权的媒体读写口，视频和音频只在当前会话可用。刷新后用「恢复会话素材」重新选择同内容的原文件（按内容哈希匹配），或从交接包取回素材。画布持久保存的是台词、剪辑参数和素材引用。 |
+| 媒体持久化 | 卡片合同 v1 没有给渲染器提供授权的媒体读写口，画布持久保存的是台词、剪辑参数和素材引用。导入和生成的音视频会按内容哈希缓存在当前浏览器的 IndexedDB（上限约 600 MB，超出时删除最早的），重新打开编辑器自动恢复；换浏览器或清除站点数据后，用「恢复会话素材」选择同内容的原文件，或从交接包取回。音频未载入的句子在列表中显示为虚线点，可一键重新生成，试听时自动跳过。 |
 | 本机配音 | 只在页面运行于 `127.0.0.1`、且本机 VoxCPM 在 8808 端口就绪时可用；部署环境不可用。 |
 | 模型改写 | 卡内生成改写请求，由画布 Agent 或 CLI 提交 `card.drama.audio.rewrite`；服务端需配置万擎（`WQ_API_KEY`、`WQ_MODEL`、`WQ_VISION_MODEL`），未配置时动作返回 `REWRITE_UNAVAILABLE`。 |
-| 尚未实现 | 交叉淡化、词级对齐、自动降噪、响度分析、后台导出 |
+| 尚未实现 | 变速贴合（配音总长超过视频时只能提示改短台词，不做保持音调的变速）、交叉淡化、词级对齐、自动降噪、响度分析、后台导出 |
 | 文件大小 | 单个媒体 ≤30 MB，单卡会话媒体合计 ≤180 MB；卡片 `data` 序列化后 ≤256 KB |
 
 ## 建卡与打开
@@ -69,10 +71,12 @@ PDE 挑战赛 M 端命题「多模态生成的编辑器应用开发」的交付�
 | `rewriteLines` | 逐句台词 `{ id, text, videoStartMs, videoEndMs }`，区间不重叠 |
 | `confirmedLineIds` | 已人工确认区间的句子 |
 | `audioRef`、`durationMs` | 整轨配音引用与时长 |
-| `segments` | 配音片段 `{ id, label, startMs, endMs, gapMs, gain, muted, videoStartMs, videoEndMs, audioRefOverride }`；`id` 与台词对应 |
+| `segments` | 配音片段 `{ id, label, startMs, endMs, gapMs, gain, muted, videoStartMs, videoEndMs, audioRefOverride, leadMs? }`；`id` 与台词对应；`leadMs` 为配音提前进入、与上一句重叠的毫秒数 |
+| `lineJoins` | 每句与上一句的衔接（毫秒），正数为空白、负数为重叠；未设置的句子由「贴合视频」自动分配 |
 | `masterGain`、`lineGains` | 配音总音量（0–2）与逐句音量 |
 | `voiceInstruction`、`lineVoiceInstructions` | 整体音色与逐句音色描述 |
-| `generatedLineTexts`、`generatedLineVoices` | 生成配音时的文字与音色，用于判断配音是否过期 |
+| `voiceReference` | 音色基准 `{ lineId, audioRef, startMs, endMs, text, voice? }`；生成时截取其中最多 15 秒上传给本机 VoxCPM 作为参考音频 |
+| `generatedLineTexts`、`generatedLineVoices` | 生成配音时的文字与音色标识（有音色基准时包含基准音频），用于判断配音是否过期 |
 | `directorOriginalGain`、`directorBackgroundRef`、`directorBackgroundDurationMs`、`directorBackgroundGain` | 原声音量与背景音乐 |
 | `directorGainRegions` | 选区音量 `{ track, startMs, endMs, gain, fadeMs }` |
 | `directorEdit` | 锁定区间 `locks`、画面标记 `markers`、批注 `notes`、时间方案 `arrangements`、审阅记录 `review` |

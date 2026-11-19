@@ -81,6 +81,7 @@ function normalizeSegment(item: unknown): DramaAudioSegment {
     videoStartMs: raw.videoStartMs ?? null,
     videoEndMs: raw.videoEndMs ?? null,
     audioRefOverride: raw.audioRefOverride ?? null,
+    ...(typeof raw.leadMs === 'number' && Number.isFinite(raw.leadMs) && raw.leadMs > 0 ? { leadMs: Math.round(raw.leadMs) } : {}),
   };
 }
 

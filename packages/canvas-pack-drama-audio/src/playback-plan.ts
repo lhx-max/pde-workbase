@@ -47,11 +47,14 @@ export function buildPlaybackPlan(data: Pick<DramaAudioData, 'segments' | 'audio
       || !nonnegative(gapMs)) continue;
     const audioRef = segment.audioRefOverride ?? raw.audioRef;
     if (!audioPath(audioRef)) continue;
-    const elapsedMs = Math.max(0, currentVideoMs - videoStartMs);
-    const playableMs = Math.min(endMs - startMs, Math.max(0, videoEndMs - videoStartMs - gapMs));
+    // leadMs：配音提前进入、与上一句重叠的毫秒数（声音层），字幕窗口仍从 videoStartMs 开始。
+    const leadMs = nonnegative(segment.leadMs) ? Math.min(segment.leadMs, videoStartMs) : 0;
+    const audioStartMs = videoStartMs - leadMs;
+    const elapsedMs = Math.max(0, currentVideoMs - audioStartMs);
+    const playableMs = Math.min(endMs - startMs, Math.max(0, videoEndMs - videoStartMs + leadMs - gapMs));
     const durationMs = playableMs - elapsedMs;
     const offsetMs = startMs + elapsedMs;
-    const delayMs = Math.max(0, videoStartMs - currentVideoMs);
+    const delayMs = Math.max(0, audioStartMs - currentVideoMs);
     if (durationMs <= 0 || ![durationMs, offsetMs, delayMs].every(Number.isFinite)) continue;
     result.push({ segmentId: id, audioRef, delayMs, offsetMs, durationMs, gain: raw.masterGain * gain });
   }

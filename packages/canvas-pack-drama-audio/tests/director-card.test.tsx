@@ -30,10 +30,16 @@ describe('短剧配音卡渲染', () => {
     expect(dramaAudioPack.cards[0]?.render).toBe(DirectorCard);
   });
 
-  it('卡面显示台词和片段数量，打开后进入工作台', () => {
+  it('空卡面提示导入素材', () => {
+    render(<DirectorCard node={{ id: 'empty', kind: 'card.drama.audio', x: 0, y: 0, data: {} }} selected={false} onPatch={vi.fn()} />);
+    expect(screen.getByText('还没有台词，打开后导入视频和台词')).toBeTruthy();
+  });
+
+  it('卡面显示台词和配音进度，打开后进入工作台', () => {
     const onPatch = vi.fn();
     render(<DirectorCard node={node()} selected={false} onPatch={onPatch} />);
-    expect(screen.getByText('2 句台词 · 0 个配音片段')).toBeTruthy();
+    expect(screen.getByText('2 句台词')).toBeTruthy();
+    expect(screen.getByText('配音 0/2')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '打开短剧配音编辑器' }));
     expect(screen.getByRole('dialog', { name: '短剧配音编辑器' })).toBeTruthy();
     expect(screen.getByText('音频工作台')).toBeTruthy();

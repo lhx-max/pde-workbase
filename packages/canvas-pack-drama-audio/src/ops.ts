@@ -51,7 +51,7 @@ function fullPatch(data: DramaAudioData, node?: Record<string, unknown>): Patch 
   return { data: { ...existing, ...data, dataVersion: DRAMA_AUDIO_DATA_VERSION } as Record<string, unknown> };
 }
 
-const SEGMENT_FIELDS = ['id', 'label', 'startMs', 'endMs', 'gapMs', 'gain', 'muted', 'videoStartMs', 'videoEndMs', 'audioRefOverride'];
+const SEGMENT_FIELDS = ['id', 'label', 'startMs', 'endMs', 'gapMs', 'gain', 'muted', 'videoStartMs', 'videoEndMs', 'audioRefOverride', 'leadMs'];
 
 function segmentOf(input: Record<string, unknown>, durationMs: number): DramaAudioSegment {
   const segment = input.segment;
@@ -81,6 +81,7 @@ function segmentOf(input: Record<string, unknown>, durationMs: number): DramaAud
     audioRefOverride: record.audioRefOverride === undefined || record.audioRefOverride === null
       ? null
       : assertProjectRelativePath('params.segment.audioRefOverride', record.audioRefOverride),
+    ...(record.leadMs === undefined || record.leadMs === 0 ? {} : { leadMs: assertInteger('params.segment.leadMs', record.leadMs, 1, 500) }),
   };
 }
 

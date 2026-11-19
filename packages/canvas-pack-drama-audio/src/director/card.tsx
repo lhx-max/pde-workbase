@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { CardRenderProps } from '@bezier/canvas-card-sdk';
 import { useSessionMedia } from './media';
 import { Workbench } from './workbench';
+import { AudioLines } from './icons';
+import { dubbingCounts } from '../dubbing';
 import styles from './workbench.module.css';
 
 export function DirectorCard(props: CardRenderProps) {
@@ -24,12 +26,16 @@ export function DirectorCard(props: CardRenderProps) {
   }
 
   const lines = node.data?.rewriteLines;
-  const segments = node.data?.segments;
   const lineCount = Array.isArray(lines) ? lines.length : 0;
-  const segmentCount = Array.isArray(segments) ? segments.length : 0;
+  const counts = dubbingCounts(node.data ?? {});
+  const progress = counts.total ? Math.round(counts.current / counts.total * 100) : 0;
   return <div className={`${styles.cardEntry} nodrag nopan nowheel`}>
-    <p>{lineCount} 句台词 · {segmentCount} 个配音片段</p>
-    <button type="button" ref={openButton} aria-haspopup="dialog" onClick={() => setOpened(true)}>打开短剧配音编辑器</button>
+    <div className={styles.cardTitle}><AudioLines size={16} />{typeof node.title === 'string' && node.title ? node.title : '短剧配音'}</div>
+    {lineCount
+      ? <><div className={styles.cardStats}><span>{lineCount} 句台词</span><span>配音 {counts.current}/{counts.total}</span><span>待确认 {Math.max(0, counts.total - counts.confirmed)}</span></div>
+        <div className={styles.cardProgress} aria-hidden="true"><span style={{ width: `${progress}%` }} /></div></>
+      : <div className={styles.cardStats}><span>还没有台词，打开后导入视频和台词</span></div>}
+    <button type="button" ref={openButton} className={styles.cardOpen} aria-haspopup="dialog" onClick={() => setOpened(true)}>打开短剧配音编辑器</button>
     {/* Canvas shortcut handlers recognize overlays through the explicit role. */}
     {opened && <dialog ref={modal} role="dialog" className={`${styles.cardDialog} nodrag nopan nowheel`}
       aria-label="短剧配音编辑器" onCancel={event => {

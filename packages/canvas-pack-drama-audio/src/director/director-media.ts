@@ -1,3 +1,4 @@
+import { planScriptWindows } from './layout';
 import { makeSubtitles } from '../subtitles';
 import { requireMedia, type MediaLookup } from './media';
 import { buildDirectorPlaybackPlan, gainRegionsOf, originalGainOf, scheduleMixGain } from '../playback-plan';
@@ -26,11 +27,10 @@ export function importScript(data: Data, source: string, duration: number): Data
   if (duration < texts.length) throw new Error('请先绑定视频，才能为台词安排时间区间。');
   const previous = linesOf(data);
   const reuseWindows = texts.length === previous.length;
-  const rows = validateRewriteLines(texts.map((text, index) => reuseWindows ? { ...previous[index], text } : {
-    id: `line-${crypto.randomUUID()}`, text,
-    videoStartMs: Math.floor(index * duration / texts.length),
-    videoEndMs: Math.floor((index + 1) * duration / texts.length),
-  }), duration);
+  // 句数不变时沿用原区间；否则按字数比例安排初始区间，生成配音后再按真实时长贴合。
+  const rows = validateRewriteLines(reuseWindows
+    ? texts.map((text, index) => ({ ...previous[index], text }))
+    : planScriptWindows(texts.map(text => ({ id: `line-${crypto.randomUUID()}`, text })), duration), duration);
   const unchanged = new Set(rows.filter((line, index) => reuseWindows && line.text === previous[index]?.text).map(line => line.id));
   const kept = segmentsOf(data).filter(segment => unchanged.has(segment.id));
   return {
@@ -120,7 +120,7 @@ export function deliveryIssues(data: Data, videoMs: number): string[] {
   if (counts.total > counts.confirmed) issues.push(`${counts.total - counts.confirmed} 句区间未确认`);
   const segments = segmentsOf(data);
   const truncated = segments.filter(segment => !segment.muted && segment.videoStartMs !== null && segment.videoEndMs !== null
-    && segment.endMs - segment.startMs > segment.videoEndMs - segment.videoStartMs - segment.gapMs).length;
+    && segment.endMs - segment.startMs > segment.videoEndMs - segment.videoStartMs + (segment.leadMs ?? 0) - segment.gapMs).length;
   if (truncated) issues.push(`${truncated} 句音频会截断`);
   if (segments.some(segment => segment.videoEndMs !== null && segment.videoEndMs > videoMs)) issues.push('存在超出视频的片段');
   return issues;

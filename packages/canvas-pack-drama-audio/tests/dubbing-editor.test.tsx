@@ -31,8 +31,8 @@ const data = () => latest?.data as Record<string, any>;
 function editLine(text: string, extra: Record<string, unknown> = {}) {
   render(<Host initial={{ videoDurationMs: 6000, rewriteLines: lines, ...extra }} />);
   fireEvent.click(screen.getByRole('button', { name: '打开短剧配音编辑器' }));
-  fireEvent.click(within(screen.getByRole('region', { name: '台词浏览' })).getByText(text).closest('button')!);
-  return within(screen.getByRole('complementary', { name: '内容编辑与交付' }));
+  fireEvent.click(within(screen.getByRole('complementary', { name: '台词列表' })).getByText(text).closest('button')!);
+  return within(screen.getByRole('complementary', { name: '内容编辑' }));
 }
 function commitNumber(field: HTMLElement, value: string) {
   fireEvent.change(field, { target: { value } });
@@ -55,10 +55,14 @@ describe('逐句配音编辑', () => {
     expect(data().lineVoiceInstructions?.l1 ?? null).toBeNull();
   });
 
-  it('本句音量在失焦时提交', () => {
+  it('本句音量以百分比输入，失焦时提交并限制在 0–200%', () => {
     const panel = editLine('第一句解说');
-    commitNumber(panel.getByLabelText('本句音量（0–2）'), '1.5');
+    commitNumber(panel.getByLabelText('本句音量'), '150');
     expect(data().lineGains).toEqual({ l1: 1.5 });
+    commitNumber(panel.getByLabelText('本句音量'), '999');
+    expect(data().lineGains).toEqual({ l1: 2 });
+    commitNumber(panel.getByLabelText('本句音量'), '');
+    expect(data().lineGains).toEqual({ l1: 2 });
   });
 
   it('前插、后插和删除台词', () => {
@@ -83,6 +87,13 @@ describe('逐句配音编辑', () => {
     expect(data().rewriteLines[0]).toMatchObject({ id: 'l1', videoEndMs: 1200 });
   });
 
+  it('已配音句的按钮显示重新生成，确认后显示已确认', () => {
+    const panel = editLine('第二句解说', { audioRef: 'session/voice/full.wav', segments: [segment] });
+    expect(panel.getByRole('button', { name: '重新生成' })).toBeTruthy();
+    fireEvent.click(panel.getByRole('button', { name: '确认这句' }));
+    expect((panel.getByRole('button', { name: '已确认' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it('已配音句可调整音频裁剪、留白并静音', () => {
     const panel = editLine('第二句解说', { audioRef: 'session/voice/full.wav', segments: [segment] });
     expect(panel.getByText(/音频源：session\/voice\/full.wav/)).toBeTruthy();
@@ -101,7 +112,22 @@ describe('逐句配音编辑', () => {
 
   it('非回环地址下不能生成本机配音', () => {
     const panel = editLine('第一句解说');
-    expect((panel.getByRole('button', { name: '生成本句配音候选' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((panel.getByRole('button', { name: '生成配音' }) as HTMLButtonElement).disabled).toBe(true);
     expect(panel.getByText('本句尚未生成真实音频。')).toBeTruthy();
+  });
+
+  it('把已配音的句子设为音色基准，可取消', () => {
+    const panel = editLine('第二句解说', { audioRef: 'session/voice/full.wav', segments: [segment], generatedLineTexts: { l2: '第二句解说' }, generatedLineVoices: { l2: '温柔女声' } });
+    fireEvent.click(panel.getByRole('button', { name: '设为音色基准' }));
+    expect(data().voiceReference).toEqual({ lineId: 'l2', audioRef: 'session/voice/full.wav', startMs: 0, endMs: 1200, text: '第二句解说', voice: '温柔女声' });
+    expect(panel.getByText('这句是音色基准，其他句子按它的音色生成')).toBeTruthy();
+    fireEvent.click(panel.getByRole('button', { name: '取消基准' }));
+    expect(data().voiceReference).toBeNull();
+  });
+
+  it('没有配音的句子不能设为基准；已有基准时音色默认跟随基准', () => {
+    const panel = editLine('第一句解说', { voiceReference: { lineId: 'l2', audioRef: 'session/voice/full.wav', startMs: 0, endMs: 1200, text: '第二句解说' } });
+    expect(panel.queryByRole('button', { name: '设为音色基准' })).toBeNull();
+    expect(panel.getByRole('option', { name: '跟随基准' })).toBeTruthy();
   });
 });

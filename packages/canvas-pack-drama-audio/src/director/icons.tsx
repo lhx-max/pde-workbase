@@ -123,3 +123,141 @@ export function X(props: IconProps) {
     <path d="m6 6 12 12" />
   </Icon>;
 }
+
+export function MoreHorizontal(props: IconProps) {
+  return <Icon {...props}>
+    <circle cx="12" cy="12" r="1" />
+    <circle cx="19" cy="12" r="1" />
+    <circle cx="5" cy="12" r="1" />
+  </Icon>;
+}
+
+export function Download(props: IconProps) {
+  return <Icon {...props}>
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <path d="m7 10 5 5 5-5" />
+    <path d="M12 15V3" />
+  </Icon>;
+}
+
+export function Upload(props: IconProps) {
+  return <Icon {...props}>
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <path d="m17 8-5-5-5 5" />
+    <path d="M12 3v12" />
+  </Icon>;
+}
+
+export function Check(props: IconProps) {
+  return <Icon {...props}>
+    <path d="M20 6 9 17l-5-5" />
+  </Icon>;
+}
+
+export function Sparkles(props: IconProps) {
+  return <Icon {...props}>
+    <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+  </Icon>;
+}
+
+export function Film(props: IconProps) {
+  return <Icon {...props}>
+    <rect width="18" height="18" x="3" y="3" rx="2" />
+    <path d="M7 3v18" />
+    <path d="M3 7.5h4" />
+    <path d="M3 12h18" />
+    <path d="M3 16.5h4" />
+    <path d="M17 3v18" />
+    <path d="M17 7.5h4" />
+    <path d="M17 16.5h4" />
+  </Icon>;
+}
+
+export function FileText(props: IconProps) {
+  return <Icon {...props}>
+    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+    <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+    <path d="M16 13H8" />
+    <path d="M16 17H8" />
+  </Icon>;
+}
+
+export function AudioLines(props: IconProps) {
+  return <Icon {...props}>
+    <path d="M2 10v3" />
+    <path d="M6 6v11" />
+    <path d="M10 3v18" />
+    <path d="M14 8v7" />
+    <path d="M18 5v13" />
+    <path d="M22 10v3" />
+  </Icon>;
+}
+
+export function Play(props: IconProps) {
+  return <Icon {...props}>
+    <path d="M6 3l14 9-14 9z" />
+  </Icon>;
+}
+
+export function Pause(props: IconProps) {
+  return <Icon {...props}>
+    <rect x="14" y="4" width="4" height="16" rx="1" />
+    <rect x="6" y="4" width="4" height="16" rx="1" />
+  </Icon>;
+}
+
+export function RotateCcw(props: IconProps) {
+  return <Icon {...props}>
+    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+    <path d="M3 3v5h5" />
+  </Icon>;
+}
+
+export function RefreshCw(props: IconProps) {
+  return <Icon {...props}>
+    <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+    <path d="M21 3v5h-5" />
+    <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+    <path d="M8 16H3v5" />
+  </Icon>;
+}
+
+export function ChevronLeft(props: IconProps) {
+  return <Icon {...props}>
+    <path d="m15 18-6-6 6-6" />
+  </Icon>;
+}
+
+export function ChevronRight(props: IconProps) {
+  return <Icon {...props}>
+    <path d="m9 18 6-6-6-6" />
+  </Icon>;
+}
+
+export function Scan(props: IconProps) {
+  return <Icon {...props}>
+    <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+    <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+    <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+    <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+  </Icon>;
+}
+
+export function LocateFixed(props: IconProps) {
+  return <Icon {...props}>
+    <path d="M2 12h3" />
+    <path d="M19 12h3" />
+    <path d="M12 2v3" />
+    <path d="M12 19v3" />
+    <circle cx="12" cy="12" r="7" />
+    <circle cx="12" cy="12" r="3" />
+  </Icon>;
+}
+
+export function AlignHorizontal(props: IconProps) {
+  return <Icon {...props}>
+    <rect width="6" height="10" x="9" y="7" rx="2" />
+    <path d="M4 22V2" />
+    <path d="M20 22V2" />
+  </Icon>;
+}

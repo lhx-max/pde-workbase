@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CardRenderProps } from '@bezier/canvas-card-sdk';
-import { adoptDubbingCandidate, candidateMatches, dubbingCounts, effectiveLineVoice, lineGenerationCurrent, type DubbingCandidate } from './dubbing';
+import { adoptDubbingCandidate, candidateMatches, dubbingCounts, effectiveLineVoice, lineGenerationCurrent, voiceReferenceOf, type DubbingCandidate } from './dubbing';
 import { checkLocalVoice, fillMissing, generateCandidate, localVoiceAvailable } from './director/local-voice';
 import { requireMedia, type MediaLookup } from './director/media';
 import { readDramaAudioData, shiftSegmentWindow } from './edl';
@@ -8,6 +8,7 @@ import { buildDirectorPlaybackPlan, gainAt, gainRegionsOf, originalGainOf, playb
 import { insertRewriteLine, validateRewriteLines, type RewriteLine as TimedRewriteLine } from './rewrite';
 import type { DramaAudioData, DramaAudioSegment } from './types';
 import { VoicePicker } from './voice-picker';
+import { Check, ChevronRight, Play, RefreshCw } from './director/icons';
 
 interface RewriteLine {
   id: string;
@@ -26,25 +27,62 @@ export type DubbingPlayback = {
 
 const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
+const button: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 30, padding: '0 12px', border: '1px solid var(--border-default, #e2e4e9)', borderRadius: 8, background: 'var(--surface, #fff)', color: 'var(--text-primary, #1f2329)', font: 'inherit', fontSize: 13, cursor: 'pointer' };
 const styles: Record<string, React.CSSProperties> = {
-  root: { display: 'flex', flexDirection: 'column', gap: 12, padding: 12, fontSize: 12, color: 'var(--text-primary, #202124)', background: 'var(--bg-app, #fff)' },
+  root: { display: 'flex', flexDirection: 'column', gap: 12, padding: 12, fontSize: 13, color: 'var(--text-primary, #1f2329)', background: 'var(--bg-app, #fff)' },
   row: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
-  panel: { display: 'flex', flexDirection: 'column', gap: 8, padding: 10, border: '1px solid var(--border-default, #ddd)', borderRadius: 8 },
-  input: { width: 90, padding: 4, border: '1px solid var(--border-default, #ddd)', borderRadius: 4, color: 'inherit', background: 'var(--bg-app, #fff)' },
-  select: { padding: '4px 6px', border: '1px solid var(--border-default, #ddd)', borderRadius: 5, color: 'inherit', background: 'var(--bg-app, #fff)' },
-  button: { padding: '6px 11px', border: '1px solid var(--director-button-border, #93c5fd)', borderRadius: 6, background: 'var(--director-button-bg, #eff6ff)', color: 'var(--director-button-text, #1e40af)', fontWeight: 600, cursor: 'pointer' },
-  primaryButton: { padding: '6px 11px', border: '1px solid var(--director-primary-bg, #1d4ed8)', borderRadius: 6, background: 'var(--director-primary-bg, #2563eb)', color: '#fff', fontWeight: 600, cursor: 'pointer' },
-  successButton: { padding: '6px 11px', border: '1px solid var(--director-confirm-bg, #047857)', borderRadius: 6, background: 'var(--director-confirm-bg, #059669)', color: '#fff', fontWeight: 600, cursor: 'pointer' },
-  dangerButton: { padding: '6px 11px', border: '1px solid #fca5a5', borderRadius: 6, background: '#fef2f2', color: '#b91c1c', fontWeight: 600, cursor: 'pointer' },
-  hint: { color: 'var(--text-secondary, #666)', lineHeight: 1.6 },
-  warning: { color: 'var(--director-warning, #b45309)', lineHeight: 1.6 },
-  error: { color: 'var(--director-error, #cf2e2e)', lineHeight: 1.6, fontWeight: 600 },
-  track: { position: 'relative', height: 46, overflow: 'hidden', borderRadius: 5, background: 'var(--bg-secondary, #f3f4f6)' },
-  block: { position: 'absolute', top: 5, height: 36, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', padding: '2px 4px', borderRadius: 4, border: '1px solid #7c5cff', color: 'inherit', background: 'rgba(124,92,255,.15)', cursor: 'grab', touchAction: 'none', userSelect: 'none' },
-  collapsedRow: { display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none', minHeight: 24 },
+  panel: { display: 'flex', flexDirection: 'column', gap: 8, padding: 10, border: '1px solid var(--border-default, #e2e4e9)', borderRadius: 10 },
+  input: { width: 90, minHeight: 30, padding: '4px 8px', border: '1px solid var(--border-default, #e2e4e9)', borderRadius: 8, color: 'inherit', background: 'var(--surface, #fff)', font: 'inherit' },
+  select: { minHeight: 30, padding: '0 8px', border: '1px solid var(--border-default, #e2e4e9)', borderRadius: 8, color: 'inherit', background: 'var(--surface, #fff)', font: 'inherit' },
+  button,
+  primaryButton: { ...button, border: '1px solid var(--primary, #1f2329)', background: 'var(--primary, #1f2329)', color: 'var(--on-primary, #fff)', fontWeight: 500 },
+  successButton: { ...button, border: '1px solid transparent', background: 'var(--success-soft, #e5f5ec)', color: 'var(--success, #1e8e4f)', fontWeight: 500 },
+  dangerButton: { ...button, border: '1px solid transparent', background: 'var(--danger-soft, #fdebed)', color: 'var(--danger, #c4323f)' },
+  hint: { color: 'var(--text-secondary, #5f6670)', fontSize: 12, lineHeight: 1.6 },
+  warning: { color: 'var(--director-warning, #a8620a)', fontSize: 12, lineHeight: 1.6 },
+  error: { color: 'var(--director-error, #c4323f)', fontSize: 12, lineHeight: 1.6, fontWeight: 500 },
+  track: { position: 'relative', height: 46, overflow: 'hidden', borderRadius: 6, background: 'var(--bg-secondary, #f0f1f4)' },
+  block: { position: 'absolute', top: 5, height: 36, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', padding: '2px 4px', borderRadius: 4, border: '1px solid var(--accent, #5b4bdb)', color: 'inherit', background: 'var(--accent-soft, #efedfd)', cursor: 'grab', touchAction: 'none', userSelect: 'none' },
+  collapsedRow: { display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none', minHeight: 28, color: 'var(--text-secondary, #5f6670)', fontWeight: 500 },
   collapsedText: { flex: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', color: 'inherit' },
-  badge: { flexShrink: 0, padding: '1px 6px', borderRadius: 999, border: '1px solid var(--border-default, #ddd)', fontSize: 11, lineHeight: 1.5 },
+  badge: { flexShrink: 0, padding: '1px 8px', borderRadius: 999, background: 'var(--subtle, #f0f1f4)', fontSize: 11, lineHeight: 1.6 },
+  textarea: { display: 'block', width: '100%', minHeight: 84, padding: '10px 12px', border: '1px solid var(--border-default, #e2e4e9)', borderRadius: 10, background: 'var(--surface, #fff)', color: 'inherit', font: 'inherit', lineHeight: 1.6, resize: 'vertical', boxSizing: 'border-box' },
+  field: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 32 },
+  fieldLabel: { color: 'var(--text-secondary, #5f6670)', flexShrink: 0 },
+  actions: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 },
+  confirm: { ...button, width: '100%', border: '1px solid transparent', background: 'var(--success-soft, #e5f5ec)', color: 'var(--success, #1e8e4f)', fontWeight: 500 },
+  section: { borderTop: '1px solid var(--border-default, #e2e4e9)', paddingTop: 4 },
+  summary: { display: 'flex', alignItems: 'center', gap: 6, minHeight: 36, color: 'var(--text-secondary, #5f6670)', cursor: 'pointer', listStyle: 'none', userSelect: 'none' },
+  sectionBody: { display: 'grid', gap: 10, padding: '4px 0 10px' },
+  referenceRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '8px 10px', borderRadius: 8, background: 'var(--subtle, #f0f1f4)', fontSize: 12 },
+  textButton: { padding: 0, border: 0, background: 'none', color: 'var(--accent-text, #1f5bd1)', font: 'inherit', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' },
 };
+
+/** 右侧面板里的折叠段落：标题前带箭头，展开后显示内容。 */
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return <details style={styles.section} open={open} onToggle={event => setOpen(event.currentTarget.open)}>
+    <summary style={styles.summary}><span style={{ display: 'inline-flex', transform: open ? 'rotate(90deg)' : undefined, transition: 'transform .15s' }}><ChevronRight size={14} /></span>{title}</summary>
+    <div style={styles.sectionBody}>{children}</div>
+  </details>;
+}
+
+/** 百分比音量输入：显示 0–200%，失焦或回车后提交 0–2 的增益。 */
+function PercentField({ label, value, onChange }: { label: string; value: number; onChange: (gain: number) => void }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const commit = () => {
+    if (draft === null) return;
+    const percent = Number(draft);
+    setDraft(null);
+    if (draft.trim() && Number.isFinite(percent)) onChange(Math.round(Math.max(0, Math.min(200, percent))) / 100);
+  };
+  return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+    <input aria-label={label} type="number" min={0} max={200} step={5} value={draft ?? String(Math.round(value * 100))}
+      style={{ ...styles.input, width: 72, textAlign: 'right' }} onChange={event => setDraft(event.target.value)} onBlur={commit}
+      onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }} />
+    <span style={styles.hint}>%</span>
+  </span>;
+}
 
 function finiteMs(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0;
@@ -63,7 +101,7 @@ function validWindow(start: unknown, end: unknown): boolean {
 function excessMs(segment: DramaAudioSegment): number {
   if (!validWindow(segment.videoStartMs, segment.videoEndMs)
     || !validWindow(segment.startMs, segment.endMs) || !finiteMs(segment.gapMs)) return 0;
-  return Math.max(0, segment.endMs - segment.startMs - Math.max(0, segment.videoEndMs! - segment.videoStartMs! - segment.gapMs));
+  return Math.max(0, segment.endMs - segment.startMs - Math.max(0, segment.videoEndMs! - segment.videoStartMs! + (segment.leadMs ?? 0) - segment.gapMs));
 }
 
 function NumberField({ label, value, max, onChange }: {
@@ -106,6 +144,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
   const data = useMemo(() => readDramaAudioData(node), [node.data]);
   const raw = node.data ?? {};
   const canGenerate = localVoiceAvailable();
+  const reference = voiceReferenceOf(node.data ?? {});
   const lines = readLines(raw.rewriteLines);
   const confirmed = Array.isArray(raw.confirmedLineIds) ? raw.confirmedLineIds.filter((id): id is string => typeof id === 'string') : [];
   const rows = [...lines, ...data.segments.filter(segment => !lines.some(line => line.id === segment.id)).map(segment => ({ id: segment.id, text: segment.label, videoStartMs: segment.videoStartMs, videoEndMs: segment.videoEndMs }))];
@@ -534,7 +573,10 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
       await audioContext.resume();
       const refs = [...new Set(planFor(planData, at, mode).map(item => item.audioRef))];
       if (!refs.length) throw new Error('尚无逐句配音，请先生成');
-      await Promise.all(refs.map(async ref => {
+      // 刷新后未恢复的音频在试听时跳过，不让整段试听失败。
+      const missing = refs.filter(ref => !buffers.current.has(ref) && !sessionMedia.resolve(ref));
+      if (missing.length === refs.length) throw new Error(`这里的 ${missing.length} 段配音音频都未载入。可以在左侧重新生成，或从「⋯」恢复会话素材。`);
+      await Promise.all(refs.filter(ref => !missing.includes(ref)).map(async ref => {
         if (buffers.current.has(ref)) return;
         const url = requireMedia(sessionMedia.resolve, ref);
         const response = await fetch(url, { signal: controller.signal, redirect: 'error' });
@@ -545,7 +587,8 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
       }));
       if (controller.signal.aborted) return;
       loaded.current = true;
-      setLoadStatus(`已载入 ${refs.length} 个音频源；按视频时钟试听，不自动拉伸`);
+      setLoadStatus(`已载入 ${refs.length - missing.length} 个音频源；按视频时钟试听，不自动拉伸`);
+      if (missing.length) setGenerationStatus(`${missing.length} 段配音音频未载入，试听时已跳过。可在左侧重新生成。`);
       schedule();
     } catch (reason) {
       if (!controller.signal.aborted) {
@@ -597,14 +640,14 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     try {
       if (beforeGenerate && !await beforeGenerate()) throw new Error('请先解决草稿保存问题');
       if (onlyLineId) {
-        const result = await generateCandidate(sessionMedia.readData, sessionMedia.add, onlyLineId, controller.signal);
+        const result = await generateCandidate(sessionMedia.readData, sessionMedia.add, onlyLineId, controller.signal, sessionMedia.resolve);
         setCandidate(result);
         setGenerationStatus('候选已就绪，可以试听后采用。');
       } else {
         const progress = (message: string) => {
           if (!controller.signal.aborted) setGenerationStatus(message);
         };
-        await fillMissing(sessionMedia.readData, patch, sessionMedia.add, controller.signal, progress);
+        await fillMissing(sessionMedia.readData, patch, sessionMedia.add, controller.signal, progress, { resolve: sessionMedia.resolve });
       }
     } catch (reason) {
       if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : '配音生成失败');
@@ -725,10 +768,10 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
 
   return <section className="nodrag nopan" style={externalVideoRef ? { ...styles.root, background: 'transparent' } : styles.root} onPointerDown={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
     {!listOnly && <>
-    <details open={!externalVideoRef} style={externalVideoRef ? { order: 2 } : undefined}>
-    <summary style={styles.collapsedRow}>{externalVideoRef ? '整体音色与播放设置' : '整体配音设置与播放控制'}</summary>
-    <strong>逐句配音编辑</strong>
-    <div style={styles.hint}>视频是唯一主时钟。自动建议尚待逐句确认；静音不压缩视频，停顿保留在视频区间尾部。</div>
+    <details open={!externalVideoRef} style={externalVideoRef ? { ...styles.section, order: 2 } : undefined}>
+    <summary style={externalVideoRef ? styles.summary : styles.collapsedRow}>{externalVideoRef && <ChevronRight size={14} />}{externalVideoRef ? '整体音色与倍速' : '整体配音设置与播放控制'}</summary>
+    {!externalVideoRef && <><strong>逐句配音编辑</strong>
+    <div style={styles.hint}>视频是唯一主时钟。自动建议尚待逐句确认；静音不压缩视频，停顿保留在视频区间尾部。</div></>}
     {!canGenerate && <div style={styles.warning}>本机 VoxCPM 仅在回环地址下可用。</div>}
     {videoUrl && !externalVideoRef ? <video ref={video} src={videoUrl} controls muted={!originalAudio} preload="metadata" style={{ width: '100%', maxHeight: 260, background: '#000', borderRadius: 6 }}
       onError={() => { stop(); setError('视频读取失败，无法同步试听'); }} /> : !externalVideoRef && <div style={styles.warning}>未绑定有效视频工程文件</div>}
@@ -743,6 +786,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
       <span>{Math.round(currentMs)} / {Math.round(videoDurationMs)} ms</span>
     </div>
     <VoicePicker value={data.voiceInstruction} styles={styles} onChange={next => patch({ voiceInstruction: next })} />
+    {reference && <div style={styles.hint}>已设音色基准：没有单独音色的句子会克隆基准音色，整体音色描述不再生效。</div>}
     <div style={styles.row}>
       <button style={styles.button} disabled={!canGenerate || startingTts || generating} onClick={() => void startTtsService()}>{startingTts ? '检查中…' : '检查本地 TTS'}</button>
       <button style={{ ...styles.primaryButton, opacity: !canGenerate || !rows.length || generating || loading || startingTts ? 0.45 : 1 }} disabled={!canGenerate || !counts.missing || generating || loading || startingTts || batchGenerating} onClick={() => void generate()}>补齐逐句配音</button>
@@ -755,7 +799,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
       style={{ width: '100%', accentColor: '#2563eb' }} onChange={event => seek(Number(event.target.value))} />
     {mediaDurationMs > 0 && Math.abs(mediaDurationMs - data.videoDurationMs) > 50 && <div style={styles.warning}>已按视频实际时长同步时间轴；保存时长与媒体不同，配音区间仍需人工核对。</div>}
     <div role="status" style={styles.hint}>{loadStatus}{generationStatus && <div>{generationStatus}</div>}</div>
-    {error && <div role="alert" style={styles.error}>{error}</div>}
+    {!externalVideoRef && error && <div role="alert" style={styles.error}>{error}</div>}
     </details>
     {externalVideoRef && error && <div role="alert" style={styles.error}>{error}</div>}
     {!externalVideoRef && <div style={styles.panel}>
@@ -788,16 +832,12 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     {(listOnly || externalVideoRef) && <>
     {!externalVideoRef && <strong>配音句列表与细节编辑</strong>}
     {(!externalVideoRef || generationStatus) && <div role="status" style={styles.hint}>{!externalVideoRef && `当前配音 ${counts.current}/${counts.total} · 待补 ${counts.missing} · 待更新 ${counts.stale} · 区间已确认 ${counts.confirmed}`}{generationStatus && `${externalVideoRef ? '' : ' · '}${generationStatus}`}</div>}
-    {error && <div role="alert" style={styles.error}>{error}</div>}
+    {!externalVideoRef && error && <div role="alert" style={styles.error}>{error}</div>}
     <div style={styles.row}>
       {!externalVideoRef && <strong>配音句列表 · {rows.length} 句</strong>}
       {!externalVideoRef && <button style={styles.button} aria-expanded={showLineList} onClick={() => setShowLineList(value => !value)}>{showLineList ? '收起配音列表' : '展开配音列表'}</button>}
       {!externalVideoRef && <button style={styles.button} disabled={!expandedId} onClick={() => { setExpandedId(null); onLineSelect?.(null); }}>收起句子编辑</button>}
       {!externalVideoRef && <button style={styles.button} disabled={!canUndo || generating} onClick={undoStructure}>撤销增删</button>}
-      {externalVideoRef && expandedId && <>
-        <button style={styles.button} disabled={rows.findIndex(line => line.id === expandedId) <= 0} onClick={() => selectLine(rows[rows.findIndex(line => line.id === expandedId) - 1]!.id)}>上一句</button>
-        <button style={styles.button} disabled={rows.findIndex(line => line.id === expandedId) >= rows.length - 1} onClick={() => selectLine(rows[rows.findIndex(line => line.id === expandedId) + 1]!.id)}>下一句</button>
-      </>}
     </div>
     {showLineList && <div ref={lineList} role="region" aria-label="配音句滚动列表" tabIndex={0}
       style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 8, maxHeight: externalVideoRef ? undefined : 340, overflowY: externalVideoRef ? 'visible' : 'auto', overscrollBehavior: 'contain', padding: 2, scrollbarGutter: 'stable' }}
@@ -825,7 +865,66 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
           <span style={styles.hint}>{validWindow(start, end) ? `${Math.round(start!)}–${Math.round(end!)}ms` : '未对齐'}</span>
           <span style={styles.hint}>{expanded ? '收起 ▲' : '展开 ▼'}</span>
         </div>}
-        {expanded && <>
+        {expanded && externalVideoRef && <>
+        <textarea aria-label="台词内容" value={line.text} style={styles.textarea} onChange={event => editLine(line.id, event.target.value)} />
+        <div style={styles.field}><span style={styles.fieldLabel}>音色</span>
+          <VoicePicker value={lineVoice} label="本句音色" hideLabel defaultLabel={reference ? '跟随基准' : '继承整体'} styles={styles} onChange={value => editLineVoice(line.id, value)} /></div>
+        {reference?.lineId === line.id
+          ? <div style={styles.referenceRow}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Check size={14} />这句是音色基准，其他句子按它的音色生成</span>
+              <button style={styles.textButton} onClick={() => patch({ voiceReference: null })}>取消基准</button></div>
+          : segment && (segment.audioRefOverride ?? data.audioRef) && <div style={styles.referenceRow}>
+              <span style={styles.hint}>{reference ? '已有音色基准，可改用这句' : '音色不统一时，选一句满意的作为基准'}</span>
+              <button style={styles.textButton} disabled={generating || loading} onClick={() => patch({ voiceReference: {
+                lineId: line.id, audioRef: segment.audioRefOverride ?? data.audioRef, startMs: segment.startMs, endMs: segment.endMs, text: line.text,
+                voice: (raw.generatedLineVoices as Record<string, unknown> | undefined)?.[line.id] ?? effectiveLineVoice(raw, line.id),
+              } })}>设为音色基准</button></div>}
+        <div style={styles.field}><span style={styles.fieldLabel}>音量</span>
+          <PercentField label="本句音量" value={lineGain} onChange={value => editLineGain(line.id, value)} /></div>
+        <div style={styles.actions}>
+          <button style={styles.button} disabled={!segment || !validWindow(start, end) || loading || generating} title={segment ? '对着画面试听这一句' : '这句还没有配音'} onClick={() => void playPreview(start, end)}><Play size={14} />试听本句</button>
+          <button style={styles.button} disabled={generating || startingTts || batchGenerating || loading || !canGenerate}
+            title={canGenerate ? '用本机 VoxCPM 生成这一句' : '本机配音需在 127.0.0.1 打开并启动 VoxCPM'} onClick={() => void generate(line.id)}><RefreshCw size={14} />{segment ? '重新生成' : '生成配音'}</button>
+        </div>
+        <button style={confirmed.includes(line.id) ? { ...styles.confirm, opacity: 0.7, cursor: 'default' } : styles.confirm} disabled={!validWindow(start, end) || confirmed.includes(line.id)} onClick={() => {
+          const ids = latest.current.raw.confirmedLineIds;
+          patch({ confirmedLineIds: [...new Set([...(Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : []), line.id])] });
+        }}><Check size={14} />{confirmed.includes(line.id) ? '已确认' : '确认这句'}</button>
+        {generating && <button style={styles.button} onClick={() => generationController.current?.abort()}>停止等待配音</button>}
+        {candidate?.lineId === line.id && <div style={{ ...styles.panel, background: 'var(--subtle, #f0f1f4)', border: 0 }}>
+          <strong>新配音 · {(candidate.durationMs / 1000).toFixed(2)} 秒</strong>
+          <div style={styles.row}>
+            <button style={styles.button} disabled={!validWindow(start, end) || !candidateMatches(raw, candidate) || loading} onClick={() => reviewCandidate(candidate, start, end)}><Play size={14} />同步试听候选</button>
+            <button style={styles.primaryButton} disabled={!candidateMatches(raw, candidate)} onClick={() => applyCandidate(candidate)}>采用候选</button>
+            <button style={styles.button} onClick={() => { stopCandidatePreview(); setCandidate(null); setGenerationStatus('已放弃候选。'); }}>放弃候选</button>
+          </div>
+          {!candidateMatches(raw, candidate) && <span style={styles.warning}>当前输入已变化，请重新生成。</span>}
+        </div>}
+        {stale && <div style={styles.warning}>{legacy ? '旧配音缺少音色记录，可以正常试听。' : '文字或音色改过了，可以重新生成。'}</div>}
+        {segment && over > 0 && <div style={styles.error}>时长超限 {Math.ceil(over)} ms，试听会截断超出部分。</div>}
+        {segment && !validWindow(start, end) && <div style={styles.warning}>视频区间未对齐或非法，本句不播放。</div>}
+        {segment && finiteMs(end) && videoDurationMs > 0 && end > videoDurationMs && <div style={styles.error}>视频区间超过视频总时长，请调整。</div>}
+        {buffer && segment && segment.endMs > buffer.duration * 1000 + 1 && <div style={styles.error}>源截取超过真实音频时长 {Math.round(buffer.duration * 1000)} ms。</div>}
+        <Section title="时间与裁剪">
+          <div style={styles.field}><NumberField label="画面入点（毫秒）" value={start} onChange={value => editSegment(line.id, { videoStartMs: value })} /></div>
+          <div style={styles.field}><NumberField label="画面出点（毫秒）" value={end} onChange={value => editSegment(line.id, { videoEndMs: value })} /></div>
+          {segment ? <>
+            <div style={styles.field}><NumberField label="音频入点（毫秒）" value={segment.startMs} onChange={value => { if (value !== null) editSegment(line.id, { startMs: value }); }} /></div>
+            <div style={styles.field}><NumberField label="音频出点（毫秒）" value={segment.endMs} onChange={value => { if (value !== null) editSegment(line.id, { endMs: value }); }} /></div>
+            <div style={styles.field}><NumberField label="句尾留白（毫秒）" value={segment.gapMs} onChange={value => { if (value !== null) editSegment(line.id, { gapMs: value }); }} /></div>
+            <label style={styles.row}><input type="checkbox" checked={segment.muted} onChange={event => editSegment(line.id, { muted: event.target.checked })} />静音本句（保留时间位置）</label>
+            <div style={{ ...styles.hint, overflowWrap: 'anywhere' }}>音频源：{segment.audioRefOverride ?? data.audioRef ?? '未绑定'}</div>
+          </> : <div style={styles.hint}>本句尚未生成真实音频。</div>}
+        </Section>
+        <Section title="增删台词">
+          <div style={styles.row}>
+            <button style={styles.button} disabled={generating || startingTts} onClick={() => changeLineStructure(line.id, 'before')}>前插一句</button>
+            <button style={styles.button} disabled={generating || startingTts} onClick={() => changeLineStructure(line.id, 'after')}>后插一句</button>
+            <button style={styles.dangerButton} disabled={generating || startingTts} onClick={() => changeLineStructure(line.id, 'delete')}>删除本句</button>
+          </div>
+          <span style={styles.hint}>插入会平分本句视频区间，旧音频保留。</span>
+        </Section>
+        </>}
+        {expanded && !externalVideoRef && <>
         <label>{externalVideoRef ? '台词内容' : '台词标签'}<textarea value={line.text} style={{ ...styles.input, display: 'block', width: '100%', boxSizing: 'border-box', minHeight: externalVideoRef ? 92 : 52 }}
           onChange={event => editLine(line.id, event.target.value)} /></label>
         <VoicePicker value={lineVoice} label="本句音色" defaultLabel="继承整体音色" defaultHint={`当前生效：${effectiveLineVoice(raw, line.id)}`}
@@ -833,7 +932,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
         <div style={styles.row}>
           <NumberField label={externalVideoRef ? '本句音量（0–2）' : '本句音量 0..2'} value={lineGain} max={2} onChange={value => { if (value !== null) editLineGain(line.id, value); }} />
           <span style={styles.hint}>试听音量 = 总音量 × 本句音量；改音量无需重新生成</span>
-          <button style={styles.primaryButton} disabled={generating || startingTts || batchGenerating || loading || !canGenerate} onClick={() => void generate(line.id)}>生成本句配音候选</button>
+          <button style={styles.primaryButton} disabled={generating || startingTts || batchGenerating || loading || !canGenerate} onClick={() => void generate(line.id)}>生成配音</button>
         </div>
         {generating && externalVideoRef && <button style={styles.button} onClick={() => generationController.current?.abort()}>停止等待配音</button>}
         {candidate?.lineId === line.id && <div style={styles.row}>
@@ -847,11 +946,11 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
         {!segment && <div style={styles.hint}>本句尚未生成真实音频。</div>}
         <div style={styles.row}>{!externalVideoRef && <strong>{line.id}</strong>}<span style={styles.hint}>{confirmed.includes(line.id) ? '已人工确认视频区间' : '自动建议尚待确认'}</span>
           {!externalVideoRef && <button style={styles.button} disabled={!validWindow(start, end)} onClick={() => seek(start)}>定位视频</button>}
-          <button style={styles.primaryButton} disabled={!segment || !validWindow(start, end) || loading || generating} onClick={() => void playPreview(start, end)}>本句同步试听</button>
+          <button style={styles.primaryButton} disabled={!segment || !validWindow(start, end) || loading || generating} onClick={() => void playPreview(start, end)}>试听本句</button>
           <button style={styles.successButton} disabled={!validWindow(start, end) || confirmed.includes(line.id)} onClick={() => {
             const ids = latest.current.raw.confirmedLineIds;
             patch({ confirmedLineIds: [...new Set([...(Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : []), line.id])] });
-          }}>确认本句区间</button>
+          }}>确认这句</button>
         </div>
         <details open={externalVideoRef ? undefined : true}><summary style={styles.collapsedRow}>时间与音频裁剪</summary>
         <div style={styles.row}>

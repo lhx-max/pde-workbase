@@ -1,18 +1,16 @@
 'use client';
 
-import { Copy, Scissors, ClipboardPaste, Trash2, Magnet, Undo2, Redo2, FolderOpen, PanelLeftClose, PanelLeftOpen, BookOpen, X } from './icons';
-import type { CSSProperties } from 'react';
+import { AlignHorizontal, AudioLines, Check, ChevronLeft, ChevronRight, ClipboardPaste, Copy, Download, FileText, Film, LocateFixed, Magnet, MoreHorizontal, Redo2, Scan, Scissors, Sparkles, Trash2, Undo2, Upload, X } from './icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CardRenderProps } from '@bezier/canvas-card-sdk';
 import { DubbingEditor, type DubbingPlayback } from '../dubbing-editor';
 import { changeRewriteWindow, validateRewriteLines, type RewriteLine as TimedDubbingLine } from '../rewrite';
-import { dubbingCounts } from '../dubbing';
+import { dubbingCounts, lineGenerationCurrent, voiceReferenceOf } from '../dubbing';
 import { resolvePlaybackDuration } from '../playback-plan';
 import { assertMediaSize, type useSessionMedia } from './media';
 import { fillMissing, localVoiceAvailable } from './local-voice';
 import { exportHandoff, exportVideo } from './director-delivery';
 import { createPeakReader, Waveform } from './waveform';
-import { useWorkbenchLayout } from './use-workbench-layout';
 import { splitClip, trimClip, copyClip, pasteClip, deleteClip } from './clip-edits';
 import type { ClipClipboard } from './clip-edits';
 import { SplitClipDialog } from './split-clip-dialog';
@@ -23,20 +21,35 @@ import { DirectorTools } from './director-tools';
 import { assertUnlocked, directorOf, displayTime, listenLabel, makeRange, moveRangeBoundary, overlaps, rewriteWindows } from './director-edits';
 import type { EditData, ListenMode, TimeRange } from './director-edits';
 import { useCardEdits } from './use-card-edits';
+import { describeFit, fitTimeline, joinsOf, LAYOUT, setJoin } from './layout';
 import { audioDurationOf, deliveryIssues, download, exportSubtitles, exportWav, importScript, importVoice, linesOf, videoDurationOf } from './director-media';
 import styles from './workbench.module.css';
 
 /** 音频编辑工作台：视频与时间轴并排，选中内容在右侧编辑。 */
 
-interface EditorSegment { startMs?: number; endMs?: number; gapMs?: number; gain?: number; audioRefOverride?: string | null; id: string; text?: string; label?: string; muted?: boolean; videoStartMs?: number | null; videoEndMs?: number | null }
+interface EditorSegment { leadMs?: number; startMs?: number; endMs?: number; gapMs?: number; gain?: number; audioRefOverride?: string | null; id: string; text?: string; label?: string; muted?: boolean; videoStartMs?: number | null; videoEndMs?: number | null }
 type TimelineTrack = 'original' | 'voice' | 'background';
+type LineState = 'missing' | 'stale' | 'voiced' | 'over';
+const LINE_STATE_LABEL: Record<LineState, string> = { missing: '缺配音', stale: '待更新', voiced: '已配音', over: '配音超出区间，会被截断' };
+/** 时间显示为 分:秒，如 2:53。 */
+function shortTime(ms: number) {
+  const total = Math.max(0, Math.round(ms / 1000));
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+}
+/** 音轨缩放档位；默认让一屏约显示 20 秒。 */
+const ZOOMS = [1, 2, 4, 8, 16, 32] as const;
+const VISIBLE_MS = 20_000;
+export function defaultZoom(durationMs: number) {
+  const target = durationMs / VISIBLE_MS;
+  return ZOOMS.reduce<number>((best, zoom) => zoom <= Math.max(1, target) ? zoom : best, 1);
+}
+const SAVE_LABEL = { synced: '已保存', pending: '保存中…', unconfirmed: '未确认', external: '已载入最新', error: '未应用' } as const;
 type BoundaryDrag = { range: TimeRange; index: number; edge: keyof TimeRange; pointer: number; x: number; width: number };
 
 export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClose }: CardRenderProps & {
   media: ReturnType<typeof useSessionMedia>;
   onClose: () => void;
 }) {
-  const workspace = useWorkbenchLayout();
   const readPeaks = useMemo(createPeakReader, []);
   const [selectedTrack, setSelectedTrack] = useState<TimelineTrack | null>(null);
   const [splitRequest, setSplitRequest] = useState<{ id: string; atMs: number; text: string } | null>(null);
@@ -50,9 +63,10 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
   const editor = useCardEdits(editorNode, onPatch);
   const previewVideo = useRef<HTMLVideoElement>(null);
   const live = useRef(true);
-  const [drawer, setDrawer] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [autoFit, setAutoFit] = useState(true);
+  const [showExport, setShowExport] = useState(false);
   const scriptList = useRef<HTMLDivElement>(null);
-  const [inspectorTab, setInspectorTab] = useState<'content' | 'check' | 'export'>('content');
   const [videoSize, setVideoSize] = useState({ width: 16, height: 9, durationMs: 0 });
   const [previewMs, setPreviewMs] = useState(0);
   const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
@@ -69,7 +83,7 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
   const playback = useRef<DubbingPlayback | null>(null);
   const [listenMode, setListenMode] = useState<ListenMode>('voice');
   const originalAudio = listenMode === 'mix' || listenMode === 'original';
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light'>('light');
   const [ranges, setRanges] = useState<TimeRange[]>([]);
   const [selectionTrack, setSelectionTrack] = useState<TimelineTrack>('original');
   const [rangeDraft, setRangeDraft] = useState<TimeRange | null>(null);
@@ -115,14 +129,14 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
     answer?.(accepted);
   }
 
-  async function generateVoice() {
+  async function generateVoice(mode: 'missing' | 'offline' | 'stale' = 'missing') {
     if (!localVoiceAvailable() || generateController.current || lineGenerating || mediaBusy || deliveryBusy) return;
     const controller = new AbortController();
     generateController.current = controller;
     setGenerating(true);
-    setToolStatus('正在补齐缺失配音…');
+    setToolStatus(mode === 'stale' ? '正在更新配音…' : mode === 'offline' ? '正在重新生成未载入的配音…' : '正在补齐缺失配音…');
     try {
-      await fillMissing(editor.draftData, applyEdit, media.add, controller.signal, setToolStatus);
+      await fillMissing(editor.draftData, applyEdit, media.add, controller.signal, setToolStatus, { resolve: media.resolve, stale: mode === 'stale', offline: mode === 'offline' });
     } catch (reason) {
       if (!controller.signal.aborted) {
         setToolStatus(reason instanceof Error ? reason.message : '逐句生成失败；不自动重试');
@@ -207,8 +221,7 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
     setDeliveryBusy(true);
     try {
       const data = editor.draftData() ?? {};
-      const issues = deliveryIssues(data, durationMs);
-      if (issues.length && !await ask(`导出前检查：${issues.join('、')}。文件将使用当前应用的配音和区间。`, '继续导出')) return;
+      // 导出弹窗已列出检查项，这里不再二次确认。
       setToolStatus('正在准备导出…');
       playback.current?.stop();
       const range = kind === 'mp4' && ranges.length === 1 ? ranges[0]! : { startMs: 0, endMs: durationMs };
@@ -254,11 +267,7 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
     if (!files.length || projectBusy) return;
     setMediaBusy(true);
     try {
-      const refs = new Set([
-        editorData.videoRef, data.audioRef, data.directorBackgroundRef,
-        ...segments.map(segment => segment.audioRefOverride),
-        ...(director.notes ?? []).flatMap(note => note.audioRefs),
-      ]);
+      const refs = mediaRefs();
       let matched = 0;
       for (const file of files) {
         if (await media.restore(file, refs)) matched++;
@@ -290,6 +299,28 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
   }));
   const locks = director.locks ?? [];
   const isLocked = (line: EditorSegment) => locks.some(range => overlaps(range, { startMs: line.videoStartMs ?? 0, endMs: line.videoEndMs ?? 0 }));
+  /** 卡片引用的全部会话素材。 */
+  function mediaRefs() {
+    return new Set<unknown>([
+      editorData.videoRef, data.audioRef, data.directorBackgroundRef, voiceReferenceOf(data)?.audioRef,
+      ...segments.map(segment => segment.audioRefOverride),
+      ...(director.notes ?? []).flatMap(note => note.audioRefs),
+    ]);
+  }
+  useEffect(() => {
+    // 打开编辑器时从本机缓存自动恢复素材，刷新后不必重新选择文件。
+    let cancelled = false;
+    void media.restoreCached(mediaRefs()).then(count => {
+      if (!cancelled && count) setToolStatus(`已从本机缓存恢复 ${count} 个素材。`);
+    });
+    return () => { cancelled = true; };
+  }, []);
+  /** 有配音记录但音频不在当前会话（刷新后未恢复）的句子。 */
+  const audioOffline = (line: EditorSegment) => {
+    const audio = segments.find(item => item.id === line.id);
+    const ref = audio ? audio.audioRefOverride ?? (typeof data.audioRef === 'string' ? data.audioRef : null) : null;
+    return Boolean(ref) && !media.resolve(ref!);
+  };
   function applyEdit(changes: EditData) {
     try {
       assertUnlocked(editor.draftData() ?? {}, changes);
@@ -327,12 +358,6 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
   const cursorPercent = Math.max(0, Math.min(100, (previewMs - viewStart) / viewSpan * 100));
   const cursorVisible = previewMs >= viewStart && previewMs <= viewEnd;
 
-  function focusScript() {
-    const buttons = Array.from(scriptList.current?.querySelectorAll<HTMLButtonElement>('button[data-script-line-id]') ?? []);
-    const target = buttons.find(button => button.dataset.scriptLineId === selectedLineId) ?? buttons[0];
-    target?.focus();
-    target?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  }
   useEffect(() => {
     const button = Array.from(scriptList.current?.querySelectorAll<HTMLButtonElement>('button[data-script-line-id]') ?? [])
       .find(item => item.dataset.scriptLineId === selectedLineId);
@@ -341,7 +366,6 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
   const selectTrackLine = (line: EditorSegment) => {
     setSelectedLineId(line.id);
     setSelectedTrack(null);
-    setInspectorTab('content');
     playback.current?.seek(Math.max(0, line.videoStartMs ?? 0));
   };
   function cancelClipDrag(event: React.PointerEvent<HTMLButtonElement>) {
@@ -358,8 +382,14 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
     try {
       const next = changeRewriteWindow({ id: drag.line.id, text: drag.line.text ?? drag.line.label ?? '', videoStartMs: drag.line.videoStartMs!, videoEndMs: drag.line.videoEndMs! }, snapDelta(drag), drag.mode, durationMs);
       const window = { startMs: next.videoStartMs, endMs: next.videoEndMs };
-      const changes = drag.mode === 'move' ? rewriteWindows(editor.draftData() ?? {}, { [next.id]: window }, durationMs)
-        : trimClip(editor.draftData() ?? {}, next.id, window, durationMs);
+      const current = editor.draftData() ?? {};
+      let changes = drag.mode === 'move' ? rewriteWindows(current, { [next.id]: window }, durationMs)
+        : trimClip(current, next.id, window, durationMs);
+      if (drag.mode === 'move') {
+        // 记下与上一句的间隔，之后自动贴合会保留这次手动摆放的位置。
+        const previous = linesOf(current).filter(line => line.id !== next.id && line.videoEndMs <= next.videoStartMs).at(-1);
+        if (previous) changes = { ...changes, ...setJoin(current, next.id, next.videoStartMs - previous.videoEndMs) };
+      }
       if (applyEdit(changes)) setToolStatus(`区间更新为 ${displayTime(next.videoStartMs)} – ${displayTime(next.videoEndMs)}`);
     } catch (reason) { setToolStatus(reason instanceof Error ? reason.message : '区间调整失败'); }
   }
@@ -547,109 +577,247 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
     window.addEventListener('pointerdown', close);
     return () => window.removeEventListener('pointerdown', close);
   }, [clipMenu]);
-  const chooseTrack = (track: TimelineTrack) => { setSelectedTrack(track); setInspectorTab('content'); };
-  const clipActions = <>
-    <button className={styles.iconAction} title="在播放头分割 · S" disabled={!selectedLineId || !!selectedTrack || projectBusy} onClick={() => clipCommand('split')}><Scissors size={15} />分割</button>
-    <button className={styles.iconAction} title="复制片段 · ⌘/Ctrl C" disabled={!selectedLineId || !!selectedTrack || projectBusy} onClick={() => clipCommand('copy')}><Copy size={15} />复制</button>
-    <button className={styles.iconAction} title="粘贴到播放头 · ⌘/Ctrl V" disabled={!clipboard || clipboard.project !== editorNode.id || projectBusy} onClick={() => clipCommand('paste')}><ClipboardPaste size={15} />粘贴</button>
-    <button className={styles.iconAction} title="删除片段 · Delete" disabled={!selectedLineId || !!selectedTrack || projectBusy} onClick={() => clipCommand('delete')}><Trash2 size={15} />删除</button>
+  const tickCount = Math.min(64, Math.max(4, Math.round(4 * trackZoom)));
+  const zoomTouched = useRef(false);
+  useEffect(() => {
+    // 首次拿到视频时长时按长度选默认缩放；用户手动改过之后不再覆盖。
+    if (zoomTouched.current || !durationMs || trackView === 'focused') return;
+    setTrackZoom(defaultZoom(durationMs));
+  }, [durationMs, trackView]);
+  const pendingScroll = useRef<number | null>(null);
+  useEffect(() => {
+    const viewport = timelineViewport.current;
+    if (viewport && pendingScroll.current !== null) { viewport.scrollLeft = pendingScroll.current; pendingScroll.current = null; }
+  }, [trackZoom]);
+  useEffect(() => {
+    const viewport = timelineViewport.current;
+    if (!viewport) return;
+    // 滚轮在时间轴上横向滚动；⌘/Ctrl + 滚轮（触控板捏合）以指针位置为中心缩放。
+    const wheel = (event: WheelEvent) => {
+      if (event.ctrlKey || event.metaKey) {
+        event.preventDefault();
+        setTrackZoom(current => {
+          const index = ZOOMS.indexOf(current as typeof ZOOMS[number]);
+          const next = ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, (index < 0 ? 0 : index) + (event.deltaY < 0 ? 1 : -1)))]!;
+          if (next !== current) {
+            zoomTouched.current = true;
+            const offset = event.clientX - viewport.getBoundingClientRect().left;
+            const ratio = viewport.scrollWidth ? (viewport.scrollLeft + offset) / viewport.scrollWidth : 0;
+            pendingScroll.current = Math.max(0, ratio * viewport.clientWidth * next - offset);
+          }
+          return next;
+        });
+        return;
+      }
+      if (Math.abs(event.deltaY) > Math.abs(event.deltaX) && viewport.scrollWidth > viewport.clientWidth) {
+        event.preventDefault();
+        viewport.scrollLeft += event.deltaY;
+      }
+    };
+    viewport.addEventListener('wheel', wheel, { passive: false });
+    return () => viewport.removeEventListener('wheel', wheel);
+  }, [!editorData.videoRef && !trackLines.length]);
+  function fitToVideo(extra: EditData = {}, quiet = false) {
+    try {
+      const current = { ...(editor.draftData() ?? {}), ...extra };
+      const { changes, report } = fitTimeline(current, durationMs);
+      if (applyEdit({ ...extra, ...changes })) setToolStatus(describeFit(report));
+      return true;
+    } catch (error) {
+      if (!quiet) setToolStatus(error instanceof Error ? error.message : '贴合失败');
+      return false;
+    }
+  }
+  /** 配音音频或句间衔接变化时自动重新贴合；只看音频与衔接，不看窗口，避免和手动拖动互相覆盖。 */
+  const fitSignature = JSON.stringify([segments.map(item => [item.id, item.audioRefOverride ?? null, item.startMs, item.endMs, item.gapMs]), joinsOf(data), rewriteLines.map(line => [line.id, line.text])]);
+  const fittedSignature = useRef(fitSignature);
+  useEffect(() => {
+    if (fittedSignature.current === fitSignature) return;
+    fittedSignature.current = fitSignature;
+    if (autoFit && durationMs > 0 && segments.length && !projectBusy) fitToVideo({}, true);
+  });
+  function editJoin(value: number | null) {
+    if (!selectedLineId) return;
+    const change = setJoin(editor.draftData() ?? {}, selectedLineId, value);
+    fittedSignature.current = JSON.stringify([segments.map(item => [item.id, item.audioRefOverride ?? null, item.startMs, item.endMs, item.gapMs]), (change.lineJoins as Record<string, number>), rewriteLines.map(line => [line.id, line.text])]);
+    if (!fitToVideo(change)) applyEdit(change);
+  }
+  const chooseTrack = (track: TimelineTrack) => { setSelectedTrack(track); };
+  const clipButtons = (labels: boolean) => <>
+    <button className={styles.iconAction} aria-label="分割" title="在播放头分割 · S" disabled={!selectedLineId || !!selectedTrack || projectBusy} onClick={() => clipCommand('split')}><Scissors size={16} />{labels && '分割'}</button>
+    <button className={styles.iconAction} aria-label="复制" title="复制片段 · ⌘/Ctrl C" disabled={!selectedLineId || !!selectedTrack || projectBusy} onClick={() => clipCommand('copy')}><Copy size={16} />{labels && '复制'}</button>
+    <button className={styles.iconAction} aria-label="粘贴" title="粘贴到播放头 · ⌘/Ctrl V" disabled={!clipboard || clipboard.project !== editorNode.id || projectBusy} onClick={() => clipCommand('paste')}><ClipboardPaste size={16} />{labels && '粘贴'}</button>
+    <button className={styles.iconAction} aria-label="删除" title="删除片段 · Delete" disabled={!selectedLineId || !!selectedTrack || projectBusy} onClick={() => clipCommand('delete')}><Trash2 size={16} />{labels && '删除'}</button>
   </>;
-  return <main data-director-workbench className={styles.shell} data-theme={theme} style={{ '--sidebar-width': `${workspace.layout.left}px`, '--inspector-width': `${workspace.layout.right}px`, '--timeline-height': `${workspace.layout.timeline}px`, '--track-height': `${workspace.layout.trackHeight}px` } as CSSProperties}>
-    <header className={styles.header}>
-      <span className={styles.brandDot} />
-      <h1 className={styles.title}>DesignAI <span>音频工作台</span></h1>
-        <div className={styles.toolbar} aria-label="保存和撤销">
-          <button type="button" className={styles.toolBtn} disabled={projectBusy || !editor.history.undo.length} onClick={() => editor.moveHistory('undo')}><Undo2 size={14} />撤销</button>
-          <button type="button" className={styles.toolBtn} disabled={projectBusy || !editor.history.redo.length} onClick={() => editor.moveHistory('redo')}><Redo2 size={14} />重做</button>
-          <span role="status" className={styles.toolStatus} data-save-state={editor.status.state} title={editor.status.message}>{editor.status.message}</span>
-          {editor.status.state === 'unconfirmed' && <button type="button" className={styles.toolBtn} onClick={editor.retry}>重新提交</button>}
-        </div>
-      <button type="button" className={styles.toolBtn} aria-pressed={inspectorTab === 'check'} onClick={() => { setInspectorTab('check'); }}>检查{checking.length ? ` · ${checking.length}` : ''}</button>
-      <button type="button" className={`${styles.toolBtn} ${styles.toolBtnPrimary}`} onClick={() => { setInspectorTab('export'); }}>导出</button>
-      <button type="button" className={styles.toolBtn} aria-haspopup="dialog" onClick={() => setShowManual(true)}><BookOpen size={14} aria-hidden />使用帮助</button>
-      <button type="button" className={`${styles.toolBtn} ${styles.themeButton}`} aria-label={theme === 'dark' ? '切换到浅色模式' : '切换到深色模式'} onClick={() => {
-        const next = theme === 'dark' ? 'light' : 'dark';
-        setTheme(next);
-      }}>{theme === 'dark' ? '☀ 浅色' : '☾ 深色'}</button>
-      <button type="button" className={styles.toolBtn} aria-label="返回画布" onClick={onClose}><X size={16} />返回画布</button>
-    </header>
-    <nav className={styles.workspaceNav} aria-label="工作台入口">
-      <div className={styles.workspaceModes} role="group" aria-label="工作区布局"><span>工作区</span><button onClick={() => workspace.preset('script')}>台词精修</button><button onClick={() => workspace.preset('audio')}>音频剪辑</button><button onClick={() => { workspace.preset('mix'); chooseTrack('voice'); }}>混音检查</button><button onClick={workspace.reset}>重置布局</button><button onClick={() => setShowShortcuts(value => !value)} aria-expanded={showShortcuts}>快捷键</button></div>
-      <p className={styles.panelHint}>选一句 → 修改内容与声音 → 试听确认 → 导出</p>
-    </nav>
-          <input ref={mediaInput} type="file" accept="video/*" hidden onChange={event => { const file = event.target.files?.[0]; if (file) void handleImport('media', file); event.target.value = ''; }} />
-          <input ref={voiceInput} type="file" accept="audio/*" hidden onChange={event => { const file = event.target.files?.[0]; if (file) void handleImport('voice', file, voiceTarget.current); event.target.value = ''; }} />
-          <input ref={backgroundInput} type="file" accept="audio/*" hidden onChange={event => { const file = event.target.files?.[0]; if (file) void handleImport('background', file); event.target.value = ''; }} />
-          <input ref={scriptInput} type="file" accept=".txt,.md,text/plain" hidden onChange={event => { const file = event.target.files?.[0]; if (file) void handleImport('script', file); event.target.value = ''; }} />
+  const lineState = (line: EditorSegment): LineState => {
+    const audio = segments.find(item => item.id === line.id);
+    if (!audio) return 'missing';
+    if (audio.startMs !== undefined && audio.endMs !== undefined && Number.isFinite(audio.videoStartMs) && Number.isFinite(audio.videoEndMs)
+      && audio.endMs - audio.startMs > (audio.videoEndMs ?? 0) - (audio.videoStartMs ?? 0) + (audio.leadMs ?? 0) - (audio.gapMs ?? 0) + 1) return 'over';
+    const timed = rewriteLines.find(item => item.id === line.id);
+    return timed && !lineGenerationCurrent(data, line.id, timed.text) ? 'stale' : 'voiced';
+  };
+  const empty = !editorData.videoRef && !trackLines.length;
+  const selectedIndex = trackLines.findIndex(line => line.id === selectedLineId);
+  const progress = counts.total ? Math.round(counts.current / counts.total * 100) : 0;
+  const offlineCount = trackLines.filter(audioOffline).length;
+  const voiceReady = localVoiceAvailable();
+  function importFiles(files: File[]) {
+    const file = files[0];
+    if (!file) return;
+    if (file.type.startsWith('video/')) void handleImport('media', file);
+    else if (file.type.startsWith('audio/')) void handleImport('voice', file);
+    else if (file.type.startsWith('text/') || /\.(txt|md)$/iu.test(file.name)) void handleImport('script', file);
+    else setToolStatus('请拖入视频、音频，或 TXT/MD 台词文件。');
+  }
+  const menuAction = (action: () => void) => () => { setMenuOpen(false); action(); };
+  useEffect(() => {
+    // Esc 只关闭最上层的浮层；阻止默认行为，避免连带关闭外层的编辑器对话框。
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      const layer = confirmationAnswer.current ? 'confirm' : showExport ? 'export' : menuOpen ? 'menu' : clipMenu ? 'clip' : null;
+      if (!layer) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (layer === 'confirm') answerConfirmation(false);
+      else if (layer === 'export') { if (!deliveryBusy) setShowExport(false); }
+      else if (layer === 'menu') setMenuOpen(false);
+      else setClipMenu(null);
+    };
+    window.addEventListener('keydown', escape, true);
+    return () => window.removeEventListener('keydown', escape, true);
+  });
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (event: PointerEvent) => { if (!(event.target as Element).closest('[data-workbench-menu]')) setMenuOpen(false); };
+    window.addEventListener('pointerdown', close);
+    return () => window.removeEventListener('pointerdown', close);
+  }, [menuOpen]);
 
+  return <main data-director-workbench className={styles.shell} data-theme={theme}
+    onDragOver={event => { if (event.dataTransfer.types.includes('Files')) event.preventDefault(); }}
+    onDrop={event => { if (!event.dataTransfer.files.length) return; event.preventDefault(); importFiles(Array.from(event.dataTransfer.files)); }}>
+    <header className={styles.header}>
+      <h1 className={styles.title}>DesignAI <span>音频工作台</span></h1>
+      <span role="status" className={styles.toolStatus} data-save-state={editor.status.state} title={editor.status.message}>{editor.status.state === 'synced' && <Check size={13} />}{SAVE_LABEL[editor.status.state]}</span>
+      {editor.status.state === 'unconfirmed' && <button type="button" className={styles.toolBtn} onClick={editor.retry}>重新提交</button>}
+      <span className={styles.spacer} />
+      <button type="button" className={styles.iconAction} aria-label="撤销" title="撤销 · ⌘/Ctrl Z" disabled={projectBusy || !editor.history.undo.length} onClick={() => editor.moveHistory('undo')}><Undo2 size={16} /></button>
+      <button type="button" className={styles.iconAction} aria-label="重做" title="重做 · ⇧⌘/Ctrl Z" disabled={projectBusy || !editor.history.redo.length} onClick={() => editor.moveHistory('redo')}><Redo2 size={16} /></button>
+      <button type="button" className={`${styles.toolBtn} ${styles.toolBtnPrimary}`} disabled={!editorNode || empty} onClick={() => { setToolStatus(''); setShowExport(true); }}><Download size={15} />导出</button>
+      <div className={styles.menuWrap} data-workbench-menu>
+        <button type="button" className={styles.iconAction} aria-label="更多操作" title="更多操作" aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(value => !value)}><MoreHorizontal size={18} /></button>
+        {menuOpen && <div role="menu" aria-label="更多操作" className={styles.menu}>
+          <button type="button" role="menuitem" disabled={projectBusy} onClick={menuAction(() => mediaInput.current?.click())}>{editorData.videoRef ? '替换主视频' : '导入主视频'}</button>
+          <button type="button" role="menuitem" disabled={projectBusy} onClick={menuAction(() => scriptInput.current?.click())}>导入台词</button>
+          <button type="button" role="menuitem" disabled={projectBusy} onClick={menuAction(() => chooseVoice())}>导入整轨配音</button>
+          <button type="button" role="menuitem" disabled={projectBusy} onClick={menuAction(() => backgroundInput.current?.click())}>{hasBackground ? '替换背景音乐' : '导入背景音乐'}</button>
+          <button type="button" role="menuitem" disabled={projectBusy} onClick={menuAction(() => restoreInput.current?.click())}>恢复会话素材</button>
+          {editorNode.projectFilePath && onOpenFile && <button type="button" role="menuitem" onClick={menuAction(() => onOpenFile(editorNode.projectFilePath!))}>打开画布主文件</button>}
+          <hr />
+          <button type="button" role="menuitem" onClick={menuAction(() => setShowShortcuts(value => !value))}>{showShortcuts ? '隐藏快捷键' : '快捷键'}</button>
+          <button type="button" role="menuitem" onClick={menuAction(() => setTheme(theme === 'dark' ? 'light' : 'dark'))}>{theme === 'dark' ? '切换到浅色模式' : '切换到深色模式'}</button>
+          <button type="button" role="menuitem" onClick={menuAction(() => setShowManual(true))}>使用帮助</button>
+        </div>}
+      </div>
+      <button type="button" className={styles.iconAction} aria-label="返回画布" title="返回画布" onClick={onClose}><X size={18} /></button>
+    </header>
+    {showShortcuts && <div className={styles.shortcutBar}>空格 播放/暂停 · S 分割 · ⌘/Ctrl C/V 复制/粘贴 · Delete 删除 · ⌘/Ctrl Z 撤销</div>}
+    <input ref={mediaInput} type="file" accept="video/*" hidden onChange={event => { const file = event.target.files?.[0]; if (file) void handleImport('media', file); event.target.value = ''; }} />
+    <input ref={voiceInput} type="file" accept="audio/*" hidden onChange={event => { const file = event.target.files?.[0]; if (file) void handleImport('voice', file, voiceTarget.current); event.target.value = ''; }} />
+    <input ref={backgroundInput} type="file" accept="audio/*" hidden onChange={event => { const file = event.target.files?.[0]; if (file) void handleImport('background', file); event.target.value = ''; }} />
+    <input ref={scriptInput} type="file" accept=".txt,.md,text/plain" hidden onChange={event => { const file = event.target.files?.[0]; if (file) void handleImport('script', file); event.target.value = ''; }} />
     <input ref={restoreInput} type="file" accept="video/*,audio/*" multiple hidden onChange={event => { void restoreFiles(Array.from(event.target.files ?? [])); event.target.value = ''; }} />
-    {showShortcuts && <div className={styles.shortcutBar}>空格 播放/暂停 · S 分割 · ⌘/Ctrl C/V 复制/粘贴 · Delete 删除 · ⌘/Ctrl Z 撤销 · 双击分隔线恢复默认尺寸</div>}
-    <div className={styles.grid} ref={workspace.grid}>
-      <aside id="workbench-drawer" className={drawer ? styles.drawer : styles.sideRail} aria-label="素材侧栏"
-        onKeyDown={event => { if (event.key === 'Escape') setDrawer(false); }}>
-        {drawer ? <>
-          <div className={styles.panelHeader}><h2 className={styles.panelTitle}>素材</h2>
-            <button type="button" className={styles.sideIcon} aria-label="收起左侧栏" title="收起左侧栏" onClick={() => setDrawer(false)}><PanelLeftClose size={18} /></button>
+
+    {empty ? <section className={styles.onboarding} aria-label="开始编辑">
+      <h2>开始一段短剧配音</h2>
+      <p>把视频和台词文件拖到这里，或按下面的步骤导入。</p>
+      <ol className={styles.steps}>
+        <li><span className={styles.stepIcon}><Film size={20} /></span><div><strong>导入视频</strong><span>配音以视频时间为准</span></div>
+          <button type="button" className={`${styles.toolBtn} ${styles.toolBtnPrimary}`} disabled={projectBusy} onClick={() => mediaInput.current?.click()}>导入视频</button></li>
+        <li><span className={styles.stepIcon}><FileText size={20} /></span><div><strong>导入台词</strong><span>TXT 或 MD，每行一句</span></div>
+          <button type="button" className={styles.toolBtn} disabled={projectBusy} onClick={() => scriptInput.current?.click()}>导入台词</button></li>
+        <li><span className={styles.stepIcon}><AudioLines size={20} /></span><div><strong>生成或导入配音</strong><span>逐句生成，或导入整轨配音</span></div>
+          <button type="button" className={styles.toolBtn} disabled={projectBusy} onClick={() => chooseVoice()}>导入整轨配音</button></li>
+      </ol>
+      {toolStatus && <div className={styles.notice} role="status">{toolStatus}</div>}
+    </section> : <div className={styles.grid}>
+      <aside className={styles.lineList} aria-label="台词列表">
+        <div className={styles.listHeader}>
+          <div className={styles.progressText}>{trackLines.length} 句 · 配音 {counts.current}/{counts.total} · 待确认 {Math.max(0, counts.total - counts.confirmed)}</div>
+          <div className={styles.progressBar} aria-hidden="true"><span style={{ width: `${progress}%` }} /></div>
+          <div className={styles.listActions}>
+            <button type="button" className={styles.toolBtn} disabled={!voiceReady || projectBusy || (!counts.missing && !counts.stale && !offlineCount)}
+              title={!voiceReady ? '本机配音需要在 127.0.0.1 打开并启动 VoxCPM' : counts.missing ? '为没有配音的句子逐句生成' : offlineCount ? '刷新后丢失音频的句子重新生成' : '重新生成文字或音色已变化的句子'}
+              onClick={() => void generateVoice(counts.missing ? 'missing' : offlineCount ? 'offline' : counts.stale ? 'stale' : 'missing')}><Sparkles size={14} />{generating ? '生成中…' : counts.missing ? '补齐缺失配音' : offlineCount ? `重新生成未载入的 ${offlineCount} 句` : counts.stale ? `更新 ${counts.stale} 句配音` : '补齐缺失配音'}</button>
+            {generating && <button type="button" className={styles.toolBtn} onClick={() => { generateController.current?.abort(); setToolStatus('已请求停止；已生成音频保留'); }}>停止</button>}
           </div>
-        </> : <>
-          <button type="button" className={styles.sideIcon} aria-label="展开左侧栏" title="展开左侧栏" onClick={() => setDrawer(true)}><PanelLeftOpen size={18} /></button>
-          <button type="button" className={styles.sideEntry} aria-label="展开素材" onClick={() => setDrawer(true)}><FolderOpen size={18} /><span>素材</span></button>
-        </>}
-        {drawer && <><div className={styles.assetSummary}><span className={styles.eyebrow}>当前工程</span><strong>{editorData.videoRef?.split('/').pop() ?? '尚未导入视频'}</strong><span>{displayTime(durationMs)} · {trackLines.length} 句台词</span><span>配音 {counts.current}/{counts.total} · 待更新 {counts.stale}</span></div><p className={styles.panelHint}>导入与替换素材</p>        <div className={styles.toolbar} aria-label="台词导入与配音生成工具条">
-          <button type="button" className={styles.toolBtn} disabled={!editorNode || projectBusy} onClick={() => mediaInput.current?.click()}>导入主视频</button>
-          <button type="button" className={styles.toolBtn} disabled={!editorNode || projectBusy} onClick={() => chooseVoice()}>导入整轨配音</button>
-          <button type="button" className={styles.toolBtn} disabled={!editorNode || projectBusy} onClick={() => scriptInput.current?.click()}>导入台词</button>
-          <button type="button" className={styles.toolBtn} disabled={!editorNode || projectBusy} onClick={() => backgroundInput.current?.click()}>{hasBackground ? '替换背景音乐' : '导入背景音乐'}</button>
-          {selectedLineId && linesOf(editorNode?.data ?? {}).some(line => line.id === selectedLineId) && <button type="button" className={styles.toolBtn} disabled={projectBusy} onClick={() => chooseVoice(selectedLineId)}>替换本句音频</button>}
-          <button type="button" className={`${styles.toolBtn} ${styles.toolBtnPrimary}`} disabled={!localVoiceAvailable() || projectBusy || !counts.missing} onClick={() => void generateVoice()}>{generating ? '生成中…' : '补齐缺失配音'}</button>
-          {generating && <button type="button" className={styles.toolBtn} onClick={() => { generateController.current?.abort(); setToolStatus('已请求停止；已生成音频保留'); }}>停止</button>}
         </div>
-          <button type="button" className={styles.toolBtn} disabled={projectBusy} onClick={() => restoreInput.current?.click()}>恢复会话素材</button>
-          {editorNode.projectFilePath && onOpenFile && <button type="button" className={styles.toolBtn} onClick={() => onOpenFile(editorNode.projectFilePath!)}>打开画布主文件</button>}
-          <RewritePanel data={data} read={editor.draftData} patch={applyEdit} mediaUrl={media.resolve} disabled={projectBusy} ask={ask} />
-          <p className={styles.panelHint}>台词与剪辑参数随卡片保存。视频和音频在当前会话可用，刷新后可选择原文件恢复。导出交接包可保留素材和项目清单。</p>
-        </>}
+        <div ref={scriptList} className={styles.lineRows}>
+          {trackLines.map((line, index) => {
+            const state = lineState(line);
+            const isConfirmed = editorData.confirmedLineIds?.includes(line.id) ?? false;
+            const offline = audioOffline(line);
+            return <button type="button" className={styles.lineRow} key={line.id} data-script-line-id={line.id} data-offline={offline}
+              aria-pressed={!selectedTrack && selectedLineId === line.id} onClick={() => selectTrackLine(line)}>
+              <span className={styles.lineDot} data-state={state} title={offline ? `${LINE_STATE_LABEL[state]} · 音频未载入，需重新生成或恢复` : LINE_STATE_LABEL[state]} />
+              <span className={styles.lineNumber}>{String(index + 1).padStart(2, '0')}</span>
+              <span className={styles.lineText} title={line.text ?? line.label ?? ''}>{line.text ?? line.label ?? '未填写台词'}</span>
+              <span className={styles.lineStatus} data-confirmed={isConfirmed} title={isConfirmed ? '已确认' : '待确认'}>{isConfirmed && <Check size={13} />}</span>
+            </button>;
+          })}
+          {!trackLines.length && <div className={styles.editorEmpty}><p>还没有台词。</p><button type="button" className={styles.toolBtn} onClick={() => scriptInput.current?.click()}>导入台词</button></div>}
+        </div>
+        <RewritePanel data={data} read={editor.draftData} patch={applyEdit} mediaUrl={media.resolve} disabled={projectBusy} ask={ask} />
       </aside>
-      {drawer ? <div className={styles.verticalDivider} {...workspace.separator('left')} /> : <div className={styles.dividerSpacer} />}
-      <section className={styles.right} aria-label="画布与配音编辑">
-        <div className={styles.timelineWorkspace}>
-        <div className={`${styles.panel} ${styles.timelinePanel}`}>
-          <div className={styles.panelHeader}>
-            <h2 className={styles.panelTitle}>音频时间轴</h2><span className={styles.panelHint}>{trackLines.length} 句 · {displayTime(durationMs)}</span>
+      <section className={styles.stage} aria-label="视频与时间轴">
+        <div className={styles.videoFrame}>
+          {videoUrl
+            ? <video ref={previewVideo} className={styles.previewVideo} style={{ aspectRatio: `${videoSize.width} / ${videoSize.height}` }}
+                src={videoUrl} controls preload="metadata" muted={!originalAudio} playsInline onLoadedMetadata={event => {
+                  const video = event.currentTarget;
+                  setVideoSize({ width: video.videoWidth || 16, height: video.videoHeight || 9, durationMs: Number.isFinite(video.duration) ? Math.round(video.duration * 1000) : 0 });
+                }} />
+            : <div className={styles.videoPlaceholder} role="status">
+                <Film size={28} />
+                {editorData.videoRef
+                  ? <><p>刷新后需要重新选择原视频</p><button type="button" className={`${styles.toolBtn} ${styles.toolBtnPrimary}`} disabled={projectBusy} onClick={() => restoreInput.current?.click()}>选择原文件恢复</button></>
+                  : <><p>暂无视频</p><button type="button" className={styles.toolBtn} disabled={projectBusy} onClick={() => mediaInput.current?.click()}>导入视频</button></>}
+              </div>}
+        </div>
+        {editorNode && <DirectorTools variant="playback" clock={`${shortTime(previewMs)} / ${shortTime(durationMs)}`} key={`${editorNode.id}-playback`} data={data} mediaUrl={media.resolve} rows={timedRows} duration={durationMs}
+          time={() => Math.round((previewVideo.current?.currentTime ?? 0) * 1000)} selectedId={selectedLineId}
+          select={id => { const line = voiced.find(item => item.id === id); if (line) selectTrackLine(line); }}
+          ranges={ranges} setRanges={setRanges} playback={playback} mode={listenMode} setMode={setListenMode}
+          disabled={projectBusy} patch={applyEdit} />}
+        <div className={styles.timelinePanel}>
+          <div className={styles.timelineToolbar}>
+            {clipButtons(false)}
+            <span className={styles.toolDivider} />
+            <button type="button" className={styles.iconAction} aria-label="吸附" aria-pressed={snapping} title="吸附片段边界和标记" onClick={() => setSnapping(value => !value)}><Magnet size={16} /></button>
+            <span className={styles.toolDivider} />
+            <button type="button" className={styles.fitButton} disabled={projectBusy || !durationMs || !trackLines.length} title="按配音时长连贯排布，贴合视频时长" onClick={() => fitToVideo()}><AlignHorizontal size={15} />贴合视频</button>
+            <button type="button" className={styles.chip} aria-pressed={autoFit} title="配音变化后自动重新贴合" onClick={() => setAutoFit(value => !value)}>自动</button>
+            <span className={styles.spacer} />
+            <button type="button" className={styles.iconAction} aria-label={trackView === 'focused' ? '全片概览' : '当前句放大'} title={trackView === 'focused' ? '回到全片概览' : '放大当前句'} aria-pressed={trackView === 'focused'} disabled={!selectedLineId && trackView !== 'focused'}
+              onClick={() => { setTrackView(view => view === 'focused' ? 'all' : 'focused'); setTrackZoom(1); }}><Scan size={16} /></button>
+            <button type="button" className={styles.iconAction} aria-label="跟随播放" title="播放时时间轴跟随播放头" aria-pressed={followPlayhead} onClick={() => setFollowPlayhead(value => !value)}><LocateFixed size={16} /></button>
+            <select className={styles.zoomSelect} aria-label="音轨缩放" title="音轨缩放 · ⌘/Ctrl + 滚轮" value={trackZoom} onChange={event => { zoomTouched.current = true; setTrackZoom(Number(event.target.value)); }}>{ZOOMS.map(zoom => <option key={zoom} value={zoom}>{zoom}×</option>)}</select>
           </div>
-          <div className={styles.preview}>
-            <div className={styles.previewMedia}>
-            {videoUrl
-              ? <video ref={previewVideo} className={styles.previewVideo} style={{ aspectRatio: `${videoSize.width} / ${videoSize.height}`, width: `${240 * videoSize.width / videoSize.height}px` }}
-                  src={videoUrl} controls preload="metadata" muted={!originalAudio} playsInline onLoadedMetadata={event => {
-                    const video = event.currentTarget;
-                    setVideoSize({ width: video.videoWidth || 16, height: video.videoHeight || 9, durationMs: Number.isFinite(video.duration) ? Math.round(video.duration * 1000) : 0 });
-                  }} />
-              : <div className={styles.previewVideo} role="status" style={{ display: 'grid', placeItems: 'center', color: 'var(--text-secondary)', fontSize: 12 }}>暂无视频</div>}
-            </div>
-            <div className={styles.previewTracks}>
-              <div className={styles.timelineToolbar}>{clipActions}<span className={styles.toolDivider} /><button className={styles.iconAction} aria-pressed={snapping} title="吸附片段边界和标记" onClick={() => setSnapping(value => !value)}><Magnet size={15} />吸附</button></div>
-              <div className={styles.chipRow}>
-                <button className={styles.chip} onClick={() => { setTrackView('all'); setTrackZoom(1); }}>全片概览</button>
-                <button className={styles.chip} disabled={!selectedLineId} onClick={() => { setTrackView('focused'); setTrackZoom(1); }}>当前句放大</button>
-                <label>缩放 <select aria-label="音轨缩放" value={trackZoom} onChange={event => setTrackZoom(Number(event.target.value))}><option value={1}>1×</option><option value={2}>2×</option><option value={4}>4×</option><option value={8}>8×</option><option value={16}>16×</option></select></label>
-                <label>轨高 <select aria-label="音轨高度" value={workspace.layout.trackHeight} onChange={event => workspace.setTrackHeight(Number(event.target.value))}><option value={42}>紧凑</option><option value={56}>标准</option><option value={72}>大</option></select></label>
-                <button className={styles.chip} aria-pressed={followPlayhead} onClick={() => setFollowPlayhead(value => !value)}>跟随播放</button>
-              </div>
               <div className={styles.timelineViewport} ref={timelineViewport}>
               <div style={{ width: `${trackZoom * 100}%` }}>
               <div className={styles.trackRow}>
                 <span className={styles.trackLabel} />
                 <div className={styles.timelineTicks} aria-label="时间刻度" onPointerDown={event => startRangeDrag(event, 'original')} {...rangeHandlers}>
                   {cursorVisible && <span aria-hidden="true" className={styles.rulerCursor} style={{ left: `${cursorPercent}%` }} />}
-                  {[0, 1, 2, 3, 4].map(tick => {
-                    const seconds = (viewStart + viewSpan * tick / 4) / 1000;
-                    return <span key={tick}>{seconds.toFixed(viewSpan < 15_000 ? 1 : 0)}s</span>;
+                  {Array.from({ length: tickCount + 1 }, (_, tick) => {
+                    const ms = viewStart + viewSpan * tick / tickCount;
+                    return <span key={tick}>{viewSpan / tickCount < 1000 ? `${(ms / 1000).toFixed(1)}s` : shortTime(ms)}</span>;
                   })}
                 </div>
               </div>
               <div className={styles.trackRow}>
-                <button className={styles.trackLabel} aria-pressed={selectedTrack === 'original'} onClick={() => chooseTrack('original')}>视频 / 原声</button>
+                <button className={styles.trackLabel} aria-label="视频 / 原声" title="原声音轨属性" aria-pressed={selectedTrack === 'original'} onClick={() => chooseTrack('original')}>原声</button>
                 <div className={styles.trackBase} title="视频与原声共用主时钟" onPointerDown={event => startRangeDrag(event, 'original')} {...rangeHandlers}>
                   <div className={`${styles.trackSeg} ${styles.trackOriginal}`} style={{ left: 0, width: '100%' }}><Waveform readPeaks={readPeaks} mediaUrl={media.resolve} audioRef={editorData.videoRef} offsetMs={viewStart} spanMs={viewSpan} gain={Number(data.directorOriginalGain ?? 1)} /></div>
                   {trackOverlay('original')}
@@ -660,13 +828,15 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
                 </div>
               </div>
               <div className={styles.trackRow}>
-                <button className={styles.trackLabel} aria-pressed={selectedTrack === 'voice'} onClick={() => chooseTrack('voice')}>配音音轨</button>
+                <button className={styles.trackLabel} aria-label="配音音轨" title="配音音轨属性" aria-pressed={selectedTrack === 'voice'} onClick={() => chooseTrack('voice')}>配音</button>
                 <div className={styles.trackBase} title={`配音区间 ${voiced.length} 句`} onPointerDown={event => startRangeDrag(event, 'voice')} {...rangeHandlers}>
                   {durationMs > 0 && voiced.filter(line => (line.videoEndMs ?? 0) > viewStart && (line.videoStartMs ?? 0) < viewEnd).map(segment => {
                     const shown = trackGhost?.id === segment.id ? trackGhost : segment;
-                    const start = Math.max(0, (Math.max(viewStart, shown.videoStartMs ?? 0) - viewStart) / viewSpan * 100);
-                    const width = Math.max(0, (Math.min(viewEnd, shown.videoEndMs ?? 0) - Math.max(viewStart, shown.videoStartMs ?? 0)) / viewSpan * 100);
                     const audio = segments.find(item => item.id === segment.id);
+                    const lead = trackGhost?.id === segment.id ? 0 : Math.max(0, audio?.leadMs ?? 0);
+                    const clipStart = (shown.videoStartMs ?? 0) - lead;
+                    const start = Math.max(0, (Math.max(viewStart, clipStart) - viewStart) / viewSpan * 100);
+                    const width = Math.max(0, (Math.min(viewEnd, shown.videoEndMs ?? 0) - Math.max(viewStart, clipStart)) / viewSpan * 100);
                     const visibleOffset = Math.max(0, viewStart - (shown.videoStartMs ?? 0));
                     const waveSpan = Math.min(viewEnd, shown.videoEndMs ?? 0) - Math.max(viewStart, shown.videoStartMs ?? 0);
                     const locked = isLocked(segment);
@@ -699,13 +869,13 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
                         if (event.shiftKey) {
                           if (event.detail === 0) toggleLineRange(segment);
                         } else if (event.detail === 0 || locked || projectBusy) selectTrackLine(segment);
-                      }}><span className={styles.clipName}>{locked ? '锁定 · ' : ''}{segment.text ?? segment.label ?? segment.id}</span><Waveform readPeaks={readPeaks} mediaUrl={media.resolve} audioRef={audio ? audio.audioRefOverride ?? data.audioRef as string : undefined} offsetMs={(audio?.startMs ?? 0) + visibleOffset} spanMs={waveSpan} playableMs={Math.max(0, Math.min((audio?.endMs ?? 0) - (audio?.startMs ?? 0), (shown.videoEndMs ?? 0) - (shown.videoStartMs ?? 0) - (audio?.gapMs ?? 0)) - visibleOffset)} gain={Number(data.masterGain ?? 1) * (audio?.gain ?? 1)} /></button>;
+                      }}>{lead > 0 && <span className={styles.overlapMark} title={`与上一句重叠 ${lead} ms`} style={{ width: `${Math.min(100, lead / Math.max(1, (shown.videoEndMs ?? 0) - clipStart) * 100)}%` }} />}<span className={styles.clipName}>{locked ? '锁定 · ' : ''}{segment.text ?? segment.label ?? segment.id}</span><Waveform readPeaks={readPeaks} mediaUrl={media.resolve} audioRef={audio ? audio.audioRefOverride ?? data.audioRef as string : undefined} offsetMs={(audio?.startMs ?? 0) + visibleOffset} spanMs={waveSpan} playableMs={Math.max(0, Math.min((audio?.endMs ?? 0) - (audio?.startMs ?? 0), (shown.videoEndMs ?? 0) - (shown.videoStartMs ?? 0) - (audio?.gapMs ?? 0)) - visibleOffset)} gain={Number(data.masterGain ?? 1) * (audio?.gain ?? 1)} /></button>;
                   })}
                   {trackOverlay('voice')}
                 </div>
               </div>
               {hasBackground && <div className={styles.trackRow}>
-                <button className={styles.trackLabel} aria-pressed={selectedTrack === 'background'} onClick={() => chooseTrack('background')}>背景音乐</button>
+                <button className={styles.trackLabel} aria-label="背景音乐" title="背景音乐音轨属性" aria-pressed={selectedTrack === 'background'} onClick={() => chooseTrack('background')}>音乐</button>
                 <div className={styles.trackBase} title="背景音乐音轨" onPointerDown={event => startRangeDrag(event, 'background')} {...rangeHandlers}>
                   <div className={`${styles.trackSeg} ${styles.trackBackground}`} style={regionStyle({ startMs: 0, endMs: backgroundEnd })}><Waveform readPeaks={readPeaks} mediaUrl={media.resolve} audioRef={data.directorBackgroundRef as string} offsetMs={viewStart} spanMs={Math.min(viewEnd, backgroundEnd) - viewStart} gain={Number(data.directorBackgroundGain ?? 1)} /></div>
                   {trackOverlay('background')}
@@ -713,20 +883,56 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
               </div>}
               </div>
               </div>
-              <p className={styles.panelHint}>单击定位播放头，拖动时间刻度或音轨空白处框选。Shift 可追加选区。</p>
-              {shownRanges.length > 0 && <p className={styles.selectionHint}>
-                {shownRanges.length === 1
-                  ? `选区 ${displayTime(shownRanges[0]!.startMs)} – ${displayTime(shownRanges[0]!.endMs)}`
-                  : `已选 ${shownRanges.length} 段`}
-                {' · 拖动选区两端调整起止'}
-              </p>}
-              <p className={styles.panelHint}>播放头 {displayTime(previewMs)} / {displayTime(durationMs)}</p>
-              <p className={styles.panelHint} style={{ margin: 0 }}>
-                {counts.total ? `当前配音 ${counts.current}/${counts.total} · 待更新 ${counts.stale} · 区间已确认 ${counts.confirmed}`
-                  : segments.length ? '已绑定整轨配音' : '暂无配音'} · {Math.round(durationMs / 1000)} 秒
-              </p>
-              {trackGhost && <div role="status" className={styles.panelHint}>{((trackGhost.videoStartMs ?? 0) / 1000).toFixed(2)}–{((trackGhost.videoEndMs ?? 0) / 1000).toFixed(2)} 秒</div>}
+          {(shownRanges.length > 0 || trackGhost) && <div className={styles.timelineFooter}>
+            {shownRanges.length > 0 && <span className={styles.selectionHint}>{shownRanges.length === 1
+              ? `选区 ${shortTime(shownRanges[0]!.startMs)}–${shortTime(shownRanges[0]!.endMs)}` : `已选 ${shownRanges.length} 段`}</span>}
+            {trackGhost && <span role="status">{shortTime(trackGhost.videoStartMs ?? 0)}–{shortTime(trackGhost.videoEndMs ?? 0)}</span>}
+          </div>}
+        </div>
+        {toolStatus && <div className={styles.notice} role="status">{toolStatus}</div>}
+      </section>
+      <aside className={styles.inspector} aria-label="内容编辑">
+        <div className={styles.inspectorBody}>
+          {selectedTrack && <TrackInspector track={selectedTrack} data={data} disabled={projectBusy} mode={listenMode} setMode={setListenMode} patch={applyEdit} />}
+          {!selectedLineId && !selectedTrack && <div className={styles.emptyInspector}>
+            <h2>选一句开始编辑</h2>
+            <p>在左侧点一句台词，或点时间轴上的片段，就能修改台词、音色和音量。</p>
+            <button type="button" className={`${styles.toolBtn} ${styles.toolBtnPrimary}`} disabled={!trackLines.length} onClick={() => selectTrackLine(trackLines[0]!)}>编辑第一句</button>
+          </div>}
+          <div hidden={!selectedLineId || Boolean(selectedTrack)}>
+            <div className={styles.selectionTitle}>
+              <h2>第 {selectedIndex + 1} 句</h2>
+              {focusedLine && <span>{shortTime(focusedLine.videoStartMs ?? 0)}–{shortTime(focusedLine.videoEndMs ?? 0)}</span>}
+              <span className={styles.spacer} />
+              <button type="button" className={styles.iconAction} aria-label="上一句" title="上一句" disabled={selectedIndex <= 0} onClick={() => selectTrackLine(trackLines[selectedIndex - 1]!)}><ChevronLeft size={16} /></button>
+              <button type="button" className={styles.iconAction} aria-label="下一句" title="下一句" disabled={selectedIndex < 0 || selectedIndex >= trackLines.length - 1} onClick={() => selectTrackLine(trackLines[selectedIndex + 1]!)}><ChevronRight size={16} /></button>
+              {selectedLineId && linesOf(editorNode?.data ?? {}).some(line => line.id === selectedLineId) && <button type="button" className={styles.iconAction} aria-label="替换本句音频" title="用本地音频替换这一句" disabled={projectBusy} onClick={() => chooseVoice(selectedLineId)}><Upload size={15} /></button>}
             </div>
+            {selectedIndex > 0 && focusedLine && (() => {
+              const previous = trackLines[selectedIndex - 1]!;
+              const lead = Math.max(0, segments.find(item => item.id === selectedLineId)?.leadMs ?? 0);
+              const join = lead ? -lead : (focusedLine.videoStartMs ?? 0) - (previous.videoEndMs ?? 0);
+              const manual = joinsOf(data)[selectedLineId!] !== undefined;
+              return <div className={styles.joinRow}>
+                <span>与上一句</span>
+                <JoinField key={`${selectedLineId}-${join}`} value={join} onCommit={editJoin} />
+                <span className={styles.joinHint}>{join < 0 ? '重叠' : '空白'}</span>
+                <button type="button" className={styles.linkBtn} disabled={!manual || projectBusy} title="恢复自动间隔" onClick={() => editJoin(null)}>{manual ? '恢复自动' : '自动'}</button>
+              </div>;
+            })()}
+            {editorNode && <div className={styles.editorScroll}><DubbingEditor key={editorNode.id} node={editorNode} selected
+              externalVideoRef={previewVideo} selectedLineId={selectedLineId}
+              onLineSelect={id => {
+                setSelectedLineId(id);
+                setSelectedTrack(null);
+                const line = voiced.find(item => item.id === id);
+                if (line) playback.current?.seek(Math.max(0, line.videoStartMs ?? 0));
+              }}
+              sessionMedia={{ readData: editor.draftData, resolve: media.resolve, add: media.add }}
+              onGenerationChange={setLineGenerating} batchGenerating={generating || mediaBusy || deliveryBusy}
+              playback={playback} listenMode={listenMode}
+              guardPatch={next => assertUnlocked(editor.draftData() ?? {}, next)}
+              onPatch={patch => { if (patch.data) editor.patch(patch.data); }} /></div>}
           </div>
         </div>
         {editorNode && <DirectorTools key={editorNode.id} data={data} mediaUrl={media.resolve} rows={timedRows} duration={durationMs}
@@ -734,98 +940,35 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
           select={id => { const line = voiced.find(item => item.id === id); if (line) selectTrackLine(line); }}
           ranges={ranges} setRanges={setRanges} playback={playback} mode={listenMode} setMode={setListenMode}
           disabled={projectBusy} patch={applyEdit} />}
-        </div>
-        <div className={styles.horizontalDivider} {...workspace.separator('timeline')} />
-        <section className={styles.transcript} aria-label="台词浏览">
-          <div className={styles.transcriptHeader}>
-            <h2 className={styles.panelTitle}>台词列表 <span className={styles.panelHint}>{trackLines.length} 句</span></h2>
-            <span className={styles.panelHint}>点击一句，定位声音并在右侧编辑</span>
-          </div>
-          <div className={styles.transcriptColumns} aria-hidden="true"><span>序号</span><span>台词内容</span><span>时间区间</span><span>区间状态</span></div>
-          <div ref={scriptList} className={styles.transcriptRows}>
-            {trackLines.map((line, index) => <button type="button" className={styles.transcriptRow} key={line.id} data-script-line-id={line.id}
-              aria-pressed={!selectedTrack && selectedLineId === line.id} onClick={() => selectTrackLine(line)}>
-              <span className={styles.lineNumber}>{String(index + 1).padStart(2, '0')}</span>
-              <span className={styles.lineText}>{line.text ?? line.label ?? '未填写台词'}</span>
-              <span className={styles.lineTime}>{Number.isFinite(line.videoStartMs) && Number.isFinite(line.videoEndMs)
-                ? `${displayTime(line.videoStartMs!)} – ${displayTime(line.videoEndMs!)}` : '待设置时间'}</span>
-              <span className={styles.lineStatus} data-confirmed={editorData.confirmedLineIds?.includes(line.id) ?? false}>{editorData.confirmedLineIds?.includes(line.id) ? '已确认' : '待确认'}</span>
-            </button>)}
-            {!trackLines.length && <div className={styles.editorEmpty}><p>导入台词后，可在这里逐句浏览和编辑。</p><button className={styles.toolBtn} onClick={() => setDrawer(true)}>导入素材</button></div>}
-          </div>
-        </section>
-        {confirmation && <div role="alertdialog" aria-label="确认当前操作" className={styles.toolbar}
-          onKeyDown={event => { if (event.key === 'Escape') answerConfirmation(false); }}>
-          <span>{confirmation.message}</span>
-          <button type="button" className={styles.toolBtn} autoFocus onClick={() => answerConfirmation(false)}>取消</button>
-          <button type="button" className={`${styles.toolBtn} ${styles.toolBtnPrimary}`} onClick={() => answerConfirmation(true)}>{confirmation.label}</button>
-        </div>}
-        {toolStatus && <div className={styles.notice} role="status">{toolStatus}</div>}
-      </section>
-      <div className={styles.verticalDivider} {...workspace.separator('right')} />
-      <aside className={styles.inspector} aria-label="内容编辑与交付">
-        <div className={styles.inspectorTabs} role="group" aria-label="右侧面板">
-          {([['content', '内容编辑'], ['check', '检查'], ['export', '导出']] as const).map(([key, label]) => <button className={styles.tabButton} type="button" key={key} aria-pressed={inspectorTab === key} onClick={() => setInspectorTab(key)}>{label}</button>)}
-        </div>
-        <div className={styles.inspectorBody} hidden={inspectorTab !== 'content'}>
-          {selectedTrack && <TrackInspector track={selectedTrack} data={data} disabled={projectBusy} mode={listenMode} setMode={setListenMode} patch={applyEdit} />}
-          {!selectedLineId && !selectedTrack && <div className={styles.emptyInspector}>
-            <span className={styles.eyebrow}>从一句开始</span><h2>选中要修改的内容</h2>
-            <p>点击左侧台词或音轨片段，即可在这里改台词、调音色和音量。</p>
-            <p>需要处理一段声音？直接在时间轴拖动框选，再展开下方的选区工具。</p>
-            <button type="button" className={`${styles.toolBtn} ${styles.toolBtnPrimary}`} disabled={!trackLines.length} onClick={() => selectTrackLine(trackLines[0]!)}>编辑第一句</button>
-            <button type="button" className={styles.toolBtn} onClick={() => trackLines.length ? focusScript() : setDrawer(true)}>{trackLines.length ? '浏览完整台词' : '导入素材'}</button>
-          </div>}
-          <div hidden={!selectedLineId || Boolean(selectedTrack)}>
-            <div className={styles.selectionTitle}><span className={styles.eyebrow}>正在编辑</span><h2>第 {trackLines.findIndex(line => line.id === selectedLineId) + 1} 句</h2>
-              <button className={styles.toolBtn} onClick={focusScript}>换一句</button></div>
-          <div className={styles.editWorkspace}>
-          {editorNode
-            ? <div className={styles.editorScroll}><DubbingEditor key={editorNode.id} node={editorNode} selected
-                externalVideoRef={previewVideo} selectedLineId={selectedLineId}
-                onLineSelect={id => {
-                  setSelectedLineId(id);
-                  setSelectedTrack(null);
-                  setInspectorTab('content');
-                  const line = voiced.find(item => item.id === id);
-                  if (line) playback.current?.seek(Math.max(0, line.videoStartMs ?? 0));
-                }}
-                sessionMedia={{ readData: editor.draftData, resolve: media.resolve, add: media.add }}
-                onGenerationChange={setLineGenerating} batchGenerating={generating || mediaBusy || deliveryBusy}
-                playback={playback} listenMode={listenMode}
-                guardPatch={next => assertUnlocked(editor.draftData() ?? {}, next)}
-                onPatch={patch => { if (patch.data) editor.patch(patch.data); }} /></div>
-            : <div className={styles.editorEmpty} role="status">请在素材面板导入音频或台词。</div>}
-          </div>
-
-          </div>
-        </div>
-        <div className={styles.inspectorBody} hidden={inspectorTab !== 'check'}>
-          <div className={styles.emptyInspector}><h2>交付前检查</h2><p>{!editorNode ? '正在读取项目…' : checking.length ? '先处理以下项目，再试听确认。' : '当前检查未发现问题，可试听后导出。'}</p>
-            {checking.length > 0 && <ul className={styles.checkList}>{checking.map(issue => <li key={issue}>{issue}</li>)}</ul>}
-            <button className={styles.toolBtn} onClick={() => { setInspectorTab('content'); focusScript(); }}>查看台词并处理</button>
-            <button className={`${styles.toolBtn} ${styles.toolBtnPrimary}`} disabled={!editorNode} onClick={() => { setInspectorTab('export'); }}>前往导出</button>
-          </div>
-        </div>
-        <div className={styles.inspectorBody} hidden={inspectorTab !== 'export'}>        <section className={styles.delivery}>
-          <h3 className={styles.panelTitle}>导出成品</h3><p className={styles.panelHint}>选择需要的文件格式。导出前会检查台词、配音与时间区间。</p>
-          <div className={styles.actionRow}>
-            <button type="button" className={styles.toolBtn} disabled={!editorNode || projectBusy || !segments.length && !originalAudio && !hasBackground} onClick={() => void deliver('wav')}>导出 WAV</button>
-            <button type="button" className={styles.toolBtn} disabled={!counts.total || projectBusy} onClick={() => void deliver('srt')}>导出台词 SRT</button>
-            <button type="button" className={styles.toolBtn} disabled={!videoUrl || projectBusy || !durationMs} onClick={() => void deliver('mp4')}>
-              {ranges.length === 1 ? '导出选区 MP4' : '导出全片 MP4'}
-            </button>
-            <label><input type="checkbox" checked={burnCaptions} onChange={event => setBurnCaptions(event.target.checked)} /> 在 MP4 画面中显示字幕</label>
-            <button type="button" className={styles.toolBtn} disabled={!editorNode || projectBusy || !durationMs} onClick={() => void deliver('zip')}>下载剪辑交接包</button>
-            {deliveryBusy && <button type="button" className={styles.toolBtn} onClick={() => { exportController.current?.abort(); answerConfirmation(false); }}>取消导出</button>}
-            <span className={styles.panelHint}>交付音轨 · {listenLabel[listenMode]}</span>
-          </div>
-        </section>
-</div>
       </aside>
-    </div>
+    </div>}
+    {confirmation && <div role="alertdialog" aria-label="确认当前操作" className={styles.confirmBar}>
+      <span>{confirmation.message}</span>
+      <button type="button" className={styles.toolBtn} autoFocus onClick={() => answerConfirmation(false)}>取消</button>
+      <button type="button" className={`${styles.toolBtn} ${styles.toolBtnPrimary}`} onClick={() => answerConfirmation(true)}>{confirmation.label}</button>
+    </div>}
+    {showExport && <div className={styles.overlay} onPointerDown={event => { if (event.target === event.currentTarget && !deliveryBusy) setShowExport(false); }}>
+      <section role="dialog" aria-label="导出成品" className={styles.exportDialog}>
+        <div className={styles.dialogHeader}>
+          <h2>导出成品</h2>
+          <button type="button" className={styles.iconAction} aria-label="关闭导出" disabled={deliveryBusy} onClick={() => setShowExport(false)}><X size={18} /></button>
+        </div>
+        {checking.length
+          ? <div className={styles.checkBox}><strong>导出前请留意</strong><ul className={styles.checkList}>{checking.map(issue => <li key={issue}>{issue}</li>)}</ul><span>仍可导出，文件会使用当前采用的配音和区间。</span></div>
+          : <p className={styles.checkOk}><Check size={14} />检查未发现问题</p>}
+        <div className={styles.exportGrid}>
+          <button type="button" className={styles.exportOption} aria-label="导出 WAV" disabled={!editorNode || projectBusy || !segments.length && !originalAudio && !hasBackground} onClick={() => void deliver('wav')}><strong>导出 WAV</strong><span>{listenLabel[listenMode]}音轨</span></button>
+          <button type="button" className={styles.exportOption} aria-label="导出台词 SRT" disabled={!counts.total || projectBusy} onClick={() => void deliver('srt')}><strong>导出台词 SRT</strong><span>逐句字幕</span></button>
+          <button type="button" className={styles.exportOption} aria-label={ranges.length === 1 ? '导出选区 MP4' : '导出全片 MP4'} disabled={!videoUrl || projectBusy || !durationMs} onClick={() => void deliver('mp4')}><strong>{ranges.length === 1 ? '导出选区 MP4' : '导出全片 MP4'}</strong><span>画面加当前音轨</span></button>
+          <button type="button" className={styles.exportOption} aria-label="下载剪辑交接包" disabled={!editorNode || projectBusy || !durationMs} onClick={() => void deliver('zip')}><strong>下载剪辑交接包</strong><span>素材加项目清单</span></button>
+        </div>
+        <label className={styles.checkboxRow}><input type="checkbox" checked={burnCaptions} onChange={event => setBurnCaptions(event.target.checked)} />在 MP4 画面中显示字幕</label>
+        {deliveryBusy && <button type="button" className={styles.toolBtn} onClick={() => { exportController.current?.abort(); answerConfirmation(false); }}>取消导出</button>}
+        {toolStatus && <p className={styles.dialogStatus} role="status">{toolStatus}</p>}
+      </section>
+    </div>}
     {showManual && <ManualDialog onClose={() => setShowManual(false)} />}
-    {clipMenu && <div data-clip-menu className={styles.clipMenu} style={{ left: clipMenu.x, top: clipMenu.y }} aria-label="片段操作">{clipActions}</div>}
+    {clipMenu && <div data-clip-menu className={styles.clipMenu} style={{ left: clipMenu.x, top: clipMenu.y }} aria-label="片段操作">{clipButtons(true)}</div>}
     {splitRequest && <SplitClipDialog error={toolStatus} text={splitRequest.text} atMs={splitRequest.atMs} onCancel={() => setSplitRequest(null)} onSplit={boundary => {
       try {
         const id = `line-${crypto.randomUUID()}`;
@@ -835,4 +978,19 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
       } catch (error) { setToolStatus(error instanceof Error ? error.message : '分割失败'); return false; }
     }} />}
   </main>;
+}
+
+/** 与上一句的衔接：正数是空白、负数是重叠（毫秒），失焦或回车后提交。 */
+function JoinField({ value, onCommit }: { value: number; onCommit: (value: number) => void }) {
+  const [draft, setDraft] = useState(String(Math.round(value)));
+  const commit = () => {
+    const next = Number(draft);
+    if (!draft.trim() || !Number.isFinite(next)) { setDraft(String(Math.round(value))); return; }
+    if (Math.round(next) !== Math.round(value)) onCommit(Math.max(-LAYOUT.maxOverlapMs, Math.min(LAYOUT.maxJoinMs, Math.round(next))));
+  };
+  return <span className={styles.joinField}>
+    <input aria-label="与上一句的间隔（毫秒）" type="number" step={50} min={-LAYOUT.maxOverlapMs} max={LAYOUT.maxJoinMs} value={draft}
+      onChange={event => setDraft(event.target.value)} onBlur={commit} onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }} />
+    <span>ms</span>
+  </span>;
 }

@@ -10,6 +10,7 @@ import type { GainRegion } from '../playback-plan';
 import type { RewriteLine as TimedDubbingLine } from '../rewrite';
 import { directorOf, displayTime, intersecting, lineFingerprint, listenLabel, makeRange, overlaps, rangeOf, rewriteWindows, shiftFollowing } from './director-edits';
 import type { EditData, ListenMode, TimeRange } from './director-edits';
+import { Pause, Play, RotateCcw } from './icons';
 import styles from './workbench.module.css';
 
 const PANELS = [
@@ -31,9 +32,13 @@ type Props = {
   playback: RefObject<DubbingPlayback>;
   disabled: boolean;
   patch: (changes: EditData) => boolean;
+  /** playback：视频下方的播放条；panels：选区、间隔、音量与审阅面板。 */
+  variant?: 'playback' | 'panels';
+  /** 播放条显示的当前时间与总时长。 */
+  clock?: string;
 };
 
-export function DirectorTools({ data, mediaUrl, rows, duration, time, selectedId, select, ranges, setRanges, mode, setMode, playback, disabled, patch }: Props) {
+export function DirectorTools({ data, mediaUrl, rows, duration, time, selectedId, select, ranges, setRanges, mode, setMode, playback, disabled, patch, variant = 'panels', clock }: Props) {
   const state = directorOf(data);
   const [panel, setPanel] = useState<typeof PANELS[number][0]>('listen');
   const [feedback, setFeedback] = useState('');
@@ -145,29 +150,32 @@ export function DirectorTools({ data, mediaUrl, rows, duration, time, selectedId
     else setFeedback('当前类别没有待审阅的台词。');
   }
 
-  return <section className={styles.director} aria-label="导演工具">
-    <div className={styles.actionRow}>
-      <button className={styles.toolBtnPrimary + ' ' + styles.toolBtn} disabled={!duration || disabled} onClick={() => {
+  if (variant === 'playback') return <section className={styles.playbackBar} aria-label="播放控制">
+      <button className={styles.playButton} aria-label="同步播放" title="同步播放 · 空格" disabled={!duration || disabled} onClick={() => {
         if (time() >= duration - 1) playback.current?.seek(0);
         play();
-      }}>同步播放</button>
-      <button className={styles.toolBtn} onClick={() => playback.current?.stop()}>暂停</button>
-      <button className={styles.toolBtn} disabled={!duration || disabled || !time()} onClick={() => {
+      }}><Play size={15} /></button>
+      <button className={styles.iconAction} aria-label="暂停" title="暂停" onClick={() => playback.current?.stop()}><Pause size={16} /></button>
+      <button className={styles.iconAction} aria-label="回听 3 秒" title="回听 3 秒" disabled={!duration || disabled || !time()} onClick={() => {
         const end = Math.min(time(), duration);
         const replay = makeRange(end - 3000, end, duration);
         if (!replay) return;
         const row = intersecting(rows, [replay]).at(-1);
         if (row) select(row.id);
         play([replay]);
-      }}>回听 3 秒</button>
+      }}><RotateCcw size={16} /></button>
+      {clock && <span className={styles.clock}>{clock}</span>}
+      {ranges.length > 0 && <span className={styles.panelHint}>已选 {ranges.length} 段 · {intersecting(rows, ranges).length} 句</span>}
+      <span className={styles.spacer} />
       <span className={styles.controlGroup} role="group" aria-label="试听音轨">
         {listening.map(value =>
           <button key={value} className={styles.chip} aria-pressed={mode === value} onClick={() => setMode(value)}>{value === 'mix' ? '混合' : listenLabel[value]}</button>)}
       </span>
-      <span className={styles.panelHint}>{ranges.length ? `已选 ${ranges.length} 段 · ${intersecting(rows, ranges).length} 句` : '在时间轴框选，或点选一句台词'}</span>
-    </div>
+  </section>;
+
+  return <section className={styles.director} aria-label="导演工具">
     <details className={styles.advancedTools}>
-    <summary>选区工具 · 音量、节奏与审阅</summary>
+    <summary>混音与审阅工具</summary>
     <div className={styles.directorTabs} role="group" aria-label="编辑工具">
       {PANELS.map(([key, text]) => <button key={key} className={styles.tabButton} aria-pressed={panel === key} onClick={() => { setPanel(key); setFeedback(''); }}>{text}</button>)}
     </div>
