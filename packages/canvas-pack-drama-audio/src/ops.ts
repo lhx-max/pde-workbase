@@ -34,6 +34,11 @@ import { makeSubtitles } from './subtitles';
 
 type Patch = { data?: Record<string, unknown> };
 
+function assertSpeed(name: string, value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0.5 || value > 2) throw new Error(`card.drama.audio: ${name} 必须是 0.5–2 之间的倍率`);
+  return Math.round(value * 1000) / 1000;
+}
+
 function paramsOf(node: Record<string, unknown>, params: Record<string, unknown>): { data: DramaAudioData; input: Record<string, unknown> } {
   if (params === null || typeof params !== 'object' || Array.isArray(params)) throw new Error('card.drama.audio: params 必须是 JSON 对象');
   return { data: readDramaAudioData(node), input: params };
@@ -51,7 +56,7 @@ function fullPatch(data: DramaAudioData, node?: Record<string, unknown>): Patch 
   return { data: { ...existing, ...data, dataVersion: DRAMA_AUDIO_DATA_VERSION } as Record<string, unknown> };
 }
 
-const SEGMENT_FIELDS = ['id', 'label', 'startMs', 'endMs', 'gapMs', 'gain', 'muted', 'videoStartMs', 'videoEndMs', 'audioRefOverride', 'leadMs'];
+const SEGMENT_FIELDS = ['id', 'label', 'startMs', 'endMs', 'gapMs', 'gain', 'muted', 'videoStartMs', 'videoEndMs', 'audioRefOverride', 'leadMs', 'speed', 'fitSpeed'];
 
 function segmentOf(input: Record<string, unknown>, durationMs: number): DramaAudioSegment {
   const segment = input.segment;
@@ -82,6 +87,8 @@ function segmentOf(input: Record<string, unknown>, durationMs: number): DramaAud
       ? null
       : assertProjectRelativePath('params.segment.audioRefOverride', record.audioRefOverride),
     ...(record.leadMs === undefined || record.leadMs === 0 ? {} : { leadMs: assertInteger('params.segment.leadMs', record.leadMs, 1, 500) }),
+    ...(record.speed === undefined || record.speed === 1 ? {} : { speed: assertSpeed('params.segment.speed', record.speed) }),
+    ...(record.fitSpeed === undefined || record.fitSpeed === 1 ? {} : { fitSpeed: assertSpeed('params.segment.fitSpeed', record.fitSpeed) }),
   };
 }
 

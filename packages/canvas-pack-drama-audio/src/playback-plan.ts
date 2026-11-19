@@ -7,6 +7,18 @@ export interface PlaybackPlanItem {
   offsetMs: number;
   durationMs: number;
   gain: number;
+  /** 播放倍率（保持音调变速），1 为原速；offsetMs 是音源内的毫秒，durationMs 是时间轴上的毫秒。 */
+  rate: number;
+}
+
+export const SPEED_MIN = 0.5;
+export const SPEED_MAX = 2;
+
+/** 片段的实际播放倍率：手动语速 speed 乘以贴合视频时的自动加速 fitSpeed。 */
+export function segmentRate(segment: { speed?: unknown; fitSpeed?: unknown }): number {
+  const factor = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 1;
+  const rate = factor(segment.speed) * factor(segment.fitSpeed);
+  return Math.round(Math.max(SPEED_MIN, Math.min(SPEED_MAX, rate)) * 1000) / 1000;
 }
 
 function nonnegative(value: unknown): value is number {
@@ -49,14 +61,15 @@ export function buildPlaybackPlan(data: Pick<DramaAudioData, 'segments' | 'audio
     if (!audioPath(audioRef)) continue;
     // leadMs：配音提前进入、与上一句重叠的毫秒数（声音层），字幕窗口仍从 videoStartMs 开始。
     const leadMs = nonnegative(segment.leadMs) ? Math.min(segment.leadMs, videoStartMs) : 0;
+    const rate = segmentRate(segment);
     const audioStartMs = videoStartMs - leadMs;
     const elapsedMs = Math.max(0, currentVideoMs - audioStartMs);
-    const playableMs = Math.min(endMs - startMs, Math.max(0, videoEndMs - videoStartMs + leadMs - gapMs));
+    const playableMs = Math.min((endMs - startMs) / rate, Math.max(0, videoEndMs - videoStartMs + leadMs - gapMs));
     const durationMs = playableMs - elapsedMs;
-    const offsetMs = startMs + elapsedMs;
+    const offsetMs = startMs + elapsedMs * rate;
     const delayMs = Math.max(0, audioStartMs - currentVideoMs);
     if (durationMs <= 0 || ![durationMs, offsetMs, delayMs].every(Number.isFinite)) continue;
-    result.push({ segmentId: id, audioRef, delayMs, offsetMs, durationMs, gain: raw.masterGain * gain });
+    result.push({ segmentId: id, audioRef, delayMs, offsetMs, durationMs, gain: raw.masterGain * gain, rate });
   }
   return result.sort((a, b) => a.delayMs - b.delayMs || a.segmentId.localeCompare(b.segmentId));
 }
@@ -72,7 +85,7 @@ export function buildDirectorPlaybackPlan(
   if ((mode !== 'background' && mode !== 'mix') || !audioPath(data.directorBackgroundRef) || !(endMs > startMs)) return voice;
   return [...voice, {
     track: 'background', segmentId: 'director-background', audioRef: data.directorBackgroundRef,
-    delayMs: 0, offsetMs: startMs, durationMs: endMs - startMs,
+    delayMs: 0, offsetMs: startMs, durationMs: endMs - startMs, rate: 1,
     gain: validGain(data.directorBackgroundGain) ? data.directorBackgroundGain : 1,
   }];
 }

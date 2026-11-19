@@ -315,6 +315,24 @@ describe('配音排布与贴合', () => {
     expect(data().lineJoins).toEqual({});
   });
 
+  it('配音放不下时自动加速并在片段上显示倍率', () => {
+    open({ ...voiced(), videoDurationMs: 3000, segments: [take('l1', 2000, [0, 1500]), take('l2', 1100, [2000, 3000])] });
+    fireEvent.click(screen.getByRole('button', { name: '贴合视频' }));
+    const speeds = (data().segments as { fitSpeed?: number }[]).map(item => item.fitSpeed);
+    expect(speeds.every(speed => speed !== undefined && speed > 1)).toBe(true);
+    expect(screen.getByText(/2 句加速至 1\.\d\d×/u)).toBeTruthy();
+    expect(document.querySelector('[data-preview-line-id="l1"]')?.textContent).toMatch(/1\.\d\d×/u);
+  });
+
+  it('调整语速后自动重新贴合', () => {
+    open(voiced());
+    fireEvent.click(row('第一句解说'));
+    const speed = screen.getByLabelText('本句语速');
+    fireEvent.change(speed, { target: { value: '110' } });
+    fireEvent.blur(speed);
+    expect(windows()[0]).toEqual([0, Math.round(2200 / 1.1)]);
+  });
+
   it('配音长度变化后自动重新贴合，关闭自动后不再移动', () => {
     open(voiced());
     fireEvent.click(row('第一句解说'));

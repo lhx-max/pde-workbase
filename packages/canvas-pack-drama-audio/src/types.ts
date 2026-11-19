@@ -39,6 +39,10 @@ export interface DramaAudioSegment {
   audioRefOverride: string | null;
   /** 配音提前进入的毫秒数，与上一句在声音层重叠；字幕窗口不重叠。缺省为 0。 */
   leadMs?: number;
+  /** 手动语速（保持音调变速），1 为原速。 */
+  speed?: number;
+  /** 贴合视频时自动加速的倍率，与 speed 相乘。 */
+  fitSpeed?: number;
 }
 
 /** 音频卡 data 黑盒：卡内只存引用与编辑决策（EDL），媒体字节走文件口。 */

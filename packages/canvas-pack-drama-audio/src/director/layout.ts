@@ -22,6 +22,8 @@ export const LAYOUT = {
   minLineMs: 600,
   /** 超出时被压缩的句子至少保留的窗口。 */
   minWindowMs: 200,
+  /** 真实配音放不下时自动加速的上限（保持音调）。 */
+  maxAutoSpeed: 1.15,
 } as const;
 
 export type FitOverflow = { id: string; index: number; excessMs: number; estimated: boolean };
@@ -37,10 +39,14 @@ export type FitReport = {
   /** 仍放不下、会被截断的句子。 */
   overflow: FitOverflow[];
   estimated: number;
+  /** 自动加速的句子数与最大倍率。 */
+  spedUp: number;
+  maxSpeed: number;
 };
 
-type Segment = DramaAudioSegment & { leadMs?: number };
-type Item = { id: string; index: number; span: number; fixed: boolean; window: TimeRange | null; join: number | undefined; estimated: boolean };
+type Segment = DramaAudioSegment & { leadMs?: number; speed?: number; fitSpeed?: number };
+/** audio 为按手动语速换算后的语音时长，tail 为句尾留白，span = audio + tail。 */
+type Item = { id: string; index: number; audio: number; tail: number; span: number; fixed: boolean; window: TimeRange | null; join: number | undefined; estimated: boolean };
 
 const PUNCTUATION = /[\s\p{P}\p{S}]/gu;
 
@@ -77,13 +83,16 @@ function segmentsOf(data: EditData): Segment[] {
   return Array.isArray(data.segments) ? data.segments as Segment[] : [];
 }
 
-/** 一句需要的窗口长度：音频源区间加句尾留白；未生成时按字数估算。 */
-function spanOf(line: RewriteLine, segment: Segment | undefined): { span: number; estimated: boolean } {
-  if (segment && segment.endMs > segment.startMs) return { span: segment.endMs - segment.startMs + Math.max(0, segment.gapMs || 0), estimated: false };
-  return { span: estimateSpeechMs(line.text), estimated: true };
+/** 一句需要的时长：音频源区间按手动语速换算，加句尾留白；未生成时按字数估算。 */
+function spanOf(line: RewriteLine, segment: Segment | undefined): { audio: number; tail: number; estimated: boolean } {
+  if (segment && segment.endMs > segment.startMs) {
+    const speed = typeof segment.speed === 'number' && segment.speed > 0 ? segment.speed : 1;
+    return { audio: Math.round((segment.endMs - segment.startMs) / speed), tail: Math.max(0, segment.gapMs || 0), estimated: false };
+  }
+  return { audio: estimateSpeechMs(line.text), tail: 0, estimated: true };
 }
 
-type Placement = { id: string; start: number; end: number; lead: number };
+type Placement = { id: string; start: number; end: number; lead: number; span: number; fitSpeed: number };
 
 /** 在 [from, to] 内排一段连续的句子；返回位置、自动空白与溢出量。 */
 function placeRun(run: Item[], from: number, to: number, leadIn: boolean): { placed: Placement[]; gap: number; overflow: number } {
@@ -95,7 +104,16 @@ function placeRun(run: Item[], from: number, to: number, leadIn: boolean): { pla
   const shortBy = run.reduce((sum, item) => sum + item.span, 0) + fixedJoin + autoCount * LAYOUT.minGapMs - (to - from);
   const shrinkable = run.reduce((sum, item) => sum + (item.estimated ? Math.max(0, item.span - LAYOUT.minWindowMs) : 0), 0);
   const ratio = shortBy > 0 && shrinkable > 0 ? Math.min(1, shortBy / shrinkable) : 0;
-  const spans = run.map(item => item.estimated && ratio ? Math.round(item.span - (item.span - LAYOUT.minWindowMs) * ratio) : item.span);
+  let spans = run.map(item => item.estimated && ratio ? Math.round(item.span - (item.span - LAYOUT.minWindowMs) * ratio) : item.span);
+  // 仍放不下时对真实配音统一加速（保持音调，最多 maxAutoSpeed 倍），剩余的再压缩末尾。
+  const stillShort = spans.reduce((sum, span) => sum + span, 0) + fixedJoin + autoCount * LAYOUT.minGapMs - (to - from);
+  const realAudio = run.reduce((sum, item) => sum + (item.estimated ? 0 : item.audio), 0);
+  // 每句取整最多多出 1 ms，预留这部分余量，保证加速后确实放得下。
+  const margin = stillShort > 0 ? stillShort + run.filter(item => !item.estimated).length + 1 : 0;
+  const fitSpeed = stillShort > 0 && realAudio > 0
+    ? Math.min(LAYOUT.maxAutoSpeed, realAudio > margin ? realAudio / (realAudio - margin) : LAYOUT.maxAutoSpeed) : 1;
+  const speedOf = (item: Item) => !item.estimated && fitSpeed > 1.001 ? Math.min(LAYOUT.maxAutoSpeed, Math.ceil(fitSpeed * 1000) / 1000) : 1;
+  if (fitSpeed > 1.001) spans = run.map((item, i) => item.estimated ? spans[i]! : Math.ceil(item.audio / speedOf(item)) + item.tail);
   const need = spans.reduce((sum, span) => sum + span, 0) + fixedJoin;
   const room = to - from - need;
   const auto = autoCount ? Math.max(LAYOUT.minGapMs, Math.min(LAYOUT.maxGapMs, room / autoCount)) : 0;
@@ -103,15 +121,15 @@ function placeRun(run: Item[], from: number, to: number, leadIn: boolean): { pla
   let cursor = from;
   let gap = 0;
   run.forEach((item, i) => {
-    const join = !joinable[i] ? (item.join ?? 0) : item.join ?? Math.round(auto);
-    if (item.join === undefined && joinable[i]) gap += Math.round(auto);
+    const join = !joinable[i] ? (item.join ?? 0) : item.join ?? Math.floor(auto);
+    if (item.join === undefined && joinable[i]) gap += Math.floor(auto);
     const audioStart = cursor + join;
     // 重叠只发生在声音层：窗口仍从上一句结束处开始，配音提前 lead 毫秒进入。
     const span = spans[i]!;
     const lead = i > 0 && join < 0 ? Math.min(-join, LAYOUT.maxOverlapMs, Math.max(0, span - 1)) : 0;
     const start = Math.max(from, lead ? cursor : audioStart);
     const end = start + span - lead;
-    placed.push({ id: item.id, start, end, lead });
+    placed.push({ id: item.id, start, end, lead, span, fitSpeed: speedOf(item) });
     cursor = end;
   });
   const overflow = Math.max(0, cursor - to);
@@ -146,9 +164,9 @@ export function fitTimeline(data: EditData, durationMs: number): { changes: Edit
   const locks = directorOf(data).locks ?? [];
   const joins = joinsOf(data);
   const items: Item[] = lines.map((line, index) => {
-    const { span, estimated } = spanOf(line, segments.get(line.id));
+    const { audio, tail, estimated } = spanOf(line, segments.get(line.id));
     const window = { startMs: line.videoStartMs, endMs: line.videoEndMs };
-    return { id: line.id, index, span, estimated, window, join: joins[line.id], fixed: locks.some(lock => overlaps(lock, window)) };
+    return { id: line.id, index, audio, tail, span: audio + tail, estimated, window, join: joins[line.id], fixed: locks.some(lock => overlaps(lock, window)) };
   });
   const placements = new Map<string, Placement>();
   let gapMs = 0;
@@ -164,7 +182,8 @@ export function fitTimeline(data: EditData, durationMs: number): { changes: Edit
   for (const item of items) {
     if (!item.fixed) { run.push(item); continue; }
     flush(item.window!.startMs);
-    placements.set(item.id, { id: item.id, start: item.window!.startMs, end: item.window!.endMs, lead: 0 });
+    const kept = segments.get(item.id)?.fitSpeed;
+    placements.set(item.id, { id: item.id, start: item.window!.startMs, end: item.window!.endMs, lead: 0, span: item.span, fitSpeed: typeof kept === 'number' && kept > 0 ? kept : 1 });
     from = item.window!.endMs;
   }
   flush(durationMs);
@@ -174,13 +193,16 @@ export function fitTimeline(data: EditData, durationMs: number): { changes: Edit
   const leads = new Map([...placements.values()].map(item => [item.id, Math.round(item.lead)]));
   changes.segments = (changes.segments as Segment[]).map(segment => {
     const lead = leads.get(segment.id) ?? 0;
+    const speed = placements.get(segment.id)?.fitSpeed ?? 1;
     const rest: Segment = { ...segment };
     delete rest.leadMs;
-    return lead > 0 ? { ...rest, leadMs: lead } : rest;
+    delete rest.fitSpeed;
+    return { ...rest, ...(lead > 0 ? { leadMs: lead } : {}), ...(speed > 1.001 ? { fitSpeed: speed } : {}) };
   });
   const overflow: FitOverflow[] = items.flatMap(item => {
     const placed = placements.get(item.id)!;
-    const excessMs = Math.round(item.span - (placed.end - placed.start + placed.lead));
+    // 估算的句子与原始估算比较（提示稿子偏长）；真实配音与加速后的时长比较（会被截断的部分）。
+    const excessMs = Math.round((item.estimated ? item.span : placed.span) - (placed.end - placed.start + placed.lead));
     return !item.fixed && excessMs > 0 ? [{ id: item.id, index: item.index, excessMs, estimated: item.estimated }] : [];
   });
   const last = [...placements.values()].reduce((max, item) => Math.max(max, item.end), 0);
@@ -194,6 +216,8 @@ export function fitTimeline(data: EditData, durationMs: number): { changes: Edit
       overlaps: [...leads.values()].filter(lead => lead > 0).length,
       overflow,
       estimated: items.filter(item => item.estimated).length,
+      spedUp: [...placements.values()].filter(item => item.fitSpeed > 1.001 && !items.find(row => row.id === item.id)?.fixed).length,
+      maxSpeed: Math.max(1, ...[...placements.values()].map(item => item.fitSpeed)),
     },
   };
 }
@@ -206,6 +230,7 @@ export function describeFit(report: FitReport): string {
   };
   const parts = [`配音排到 ${time(report.endMs)} / 视频 ${time(report.videoMs)}`];
   if (report.overlaps) parts.push(`${report.overlaps} 处重叠`);
+  if (report.spedUp) parts.push(`${report.spedUp} 句加速至 ${report.maxSpeed.toFixed(2)}×`);
   if (report.estimated) parts.push(`${report.estimated} 句按字数估算`);
   const real = report.overflow.filter(item => !item.estimated);
   const guessed = report.overflow.filter(item => item.estimated);

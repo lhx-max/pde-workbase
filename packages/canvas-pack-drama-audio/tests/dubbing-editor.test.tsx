@@ -130,4 +130,18 @@ describe('逐句配音编辑', () => {
     expect(panel.queryByRole('button', { name: '设为音色基准' })).toBeNull();
     expect(panel.getByRole('option', { name: '跟随基准' })).toBeTruthy();
   });
+
+  it('已配音句可调整语速（80%–130%），显示贴合加速', () => {
+    const panel = editLine('第二句解说', { audioRef: 'session/voice/full.wav', segments: [{ ...segment, fitSpeed: 1.08 }] });
+    expect(panel.getByText('贴合加速 ×1.08')).toBeTruthy();
+    commitNumber(panel.getByLabelText('本句语速'), '120');
+    expect(data().segments[0].speed).toBe(1.2);
+    commitNumber(panel.getByLabelText('本句语速'), '300');
+    expect(data().segments[0].speed).toBe(1.3);
+  });
+
+  it('没有配音的句子不显示语速', () => {
+    const panel = editLine('第一句解说');
+    expect(panel.queryByLabelText('本句语速')).toBeNull();
+  });
 });

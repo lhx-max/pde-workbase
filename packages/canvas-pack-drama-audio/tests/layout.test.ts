@@ -73,13 +73,32 @@ describe('贴合视频时长', () => {
   it('配音总长超过视频时压缩末尾并报告被截断的句子', () => {
     const { changes, report } = fitTimeline(data, 2800);
     const windows = windowsOf(changes);
-    expect(windows[0]).toEqual([0, 1500]);
+    expect(windows[0]).toEqual([0, Math.ceil(1500 / LAYOUT.maxAutoSpeed)]);
+    expect((changes.segments as { fitSpeed?: number }[]).every(item => item.fitSpeed === LAYOUT.maxAutoSpeed)).toBe(true);
+    expect(report).toMatchObject({ spedUp: 3, maxSpeed: LAYOUT.maxAutoSpeed });
+    expect(describeFit(report)).toContain(`3 句加速至 ${LAYOUT.maxAutoSpeed.toFixed(2)}×`);
     expect(windows.at(-1)![1]).toBe(2800);
     validateRewriteLines(changes.rewriteLines, 2800);
     expect(report.overflow.map(item => item.id)).toContain('c');
     expect(report.overflow.reduce((sum, item) => sum + item.excessMs, 0)).toBeGreaterThan(0);
     expect(describeFit(report)).toMatch(/句配音仍超出 .* 秒，建议改短台词/u);
     expect(report.overflow.every(item => !item.estimated)).toBe(true);
+  });
+
+  it('略微超出时只加速到刚好放下，富余时间够用后清除加速', () => {
+    const { changes, report } = fitTimeline(data, 3300);
+    const speed = (changes.segments as { fitSpeed?: number }[])[0]!.fitSpeed!;
+    expect(speed).toBeGreaterThan(1);
+    expect(speed).toBeLessThan(LAYOUT.maxAutoSpeed);
+    expect(report.overflow).toEqual([]);
+    expect(windowsOf(changes).at(-1)![1]).toBeLessThanOrEqual(3300);
+    const relaxed = fitTimeline({ ...data, ...changes }, 6000).changes;
+    expect((relaxed.segments as { fitSpeed?: number }[]).every(item => item.fitSpeed === undefined)).toBe(true);
+  });
+
+  it('手动语速参与排布', () => {
+    const slowed = { ...data, segments: [segment('a', 1500, [0, 1000], { speed: 0.75 }), ...data.segments.slice(1)] };
+    expect(windowsOf(fitTimeline(slowed, 60_000).changes)[0]).toEqual([0, 2000]);
   });
 
   it('锁定区间里的句子作为锚点不移动，两侧各自排布', () => {

@@ -4,11 +4,12 @@ import { adoptDubbingCandidate, candidateMatches, dubbingCounts, effectiveLineVo
 import { checkLocalVoice, fillMissing, generateCandidate, localVoiceAvailable } from './director/local-voice';
 import { requireMedia, type MediaLookup } from './director/media';
 import { readDramaAudioData, shiftSegmentWindow } from './edl';
-import { buildDirectorPlaybackPlan, gainAt, gainRegionsOf, originalGainOf, playbackDriftMs, resolvePlaybackDuration, scheduleMixGain, type AudioListenMode } from './playback-plan';
+import { buildDirectorPlaybackPlan, segmentRate, gainAt, gainRegionsOf, originalGainOf, playbackDriftMs, resolvePlaybackDuration, scheduleMixGain, type AudioListenMode } from './playback-plan';
 import { insertRewriteLine, validateRewriteLines, type RewriteLine as TimedRewriteLine } from './rewrite';
 import type { DramaAudioData, DramaAudioSegment } from './types';
 import { VoicePicker } from './voice-picker';
 import { Check, ChevronRight, Play, RefreshCw } from './director/icons';
+import { stretchBuffer } from './director/time-stretch';
 
 interface RewriteLine {
   id: string;
@@ -68,16 +69,16 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 /** 百分比音量输入：显示 0–200%，失焦或回车后提交 0–2 的增益。 */
-function PercentField({ label, value, onChange }: { label: string; value: number; onChange: (gain: number) => void }) {
+function PercentField({ label, value, onChange, min = 0, max = 200 }: { label: string; value: number; onChange: (gain: number) => void; min?: number; max?: number }) {
   const [draft, setDraft] = useState<string | null>(null);
   const commit = () => {
     if (draft === null) return;
     const percent = Number(draft);
     setDraft(null);
-    if (draft.trim() && Number.isFinite(percent)) onChange(Math.round(Math.max(0, Math.min(200, percent))) / 100);
+    if (draft.trim() && Number.isFinite(percent)) onChange(Math.round(Math.max(min, Math.min(max, percent))) / 100);
   };
   return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-    <input aria-label={label} type="number" min={0} max={200} step={5} value={draft ?? String(Math.round(value * 100))}
+    <input aria-label={label} type="number" min={min} max={max} step={5} value={draft ?? String(Math.round(value * 100))}
       style={{ ...styles.input, width: 72, textAlign: 'right' }} onChange={event => setDraft(event.target.value)} onBlur={commit}
       onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }} />
     <span style={styles.hint}>%</span>
@@ -101,7 +102,7 @@ function validWindow(start: unknown, end: unknown): boolean {
 function excessMs(segment: DramaAudioSegment): number {
   if (!validWindow(segment.videoStartMs, segment.videoEndMs)
     || !validWindow(segment.startMs, segment.endMs) || !finiteMs(segment.gapMs)) return 0;
-  return Math.max(0, segment.endMs - segment.startMs - Math.max(0, segment.videoEndMs! - segment.videoStartMs! + (segment.leadMs ?? 0) - segment.gapMs));
+  return Math.max(0, (segment.endMs - segment.startMs) / segmentRate(segment) - Math.max(0, segment.videoEndMs! - segment.videoStartMs! + (segment.leadMs ?? 0) - segment.gapMs));
 }
 
 function NumberField({ label, value, max, onChange }: {
@@ -152,6 +153,10 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
   const video = externalVideoRef ?? internalVideo;
   const context = useRef<AudioContext | null>(null);
   const buffers = useRef(new Map<string, AudioBuffer>());
+  /** 变速片段预先做保持音调的伸缩，键为 音源@倍率。 */
+  const stretched = useRef(new Map<string, AudioBuffer>());
+  const bufferFor = (item: { audioRef: string; rate: number }) => item.rate === 1
+    ? buffers.current.get(item.audioRef) : stretched.current.get(`${item.audioRef}@${item.rate}`);
   const sources = useRef(new Set<{ source: AudioBufferSourceNode; gain: GainNode }>());
   const loadController = useRef<AbortController | null>(null);
   const generationController = useRef<AbortController | null>(null);
@@ -267,9 +272,9 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
         const startMs = currentMs + item.delayMs;
         const availableMs = (previewEndMs.current ?? Infinity) - startMs;
         if (availableMs <= 0) continue;
-        const buffer = buffers.current.get(item.audioRef);
+        const buffer = bufferFor(item);
         if (!buffer) continue;
-        const offset = item.offsetMs / 1000;
+        const offset = item.offsetMs / 1000 / item.rate;
         const duration = Math.min(item.durationMs / 1000, availableMs / 1000, buffer.duration - offset);
         if (duration <= 0) continue;
         const source = audioContext.createBufferSource();
@@ -435,6 +440,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     generationController.current?.abort();
     loaded.current = false;
     buffers.current.clear();
+    stretched.current.clear();
     previewData.current = null;
     previewEndMs.current = null;
     queue.current = null;
@@ -586,8 +592,13 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
         buffers.current.set(ref, buffer);
       }));
       if (controller.signal.aborted) return;
+      for (const item of planFor(planData, at, mode)) {
+        const key = `${item.audioRef}@${item.rate}`;
+        const source = buffers.current.get(item.audioRef);
+        if (item.rate !== 1 && source && !stretched.current.has(key)) stretched.current.set(key, stretchBuffer(audioContext, source, item.rate));
+      }
       loaded.current = true;
-      setLoadStatus(`已载入 ${refs.length - missing.length} 个音频源；按视频时钟试听，不自动拉伸`);
+      setLoadStatus(`已载入 ${refs.length - missing.length} 个音频源；按视频时钟试听`);
       if (missing.length) setGenerationStatus(`${missing.length} 段配音音频未载入，试听时已跳过。可在左侧重新生成。`);
       schedule();
     } catch (reason) {
@@ -608,7 +619,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     const at = video.current.currentTime * 1000;
     const mix = previewData.current ?? current.data;
     const plan = planFor(mix, at);
-    if (plan.some(item => !buffers.current.has(item.audioRef))) void loadAudio(mix, current.listenMode, at);
+    if (plan.some(item => !bufferFor(item))) void loadAudio(mix, current.listenMode, at);
   };
 
   async function startTtsService() {
@@ -732,7 +743,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     element.pause();
     const planData = preview ?? latest.current.data;
     const plan = planFor(planData, startMs ?? element.currentTime * 1000);
-    if (plan.length && (!loaded.current || plan.some(item => !buffers.current.has(item.audioRef)))) {
+    if (plan.length && (!loaded.current || plan.some(item => !bufferFor(item)))) {
       await loadAudio(planData, latest.current.listenMode, startMs ?? element.currentTime * 1000);
       if (!loaded.current) return;
     }
@@ -880,6 +891,11 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
               } })}>设为音色基准</button></div>}
         <div style={styles.field}><span style={styles.fieldLabel}>音量</span>
           <PercentField label="本句音量" value={lineGain} onChange={value => editLineGain(line.id, value)} /></div>
+        {segment && <div style={styles.field}><span style={styles.fieldLabel}>语速</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            {(segment.fitSpeed ?? 1) > 1 && <span style={styles.hint} title="贴合视频时自动加速，保持音调">贴合加速 ×{(segment.fitSpeed ?? 1).toFixed(2)}</span>}
+            <PercentField label="本句语速" value={segment.speed ?? 1} min={80} max={130} onChange={value => editSegment(line.id, { speed: value })} />
+          </span></div>}
         <div style={styles.actions}>
           <button style={styles.button} disabled={!segment || !validWindow(start, end) || loading || generating} title={segment ? '对着画面试听这一句' : '这句还没有配音'} onClick={() => void playPreview(start, end)}><Play size={14} />试听本句</button>
           <button style={styles.button} disabled={generating || startingTts || batchGenerating || loading || !canGenerate}
@@ -970,7 +986,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
         {segment && <>
           {!validWindow(start, end) && <div style={styles.warning}>视频区间未对齐或非法，本句不播放。</div>}
           {!validWindow(segment.startMs, segment.endMs) && <div style={styles.error}>源截取区间非法，本句不播放。</div>}
-          {over > 0 && <div style={styles.error}>时长超限 {Math.ceil(over)} ms：试听会截断超出视频允许区间的音频，不自动拉伸，未宣称对齐。</div>}
+          {over > 0 && <div style={styles.error}>时长超限 {Math.ceil(over)} ms：试听会截断超出视频允许区间的音频，可调语速或贴合视频，未宣称对齐。</div>}
           {finiteMs(end) && videoDurationMs > 0 && end > videoDurationMs && <div style={styles.error}>视频区间超过视频总时长，请调整。</div>}
           {buffer && segment.endMs > buffer.duration * 1000 + 1 && <div style={styles.error}>源截取超过真实音频时长 {Math.round(buffer.duration * 1000)} ms；试听仅播放实际存在的音频。</div>}
         </>}

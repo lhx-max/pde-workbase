@@ -6,7 +6,7 @@ import type { CardRenderProps } from '@bezier/canvas-card-sdk';
 import { DubbingEditor, type DubbingPlayback } from '../dubbing-editor';
 import { changeRewriteWindow, validateRewriteLines, type RewriteLine as TimedDubbingLine } from '../rewrite';
 import { dubbingCounts, lineGenerationCurrent, voiceReferenceOf } from '../dubbing';
-import { resolvePlaybackDuration } from '../playback-plan';
+import { resolvePlaybackDuration, segmentRate } from '../playback-plan';
 import { assertMediaSize, type useSessionMedia } from './media';
 import { fillMissing, localVoiceAvailable } from './local-voice';
 import { exportHandoff, exportVideo } from './director-delivery';
@@ -27,7 +27,7 @@ import styles from './workbench.module.css';
 
 /** 音频编辑工作台：视频与时间轴并排，选中内容在右侧编辑。 */
 
-interface EditorSegment { leadMs?: number; startMs?: number; endMs?: number; gapMs?: number; gain?: number; audioRefOverride?: string | null; id: string; text?: string; label?: string; muted?: boolean; videoStartMs?: number | null; videoEndMs?: number | null }
+interface EditorSegment { leadMs?: number; speed?: number; fitSpeed?: number; startMs?: number; endMs?: number; gapMs?: number; gain?: number; audioRefOverride?: string | null; id: string; text?: string; label?: string; muted?: boolean; videoStartMs?: number | null; videoEndMs?: number | null }
 type TimelineTrack = 'original' | 'voice' | 'background';
 type LineState = 'missing' | 'stale' | 'voiced' | 'over';
 const LINE_STATE_LABEL: Record<LineState, string> = { missing: '缺配音', stale: '待更新', voiced: '已配音', over: '配音超出区间，会被截断' };
@@ -629,7 +629,8 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
     }
   }
   /** 配音音频或句间衔接变化时自动重新贴合；只看音频与衔接，不看窗口，避免和手动拖动互相覆盖。 */
-  const fitSignature = JSON.stringify([segments.map(item => [item.id, item.audioRefOverride ?? null, item.startMs, item.endMs, item.gapMs]), joinsOf(data), rewriteLines.map(line => [line.id, line.text])]);
+  const signatureOf = (joins: Record<string, number>) => JSON.stringify([segments.map(item => [item.id, item.audioRefOverride ?? null, item.startMs, item.endMs, item.gapMs, item.speed ?? 1]), joins, rewriteLines.map(line => [line.id, line.text])]);
+  const fitSignature = signatureOf(joinsOf(data));
   const fittedSignature = useRef(fitSignature);
   useEffect(() => {
     if (fittedSignature.current === fitSignature) return;
@@ -639,7 +640,7 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
   function editJoin(value: number | null) {
     if (!selectedLineId) return;
     const change = setJoin(editor.draftData() ?? {}, selectedLineId, value);
-    fittedSignature.current = JSON.stringify([segments.map(item => [item.id, item.audioRefOverride ?? null, item.startMs, item.endMs, item.gapMs]), (change.lineJoins as Record<string, number>), rewriteLines.map(line => [line.id, line.text])]);
+    fittedSignature.current = signatureOf(change.lineJoins as Record<string, number>);
     if (!fitToVideo(change)) applyEdit(change);
   }
   const chooseTrack = (track: TimelineTrack) => { setSelectedTrack(track); };
@@ -653,7 +654,7 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
     const audio = segments.find(item => item.id === line.id);
     if (!audio) return 'missing';
     if (audio.startMs !== undefined && audio.endMs !== undefined && Number.isFinite(audio.videoStartMs) && Number.isFinite(audio.videoEndMs)
-      && audio.endMs - audio.startMs > (audio.videoEndMs ?? 0) - (audio.videoStartMs ?? 0) + (audio.leadMs ?? 0) - (audio.gapMs ?? 0) + 1) return 'over';
+      && (audio.endMs - audio.startMs) / segmentRate(audio) > (audio.videoEndMs ?? 0) - (audio.videoStartMs ?? 0) + (audio.leadMs ?? 0) - (audio.gapMs ?? 0) + 1) return 'over';
     const timed = rewriteLines.find(item => item.id === line.id);
     return timed && !lineGenerationCurrent(data, line.id, timed.text) ? 'stale' : 'voiced';
   };
@@ -837,8 +838,9 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
                     const clipStart = (shown.videoStartMs ?? 0) - lead;
                     const start = Math.max(0, (Math.max(viewStart, clipStart) - viewStart) / viewSpan * 100);
                     const width = Math.max(0, (Math.min(viewEnd, shown.videoEndMs ?? 0) - Math.max(viewStart, clipStart)) / viewSpan * 100);
-                    const visibleOffset = Math.max(0, viewStart - (shown.videoStartMs ?? 0));
-                    const waveSpan = Math.min(viewEnd, shown.videoEndMs ?? 0) - Math.max(viewStart, shown.videoStartMs ?? 0);
+                    const rate = audio ? segmentRate(audio) : 1;
+                    const visibleOffset = Math.max(0, viewStart - clipStart);
+                    const waveSpan = Math.min(viewEnd, shown.videoEndMs ?? 0) - Math.max(viewStart, clipStart);
                     const locked = isLocked(segment);
                     const status = !selectedTrack && selectedLineId === segment.id ? 'editing' : editorData.confirmedLineIds?.includes(segment.id) ? 'complete' : 'pending';
                     return <button type="button" key={segment.id} data-preview-line-id={segment.id} data-edit-status={status} data-locked={locked}
@@ -869,7 +871,7 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
                         if (event.shiftKey) {
                           if (event.detail === 0) toggleLineRange(segment);
                         } else if (event.detail === 0 || locked || projectBusy) selectTrackLine(segment);
-                      }}>{lead > 0 && <span className={styles.overlapMark} title={`与上一句重叠 ${lead} ms`} style={{ width: `${Math.min(100, lead / Math.max(1, (shown.videoEndMs ?? 0) - clipStart) * 100)}%` }} />}<span className={styles.clipName}>{locked ? '锁定 · ' : ''}{segment.text ?? segment.label ?? segment.id}</span><Waveform readPeaks={readPeaks} mediaUrl={media.resolve} audioRef={audio ? audio.audioRefOverride ?? data.audioRef as string : undefined} offsetMs={(audio?.startMs ?? 0) + visibleOffset} spanMs={waveSpan} playableMs={Math.max(0, Math.min((audio?.endMs ?? 0) - (audio?.startMs ?? 0), (shown.videoEndMs ?? 0) - (shown.videoStartMs ?? 0) - (audio?.gapMs ?? 0)) - visibleOffset)} gain={Number(data.masterGain ?? 1) * (audio?.gain ?? 1)} /></button>;
+                      }}>{lead > 0 && <span className={styles.overlapMark} title={`与上一句重叠 ${lead} ms`} style={{ width: `${Math.min(100, lead / Math.max(1, (shown.videoEndMs ?? 0) - clipStart) * 100)}%` }} />}{rate !== 1 && <span className={styles.rateBadge} title="保持音调变速">{rate.toFixed(2)}×</span>}<span className={styles.clipName}>{locked ? '锁定 · ' : ''}{segment.text ?? segment.label ?? segment.id}</span><Waveform readPeaks={readPeaks} mediaUrl={media.resolve} audioRef={audio ? audio.audioRefOverride ?? data.audioRef as string : undefined} offsetMs={(audio?.startMs ?? 0) + visibleOffset * rate} spanMs={waveSpan * rate} playableMs={Math.max(0, Math.min(((audio?.endMs ?? 0) - (audio?.startMs ?? 0)) / rate, (shown.videoEndMs ?? 0) - clipStart - (audio?.gapMs ?? 0)) - visibleOffset) * rate} gain={Number(data.masterGain ?? 1) * (audio?.gain ?? 1)} /></button>;
                   })}
                   {trackOverlay('voice')}
                 </div>

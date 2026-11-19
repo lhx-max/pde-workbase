@@ -14,7 +14,7 @@
     }
   },
   "scripts": {
-    "demo": "CANVAS_STORAGE_MODE=local-test pnpm --dir ../.. tools-dev run web --data-dir \"$PWD/demo/runtime\"",
+    "demo": "CANVAS_STORAGE_MODE=local-test pnpm --dir ../.. tools-dev run web --data-dir \"${DRAMA_DEMO_DATA:-$PWD/../../.runtime/drama-demo}\"",
     "voice": "TTS=\"${DRAMA_TTS_HOME:-$PWD/../../.runtime/local-tts}\"; cd \"$TTS/VoxCPM\" && HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 \"$TTS/.venv/bin/python\" app.py --host 127.0.0.1 --port 8808 --model-id \"$TTS/VoxCPM2\" --device auto",
     "build": "esbuild src/server.ts --bundle --format=esm --platform=node --target=node24 --packages=external --outfile=dist/server.mjs && tsc -p tsconfig.build.json --emitDeclarationOnly",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.tests.json --noEmit",
