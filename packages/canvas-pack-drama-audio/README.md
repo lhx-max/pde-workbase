@@ -1,81 +1,142 @@
-# 短剧导演工作台与配音卡
+# 短剧配音编辑卡（card.drama.audio）
 
-短剧导演工作台用于接手已有视频、解说词和配音，定位到一句，调整文字、声音或视频区间，再对着画面试听。工作台位于 `/session-apps`，逐句编辑直接写回当前画布项目里的配音编辑卡。
+PDE 挑战赛 M 端命题「多模态生成的编辑器应用开发」的交付卡包，基于画布工作区底座 `designai-app-canvas` 的卡片包合同 `canvas-card-pack/v1` 开发。
 
-## 启动本地 demo
+生成链路产出短剧视频、解说词和逐句配音后，这张卡负责「最后一公里」的编辑：逐句改词、换音色、调区间和音量、局部重新生成配音，对着画面试听，最后导出成品。整套编辑都在画布卡片内完成，不需要在多个工具之间来回切换。
 
-需要 Node 24 和 pnpm 10.33.2。从仓库根目录执行以下命令。每次复制都会得到独立的演示数据目录。要继续之前的编辑，请把 `DRAMA_DEMO_DATA` 指向上次使用的目录。
+## 三要素
 
-```sh
-pnpm install --frozen-lockfile
-pnpm --filter '@canvas/server...' --filter '@canvas-workspace/web^...' -r --if-present run build
+### 目标用户
+- **短剧解说与配音的运营、剪辑人员**：拿到 AI 生成的解说词和 TTS 配音后，需要快速修正个别句子的文字、语气、时间位置和响度，再导出给下游剪辑或发布。
+- **画布 Agent 与工作流编排**：通过画布能力清单发现 `card.drama.audio.*` 动作，把「改第 3 句停顿」「换配音源」「导出字幕」这类操作编进自动化链路。
 
-export DRAMA_DEMO_DATA="$(mktemp -d "${TMPDIR:-/tmp}/pde-drama-demo.XXXXXX")"
-cp -R packages/canvas-pack-drama-audio/demo/runtime/. "$DRAMA_DEMO_DATA/"
+### 使用场景（真实业务场景）
+以短剧解说视频的配音返工为例，验证用的素材是一集短剧解说的原片和对应解说词：
 
-CANVAS_STORAGE_MODE=local-test DRAMA_TTS_ENABLED=1 \
-  pnpm tools-dev run web --data-dir "$DRAMA_DEMO_DATA" \
-  --daemon-port 18456 --web-port 18573
+1. **生成**：视频和解说词进入画布，卡片按行建立逐句台词与视频区间；本机 VoxCPM 逐句生成配音候选。
+2. **编辑**：选中一句，修改文字或音色，生成新候选，与旧版对比试听后采用；拖动时间轴调整区间、句间停顿和音量；锁定已确认的段落，避免误改。
+3. **再生成**：只对改过的句子重新生成，状态栏会标出哪些句子的配音已过期。也可以采样画面并提交 `card.drama.audio.rewrite`，由模型基于画面和原稿给出改写建议，采用后进入逐句列表。
+4. **导出**：导出 WAV 混音、SRT 字幕、带字幕的 MP4 或剪辑交接包；也可以通过动作把 EDL 和字幕写入工程文件，回流到下游。
+
+### 能力边界
+| 支持 | 说明 |
+| --- | --- |
+| 逐句编辑 | 改文字、逐句音色（预设或自定义描述）、逐句音量、静音、增删句子、画面入出点、音频裁剪、句尾留白 |
+| 时间轴剪辑 | 拖动移动和裁剪、分割、复制粘贴、删除、吸附标记、选区、锁定、句间停顿（只移动本句或连同后续） |
+| 混音与审阅 | 原声、配音、背景音乐三轨音量，选区音量和渐变，A/B 时间方案，按句审阅，时间批注 |
+| 试听与导出 | 视频为主时钟的同步试听；导出 WAV（15 分钟以内）、SRT、MP4（依赖浏览器 H.264/AAC）、交接包 |
+| 撤销与保存 | 卡内撤销和重做（50 步），保存状态如实显示（见下文「保存」） |
+
+| 不支持 / 有前提 | 说明 |
+| --- | --- |
+| 媒体持久化 | 卡片合同 v1 没有给渲染器提供授权的媒体读写口，视频和音频只在当前会话可用。刷新后用「恢复会话素材」重新选择同内容的原文件（按内容哈希匹配），或从交接包取回素材。画布持久保存的是台词、剪辑参数和素材引用。 |
+| 本机配音 | 只在页面运行于 `127.0.0.1`、且本机 VoxCPM 在 8808 端口就绪时可用；部署环境不可用。 |
+| 模型改写 | 卡内生成改写请求，由画布 Agent 或 CLI 提交 `card.drama.audio.rewrite`；服务端需配置万擎（`WQ_API_KEY`、`WQ_MODEL`、`WQ_VISION_MODEL`），未配置时动作返回 `REWRITE_UNAVAILABLE`。 |
+| 尚未实现 | 交叉淡化、词级对齐、自动降噪、响度分析、后台导出 |
+| 文件大小 | 单个媒体 ≤30 MB，单卡会话媒体合计 ≤180 MB；卡片 `data` 序列化后 ≤256 KB |
+
+## 建卡与打开
+
+通过画布通用动作 `node.create` 建卡，然后点击卡面上的「打开短剧配音编辑器」：
+
+```json
+{"id":"drama-audio-1","kind":"card.drama.audio","title":"短剧配音","x":0,"y":0,"width":380,"height":165,"data":{"stage":"edit"}}
 ```
 
-- [打开短剧导演工作台](http://127.0.0.1:18573/session-apps)。进入后从台词列表选择一句开始编辑。
-- [打开随仓画布「念念有回响」](http://127.0.0.1:18573/?projectId=drama-demo-5d85c5e8-5a1a-4ee6-be99-557ab015ec42)。原始快照带素材和旧版全稿配音，逐句台词需在改写卡生成并交付。
-- 若已使用其他端口启动，请用实际 Web 端口打开链接。启动器在终端运行，`Ctrl+C` 会结束本次 Web 和 API 服务。另行启动的 TTS 服务由其启动方式管理。
-- 独立创建样例时，可在服务运行后执行下方命令，再用返回的 `projectId` 打开画布。工作台内输入 `打开项目 <名称或项目 ID>` 可切换到该样例。
+编辑器中依次「导入主视频」「导入台词」（TXT/MD，每行一句），再导入整轨配音或逐句生成配音。
+
+## 保存
+
+卡片只能通过合同规定的 `onPatch` 把修改交给画布，由画布负责持久化。工具栏状态如实反映这一过程：
+
+| 状态 | 含义 |
+| --- | --- |
+| 保存中… | 修改已交给画布，等待画布回传 |
+| 已保存到画布 | 画布已回传同一份内容 |
+| 画布尚未确认这次修改 | 4 秒内未回传，可点「重新提交」（不影响撤销历史） |
+| 已载入画布的最新内容 | 其他窗口或 Agent 修改了卡片；以画布内容为准并清空撤销历史，避免覆盖他人修改 |
+| 修改未应用 | 例如超出 256 KB，修改不会提交 |
+
+等待确认期间关闭页面会弹出离开提示。
+
+## data 字段
+
+`data` 为卡包自管的 JSON 黑盒（`dataVersion` 3），平台原样保存。主要字段：
+
+| 字段 | 说明 |
+| --- | --- |
+| `videoRef`、`videoDurationMs` | 主视频引用与时长（毫秒），视频是唯一主时钟 |
+| `rewriteLines` | 逐句台词 `{ id, text, videoStartMs, videoEndMs }`，区间不重叠 |
+| `confirmedLineIds` | 已人工确认区间的句子 |
+| `audioRef`、`durationMs` | 整轨配音引用与时长 |
+| `segments` | 配音片段 `{ id, label, startMs, endMs, gapMs, gain, muted, videoStartMs, videoEndMs, audioRefOverride }`；`id` 与台词对应 |
+| `masterGain`、`lineGains` | 配音总音量（0–2）与逐句音量 |
+| `voiceInstruction`、`lineVoiceInstructions` | 整体音色与逐句音色描述 |
+| `generatedLineTexts`、`generatedLineVoices` | 生成配音时的文字与音色，用于判断配音是否过期 |
+| `directorOriginalGain`、`directorBackgroundRef`、`directorBackgroundDurationMs`、`directorBackgroundGain` | 原声音量与背景音乐 |
+| `directorGainRegions` | 选区音量 `{ track, startMs, endMs, gain, fadeMs }` |
+| `directorEdit` | 锁定区间 `locks`、画面标记 `markers`、批注 `notes`、时间方案 `arrangements`、审阅记录 `review` |
+| `directorTrimBounds` | 剪辑裁剪时保留的原音源边界，支持在原范围内重新延长 |
+| `rewritePrompt`、`rewriteDraft` | 改写要求与待采用的改写建议 |
+| `trimStartMs`、`trimEndMs`、`script`、`captions`、`dubbingDoc` | EDL 裁剪窗口、台本、画面描述与配音文档 |
+| `exportedPath`、`exportedDigest`、`subtitlePath` | 动作导出的 EDL 与字幕工程路径 |
+
+## 卡片动作（Agent 调用）
+
+动作注册在[服务端入口](src/server.ts)，自动出现在 `GET /api/apps/canvas` 的能力清单中。调用方式为 `POST /api/apps/canvas/instances/:id/actions/card.drama.audio.<动作>`，请求带 `input.nodeId`、`input.params`、当前 `expectedRevision` 和 `idempotency-key` 请求头；同一幂等键重放会返回旧凭条。平台目前不会自动暴露参数 schema，参数以下表为准：
+
+| 动作 | params | 作用 |
+| --- | --- | --- |
+| `attach` | `audioRef`、`durationMs`，可选 `videoRef`、`videoDurationMs`、`segments[]` | 绑定或替换配音源，可同时绑定视频 |
+| `video` | `videoRef`、`videoDurationMs` | 绑定或替换主视频 |
+| `script` | `script`（字符串或 `null`） | 写入台本 |
+| `upsert` | `segment`（完整片段字段） | 新增或替换片段 |
+| `remove` | `segmentId` | 删除片段 |
+| `gap` | `segmentId`、`gapMs` | 调整句尾停顿 |
+| `gain` | `gain`，可选 `segmentId` | 无 `segmentId` 时调整总音量 |
+| `mute` | `segmentId`、`muted` | 静音开关 |
+| `trim` | 可选 `startMs`、`endMs` | 配音源裁剪窗口，缺省清除该端 |
+| `align` | `segmentId`，可选 `videoStartMs`、`videoEndMs` | 设置片段的画面区间 |
+| `span` | `segmentId`，可选 `startMs`、`endMs` | 调整片段的音源区间 |
+| `rebind` | `segmentId`、`audioRef`（`null` 恢复主源） | 片段换配音源 |
+| `analyze` | 无 | 由视频生成画面描述（需配置模型） |
+| `compose` | 可选 `script` | 台本加画面描述生成配音文档（需配置模型） |
+| `rewrite` | 卡内「下载改写请求」得到的请求体 | 基于采样帧和原稿生成改写建议，写入 `rewriteDraft` |
+| `export` | 无 | 把 EDL 清单写入 `card-assets/drama-audio/<卡ID>.edl.json` |
+| `export-srt` | 无 | 把逐句字幕写入工程文件 |
+
+参数校验失败时返回标准错误信封，动作不会部分生效。
+
+## 开发与验证
+
+需要 Node 24 和 pnpm 10.33.2。
 
 ```sh
-CANVAS_SERVER_URL=http://127.0.0.1:18456 \
-  pnpm --filter @bezier/canvas-pack-drama-audio demo:import
-```
-
-### 配置可选模型
-
-在启动服务前设置环境变量。查看已有稿件和调整时间区间可以直接在本地进行。
-
-| 能力 | 所需配置 |
-| --- | --- |
-| 采样并改写 | 服务端设置 `WQ_API_KEY`、`WQ_VISION_MODEL`、`WQ_MODEL`。按网络环境设置 `WQ_API_BASE`，默认走万擎 HTTPS 网关。改写先对采样帧做 OCR 和画面观测，再结合原稿生成解说与建议区间。 |
-| 生成本地配音 | 设置 `DRAMA_TTS_ENABLED=1`。可以复用已在 `http://127.0.0.1:8808` 运行且提供 `/generate` 的 VoxCPM Gradio 服务。由 demo 启动 TTS 时，还需设置 `DRAMA_TTS_PYTHON`、`DRAMA_TTS_APP`（`app.py`）和 `DRAMA_TTS_MODEL` 的绝对路径。模型文件和 Python 环境需要单独准备。 |
-| 工作台自然语言对话 | 服务端设置 `MANAGED_AGENT_BASE`、`MANAGED_AGENT_ID`、`MANAGED_AGENT_TENANT`、`MANAGED_AGENT_COOKIE`，可选 `MANAGED_AGENT_MODEL`。本地项目切换和导入指令可以独立使用。 |
-
-密钥和 Cookie 由服务端环境读取。生产存储与部署要求见 [仓库说明](../../AGENTS.md#safety-and-data)；上述命令用于本地隔离 demo。
-
-## 实际操作
-
-1. 打开已有项目。工作台默认读取随仓样例，也可以在左侧输入 `打开项目 <项目 ID>`。已有逐句台词和配音的项目可直接开始编辑。
-2. 项目只有原稿时，在画布的改写卡点击「采样视频并改写」。展开台词核对文案和建议区间，点击「确认交给配音编辑卡」。交付新稿会替换下游稿件并清空其配音引用，有已有配音时会提示确认，音频文件仍留在项目中。
-3. 点击音轨或列表中的一句，视频会定位到对应位置。可以编辑文字、音色、音量和静音。拖动片段中部移动区间，拖动边缘调整起止，或者在详情中输入毫秒后按 Enter。新增、删除、文本和音轨调整可通过工作台的「撤销」「重做」恢复。
-4. 点击「生成本句配音候选」，用「本句同步试听」和「同步试听候选」比较两版，再决定「采用候选」或「放弃候选」。点击「补齐缺失配音」会直接写回缺音频的句子。已有音频需要更新时，可逐句生成候选。
-5. 核对当前配音、待更新和区间确认状态后，选择「导出混音 WAV」或「导出台词 SRT」。混音跟随当前采用的配音、视频时间、原声开关、音量、静音、源截取和停顿。试听倍速用于审听，导出按原视频时长生成。字幕从逐句台词和视频区间生成。若有待检查项，工作台会在导出前提示。
-
-已有素材可以依次「导入主视频」「导入台词」「导入整轨配音」。TXT 或 MD 每行一句，导入后进入逐句列表。与原稿句数相同会保留已有区间，句数变化时会生成可调整的建议区间。整轨配音以文件起点对应视频起点，逐句按视频区间取音。选中一句后可以「替换本句音频」。
-
-| 能力 | 当前运行边界 |
-| --- | --- |
-| 保存 | 工作台先保留草稿并串行提交，读回后显示已保存。冲突时可以重试、导出草稿或读取最新。撤销和重做与当前页面会话关联。 |
-| 预览 | 单句与候选可以直接同步试听，浏览器按需载入音频。音频超过区间时会提示并裁切试听。 |
-| 导出 | 工作台导出 WAV 和 SRT，WAV 支持 15 分钟以内的视频。卡片动作 `card.drama.audio.export` 仍可输出 EDL JSON。工作台支持浏览器录制 MP4 和剪辑交接包；MP4 依赖浏览器 H.264/AAC 编码能力，录制时保持页面在前台。 |
-| 云端运行 | 本地演示媒体、模型和编辑链路按隔离环境运行。Appwrite 权威存储、权限和云端生成需单独验收。 |
-
-## 开发入口
-
-- [导演工作台](../../apps/web/app/session-apps/client.tsx) 提供视频预览、音轨和项目内编辑。[逐句编辑组件](src/dubbing-editor.tsx) 同时用于工作台和画布。
-- `card.drama.audio` 的 [服务端注册](src/server.ts) 和 [动作](src/ops.ts) 包含 `rewrite`、`start-tts`、`export` 及基础 EDL 操作。调用卡片动作时使用当前 `expectedRevision` 和 `idempotency-key` 请求头。EDL 记录源音频截取、视频区间、增益、静音和停顿。
-- [本地 demo 适配器](src/demo-adapter.ts) 通过 `127.0.0.1` 和显式 `local-test` 项目读取素材、交付台词与生成配音。[REQUIREMENTS.md](REQUIREMENTS.md) 保留早期需求记录。
-- `demo:repair` 是旧样例的迁移脚本，会写入默认 API 端口 `17456` 上符合条件的本地项目。新样例和一般启动流程使用上面的启动及导入命令。
-
-```sh
-pnpm --filter @bezier/canvas-pack-drama-audio test
 pnpm --filter @bezier/canvas-pack-drama-audio typecheck
-pnpm --filter @bezier/canvas-pack-drama-audio build
+pnpm --filter @bezier/canvas-pack-drama-audio test
+pnpm --filter @bezier/canvas-pack-drama-audio build           # 产出 ./server 入口
 ```
 
-## 专业编辑交互（本地隔离验证）
+覆盖率门槛为行与语句 ≥60%（见 `vitest.config.ts`），当前为行 74.16%、语句 70.84%（371 个测试）。为了不改动工作区其他包的锁文件条目，卡包不常驻覆盖率插件；测量时临时安装，测完还原：
 
-- 左侧素材与助手、中间视频与音轨、下方台词列表、右侧属性共用同一工程。拖动分隔线调整尺寸，双击恢复默认；布局和轨高在当前浏览器保存。
-- 台词精修、音频剪辑、混音检查三种布局预设。选择轨道名称显示轨道音量（dB）与独听，选择台词显示本句属性。
-- 音轨展示从实际音源解码得到的波形；加载或解码失败会显示状态，不以装饰波形代替。
-- 点击标尺定位播放头；片段中部拖动移动，边缘拖动同时裁剪音频源与画面区间。原音频保留，可撤销或在原范围内延长边缘。
-- 在有效声音内按 S 分割，再确认两段对应的台词；文字分句为人工指定，不代表已完成词级声音对齐。支持复制、在空白位置粘贴和删除，其他片段位置保持不变。
-- 右键片段显示剪辑菜单；空格播放/暂停，⌘/Ctrl C/V 复制粘贴，⌘/Ctrl Z 撤销，Shift + ⌘/Ctrl Z 重做。输入框保留正常文字编辑行为。
-- 以上为本地隔离试运行能力。交叉淡化、词级对齐、自动降噪、响度分析及后台导出尚未实现；不代表云端验收完成。
+```sh
+pnpm --filter @bezier/canvas-pack-drama-audio add -D @vitest/coverage-v8@4.1.6
+pnpm --filter @bezier/canvas-pack-drama-audio exec vitest run --coverage
+git checkout -- packages/canvas-pack-drama-audio/package.json pnpm-lock.yaml && pnpm install
+```
+
+本地运行画布（显式隔离数据目录，仅用于开发验证，不代表云端验收）：
+
+```sh
+CANVAS_STORAGE_MODE=local-test pnpm tools-dev run web --data-dir "<绝对路径>" --daemon-port 17460 --web-port 17580
+```
+
+需要本机配音时，另开终端启动 VoxCPM（默认读取仓库 `.runtime/local-tts`，可用 `DRAMA_TTS_HOME` 指向其他目录）：
+
+```sh
+pnpm --filter @bezier/canvas-pack-drama-audio voice
+```
+
+## 来源
+
+卡包由本仓的短剧导演工作台与配音卡迁移而来，保留 Apache-2.0 许可证；内联图标来自 Lucide（见 [LICENSE.lucide](LICENSE.lucide)）。迁移边界与待验收项见 [UNMIGRATED.md](UNMIGRATED.md)，早期需求记录见 [REQUIREMENTS.md](REQUIREMENTS.md)。

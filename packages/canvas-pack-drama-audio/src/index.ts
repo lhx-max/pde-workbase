@@ -1,24 +1,19 @@
-import { createElement } from 'react';
-import { RewriteCard } from './rewrite-card';
-import { DubbingListCard } from './dubbing-list-card';
-import { DubbingEditor } from './dubbing-editor';
-import { AudioCard } from './audio-card';
+import { DirectorCard } from './director/card';
 import type { CardPack } from '@bezier/canvas-card-sdk';
 
 /** 短剧配音音频编辑卡片包：渲染挂载入口（前端 `packs.ts` 引用）。 */
 export { DubbingEditor } from './dubbing-editor';
 export { changeRewriteWindow, validateRewriteLines } from './rewrite';
-export { synthesizeDemoLines, demoMediaUrl, demoProjectOf, readDubbingListSource, patchDubbingListSource, dubbingCounts } from './demo-adapter';
+export { adoptDubbingCandidate, candidateMatches, DEFAULT_VOICE_INSTRUCTION, dubbingCounts, effectiveLineVoice, lineAudioSource, lineGenerationCurrent, voiceInstructionOf, type DubbingCandidate } from './dubbing';
+export { rewriteDocOf } from './rewrite';
+export { assertProjectRelativePath } from './schema';
 const dramaAudioPack: CardPack = {
   name: '@bezier/canvas-pack-drama-audio',
-  cards: [
-    { kind: 'card.drama.audio', render: props => createElement(props.node.data?.stage === 'rewrite' ? RewriteCard : props.node.data?.stage === 'line-list' ? DubbingListCard : props.node.data?.stage === 'edit' ? DubbingEditor : AudioCard, props) },
-  ],
+  cards: [{ kind: 'card.drama.audio', render: DirectorCard }],
 };
 
 export default dramaAudioPack;
 
-export { effectiveLineVoice } from './demo-adapter';
 export { buildDirectorPlaybackPlan, buildPlaybackPlan, resolvePlaybackDuration, gainAt, gainRegionsOf, originalGainOf, scheduleMixGain } from './playback-plan';
 export type { RewriteLine as TimedDubbingLine } from './rewrite';
 export type { DramaAudioSegment } from './types';
