@@ -3,7 +3,8 @@
 import { Copy, Scissors, ClipboardPaste, Trash2, Magnet, Undo2, Redo2, FolderOpen, PanelLeftClose, PanelLeftOpen, Sparkles, BookOpen } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { DubbingEditor, synthesizeDemoLines, changeRewriteWindow, validateRewriteLines, dubbingCounts, resolvePlaybackDuration } from '@bezier/canvas-pack-drama-audio';
+import { demoMediaUrl, synthesizeDemoLines } from './demo-adapter';
+import { DubbingEditor, changeRewriteWindow, validateRewriteLines, dubbingCounts, resolvePlaybackDuration } from '@bezier/canvas-pack-drama-audio';
 import type { DubbingPlayback, TimedDubbingLine } from '@bezier/canvas-pack-drama-audio';
 import { exportHandoff, exportVideo } from './director-delivery';
 import { Waveform } from './waveform';
@@ -979,6 +980,11 @@ export default function SessionAppsClient() {
                   setInspectorTab('content');
                   const line = voiced.find(item => item.id === id);
                   if (line) playback.current?.seek(Math.max(0, line.videoStartMs ?? 0));
+                }}
+                sessionMedia={{
+                  resolve: ref => demoMediaUrl(projectRef.current, ref),
+                  add: file => uploadProjectFile(projectRef.current, file, 'outputs/voice'),
+                  readData: () => editor.draftData() ?? {},
                 }}
                 beforeGenerate={flushEditor} onGenerationChange={setLineGenerating} batchGenerating={generating || mediaBusy || deliveryBusy}
                 playback={playback} listenMode={listenMode}

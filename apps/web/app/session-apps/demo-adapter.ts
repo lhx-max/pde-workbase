@@ -1,7 +1,9 @@
-import { adoptDubbingCandidate, candidateMatches, DEFAULT_VOICE_INSTRUCTION, effectiveLineVoice, lineAudioSource, voiceInstructionOf, type DubbingCandidate } from './dubbing';
-export { adoptDubbingCandidate, candidateMatches, dubbingCounts, effectiveLineVoice, lineGenerationCurrent, type DubbingCandidate } from './dubbing';
-import { validateRewriteLines, rewriteDocOf, type RewriteLine } from './rewrite';
-import { assertProjectRelativePath } from './schema';
+/** 独立短剧导演工作台的本地 demo 适配器：仅用于 local-test 项目。
+ * 该适配器请求画布内部接口，只能留在宿主应用内，不能放进卡包渲染器（卡包合同 §5、§12）。 */
+import { adoptDubbingCandidate, assertProjectRelativePath, candidateMatches, DEFAULT_VOICE_INSTRUCTION, effectiveLineVoice, lineAudioSource, rewriteDocOf, validateRewriteLines, voiceInstructionOf } from '@bezier/canvas-pack-drama-audio';
+import type { DubbingCandidate, TimedDubbingLine as RewriteLine } from '@bezier/canvas-pack-drama-audio';
+export { adoptDubbingCandidate, candidateMatches, dubbingCounts, effectiveLineVoice, lineGenerationCurrent } from '@bezier/canvas-pack-drama-audio';
+export type { DubbingCandidate } from '@bezier/canvas-pack-drama-audio';
 
 export function demoProjectOf(node: Record<string, unknown>): string | null {
   const projectId = typeof node.demoProjectId === 'string' ? node.demoProjectId : node.data && typeof node.data === 'object' ? (node.data as Record<string, unknown>).demoProjectId : null;
@@ -36,16 +38,18 @@ async function patchNodes(projectId: string, current: { revision: number }, node
   }, signal);
 }
 
-export async function startDemoTts(projectId: string, nodeId: string, signal: AbortSignal): Promise<void> {
-  const current = await snapshot(projectId, signal);
-  const node = current.state.workbenchBasicNodes?.find((item: { id: string }) => item.id === nodeId);
-  if (node?.kind !== 'card.drama.audio' || node.data?.demoProfile !== 'local-test' || node.data?.demoProjectId !== projectId) {
-    throw new Error('本地 TTS 启动仅支持同实例演示卡');
+export async function startDemoTts(_projectId: string, _nodeId: string, signal: AbortSignal): Promise<void> {
+  // 卡包不再由服务端拉起本机进程；这里只检查已启动的 VoxCPM。
+  try {
+    const response = await fetch('http://127.0.0.1:8808/gradio_api/info', {
+      signal: AbortSignal.any([signal, AbortSignal.timeout(4_000)]), redirect: 'error', credentials: 'omit',
+    });
+    const info = await response.json() as { named_endpoints?: Record<string, unknown> };
+    if (!response.ok || !info.named_endpoints?.['/generate']) throw new Error();
+  } catch {
+    signal.throwIfAborted();
+    throw new Error('本机 VoxCPM 在 8808 端口不可用。请先运行 pnpm --filter @bezier/canvas-pack-drama-audio voice。');
   }
-  await json(`/api/apps/canvas/instances/${projectId}/actions/card.drama.audio.start-tts`, {
-    method: 'POST', headers: { 'content-type': 'application/json', 'idempotency-key': crypto.randomUUID() },
-    body: JSON.stringify({ expectedRevision: current.revision, input: { nodeId, params: {} } }),
-  }, signal);
 }
 
 export async function generateDubbingCandidate(projectId: string, nodeId: string, lineId: string, signal: AbortSignal): Promise<DubbingCandidate> {

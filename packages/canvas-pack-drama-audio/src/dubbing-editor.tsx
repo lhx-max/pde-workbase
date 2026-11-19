@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CardRenderProps } from '@bezier/canvas-card-sdk';
 import { adoptDubbingCandidate, candidateMatches, dubbingCounts, effectiveLineVoice, lineGenerationCurrent, type DubbingCandidate } from './dubbing';
-import { generateDubbingCandidate, demoMediaUrl, demoProjectOf, ensureDubbingListCard, startDemoTts, synthesizeDemoLines } from './demo-adapter';
 import { checkLocalVoice, fillMissing, generateCandidate, localVoiceAvailable } from './director/local-voice';
 import { requireMedia, type MediaLookup } from './director/media';
 import { readDramaAudioData, shiftSegmentWindow } from './edl';
@@ -91,7 +90,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
   externalVideoRef?: React.RefObject<HTMLVideoElement>;
   selectedLineId?: string | null;
   onLineSelect?: (id: string | null) => void;
-  sessionMedia?: {
+  sessionMedia: {
     resolve: MediaLookup;
     add: (file: File) => Promise<string>;
     readData: () => Record<string, unknown>;
@@ -106,8 +105,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
 }) {
   const data = useMemo(() => readDramaAudioData(node), [node.data]);
   const raw = node.data ?? {};
-  const project = sessionMedia ? null : demoProjectOf(node);
-  const canGenerate = sessionMedia ? localVoiceAvailable() : Boolean(project);
+  const canGenerate = localVoiceAvailable();
   const lines = readLines(raw.rewriteLines);
   const confirmed = Array.isArray(raw.confirmedLineIds) ? raw.confirmedLineIds.filter((id): id is string => typeof id === 'string') : [];
   const rows = [...lines, ...data.segments.filter(segment => !lines.some(line => line.id === segment.id)).map(segment => ({ id: segment.id, text: segment.label, videoStartMs: segment.videoStartMs, videoEndMs: segment.videoEndMs }))];
@@ -128,8 +126,8 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
   const preparePlayback = useRef<() => void>(() => {});
   const [candidate, setCandidate] = useState<DubbingCandidate | null>(null);
   const counts = dubbingCounts(raw);
-  const latest = useRef({ data, raw, project, onPatch, guardPatch, listenMode });
-  latest.current = { data, raw, project, onPatch, guardPatch, listenMode };
+  const latest = useRef({ data, raw, onPatch, guardPatch, listenMode });
+  latest.current = { data, raw, onPatch, guardPatch, listenMode };
   const [originalAudio, setOriginalAudio] = useState(false);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -172,13 +170,13 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     if (!listOnly) return;
     const select = (event: Event) => {
       const detail = (event as CustomEvent).detail;
-      if (detail?.project !== project || detail?.nodeId !== node.id || typeof detail.lineId !== 'string') return;
+      if (detail?.nodeId !== node.id || typeof detail.lineId !== 'string') return;
       setShowLineList(true);
       setExpandedId(detail.lineId);
     };
     window.addEventListener('drama-demo-select-line', select);
     return () => window.removeEventListener('drama-demo-select-line', select);
-  }, [listOnly, project, node.id]);
+  }, [listOnly, node.id]);
   useEffect(() => {
     if (listOnly && typeof raw.selectedDubbingLineId === 'string') {
       setShowLineList(true);
@@ -192,7 +190,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
   const videoDurationMs = resolvePlaybackDuration(data.videoDurationMs, mediaDurationMs);
   let videoUrl: string | undefined;
   try {
-    if (data.videoRef) videoUrl = sessionMedia ? sessionMedia.resolve(data.videoRef) : project ? demoMediaUrl(project, data.videoRef) : undefined;
+    if (data.videoRef) videoUrl = sessionMedia.resolve(data.videoRef);
   }
   catch { videoUrl = undefined; }
   const videoDurationMsRef = useRef(videoDurationMs);
@@ -408,7 +406,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     setGenerating(false);
     setCurrentMs(0);
     setMediaDurationMs(0);
-  }, [project, node.id, videoUrl, stop]);
+  }, [node.id, videoUrl, stop]);
 
   useEffect(() => () => {
     stop();
@@ -422,16 +420,11 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
   function selectLine(id: string) {
     setExpandedId(id);
     onLineSelect?.(id);
-    if (externalVideoRef || listOnly || !project) return;
-    window.dispatchEvent(new CustomEvent('drama-demo-select-line', { detail: { project, nodeId: node.id, lineId: id } }));
-    void ensureDubbingListCard(project, node.id)
-      .then(() => patch({ selectedDubbingLineId: id }))
-      .catch(reason => setError(reason instanceof Error ? reason.message : '列表卡创建失败'));
   }
 
   function patch(changes: Record<string, unknown>) {
     const current = latest.current;
-    const next = { ...(sessionMedia?.readData() ?? current.raw), stage: 'edit', ...changes };
+    const next = { ...sessionMedia.readData(), stage: 'edit', ...changes };
     try {
       current.guardPatch?.(next);
       current.onPatch({ data: next });
@@ -526,7 +519,6 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
   }
 
   async function loadAudio(planData = latest.current.data as Pick<DramaAudioData, 'segments' | 'audioRef' | 'masterGain'>, mode = latest.current.listenMode ?? 'voice', at = 0) {
-    if (!project && !sessionMedia) return;
     stop();
     loaded.current = false;
     loadController.current?.abort();
@@ -544,7 +536,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
       if (!refs.length) throw new Error('尚无逐句配音，请先生成');
       await Promise.all(refs.map(async ref => {
         if (buffers.current.has(ref)) return;
-        const url = sessionMedia ? requireMedia(sessionMedia.resolve, ref) : demoMediaUrl(project!, ref);
+        const url = requireMedia(sessionMedia.resolve, ref);
         const response = await fetch(url, { signal: controller.signal, redirect: 'error' });
         if (!response.ok) throw new Error(`音频读取失败 HTTP ${response.status}：${ref}`);
         const buffer = await audioContext.decodeAudioData(await response.arrayBuffer());
@@ -582,10 +574,9 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     generationController.current = controller;
     setStartingTts(true);
     setError('');
-    setGenerationStatus(sessionMedia ? '正在检查本地 TTS…' : '正在检查并启动本地 TTS…');
+    setGenerationStatus('正在检查本地 TTS…');
     try {
-      if (sessionMedia) await checkLocalVoice(controller.signal);
-      else if (project) await startDemoTts(project, node.id, controller.signal);
+      await checkLocalVoice(controller.signal);
       setGenerationStatus('本地 TTS 接口已就绪；首次生成将加载模型');
     } catch (reason) {
       if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : '本地 TTS 启动失败');
@@ -606,21 +597,14 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     try {
       if (beforeGenerate && !await beforeGenerate()) throw new Error('请先解决草稿保存问题');
       if (onlyLineId) {
-        const result = sessionMedia
-          ? await generateCandidate(sessionMedia.readData, sessionMedia.add, onlyLineId, controller.signal)
-          : await generateDubbingCandidate(project!, node.id, onlyLineId, controller.signal);
+        const result = await generateCandidate(sessionMedia.readData, sessionMedia.add, onlyLineId, controller.signal);
         setCandidate(result);
         setGenerationStatus('候选已就绪，可以试听后采用。');
       } else {
         const progress = (message: string) => {
           if (!controller.signal.aborted) setGenerationStatus(message);
         };
-        if (sessionMedia) {
-          await fillMissing(sessionMedia.readData, patch, sessionMedia.add, controller.signal, progress);
-        } else if (project) {
-          await ensureDubbingListCard(project, node.id, controller.signal);
-          await synthesizeDemoLines(project, node.id, controller.signal, progress);
-        }
+        await fillMissing(sessionMedia.readData, patch, sessionMedia.add, controller.signal, progress);
       }
     } catch (reason) {
       if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : '配音生成失败');
@@ -641,7 +625,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     queue.current = null;
     previewEndMs.current = null;
     previewData.current = null;
-    if (listOnly) window.dispatchEvent(new CustomEvent('drama-demo-preview', { detail: { project, nodeId: node.id, stop: true } }));
+    if (listOnly) window.dispatchEvent(new CustomEvent('drama-demo-preview', { detail: { nodeId: node.id, stop: true } }));
   }
 
   function reviewCandidate(take: DubbingCandidate, start: number | null, end: number | null) {
@@ -665,18 +649,18 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     if (listOnly) return;
     const listener = (event: Event) => {
       const detail = (event as CustomEvent).detail;
-      if (detail?.project !== project || detail?.nodeId !== node.id) return;
+      if (detail?.nodeId !== node.id) return;
       if (detail.stop) stopCandidatePreview();
       else if (detail.play) void playPreview(detail.start, detail.end, detail.preview);
       else seek(detail.start);
     };
     window.addEventListener('drama-demo-preview', listener);
     return () => window.removeEventListener('drama-demo-preview', listener);
-  }, [project, node.id, listOnly]);
+  }, [node.id, listOnly]);
 
   function seek(ms: number | null) {
     if (listOnly) {
-      window.dispatchEvent(new CustomEvent('drama-demo-preview', { detail: { project, nodeId: node.id, start: ms } }));
+      window.dispatchEvent(new CustomEvent('drama-demo-preview', { detail: { nodeId: node.id, start: ms } }));
       return;
     }
     if (!video.current || !finiteMs(ms)) return;
@@ -696,7 +680,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
 
   async function playPreview(startMs?: number | null, endMs?: number | null, preview?: Pick<DramaAudioData, 'segments' | 'audioRef' | 'masterGain'>, ranges?: PlaybackRange[], loop = false) {
     if (listOnly) {
-      window.dispatchEvent(new CustomEvent('drama-demo-preview', { detail: { project, nodeId: node.id, start: startMs, end: endMs, play: true, preview } }));
+      window.dispatchEvent(new CustomEvent('drama-demo-preview', { detail: { nodeId: node.id, start: startMs, end: endMs, play: true, preview } }));
       return;
     }
     const element = video.current;
@@ -745,7 +729,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     <summary style={styles.collapsedRow}>{externalVideoRef ? '整体音色与播放设置' : '整体配音设置与播放控制'}</summary>
     <strong>逐句配音编辑</strong>
     <div style={styles.hint}>视频是唯一主时钟。自动建议尚待逐句确认；静音不压缩视频，停顿保留在视频区间尾部。</div>
-    {!canGenerate && <div style={styles.warning}>{sessionMedia ? '本机 VoxCPM 仅在回环地址下可用。' : '本地 demo 项目不可用。'}</div>}
+    {!canGenerate && <div style={styles.warning}>本机 VoxCPM 仅在回环地址下可用。</div>}
     {videoUrl && !externalVideoRef ? <video ref={video} src={videoUrl} controls muted={!originalAudio} preload="metadata" style={{ width: '100%', maxHeight: 260, background: '#000', borderRadius: 6 }}
       onError={() => { stop(); setError('视频读取失败，无法同步试听'); }} /> : !externalVideoRef && <div style={styles.warning}>未绑定有效视频工程文件</div>}
     <div style={styles.row}>
@@ -760,10 +744,10 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     </div>
     <VoicePicker value={data.voiceInstruction} styles={styles} onChange={next => patch({ voiceInstruction: next })} />
     <div style={styles.row}>
-      <button style={styles.button} disabled={!canGenerate || startingTts || generating} onClick={() => void startTtsService()}>{startingTts ? 'TTS 启动中…' : sessionMedia ? '检查本地 TTS' : '启动 / 检查本地 TTS'}</button>
+      <button style={styles.button} disabled={!canGenerate || startingTts || generating} onClick={() => void startTtsService()}>{startingTts ? '检查中…' : '检查本地 TTS'}</button>
       <button style={{ ...styles.primaryButton, opacity: !canGenerate || !rows.length || generating || loading || startingTts ? 0.45 : 1 }} disabled={!canGenerate || !counts.missing || generating || loading || startingTts || batchGenerating} onClick={() => void generate()}>补齐逐句配音</button>
       {generating && <button style={styles.dangerButton} onClick={() => { generationController.current?.abort(); setGenerationStatus('已请求停止；已有音频保留，未完成结果不自动重试'); }}>停止生成</button>}
-      <button style={styles.button} disabled={(!project && !sessionMedia) || !videoUrl || loading || generating} onClick={() => void loadAudio(latest.current.data, 'voice')}>载入配音试听</button>
+      <button style={styles.button} disabled={!videoUrl || loading || generating} onClick={() => void loadAudio(latest.current.data, 'voice')}>载入配音试听</button>
       <button style={styles.successButton} disabled={!videoUrl || loading || generating} onClick={() => void playPreview()}>同步播放</button>
       <button style={styles.button} disabled={!videoUrl} onClick={stopCandidatePreview}>暂停</button>
     </div>
@@ -801,10 +785,6 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
       })}<div style={{ position: 'absolute', left: `${videoDurationMs > 0 ? Math.min(100, currentMs / videoDurationMs * 100) : 0}%`, top: 0, bottom: 0, width: 2, background: '#dc2626', pointerEvents: 'none' }} /></div>
     </div>}
     </>}
-    {!listOnly && !externalVideoRef && <button style={styles.button} disabled={!project} onClick={() => {
-      if (!project) return;
-      void ensureDubbingListCard(project, node.id).catch(reason => setError(reason instanceof Error ? reason.message : '列表卡创建失败'));
-    }}>显示配音句列表卡</button>}
     {(listOnly || externalVideoRef) && <>
     {!externalVideoRef && <strong>配音句列表与细节编辑</strong>}
     {(!externalVideoRef || generationStatus) && <div role="status" style={styles.hint}>{!externalVideoRef && `当前配音 ${counts.current}/${counts.total} · 待补 ${counts.missing} · 待更新 ${counts.stale} · 区间已确认 ${counts.confirmed}`}{generationStatus && `${externalVideoRef ? '' : ' · '}${generationStatus}`}</div>}

@@ -31,7 +31,6 @@ import { generateCaptions, generateDubbing, generateVideoRewrite } from './provi
 import { validateRewriteRequest } from './rewrite';
 import { currentRewriteInput, sameRewriteInput } from './rewrite-draft';
 import { makeSubtitles } from './subtitles';
-import { ensureLocalTts } from './local-tts';
 
 type Patch = { data?: Record<string, unknown> };
 
@@ -303,17 +302,7 @@ export const rewrite: CardPackOpHandler = async (node, params) => {
   return { data: patch };
 };
 
-export const startTts: CardPackOpHandler = async (node, params, ctx) => {
-  const data = node.data as Record<string, unknown> | undefined;
-  if (!data || data.demoProfile !== 'local-test' || data.demoProjectId !== ctx.projectId
-    || !ctx.projectId.startsWith('drama-demo-')) throw new Error('TTS 启动仅支持同实例本地演示卡');
-  if (Object.keys(params).length) throw new Error('TTS 启动不接受客户端进程或路径参数');
-  await ensureLocalTts();
-  return { data: { ttsServiceStatus: 'ready' } };
-};
-
 export const dramaAudioOps = {
-  'start-tts': startTts,
   attach,
   script,
   upsert,

@@ -1,5 +1,7 @@
 # REQUIREMENTS — 短剧配音音频编辑卡（card.drama.audio）
 
+> 早期需求记录（2026-11-03），保留作历史参考。其中「不做波形、播放、TTS」等边界已过时，当前能力、三要素和动作清单以 [README](README.md) 为准。
+
 PDE 挑战赛 · M 端命题「多模态生成的编辑器应用开发」交付需求文档。基于画布工作区底座 `designai-app-canvas`（基线分支 `feat/zhuzhiheng-card-pack-base`），交付物 = 卡片包 `@bezier/canvas-pack-drama-audio`。
 
 ## 1. 三要素（命题必填）

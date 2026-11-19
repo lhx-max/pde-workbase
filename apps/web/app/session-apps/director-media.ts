@@ -1,4 +1,5 @@
-import { buildDirectorPlaybackPlan, demoMediaUrl, dubbingCounts, effectiveLineVoice, gainRegionsOf, originalGainOf, scheduleMixGain, validateRewriteLines } from '@bezier/canvas-pack-drama-audio';
+import { demoMediaUrl } from './demo-adapter';
+import { buildDirectorPlaybackPlan, dubbingCounts, effectiveLineVoice, gainRegionsOf, originalGainOf, scheduleMixGain, validateRewriteLines } from '@bezier/canvas-pack-drama-audio';
 import type { DramaAudioSegment, TimedDubbingLine } from '@bezier/canvas-pack-drama-audio';
 
 import type { ListenMode, TimeRange } from './director-edits';

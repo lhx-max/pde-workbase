@@ -561,7 +561,8 @@ export function Workbench({ node: editorNode, onPatch, onOpenFile, media, onClos
         <div className={styles.toolbar} aria-label="保存和撤销">
           <button type="button" className={styles.toolBtn} disabled={projectBusy || !editor.history.undo.length} onClick={() => editor.moveHistory('undo')}><Undo2 size={14} />撤销</button>
           <button type="button" className={styles.toolBtn} disabled={projectBusy || !editor.history.redo.length} onClick={() => editor.moveHistory('redo')}><Redo2 size={14} />重做</button>
-          <span role="status" className={styles.toolStatus}>{editor.message}</span>
+          <span role="status" className={styles.toolStatus} data-save-state={editor.status.state} title={editor.status.message}>{editor.status.message}</span>
+          {editor.status.state === 'unconfirmed' && <button type="button" className={styles.toolBtn} onClick={editor.retry}>重新提交</button>}
         </div>
       <button type="button" className={styles.toolBtn} aria-pressed={inspectorTab === 'check'} onClick={() => { setInspectorTab('check'); }}>检查{checking.length ? ` · ${checking.length}` : ''}</button>
       <button type="button" className={`${styles.toolBtn} ${styles.toolBtnPrimary}`} onClick={() => { setInspectorTab('export'); }}>导出</button>

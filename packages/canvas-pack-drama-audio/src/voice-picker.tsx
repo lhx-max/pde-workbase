@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 /** VoxCPM control_instruction 预设：voice design 模式下靠文字描述控制音色/风格。 */
 export const VOICE_PRESETS: { value: string; label: string }[] = [
@@ -24,18 +24,21 @@ export function VoicePicker({ value, onChange, styles, label = '音色', default
 }) {
   const raw = typeof value === 'string' && value.trim() ? value : null;
   const isPreset = VOICE_PRESETS.some(item => item.value === raw);
-  const selectValue = raw !== null && !isPreset ? CUSTOM : raw ?? '';
+  // 选择「自定义…」后先展开输入框，等用户输入描述再提交，避免被空值重置回默认。
+  const [customMode, setCustomMode] = useState(false);
+  const selectValue = customMode || (raw !== null && !isPreset) ? CUSTOM : raw ?? '';
   return <label style={styles.row}>{label}
     <select style={styles.select} value={selectValue} onChange={event => {
       const next = event.target.value;
-      if (next === CUSTOM) { onChange(raw !== null && !isPreset ? raw : ''); return; }
+      if (next === CUSTOM) { setCustomMode(true); return; }
+      setCustomMode(false);
       onChange(next === '' ? null : next);
     }}>
       {VOICE_PRESETS.map(item => <option key={item.value || 'default'} value={item.value}>{item.value === '' ? defaultLabel : item.label}</option>)}
     </select>
-    {selectValue === CUSTOM && <input style={{ flex: 1, minWidth: 140, padding: '4px 6px', border: '1px solid var(--border-default, #ddd)', borderRadius: 4, color: 'inherit', background: 'var(--bg-app, #fff)' }} placeholder="输入音色/风格描述（≤200 字符）"
+    {selectValue === CUSTOM && <input aria-label={`${label}描述`} style={{ flex: 1, minWidth: 140, padding: '4px 6px', border: '1px solid var(--border-default, #ddd)', borderRadius: 4, color: 'inherit', background: 'var(--bg-app, #fff)' }} placeholder="输入音色/风格描述（≤200 字符）"
       value={isPreset || raw === null ? '' : raw}
       onChange={event => onChange(event.target.value.length > MAX_VOICE_INSTRUCTION_LENGTH ? event.target.value.slice(0, MAX_VOICE_INSTRUCTION_LENGTH) : event.target.value)} />}
-    {raw === null && <span style={styles.hint}>{defaultHint}</span>}
+    {raw === null && selectValue !== CUSTOM && <span style={styles.hint}>{defaultHint}</span>}
   </label>;
 }

@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import type { RefObject } from 'react';
-import { buildPlaybackPlan, demoMediaUrl, gainRegionsOf, originalGainOf } from '@bezier/canvas-pack-drama-audio';
+import { buildPlaybackPlan, gainRegionsOf, originalGainOf } from '@bezier/canvas-pack-drama-audio';
+import { demoMediaUrl } from './demo-adapter';
 import type { DubbingPlayback, GainRegion, TimedDubbingLine } from '@bezier/canvas-pack-drama-audio';
 import { directorOf, displayTime, intersecting, lineFingerprint, listenLabel, makeRange, overlaps, rangeOf, rewriteWindows, shiftFollowing } from './director-edits';
 import type { EditData, ListenMode, TimeRange } from './director-edits';

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { demoMediaUrl } from '@bezier/canvas-pack-drama-audio';
+import { demoMediaUrl } from './demo-adapter';
 import styles from './workbench.module.css';
 
 export type WavePeaks = { durationMs: number; min: Float32Array; max: Float32Array };

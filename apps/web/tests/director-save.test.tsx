@@ -4,7 +4,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { useEditorSave, type EditorNode } from '../app/session-apps/use-editor-save';
 
 const adapter = vi.hoisted(() => ({ read: vi.fn(), patch: vi.fn() }));
-vi.mock('@bezier/canvas-pack-drama-audio', () => ({
+vi.mock('../app/session-apps/demo-adapter', () => ({
   demoProjectOf: () => 'demo',
   readDubbingListSource: adapter.read,
   patchDubbingListSource: adapter.patch,

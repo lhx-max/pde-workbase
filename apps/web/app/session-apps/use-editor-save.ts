@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { demoProjectOf, readDubbingListSource, patchDubbingListSource } from '@bezier/canvas-pack-drama-audio';
+import { demoProjectOf, readDubbingListSource, patchDubbingListSource } from './demo-adapter';
 import { assertUnlocked } from './director-edits';
 
 export type EditorNode = { id: string; kind: string; title?: string; data?: Record<string, unknown> };

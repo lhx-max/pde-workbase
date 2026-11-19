@@ -1,4 +1,4 @@
-import { demoMediaUrl } from '@bezier/canvas-pack-drama-audio';
+import { demoMediaUrl } from './demo-adapter';
 import { encodeWav, exportSubtitles, linesOf, renderMix } from './director-media';
 import { directorOf } from './director-edits';
 import type { EditData, ListenMode, TimeRange } from './director-edits';
