@@ -905,8 +905,9 @@ details.panel > summary { cursor: pointer; }
   color: var(--canvas-text, var(--text-primary, inherit));
   font: inherit;
 }
-.cardEntry button { cursor: pointer; margin-top: 6px; padding: 6px 12px; border: 0; border-radius: 6px; background: var(--canvas-accent, #2f6fe4); color: #fff; font: inherit; }
-.cardEntry button:hover { filter: brightness(1.08); }
+/* 只作用于卡片表面的入口按钮；编辑器弹窗也渲染在 .cardEntry 里，不能被这条规则覆盖。 */
+.cardEntry > button { cursor: pointer; margin-top: 6px; padding: 6px 12px; border: 0; border-radius: 5px; background: #7057d9; color: #fff; font: inherit; }
+.cardEntry > button:hover { filter: brightness(1.1); }
 .cardDialog { width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; overflow: auto; }
 .cardDialog::backdrop { background: rgb(0 0 0 / 60%); }
 .rewritePanel { margin: 12px 0; padding: 8px; border: 1px solid var(--border-default); border-radius: 6px; }
