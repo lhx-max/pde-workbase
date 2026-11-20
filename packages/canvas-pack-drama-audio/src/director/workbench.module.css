@@ -647,7 +647,7 @@ details.panel > summary { cursor: pointer; }
 
 /* Workbench: compact preview, primary timeline, contextual editor. */
 .shell { min-height: 600px; padding: 20px 24px; gap: 16px; background: var(--base-bg); }
-.header, .workspaceNav, .grid { width: 100%; max-width: none; box-sizing: border-box; align-self: center; }
+.header, .grid { width: 100%; max-width: none; box-sizing: border-box; align-self: center; }
 .shell [hidden] { display: none !important; }
 .header { flex-wrap: wrap; gap: 8px; padding-bottom: 12px; }
 .header .toolbar { margin-left: auto; padding: 0; border: 0; background: none; gap: 6px; }
@@ -655,8 +655,6 @@ details.panel > summary { cursor: pointer; }
 .themeButton { margin-left: 4px; }
 .title { font-size: 16px; background: none; color: var(--text-primary); }
 .brandDot { box-shadow: none; }
-.workspaceNav { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-.workspaceNav .panelHint { font-size: 12px; }
 .grid { position: relative; gap: 12px; flex: 1; min-height: 0; align-items: stretch; }
 .right { gap: 0; overflow: hidden; }
 .timelinePanel { flex: none; justify-content: flex-start; min-height: 0; border-radius: 12px 12px 0 0; border-bottom: 0; padding: 16px; }
@@ -708,7 +706,6 @@ details.panel > summary { cursor: pointer; }
   .inspector { flex-basis: 340px; min-width: 0; }
   .header .toolStatus { max-width: 160px; }
   .previewMedia { width: 130px; }
-  .workspaceNav .panelHint { font-size: 11px; }
 }
 @media (max-width: 900px) {
   .shell { height: auto; min-height: 100vh; }
@@ -718,7 +715,6 @@ details.panel > summary { cursor: pointer; }
   .preview { flex-direction: row; }
   .previewTracks { flex: 1; }
   .previewMedia { flex: none; height: 200px; max-width: 25%; }
-  .workspaceNav { flex-wrap: wrap; }
   .header .toolbar { margin-left: 0; }
   .drawer { bottom: auto; max-height: 650px; min-height: 350px; }
 }
@@ -773,8 +769,9 @@ details.panel > summary { cursor: pointer; }
 .assetSummary { display: grid; gap: 10px; background: var(--bg-app); border: 1px solid var(--border-default); border-radius: 8px; padding: 12px; font-size: 11px; color: var(--text-secondary); }
 .assetSummary strong { font-size: 12px; line-height: 1.7; color: var(--text-primary); overflow-wrap: anywhere; }
 .drawer .messages { padding: 8px; border: 0; background: var(--bg-app); }
-.drawer .composer { flex-wrap: wrap; }
-.drawer .composer .input { width: 100%; flex-basis: 100%; box-sizing: border-box; }
+.drawer .composer { align-items: flex-end; }
+.drawer .composer .input { resize: none; }
+.drawer .composer .send { flex: none; padding-inline: 12px; }
 @media (max-width: 1200px) and (min-width: 901px) {
   .grid:has(> .drawer) { padding-left: 66px; }
   .drawer { position: absolute; inset: 0 auto 0 0; width: 240px; z-index: 30; box-shadow: 10px 0 30px #0003; }

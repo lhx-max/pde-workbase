@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import type { KeyboardEvent, PointerEvent } from 'react';
 
 export type WorkspaceLayout = { left: number; right: number; timeline: number; trackHeight: number };
-const DEFAULT: WorkspaceLayout = { left: 230, right: 350, timeline: 460, trackHeight: 56 };
+const DEFAULT: WorkspaceLayout = { left: 290, right: 350, timeline: 460, trackHeight: 56 };
 const bounds = { left: [190, 340], right: [300, 480], timeline: [310, 640], trackHeight: [42, 84] } as const;
 function clamp(key: keyof WorkspaceLayout, value: number) { return Math.max(bounds[key][0], Math.min(bounds[key][1], value)); }
 export function useWorkbenchLayout() {

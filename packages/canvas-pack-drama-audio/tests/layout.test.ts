@@ -81,7 +81,7 @@ describe('贴合视频时长', () => {
     validateRewriteLines(changes.rewriteLines, 2800);
     expect(report.overflow.map(item => item.id)).toContain('c');
     expect(report.overflow.reduce((sum, item) => sum + item.excessMs, 0)).toBeGreaterThan(0);
-    expect(describeFit(report)).toMatch(/句配音仍超出 .* 秒，建议改短台词/u);
+    expect(describeFit(report)).toMatch(/句配音超出 .* 秒，建议改短台词/u);
     expect(report.overflow.every(item => !item.estimated)).toBe(true);
   });
 
@@ -118,14 +118,14 @@ describe('贴合视频时长', () => {
     expect(describeFit(report)).toContain('2 句按字数估算');
   });
 
-  it('估算的句子放不下时按比例缩短，不压在末尾，提示生成后再贴合', () => {
+  it('估算的句子放不下时按比例缩短，不压在末尾，提示估算超出', () => {
     const rows = Array.from({ length: 6 }, (_, index) => line(`l${index}`, [index * 100, index * 100 + 50], '这是一句十个字的台词'));
     const { changes, report } = fitTimeline({ rewriteLines: rows }, 6000);
     const spans = windowsOf(changes).map(([start, end]) => end! - start!);
     validateRewriteLines(changes.rewriteLines, 6000);
     expect(Math.max(...spans) - Math.min(...spans)).toBeLessThanOrEqual(1);
     expect(report.overflow.every(item => item.estimated)).toBe(true);
-    expect(describeFit(report)).toContain('按字数估算约超出');
+    expect(describeFit(report)).toMatch(/6 句未配音，估算超出 [\d.]+ 秒/);
     expect(describeFit(report)).not.toContain('建议改短台词');
   });
 

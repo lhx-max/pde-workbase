@@ -703,9 +703,6 @@ export function Workbench({ node: editorNode, onPatch, media, onClose }: CardRen
       }}>{theme === 'dark' ? '☀ 浅色' : '☾ 深色'}</button>
       <button type="button" className={styles.toolBtn} aria-label="返回画布" onClick={onClose}><X size={16} />返回画布</button>
     </header>
-    <nav className={styles.workspaceNav} aria-label="工作台入口">
-      <p className={styles.panelHint}>选一句 → 修改内容与声音 → 试听确认 → 导出</p>
-    </nav>
           <input ref={mediaInput} type="file" accept="video/*" hidden onChange={event => { const file = event.target.files?.[0]; if (file) void handleImport('media', file); event.target.value = ''; }} />
           <input ref={voiceInput} type="file" accept="audio/*" hidden onChange={event => { const file = event.target.files?.[0]; if (file) void handleImport('voice', file, voiceTarget.current); event.target.value = ''; }} />
           <input ref={backgroundInput} type="file" accept="audio/*" hidden onChange={event => { const file = event.target.files?.[0]; if (file) void handleImport('background', file); event.target.value = ''; }} />

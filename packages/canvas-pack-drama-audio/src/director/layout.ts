@@ -231,12 +231,12 @@ export function describeFit(report: FitReport): string {
   const parts = [`配音排到 ${time(report.endMs)} / 视频 ${time(report.videoMs)}`];
   if (report.overlaps) parts.push(`${report.overlaps} 处重叠`);
   if (report.spedUp) parts.push(`${report.spedUp} 句加速至 ${report.maxSpeed.toFixed(2)}×`);
-  if (report.estimated) parts.push(`${report.estimated} 句按字数估算`);
   const real = report.overflow.filter(item => !item.estimated);
   const guessed = report.overflow.filter(item => item.estimated);
   const seconds = (items: FitOverflow[]) => (items.reduce((sum, item) => sum + item.excessMs, 0) / 1000).toFixed(1);
-  if (real.length) parts.push(`${real.length} 句配音仍超出 ${seconds(real)} 秒，建议改短台词`);
-  if (guessed.length) parts.push(`按字数估算约超出 ${seconds(guessed)} 秒，生成配音后再贴合`);
+  if (guessed.length) parts.push(`${report.estimated} 句未配音，估算超出 ${seconds(guessed)} 秒`);
+  else if (report.estimated) parts.push(`${report.estimated} 句按字数估算`);
+  if (real.length) parts.push(`${real.length} 句配音超出 ${seconds(real)} 秒，建议改短台词`);
   return parts.join(' · ');
 }
 

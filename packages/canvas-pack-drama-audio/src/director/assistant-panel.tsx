@@ -23,7 +23,7 @@ type AssistantMessage = { id: number; role: 'assistant'; text: string; lines?: s
 type Message = UserMessage | AssistantMessage;
 
 const SUGGESTIONS = ['贴合视频', '补齐配音', '检查问题'] as const;
-const WELCOME: AssistantMessage = { id: 0, role: 'assistant', text: '说说想怎么改，我会先列出改动，确认后再应用，随时可以撤销。', lines: [...ASSISTANT_EXAMPLES] };
+const WELCOME: AssistantMessage = { id: 0, role: 'assistant', text: '说说想怎么改，我会先列出改动，确认后再应用，随时可以撤销。', lines: ASSISTANT_EXAMPLES.filter(item => !(SUGGESTIONS as readonly string[]).includes(item)) };
 
 /** 左侧配音助手：自然语言转成卡内编辑，先列出改动，确认后一次应用。 */
 export function AssistantPanel({ host }: { host: AssistantHost }) {
