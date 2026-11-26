@@ -13,6 +13,7 @@
   "dependencies": {
     "@base-ui-components/react": "1.0.0-rc.0",
     "@bezier/canvas-workbench": "workspace:*",
+    "@bezier/canvas-pack-drama-audio": "workspace:*",
     "@bezier/components": "workspace:*",
     "@bezier/contracts": "workspace:*",
     "@bezier/host": "workspace:*",

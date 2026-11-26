@@ -42,3 +42,19 @@ The independent server receives an explicit resolved data root from its entrypoi
 ## Evidence
 
 `docs/feature-parity.md` tracks completeness; copied or compiled is not verified. Record test/build/runtime evidence and limitations, especially browser native capabilities, ffmpeg availability, delivery recovery and multiple workspace instances. No co-author commit trailers.
+
+## Session-apps 站点级 Agent 侧栏（2026-11-22，已移除）
+
+用户验收后明确「没有用，删除」，站点级 Agent 对话侧栏（`agent-dock.tsx`、`workbench.module.css` 的 `.agentRail*`/`.agentPanel*`、`tests/session-agent-dock.test.tsx`）已于同日整体移除；`client.tsx` 不再挂载入口，画布上的 Agent 冒烟测试卡（`card_assist_*`）也已删除。后端 `/api/ma-v/agent/run`（`ma-client.ts`/`agent-runs.ts`/SSE 路由）为仓库既有实现，保留未动，MA 未配置时依旧显式 `AGENT_UNAVAILABLE` 不假成功。卡片内 CLI 助手与其受控动作通道独立存在，见下节。
+
+## Session-apps 卡片 Agent 受控动作通道（2026-11-22）
+
+用户授权后落地：卡片 Agent（`myflicker` CLI，保持 plan 只读模式）现在可以**驱动画变更**。链路：`cli-assistant.ts` 每次询问附带 `scene`（卡片 id/kind/标题/坐标/字符串 data 截断）→ `agent-assist` 路由把卡片清单写入 CLI 提示词 → CLI 回答末尾输出 ```canvas-actions 受控动作块（CLI 本身仍无写权限）→ 服务端 `canvas-actions.ts` 校验后单次 PATCH `/api/projects/:id/canvas/state`（expectedRevision 乐观锁）→ 回复附`[画布动作回执]`。动作白名单：`update_card`（cardId 必须真实存在）、`create_card`（仅 `card.drama.audio`）；data 浅合并 ≤16KB；409 冲突全部记失败、不自动重试。真实链路冒烟通过：CLI 提议 create_card → 画布 revision 前进、新卡 `card_assist_*` 落状态、页面 1.5s 轮询自动显示。测试：`apps/web/tests/canvas-actions.test.ts`。
+
+## 卡片 Agent 动作通道 v2：platform operations（2026-11-22）
+
+用户要求「不做建议直接修改」并覆盖视频/音频导入、配音生成/编辑、变速、变音色后，动作通道升级为**平台 operations 批量**：`canvas-actions.ts` 把 CLI 动作映射为 `node.create/node.move/node.rename` 与 `card.drama.audio.<verb>`（经 POST `/api/apps/canvas/instances/:projectId/operations`，幂等凭条 + baseRevision + 卡片类型门禁由画布服务端统一裁决，不再手捏状态覆盖）。动作集：`create_card`、`update_card`（title/x/y）、`card_op`（op 白名单=卡包 `dramaAudioOps`：attach/script/upsert/remove/gap/gain/mute/trim/video/align/rebind/span/voice/speed/analyze/compose/rewrite/export/export-srt）、`import_media`（node.create+attach 双轨导入，工程文件存在性经 HEAD `/raw/` 校验）。卡包新增确定性 op：`voice`（voiceInstruction/lineVoiceInstructions 覆盖，null 清除）与 `speed`（segment speed/fitSpeed，0.5–2，1=清除）；`DramaAudioData.lineVoiceInstructions` 进入 data 类型。诚实边界：真实 TTS 音频合成仍未接入（`unavailableTtsProvider` → 显式 TTS_UNAVAILABLE；本地 VoxCPM 未部署），analyze/compose/rewrite 需要 WQ_API_KEY。E2E 冒烟（CLI attach→speed→voice 三连）已通过并落画布真实状态。注意：`packages/canvas-pack-drama-audio` 服务端消费 `dist/server.mjs`，改卡包 op 后必须 `pnpm --filter @bezier/canvas-pack-drama-audio build` 并重启 canvas server（原 dev 进程为 `CANVAS_STORAGE_MODE=local-test node apps/server/dist/cli.js run --port 17456 --data-dir /tmp/canvas-data-dev`，须 Node ≥22.13，本机用 nvm node 24.22.2）。
+
+## import_media v3：本机文件导入与时长探测（2026-11-22）
+
+用户实测发现导入通道不完备（纯视频被拒、无法从本机导入）后补全：`import_media` 现支持三种形态——纯音频（`audioRef+durationMs`，attach）、纯视频（`videoRef+videoDurationMs`，`card.drama.audio.video`）、双轨（`audioRef+videoRef`，attach）；新增 `src`（本机绝对路径，扩展名白名单 + 512MB 上限）：服务端经 `fs.openAsBlob` 复制上传进工程（音频 `outputs/voice`、视频 `inputs`），时长由容器解析自动探测——mp4/mov 走 moov/mvhd（32/64 位版本）、wav 走 fmt+data 块（`probeMediaDurationMs`），探测失败时要求显式提供 durationMs，不假成功。真实视频 E2E：11595855B mp4 → `inputs/念念有回响_*.mp4`，自动探测 173477ms，新卡绑定完成。间接依赖：本机无 ffprobe/ffmpeg，探测为自研盒解析（mkv/webm 暂不支持自动时长）。

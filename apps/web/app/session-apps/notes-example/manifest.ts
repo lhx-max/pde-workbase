@@ -1,0 +1,17 @@
+/** 与根 examples/notes-app/manifest.ts 保持同值的挂载副本（web 应用不得
+ * 跨界 import 仓库根示例源码；真源以 examples/notes-app/manifest.ts 为准，
+ * 修改时两处同步）。 */
+
+export const notesManifest = {
+  schemaVersion: 1, slug: 'notes-example', version: '1.0.0', name: '便签示例',
+  description: '用于验证 App 接入流程的便签板', instanceMode: 'multiple',
+  frontend: { moduleId: 'notes-example', exportName: 'NotesApp' },
+  provider: { baseUrl: 'http://127.0.0.1:4310', protocolVersion: '1.0' },
+  permissions: ['notes:read', 'notes:write'],
+  actions: [
+    { id: 'notes.read', title: '读取便签', description: '读取当前便签板和版本', effect: 'read',
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false }, requiredPermissions: ['notes:read'] },
+    { id: 'notes.add', title: '添加便签', description: '向当前便签板添加文字', effect: 'write',
+      inputSchema: { type: 'object', properties: { text: { type: 'string', minLength: 1, maxLength: 500 } }, required: ['text'], additionalProperties: false }, requiredPermissions: ['notes:write'] },
+  ],
+} as const;

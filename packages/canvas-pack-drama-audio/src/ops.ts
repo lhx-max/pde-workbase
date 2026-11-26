@@ -29,8 +29,15 @@ import {
 import { DRAMA_AUDIO_DATA_VERSION, type DramaAudioData, type DramaAudioSegment } from './types';
 import { generateCaptions, generateDubbing, generateVideoRewrite } from './providers';
 import { validateRewriteRequest } from './rewrite';
+import { currentRewriteInput, sameRewriteInput } from './rewrite-draft';
+import { makeSubtitles } from './subtitles';
 
 type Patch = { data?: Record<string, unknown> };
+
+function assertSpeed(name: string, value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0.5 || value > 2) throw new Error(`card.drama.audio: ${name} 必须是 0.5–2 之间的倍率`);
+  return Math.round(value * 1000) / 1000;
+}
 
 function paramsOf(node: Record<string, unknown>, params: Record<string, unknown>): { data: DramaAudioData; input: Record<string, unknown> } {
   if (params === null || typeof params !== 'object' || Array.isArray(params)) throw new Error('card.drama.audio: params 必须是 JSON 对象');
@@ -49,7 +56,7 @@ function fullPatch(data: DramaAudioData, node?: Record<string, unknown>): Patch 
   return { data: { ...existing, ...data, dataVersion: DRAMA_AUDIO_DATA_VERSION } as Record<string, unknown> };
 }
 
-const SEGMENT_FIELDS = ['id', 'label', 'startMs', 'endMs', 'gapMs', 'gain', 'muted', 'videoStartMs', 'videoEndMs', 'audioRefOverride'];
+const SEGMENT_FIELDS = ['id', 'label', 'startMs', 'endMs', 'gapMs', 'gain', 'muted', 'videoStartMs', 'videoEndMs', 'audioRefOverride', 'leadMs', 'speed', 'fitSpeed'];
 
 function segmentOf(input: Record<string, unknown>, durationMs: number): DramaAudioSegment {
   const segment = input.segment;
@@ -79,6 +86,9 @@ function segmentOf(input: Record<string, unknown>, durationMs: number): DramaAud
     audioRefOverride: record.audioRefOverride === undefined || record.audioRefOverride === null
       ? null
       : assertProjectRelativePath('params.segment.audioRefOverride', record.audioRefOverride),
+    ...(record.leadMs === undefined || record.leadMs === 0 ? {} : { leadMs: assertInteger('params.segment.leadMs', record.leadMs, 1, 500) }),
+    ...(record.speed === undefined || record.speed === 1 ? {} : { speed: assertSpeed('params.segment.speed', record.speed) }),
+    ...(record.fitSpeed === undefined || record.fitSpeed === 1 ? {} : { fitSpeed: assertSpeed('params.segment.fitSpeed', record.fitSpeed) }),
   };
 }
 
@@ -122,6 +132,7 @@ export const attach: CardPackOpHandler = async (node, params) => {
     videoRef,
     videoDurationMs,
     captions: videoRef === previous.videoRef ? previous.captions : [],
+    voiceInstruction: previous.voiceInstruction,
     captionProvider: videoRef === previous.videoRef ? previous.captionProvider : null,
     dubbingDoc: videoRef === previous.videoRef ? previous.dubbingDoc : null,
     dubbingProvider: videoRef === previous.videoRef ? previous.dubbingProvider : null,
@@ -264,21 +275,87 @@ export const exportEdl: CardPackOpHandler = async (node, params, ctx) => {
   return fullPatch({ ...data, exportedPath: path, exportedDigest: digest });
 };
 
+export const exportSrt: CardPackOpHandler = async (node, params, ctx) => {
+  if (Object.keys(params).length) throw new Error('card.drama.audio: 导出字幕无需参数');
+  const data = node.data as Record<string, unknown> | undefined;
+  const duration = assertInteger('videoDurationMs', data?.videoDurationMs, 1, DURATION_MS_MAX);
+  const srt = makeSubtitles(data?.rewriteLines, duration);
+  const path = exportPathFor(node.id).replace(/\.json$/u, '.srt');
+  await ctx.files.write(ctx.projectId, path, srt);
+  return { data: { subtitlePath: path } };
+};
+
 export const rewrite: CardPackOpHandler = async (node, params) => {
   if (!params || typeof params !== 'object' || Array.isArray(params)) throw new Error('card.drama.audio: params 必须是 JSON 对象');
   const input = validateRewriteRequest(params);
   if (!node.data || typeof node.data !== 'object' || Array.isArray(node.data)) throw new Error('card.drama.audio: 目标不是改写卡');
   const data = node.data as Record<string, unknown>;
-  if (data.stage !== 'rewrite') throw new Error('card.drama.audio: 目标不是改写卡');
-  if (data.script !== input.script || data.rewritePrompt !== input.prompt || data.videoRef !== input.videoRef || data.videoDurationMs !== input.videoDurationMs) throw new Error('card.drama.audio: 原稿、prompt、视频或时长与已保存节点不一致，请先保存');
-  const { provider, lines, doc } = await generateVideoRewrite(input);
-  return { data: {
+  const stage = data.stage;
+  if (stage !== undefined && stage !== 'edit' && stage !== 'rewrite') throw new Error('card.drama.audio: 目标不是改写卡');
+  const current = currentRewriteInput(data);
+  if (!sameRewriteInput(input, current)) throw new Error('card.drama.audio: 原稿、prompt、视频或时长与已保存节点不一致，请先保存');
+  const { provider, visionProvider, observations, lines, doc } = await generateVideoRewrite(input);
+  const patch = stage === 'rewrite' ? {
     rewriteLines: lines,
     rewriteDoc: doc,
     rewriteProvider: provider,
-    rewriteInput: { script: input.script, prompt: input.prompt, videoRef: input.videoRef, videoDurationMs: input.videoDurationMs },
+    rewriteVisionProvider: visionProvider,
+    rewriteObservations: observations,
+    rewriteInput: current,
     rewriteConfirmed: false,
-  } };
+  } : { rewriteDraft: { input: current, provider, visionProvider, lines } };
+  if (new TextEncoder().encode(JSON.stringify({ ...node, data: { ...data, ...patch } })).byteLength > 256 * 1024) {
+    throw new Error('card.drama.audio: 原稿与改写建议超出卡片容量，请分段改写');
+  }
+  return { data: patch };
+};
+
+/** 音色：整卡音色描述或逐句覆盖（null = 清除该句覆盖恢复整卡描述）。 */
+export const voice: CardPackOpHandler = async (node, params) => {
+  const { data, input } = attachedData(node, params);
+  let voiceInstruction: string | null;
+  if (input.voiceInstruction === undefined) voiceInstruction = data.voiceInstruction;
+  else if (input.voiceInstruction === null) voiceInstruction = null;
+  else {
+    const value = input.voiceInstruction;
+    if (typeof value !== 'string' || !value.trim() || value.length > 200) throw new Error('card.drama.audio: params.voiceInstruction 必须是 1–200 字符或 null');
+    voiceInstruction = value.trim();
+  }
+  const overrides: Record<string, string> = { ...(data.lineVoiceInstructions as Record<string, string> | undefined ?? {}) };
+  if (input.lineVoiceInstructions !== undefined) {
+    if (input.lineVoiceInstructions === null) { for (const key of Object.keys(overrides)) delete overrides[key]; }
+    else {
+      if (typeof input.lineVoiceInstructions !== 'object' || Array.isArray(input.lineVoiceInstructions)) throw new Error('card.drama.audio: params.lineVoiceInstructions 必须是对象或 null');
+      for (const [lineId, value] of Object.entries(input.lineVoiceInstructions as Record<string, unknown>)) {
+        assertSegmentId(lineId);
+        if (value === null) { delete overrides[lineId]; continue; }
+        if (typeof value !== 'string' || !value.trim() || value.length > 200) throw new Error(`card.drama.audio: 音色覆盖 ${lineId} 必须是 1–200 字符或 null`);
+        overrides[lineId] = value.trim();
+      }
+    }
+  }
+  return fullPatch({ ...data, voiceInstruction, lineVoiceInstructions: overrides });
+};
+
+/** 变速：段播放倍率（0.5–2）或自适应压缩（fitSpeed）；传 1 视为清除该倍率。 */
+export const speed: CardPackOpHandler = async (node, params) => {
+  const { data, input } = attachedData(node, params);
+  const segmentId = assertSegmentId(input.segmentId);
+  const target = findSegment(data, segmentId);
+  const next: DramaAudioSegment = { ...target };
+  let touched = false;
+  if (input.speed !== undefined) {
+    touched = true;
+    if (input.speed === 1) delete next.speed;
+    else next.speed = assertSpeed('params.speed', input.speed);
+  }
+  if (input.fitSpeed !== undefined) {
+    touched = true;
+    if (input.fitSpeed === 1) delete next.fitSpeed;
+    else next.fitSpeed = assertSpeed('params.fitSpeed', input.fitSpeed);
+  }
+  if (!touched) throw new Error('card.drama.audio: params.speed 或 params.fitSpeed 至少提供一个');
+  return fullPatch({ ...data, segments: data.segments.map(item => item.id === segmentId ? next : item) });
 };
 
 export const dramaAudioOps = {
@@ -294,8 +371,11 @@ export const dramaAudioOps = {
   align,
   rebind,
   span,
+  voice,
+  speed,
   analyze,
   compose,
   rewrite,
   export: exportEdl,
+  'export-srt': exportSrt,
 } satisfies Record<string, CardPackOpHandler>;

@@ -293,3 +293,19 @@ pnpm --filter @canvas/e2e test:ui
 浏览器通过 `@ks-designai/browser-surface@0.1.1` 组件挂载在画布 App 标签页中，不创建浏览器卡片；数据请求通过 `/api/browser-app` 到浏览器自己的后端与 Appwrite。当前已本地安装 tarball，真实菜单创建、组件渲染及云端实例读回通过；Web 原生采集、正式 MA 授权、registry 发布与 staging 另验。[接入与验收记录](docs/verification/browser-embed-20261021/README.md)。
 
 浏览器重复打开复用本画布已有标签；重复顶栏已移除，采集入口在浏览器菜单中按需加载。[性能与界面验收](docs/verification/browser-open-performance/README.md)。
+
+### 站点级 Agent 对话侧栏（2026-11-22，已按用户要求移除）
+
+站点级 Agent 对话侧栏（左侧「唤醒我的 Agent」入口与面板）上线后经用户验收判定无用，已整体移除；画布上的 Agent 冒烟测试卡亦已删除。`/api/ma-v/agent/run` 后端为仓库既有实现，保留不动。当前 Agent 能力集中在卡片内助手与受控动作通道（见下）。
+
+### 卡片 Agent 受控动作通道（2026-11-22）
+
+卡片内 Agent 不再只回建议：`myflicker` CLI 保持只读决策，但在回答末尾输出 ```canvas-actions 动作块，由服务端校验后代为执行并附动作回执。每次询问自动附带当前卡片清单，Agent 因此能按真实卡片操作；409 冲突不自动重试。UI 侧 1.5 秒轮询自动刷新；`apps/web/tests/canvas-actions.test.ts` 覆盖解析、校验、冲突与回执。
+
+### 卡片 Agent 直接执行：platform operations 全动作集（2026-11-22）
+
+动作通道升级为平台 operation 批量（不再手动覆盖画布状态）：`create_card / update_card`、`card_op`（直接调 `card.drama.audio.<op>`——attach 双轨导入视频+音频、script 台词、upsert 分段、gap/gain/mute/trim 剪辑、align 对齐、rebind 换源、span 区间、analyze 画面理解、compose 配音稿、rewrite 台词改写、export/export-srt，以及本轮新增的确定性 op `voice`（整卡/逐句音色覆盖）和 `speed`（变速 0.5–2 / fitSpeed））、`import_media`（自动建卡并绑定工程内真实媒体文件，路径先经存在性校验）。执行统一走 `POST /api/apps/canvas/instances/:projectId/operations`（幂等凭条 + baseRevision + 卡片类型门禁），回执逐条展示。E2E 冒烟（CLI 绑定 outputs/voice/test-tone.wav → seg-0 变速 0.9 → 音色「温柔清晰女声」）全部落画布真实状态。诚实边界：真实 TTS 音频合成未接入（本地 VoxCPM 未部署，显式 TTS_UNAVAILABLE）；analyze/compose/rewrite 需配置 WQ_API_KEY。改卡包 op 后需重建 `packages/canvas-pack-drama-audio/dist/server.mjs` 并重启 canvas server（本地 dev：`CANVAS_STORAGE_MODE=local-test node apps/server/dist/cli.js run --port 17456 --data-dir /tmp/canvas-data-dev`，需 Node ≥22.13）。
+
+### import_media v3：本机文件导入（2026-11-22）
+
+导入通道按用户实测补全：`import_media` 支持纯音频（attach）、**纯视频**（`card.drama.audio.video`）与双轨（attach）三种绑定，并新增 `src` 本机绝对路径导入——服务端校验扩展名白名单与 512MB 上限后，把文件复制上传进工程（音频 `outputs/voice`、视频 `inputs`），时长自动探测（mp4/mov 的 moov/mvhd、wav 的 fmt+data；无 ffprobe 环境的自研解析，mkv/webm 需显式提供时长）。真实 E2E：`packages/canvas-pack-drama-audio/demo/materials/念念有回响_*.mp4`（11MB）导入为 `inputs/念念有回响_*.mp4`，自动探测 173477ms 并建卡绑定。

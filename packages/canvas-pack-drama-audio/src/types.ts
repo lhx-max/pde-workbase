@@ -37,6 +37,12 @@ export interface DramaAudioSegment {
   videoEndMs: number | null;
   /** 段级配音源 override（工程相对路径）；null = 用主源 audioRef。 */
   audioRefOverride: string | null;
+  /** 配音提前进入的毫秒数，与上一句在声音层重叠；字幕窗口不重叠。缺省为 0。 */
+  leadMs?: number;
+  /** 手动语速（保持音调变速），1 为原速。 */
+  speed?: number;
+  /** 贴合视频时自动加速的倍率，与 speed 相乘。 */
+  fitSpeed?: number;
 }
 
 /** 音频卡 data 黑盒：卡内只存引用与编辑决策（EDL），媒体字节走文件口。 */
@@ -70,4 +76,8 @@ export interface DramaAudioData {
   dubbingDoc: string | null;
   /** v3：配音文档生成来源；null = 未生成过。 */
   dubbingProvider: string | null;
+  /** v3：TTS 音色/风格描述（VoxCPM control_instruction）；null = 使用默认解说风格。 */
+  voiceInstruction: string | null;
+  /** 逐句音色覆盖（lineId → 音色描述）；未设置的句子用整卡 voiceInstruction。可选，旧行缺省。 */
+  lineVoiceInstructions?: Record<string, string>;
 }

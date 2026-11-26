@@ -1,6 +1,6 @@
 import { assertInteger, assertProjectRelativePath, DURATION_MS_MAX } from './schema';
 
-export const DEFAULT_REWRITE_PROMPT = '请根据原稿和带时间戳的视频采样帧，将台词改写为自然、清晰、可朗读的中文短剧配音稿。保留原稿含义，只使用原稿或已观测画面提供的信息，不编造未观测的剧情、动作、声音或人物关系。按视频时间顺序输出不重叠的台词区间，所有内容均需人工确认。';
+export const DEFAULT_REWRITE_PROMPT = '请将原解说稿改写为第三人称的中文短剧剧情解说，像解说员向观众讲清这段故事，而不是替角色编写对白。以原稿为主线，保留人物关系、关键事件、因果和转折，结合采样帧观测核对画面；原稿已明确的剧情不因采样稀疏而删成零散字幕。语言口语化、紧凑、连贯，每句推进剧情，删掉重复、空泛评价和无关铺垫。不生成角色对白，不逐帧报幕，不拼接 OCR 字幕、水印或免责声明，不输出分析过程、写作建议、标题、开场套话或关注引导。不编造原稿和画面未提供的人物关系、事件或声音。按剧情节奏分段给出建议配音区间，不机械地每张采样帧对应一句；时间区间有序、不重叠，均需人工确认。';
 export const REWRITE_BODY_MAX_BYTES = 1_200_000;
 export const REWRITE_FRAME_MAX_BYTES = 100_000;
 
@@ -79,6 +79,28 @@ export function validateRewriteLines(value: unknown, videoDurationMs: number): R
   });
   if (rewriteDocOf(lines).length > 20_000) throw new Error('card.drama.audio: 改写总稿超过 20000 字符');
   return lines;
+}
+
+export function insertRewriteLine(lines: RewriteLine[], targetId: string, position: 'before' | 'after', id: string, durationMs: number): RewriteLine[] {
+  if (lines.length >= 80) throw new Error('最多支持 80 句');
+  const index = lines.findIndex(line => line.id === targetId);
+  const target = lines[index];
+  if (!target || target.videoEndMs - target.videoStartMs < 2) throw new Error('当前区间太短，无法插入，请先调整区间');
+  const middle = Math.floor((target.videoStartMs + target.videoEndMs) / 2);
+  const added = { id, text: '请输入新增台词', videoStartMs: position === 'before' ? target.videoStartMs : middle, videoEndMs: position === 'before' ? middle : target.videoEndMs };
+  const kept = { ...target, ...(position === 'before' ? { videoStartMs: middle } : { videoEndMs: middle }) };
+  const next = lines.flatMap((line, at) => at === index ? position === 'before' ? [added, kept] : [kept, added] : [line]);
+  return validateRewriteLines(next, durationMs);
+}
+
+export function changeRewriteWindow(line: RewriteLine, deltaMs: number, mode: 'move' | 'start' | 'end', durationMs: number): RewriteLine {
+  if (![deltaMs, durationMs, line.videoStartMs, line.videoEndMs].every(Number.isFinite) || durationMs < 1) throw new Error('视频区间无效');
+  const delta = Math.round(deltaMs);
+  if (mode === 'start') return { ...line, videoStartMs: Math.max(0, Math.min(line.videoEndMs - 1, line.videoStartMs + delta)) };
+  if (mode === 'end') return { ...line, videoEndMs: Math.min(durationMs, Math.max(line.videoStartMs + 1, line.videoEndMs + delta)) };
+  const span = line.videoEndMs - line.videoStartMs;
+  const start = Math.max(0, Math.min(durationMs - span, line.videoStartMs + delta));
+  return { ...line, videoStartMs: start, videoEndMs: start + span };
 }
 
 export function rewriteDocOf(lines: RewriteLine[]): string {

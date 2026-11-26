@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPlaybackPlan } from '../src/playback-plan';
+import { buildDirectorPlaybackPlan, buildPlaybackPlan, gainAt, playbackDriftMs, resolvePlaybackDuration } from '../src/playback-plan';
 import { emptyDramaAudioData } from '../src/edl';
 import type { DramaAudioSegment } from '../src/types';
 
@@ -15,10 +15,25 @@ function data(segments = [segment()]) {
   return { ...emptyDramaAudioData(), masterGain: 1, audioRef: 'voice/main.wav', videoDurationMs: 10000, segments };
 }
 
+describe('播放时钟与媒体时长', () => {
+  it('实测时长优先，未载入时使用已保存时长', () => {
+    expect(resolvePlaybackDuration(10000, 12000)).toBe(12000);
+    expect(resolvePlaybackDuration(173477, 173476.62099999998)).toBe(173477);
+    expect(resolvePlaybackDuration(10000, 0)).toBe(10000);
+    expect(resolvePlaybackDuration(NaN, NaN)).toBe(0);
+  });
+
+  it.each([0.5, 1, 1.5, 2])('按 %sx 视频倍率比对音频时钟', rate => {
+    expect(playbackDriftMs(2000, 10, 2000 + 1000 * rate, 11, rate)).toBe(0);
+    expect(playbackDriftMs(2000, 10, 2000 + 1000 * rate - 150, 11, rate)).toBe(-150);
+    expect(playbackDriftMs(2000, 10, 2000 + 1000 * rate + 150, 11, rate)).toBe(150);
+  });
+});
+
 describe('buildPlaybackPlan 视频主时钟', () => {
   it('未来片段按视频开始时刻延迟，偏移包含源截取起点', () => {
     expect(buildPlaybackPlan(data(), 1000)).toEqual([
-      { segmentId: 'line-1', audioRef: 'voice/line-1.wav', delayMs: 1000, offsetMs: 500, durationMs: 3000, gain: 1 },
+      { segmentId: 'line-1', audioRef: 'voice/line-1.wav', delayMs: 1000, offsetMs: 500, durationMs: 3000, gain: 1, rate: 1 },
     ]);
   });
 
@@ -41,7 +56,7 @@ describe('buildPlaybackPlan 视频主时钟', () => {
       ['line-1', 2000, 3000], ['line-2', 6000, 1000],
     ]);
     expect(buildPlaybackPlan(input, 5250)).toEqual([
-      { segmentId: 'line-2', audioRef: 'voice/line-1.wav', delayMs: 750, offsetMs: 0, durationMs: 1000, gain: 1 },
+      { segmentId: 'line-2', audioRef: 'voice/line-1.wav', delayMs: 750, offsetMs: 0, durationMs: 1000, gain: 1, rate: 1 },
     ]);
   });
 
@@ -113,5 +128,33 @@ describe('buildPlaybackPlan 视频主时钟', () => {
     const before = JSON.stringify(input);
     buildPlaybackPlan(input, 3500);
     expect(JSON.stringify(input)).toBe(before);
+  });
+});
+
+describe('director audio layers', () => {
+  it('solo plays a separately imported background asset on the video clock', () => {
+    const data = { directorBackgroundRef: 'inputs/media/music.wav', directorBackgroundDurationMs: 8000, directorBackgroundGain: 0.7 };
+    expect(buildDirectorPlaybackPlan(data, 2000, 6000, 'original')).toEqual([]);
+    expect(buildDirectorPlaybackPlan(data, 2000, 6000, 'background')).toEqual([expect.objectContaining({
+      track: 'background', offsetMs: 2000, delayMs: 0, durationMs: 4000, gain: 0.7,
+    })]);
+  });
+
+  it('holds the selected gain and ramps back to the track level on both boundaries', () => {
+    const regions = [{ startMs: 100, endMs: 1100, track: 'voice' as const, gain: 0.5, fadeMs: 200 }];
+    expect([0, 100, 200, 500, 1000, 1100].map(ms => gainAt(regions, ms))).toEqual([1, 1, 0.75, 0.5, 0.75, 1]);
+  });
+});
+
+describe('变速片段', () => {
+  it('语速与贴合加速相乘，按倍率换算时间轴时长和音源偏移', async () => {
+    const { segmentRate } = await import('../src/playback-plan');
+    expect(segmentRate({})).toBe(1);
+    expect(segmentRate({ speed: 1.2, fitSpeed: 1.1 })).toBe(1.32);
+    expect(segmentRate({ speed: 9 })).toBe(2);
+    expect(segmentRate({ speed: -1, fitSpeed: 'x' })).toBe(1);
+    const sped = { audioRef: null, masterGain: 1, segments: [{ id: 's', startMs: 0, endMs: 2000, gapMs: 0, gain: 1, muted: false, videoStartMs: 1000, videoEndMs: 2600, audioRefOverride: 'voice/s.wav', fitSpeed: 1.25 }] };
+    expect(buildPlaybackPlan(sped, 0)).toEqual([{ segmentId: 's', audioRef: 'voice/s.wav', delayMs: 1000, offsetMs: 0, durationMs: 1600, gain: 1, rate: 1.25 }]);
+    expect(buildPlaybackPlan(sped, 1800)[0]).toMatchObject({ delayMs: 0, offsetMs: 1000, durationMs: 800 });
   });
 });
