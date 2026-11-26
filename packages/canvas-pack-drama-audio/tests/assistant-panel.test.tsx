@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CardPackNode } from '@bezier/canvas-card-sdk';
 import { DirectorCard } from '../src/director/card';
-import { AssistantPanel, type AssistantHost, type AssistantAgent } from '../src/director/assistant-panel';
+import { AssistantPanel, type AssistantHost, type AssistantAgent, type AssistantStreamEvent } from '../src/director/assistant-panel';
 
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal ??= function showModal(this: HTMLDialogElement) { this.setAttribute('open', ''); };
@@ -147,9 +147,33 @@ describe('配音助手', () => {
     const input = screen.getByRole('textbox', { name: '告诉助手想怎么改' });
     fireEvent.change(input, { target: { value: '优化一下节奏' } });
     fireEvent.click(screen.getByRole('button', { name: '发送' }));
-    await waitFor(() => expect(agent.ask).toHaveBeenCalledWith('优化一下节奏', undefined));
+    await waitFor(() => expect(agent.ask).toHaveBeenCalledWith('优化一下节奏', expect.objectContaining({ onEvent: expect.any(Function) })));
     expect(await screen.findByText('建议把第 1 句加快')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /确认发送给 MF/u })).toBeNull();
+  });
+
+  it('Agent 流式输出时先显示思考中，回答随事件增量展示', async () => {
+    const host: AssistantHost = { context: { lines, selectedId: null }, read: () => ({ rewriteLines: lines }), apply: vi.fn(), run: vi.fn(), undo: vi.fn(), disabled: false, autoFit: false };
+    let emit!: (event: AssistantStreamEvent) => void;
+    const agent: AssistantAgent = {
+      status: vi.fn().mockResolvedValue({ available: true }),
+      ask: vi.fn().mockImplementation((_prompt: string, context?: { onEvent?: (event: AssistantStreamEvent) => void }) => {
+        emit = event => context?.onEvent?.(event);
+        emit({ type: 'status', text: '已连接本机 Agent（模型 wanqing/auto）' });
+        emit({ type: 'thinking' });
+        emit({ type: 'text', text: '建议' });
+        emit({ type: 'text', text: '把第 1 句加快' });
+        return Promise.resolve({ text: '建议把第 1 句加快' });
+      }),
+    };
+    render(<AssistantPanel host={host} agent={agent} />);
+    fireEvent.click(screen.getByRole('button', { name: /唤醒我的 Agent/u }));
+    await screen.findByText('已连接本机 myflicker · 建议仅供参考，确认后才应用');
+    const input = screen.getByRole('textbox', { name: '告诉助手想怎么改' });
+    fireEvent.change(input, { target: { value: '优化一下节奏' } });
+    fireEvent.click(screen.getByRole('button', { name: '发送' }));
+    expect(await screen.findByText('建议把第 1 句加快')).toBeTruthy();
+    expect(screen.queryByText('思考中…')).toBeNull();
   });
 
   it('CLI 超时/正忙时显示提示，不自动重试', async () => {

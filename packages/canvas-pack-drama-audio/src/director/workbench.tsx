@@ -859,11 +859,11 @@ export function Workbench({ node: editorNode, onPatch, media, onClose, assistant
             </div>
           </div>
         </div>
-        {editorNode && <DirectorTools key={editorNode.id} data={data} mediaUrl={media.resolve} rows={timedRows} duration={durationMs}
-          time={() => Math.round((previewVideo.current?.currentTime ?? 0) * 1000)} selectedId={selectedLineId}
+        {editorNode && <DirectorTools key={editorNode.id} rows={timedRows} duration={durationMs}
+          time={() => Math.round((previewVideo.current?.currentTime ?? 0) * 1000)}
           select={id => { const line = voiced.find(item => item.id === id); if (line) selectTrackLine(line); }}
-          ranges={ranges} setRanges={setRanges} playback={playback} mode={listenMode} setMode={setListenMode}
-          disabled={projectBusy} patch={applyEdit} playing={Boolean(previewVideo.current && !previewVideo.current.paused)} />}
+          ranges={ranges} mode={listenMode} setMode={setListenMode} hasBackground={hasBackground}
+          playback={playback} disabled={projectBusy} playing={Boolean(previewVideo.current && !previewVideo.current.paused)} />}
         </div>
         <div className={styles.horizontalDivider} {...workspace.separator('timeline')} />
         <section className={styles.transcript} aria-label="台词浏览">
@@ -911,7 +911,7 @@ export function Workbench({ node: editorNode, onPatch, media, onClose, assistant
           {!selectedLineId && !selectedTrack && <div className={styles.emptyInspector}>
             <span className={styles.eyebrow}>从一句开始</span><h2>选中要修改的内容</h2>
             <p>点击下方台词列表或音轨片段，即可在这里改台词、调音色和音量。</p>
-            <p>需要处理一段声音？直接在时间轴拖动框选，再展开下方的选区工具。</p>
+            <p>需要处理一段声音？直接在时间轴拖动片段或框选导出区间；复杂指令也可以唤醒左侧的配音助手。</p>
             <button type="button" className={`${styles.toolBtn} ${styles.toolBtnPrimary}`} disabled={!trackLines.length} onClick={() => selectTrackLine(trackLines[0]!)}>编辑第一句</button>
             <button type="button" className={styles.toolBtn} onClick={() => trackLines.length ? focusScript() : setDrawer(true)}>{trackLines.length ? '浏览完整台词' : '导入素材'}</button>
           </div>}

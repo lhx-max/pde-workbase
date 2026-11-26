@@ -10,9 +10,9 @@ afterEach(() => cleanup());
 function renderTools(playing: boolean, time = 0) {
   const playback = createRef<DubbingPlayback>() as { current: DubbingPlayback };
   playback.current = { play: vi.fn(async () => {}), stop: vi.fn(), seek: vi.fn() };
-  render(<DirectorTools data={{}} mediaUrl={() => undefined} rows={[{ id: 'l1', text: '第一句', videoStartMs: 0, videoEndMs: 1000 }]} duration={5000}
-    time={() => time} selectedId={null} select={vi.fn()} ranges={[]} setRanges={vi.fn()} mode="voice" setMode={vi.fn()}
-    playback={playback} disabled={false} patch={() => true} playing={playing} />);
+  render(<DirectorTools rows={[{ id: 'l1', text: '第一句', videoStartMs: 0, videoEndMs: 1000 }]} duration={5000}
+    time={() => time} select={vi.fn()} ranges={[]} mode="voice" setMode={vi.fn()} hasBackground={false}
+    playback={playback} disabled={false} playing={playing} />);
   return playback.current;
 }
 

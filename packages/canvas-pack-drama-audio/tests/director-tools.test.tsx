@@ -9,6 +9,7 @@ beforeAll(() => {
   HTMLDialogElement.prototype.showModal ??= function showModal(this: HTMLDialogElement) { this.setAttribute('open', ''); };
   HTMLDialogElement.prototype.close ??= function close(this: HTMLDialogElement) { this.removeAttribute('open'); };
   HTMLMediaElement.prototype.pause = vi.fn();
+  HTMLMediaElement.prototype.load = vi.fn();
   Element.prototype.scrollIntoView ??= vi.fn();
   Element.prototype.scrollTo ??= vi.fn() as never;
 });
@@ -20,10 +21,8 @@ const lines = [
   { id: 'l3', text: '第三句解说', videoStartMs: 4000, videoEndMs: 4800 },
 ];
 
-let latest: CardPackNode | null = null;
 function Host({ initial }: { initial: Record<string, unknown> }) {
   const [node, setNode] = useState<CardPackNode>({ id: 'drama-1', kind: 'card.drama.audio', x: 0, y: 0, data: initial });
-  latest = node;
   return <DirectorCard node={node} selected onPatch={patch => setNode(current => ({ ...current, data: { ...(current.data ?? {}), ...(patch.data ?? {}) } }))} />;
 }
 
@@ -32,115 +31,30 @@ function open(extra: Record<string, unknown> = {}) {
   fireEvent.click(screen.getByRole('button', { name: '打开短剧配音编辑器' }));
   return within(screen.getByRole('region', { name: '导演工具' }));
 }
-const selectLine = (text: string) => fireEvent.click(within(screen.getByRole('region', { name: '台词浏览' })).getByText(text).closest('button')!);
-const tab = (tools: ReturnType<typeof open>, name: string) => fireEvent.click(within(tools.getByRole('group', { name: '编辑工具' })).getByRole('button', { name }));
-const data = () => latest?.data as Record<string, any>;
 
-describe('导演工具：选区与试听', () => {
-  it('加入当前句形成选区，可移除与清空', () => {
+describe('导演工具：播放控制条', () => {
+  it('保留播放、回听与试听音轨切换，不再有选区工具折叠面板', () => {
     const tools = open();
-    selectLine('第二句解说');
-    fireEvent.click(tools.getByRole('button', { name: '加入当前句' }));
-    fireEvent.click(tools.getByRole('button', { name: '加入当前句' }));
-    expect(tools.getAllByRole('button', { name: /^移除选区/ })).toHaveLength(1);
-    fireEvent.click(tools.getByRole('button', { name: '移除选区 1' }));
-    expect(tools.queryByRole('button', { name: /^移除选区/ })).toBeNull();
-    selectLine('第一句解说');
-    fireEvent.click(tools.getByRole('button', { name: '加入当前句' }));
-    fireEvent.click(tools.getByRole('button', { name: '清空选区' }));
-    expect(tools.queryByRole('button', { name: /^移除选区/ })).toBeNull();
+    expect(tools.getByRole('button', { name: '播放' })).toBeTruthy();
+    expect(tools.getByRole('button', { name: '回听 3 秒' })).toBeTruthy();
+    expect(tools.getByText('在时间轴框选，或点选一句台词')).toBeTruthy();
+    expect(screen.queryByText('选区工具 · 音量与节奏')).toBeNull();
+    expect(tools.queryByRole('group', { name: '编辑工具' })).toBeNull();
   });
 
-  it('精确输入选区校验范围', () => {
+  it('无背景音乐轨时不显示背景试听轨，有背景轨时显示', () => {
     const tools = open();
-    const [start, end] = [tools.getByLabelText('起点（秒）'), tools.getByLabelText('终点（秒）')];
-    fireEvent.change(start, { target: { value: '3' } });
-    fireEvent.change(end, { target: { value: '2' } });
-    fireEvent.click(tools.getByRole('button', { name: '添加区间' }));
-    expect(tools.getByText('请输入视频时长内的起点和终点，起点需早于终点。')).toBeTruthy();
-    fireEvent.change(end, { target: { value: '4.5' } });
-    fireEvent.click(tools.getByRole('button', { name: '添加区间' }));
-    expect(tools.getByRole('button', { name: '移除选区 1' })).toBeTruthy();
+    expect(within(tools.getByRole('group', { name: '试听音轨' })).queryByRole('button', { name: '背景音乐' })).toBeNull();
+    cleanup();
+    const withBackground = open({ directorBackgroundRef: 'inputs/bgm.mp3', directorBackgroundDurationMs: 6000 });
+    expect(within(withBackground.getByRole('group', { name: '试听音轨' })).getByRole('button', { name: '背景音乐' })).toBeTruthy();
   });
 
-  it('锁定选区后阻止修改其中的台词，解锁后恢复', () => {
-    // 配音音轨只显示已有配音的句子，这里给第二句配上音频。
-    const tools = open({ segments: [{ id: 'l2', label: 'l2', startMs: 0, endMs: 1500, gapMs: 0, gain: 1, muted: false, videoStartMs: 2000, videoEndMs: 3500, audioRefOverride: 'session/voice/l2.wav' }] });
-    selectLine('第二句解说');
-    fireEvent.click(tools.getByRole('button', { name: '加入当前句' }));
-    fireEvent.click(tools.getByRole('button', { name: '锁定选区' }));
-    expect(data().directorEdit.locks).toEqual([{ startMs: 2000, endMs: 3500 }]);
-    expect(document.querySelector('[data-preview-line-id="l2"]')?.getAttribute('data-locked')).toBe('true');
-    fireEvent.click(screen.getAllByRole('button', { name: /删除/ })[0]!);
-    expect(within(screen.getByRole('region', { name: '台词浏览' })).getByText('第二句解说')).toBeTruthy();
-    fireEvent.click(tools.getByRole('button', { name: '解锁 2.00 秒 – 3.50 秒' }));
-    expect(data().directorEdit.locks).toEqual([]);
-  });
-
-});
-
-describe('导演工具：间隔与标记', () => {
-  it('新增、选择并移除画面标记', () => {
+  it('切换试听音轨后 aria-pressed 随之变化', () => {
     const tools = open();
-    tab(tools, '间隔与标记');
-    fireEvent.change(tools.getByLabelText('画面标记名称'), { target: { value: '转场' } });
-    fireEvent.click(tools.getByRole('button', { name: '标记当前帧' }));
-    expect(data().directorEdit.markers).toMatchObject([{ label: '转场', ms: 0 }]);
-    expect((tools.getByLabelText('画面标记') as HTMLSelectElement).value).toBe(data().directorEdit.markers[0].id);
-    fireEvent.click(tools.getByRole('button', { name: '移除标记' }));
-    expect(data().directorEdit.markers).toEqual([]);
+    const group = tools.getByRole('group', { name: '试听音轨' });
+    fireEvent.click(within(group).getByRole('button', { name: '原声' }));
+    expect(within(group).getByRole('button', { name: '原声' }).getAttribute('aria-pressed')).toBe('true');
+    expect(within(group).getByRole('button', { name: '混合' }).getAttribute('aria-pressed')).toBe('false');
   });
-
-  it('首句没有句间停顿可调', () => {
-    const tools = open();
-    tab(tools, '间隔与标记');
-    selectLine('第一句解说');
-    expect(tools.getByText('选中第二句或后面的台词，即可调整它和上一句之间的停顿。')).toBeTruthy();
-  });
-
-  it('调整句间停顿只移动本句或连同后续', () => {
-    const tools = open();
-    tab(tools, '间隔与标记');
-    selectLine('第二句解说');
-    fireEvent.change(tools.getByLabelText('句间停顿毫秒'), { target: { value: '800' } });
-    fireEvent.click(tools.getByRole('button', { name: '应用间隔' }));
-    const moved = data().rewriteLines.find((line: { id: string }) => line.id === 'l2');
-    expect(moved.videoStartMs).toBe(2300);
-    expect(data().rewriteLines.find((line: { id: string }) => line.id === 'l3').videoStartMs).toBe(4000);
-    fireEvent.change(tools.getByLabelText('停顿影响范围'), { target: { value: 'following' } });
-    fireEvent.change(tools.getByLabelText('句间停顿毫秒'), { target: { value: '1000' } });
-    fireEvent.click(tools.getByRole('button', { name: '应用间隔' }));
-    expect(data().rewriteLines.find((line: { id: string }) => line.id === 'l3').videoStartMs).toBe(4200);
-  });
-});
-
-describe('导演工具：音量', () => {
-  it('调整总音量并为选区设置音量区间，可删除', () => {
-    const tools = open();
-    tab(tools, '音量');
-    fireEvent.change(tools.getByLabelText(/配音总音量/), { target: { value: '1.5' } });
-    expect(data().masterGain).toBe(1.5);
-    fireEvent.change(tools.getByLabelText(/原声总音量/), { target: { value: '0.4' } });
-    expect(data().directorOriginalGain).toBe(0.4);
-    selectLine('第二句解说');
-    fireEvent.click(tools.getByRole('button', { name: '应用到选区' }));
-    expect(tools.getByText('选区音量已应用，播放与导出会使用该设置。')).toBeTruthy();
-    expect(data().directorGainRegions).toMatchObject([{ startMs: 2000, endMs: 3500, track: 'voice', gain: 0.5, fadeMs: 200 }]);
-    fireEvent.click(tools.getByRole('button', { name: '复制音量和渐变' }));
-    selectLine('第三句解说');
-    fireEvent.click(tools.getByRole('button', { name: '粘贴到选区' }));
-    expect(data().directorGainRegions).toHaveLength(2);
-    fireEvent.click(tools.getByRole('button', { name: '移除 2.00 秒 的音量调整' }));
-    expect(data().directorGainRegions).toHaveLength(1);
-  });
-
-  it('渐变时长非法时拒绝应用', () => {
-    const tools = open();
-    tab(tools, '音量');
-    selectLine('第二句解说');
-    fireEvent.change(tools.getByLabelText(/前后渐变/), { target: { value: '-1' } });
-    fireEvent.click(tools.getByRole('button', { name: '应用到选区' }));
-    expect(tools.getByText('请选中区间并填写有效的音量与渐变时长。')).toBeTruthy();
-  });
-
 });

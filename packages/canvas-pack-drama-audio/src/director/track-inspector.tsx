@@ -8,7 +8,7 @@ export function TrackInspector({ track, data, disabled, mode, setMode, patch }: 
   const db = value > 0 ? Math.max(-60, 20 * Math.log10(value)) : -60;
   return <div className={styles.trackInspector}>
     <span className={styles.eyebrow}>音轨属性</span><h2>{listenLabel[track]}</h2>
-    <p>调整整条音轨的声音。局部调整可在时间轴框选，再使用选区音量。</p>
+    <p>调整整条音轨的声音；逐句大小声在台词列表里改「n」。</p>
     <label>音轨音量 <strong>{value === 0 ? '静音' : `${db.toFixed(1)} dB`}</strong>
       <input type="range" aria-label={`${listenLabel[track]}音轨音量`} min={-60} max={track === 'original' ? 0 : 6} step={.5} value={db} disabled={disabled} onChange={event => patch({ [key]: Number(event.target.value) <= -60 ? 0 : Math.min(2, 10 ** (Number(event.target.value) / 20)) })} />
     </label>

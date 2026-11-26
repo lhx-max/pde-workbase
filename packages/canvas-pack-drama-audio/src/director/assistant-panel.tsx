@@ -17,12 +17,18 @@ export interface AssistantHost {
 }
 export interface AssistantAgent {
   status: () => Promise<{ available: boolean; reason?: string }>;
-  ask: (prompt: string, context?: { lines: { id: string; text: string }[] }) => Promise<{ text: string }>;
+  ask: (prompt: string, context?: { lines?: { id: string; text: string }[]; onEvent?: (event: AssistantStreamEvent) => void }) => Promise<{ text: string }>;
 }
+
+/** Agent 流式事件：status（连接/模型/动作执行）、thinking（开始思考）、text（增量回答）。 */
+export type AssistantStreamEvent =
+  | { type: 'status'; text: string }
+  | { type: 'thinking' }
+  | { type: 'text'; text: string };
 
 type ProposalState = 'pending' | 'applied' | 'cancelled' | 'undone';
 type UserMessage = { id: number; role: 'user'; text: string };
-type AssistantMessage = { id: number; role: 'assistant'; text: string; lines?: string[]; notes?: string[]; intents?: AssistantIntent[]; state?: ProposalState; result?: string[] };
+type AssistantMessage = { id: number; role: 'assistant'; text: string; lines?: string[]; notes?: string[]; intents?: AssistantIntent[]; state?: ProposalState; result?: string[]; streaming?: boolean };
 type Message = UserMessage | AssistantMessage;
 
 const SUGGESTIONS = ['贴合视频', '补齐配音', '检查问题'] as const;
@@ -104,6 +110,20 @@ export function AssistantPanel({ host, agent }: { host: AssistantHost; agent?: A
       pushUser(input);
       setAgentState('running');
       setRunning(true);
+      // 流式占位气泡：先显示“思考中…”，随事件增量刷新；回答本体落在同一条消息里，不再完成后重复推送。
+      // id 必须在插入前同步分配：pushAssistant 在 setState updater 内部分配 id，与外层闭包捕获的值不同步。
+      const streamingId = nextId.current++;
+      setMessages(list => [...list, { id: streamingId, role: 'assistant', text: '思考中…', streaming: true }]);
+      let streamed = '';
+      const onEvent = (event: AssistantStreamEvent) => {
+        if (event.type === 'text') {
+          streamed += event.text;
+          // 首个增量事件常为空字符串，气泡兜底保留「思考中…」而不是空白。
+          update(streamingId, { text: streamed || '思考中…' });
+          return;
+        }
+        if (!streamed) update(streamingId, { text: event.type === 'status' ? event.text : '思考中…' });
+      };
       try {
         const current = hostRef.current.read();
         const lines = Array.isArray(current.rewriteLines)
@@ -111,7 +131,11 @@ export function AssistantPanel({ host, agent }: { host: AssistantHost; agent?: A
               Boolean(line && typeof line === 'object' && typeof (line as Record<string, unknown>).id === 'string' && typeof (line as Record<string, unknown>).text === 'string'))
             .map(line => ({ id: line.id, text: line.text }))
           : [];
-        const result = await agent!.ask(input, shareLinesChecked ? { lines } : undefined);
+        const result = await agent!.ask(input, {
+          ...(shareLinesChecked ? { lines } : {}),
+          onEvent,
+        });
+        update(streamingId, { text: result.text, streaming: false });
         const intentGroups = extractIntentLines(result.text, hostRef.current.context);
         if (intentGroups.length) {
           const data = hostRef.current.read();
@@ -121,14 +145,11 @@ export function AssistantPanel({ host, agent }: { host: AssistantHost; agent?: A
               pushAssistant({ text: '建议这样改：', lines: proposalLines(plan, hostRef.current.context, hostRef.current.autoFit), notes: plan.notes, intents, state: 'pending' });
             }
           }
-          pushAssistant({ text: result.text });
-        } else {
-          pushAssistant({ text: result.text });
         }
         setAgentState('ready');
       } catch (error) {
         const msg = error instanceof Error ? error.message : 'Agent 请求失败；不会自动重试。';
-        pushAssistant({ text: msg });
+        update(streamingId, { text: msg, streaming: false });
         setAgentState('unavailable');
         setAgentHint('Agent 请求失败，请重新唤醒后重试。');
       } finally { setRunning(false); setShareLinesChecked(false); }
@@ -201,7 +222,7 @@ export function AssistantPanel({ host, agent }: { host: AssistantHost; agent?: A
     <div className={styles.messages} ref={log} role="log" aria-live="polite">
       {messages.map(message => message.role === 'user'
         ? <div key={message.id} className={`${styles.bubble} ${styles.bubbleUser}`}>{message.text}</div>
-        : <div key={message.id} className={`${styles.bubble} ${styles.bubbleAssistant}`}>
+        : <div key={message.id} className={`${styles.bubble} ${styles.bubbleAssistant}`} data-streaming={message.streaming || undefined}>
             <div>{message.text}</div>
             {message.lines && (message.intents
               ? <div className={styles.planCard} data-state={message.state}>

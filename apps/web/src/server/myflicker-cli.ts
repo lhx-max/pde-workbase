@@ -8,6 +8,12 @@ export type CliResult =
   | { ok: true; text: string }
   | { ok: false; code: 'CLI_NOT_FOUND' | 'CLI_BUSY_TIMEOUT' | 'CLI_TIMEOUT' | 'CLI_NONZERO_EXIT' | 'CLI_OUTPUT_INVALID' | 'CLI_PROMPT_INVALID' | 'CLI_CWD_INVALID'; reason: string };
 
+/** CLI 流式事件：init 后模型名可见；message_start 表示开始思考；text 是增量回答。 */
+export type CliStreamEvent =
+  | { type: 'status'; text: string }
+  | { type: 'thinking' }
+  | { type: 'text'; text: string };
+
 function cliCommand(): { command: string; baseArgs: string[] } {
   const path = process.env.BEZIER_MYFLICKER_CLI_PATH?.trim() || 'myflicker';
   if (path.endsWith('.mjs')) return { command: process.execPath, baseArgs: [path] };
@@ -29,8 +35,12 @@ export async function myflickerAvailable(): Promise<{ available: boolean; reason
 
 let activePromise: Promise<void> | null = null;
 const waiting: Array<{ resolve: () => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }> = [];
-const QUEUE_TIMEOUT_MS = 60_000;
-const CLI_TIMEOUT_MS = 60_000;
+/** 流式执行下单个回答可能持续数分钟（dub 等），排队超时与执行总上限对齐，不再 60s 一刀切。 */
+const QUEUE_TIMEOUT_MS = 300_000;
+/** 空闲超时：只要 CLI 还在产出事件就续命；真正卡死 45s 才判超时。这是此前“经常 60s 超时”的根治点。 */
+const IDLE_TIMEOUT_MS = 45_000;
+/** 总时长上限：防真挂死；流式下模型持续输出不受它误伤（绝大多数回答 60–120s 内完成）。 */
+const TOTAL_TIMEOUT_MS = 300_000;
 
 const SAFE_TOOLS = JSON.stringify({
   bash: false, write: false, edit: false,
@@ -70,15 +80,27 @@ function releaseQueue(): void {
   }
 }
 
-function extractText(stdout: string): string {
-  let items: unknown[];
-  try { items = JSON.parse(stdout) as unknown[]; } catch { throw new Error('CLI_OUTPUT_INVALID'); }
-  if (!Array.isArray(items)) throw new Error('CLI_OUTPUT_INVALID');
-  const result = items.find(item => item && typeof item === 'object' && (item as { type?: unknown }).type === 'result');
-  if (!result || typeof result !== 'object') throw new Error('CLI_OUTPUT_INVALID');
-  const content = (result as { content?: unknown }).content;
-  if (typeof content !== 'string') throw new Error('CLI_OUTPUT_INVALID');
-  return content.slice(0, 8000);
+/** stream-json 每行一个 JSON 对象；只关心能映射为流式事件的行，解析失败的行（如进度噪声）直接忽略。 */
+function classifyStreamLine(line: string): { event?: CliStreamEvent; resultContent?: string; resultError?: string } {
+  let parsed: unknown;
+  try { parsed = JSON.parse(line); } catch { return {}; }
+  if (!parsed || typeof parsed !== 'object') return {};
+  const row = parsed as { type?: unknown; subtype?: unknown; model?: unknown; text?: unknown; content?: unknown; isError?: unknown; event?: { type?: unknown } };
+  if (row.type === 'system' && row.subtype === 'init' && typeof row.model === 'string') {
+    return { event: { type: 'status', text: `已连接本机 Agent（模型 ${row.model}）` } };
+  }
+  if (row.type === 'stream_event' && row.event?.type === 'message_start') {
+    return { event: { type: 'thinking' } };
+  }
+  if (row.type === 'text' && typeof row.text === 'string') {
+    return { event: { type: 'text', text: row.text } };
+  }
+  if (row.type === 'result') {
+    if (row.isError === true) return { resultError: 'CLI 结果带错误标志' };
+    if (typeof row.content !== 'string') return { resultError: 'CLI 结果缺少文本内容' };
+    return { resultContent: row.content };
+  }
+  return {};
 }
 
 export async function askMyflicker(params: {
@@ -87,6 +109,7 @@ export async function askMyflicker(params: {
   cardId: string;
   lines?: { id: string; text: string }[];
   scene?: { cards: { id: string; kind: string; title?: string; x: number; y: number; data?: Record<string, unknown> }[] };
+  onEvent?: (event: CliStreamEvent) => void;
 }): Promise<CliResult> {
   const { prompt, projectId, cardId, lines, scene } = params;
 
@@ -148,33 +171,90 @@ export async function askMyflicker(params: {
   catch { return { ok: false, code: 'CLI_BUSY_TIMEOUT', reason: '本机 Agent 正忙，排队超时；请稍后重试' }; }
 
   return new Promise<CliResult>(resolve => {
-    let stdout = '';
+    let buffer = '';
     let stderr = '';
+    let resultContent: string | undefined;
+    let resultError: string | undefined;
+    let finished = false;
+    let killedByWatchdog: 'idle' | 'total' | null = null;
     const { command, baseArgs } = cliCommand();
+    // auto 模型按任务复杂度自动路由（快任务选快模型）；低思考档减少纯思考时间；
+    // stream-json 逐行产出事件，配合下方空闲看门狗：模型持续输出就持续续命，不再被 60s 总超时误杀。
     const child = spawn(
       command,
-      [...baseArgs, '--cwd', cwd, '--approval-mode', 'plan', '--output-format', 'json', '--tools', SAFE_TOOLS, '-q', fullPrompt],
-      { timeout: CLI_TIMEOUT_MS, stdio: 'pipe' },
+      [...baseArgs, '-m', 'auto', '--thinking-level', 'low', '--cwd', cwd, '--approval-mode', 'plan',
+        '--output-format', 'stream-json', '--stream-text', '--tools', SAFE_TOOLS, '-q', fullPrompt],
+      { stdio: 'pipe' },
     );
-    child.stdout?.on('data', (chunk: Buffer) => { stdout += chunk.toString('utf8'); });
+
+    const finishOnce = (value: CliResult) => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(idleTimer);
+      clearTimeout(totalTimer);
+      releaseQueue();
+      resolve(value);
+    };
+
+    let idleTimer: ReturnType<typeof setTimeout> | undefined;
+    let totalTimer: ReturnType<typeof setTimeout> | undefined;
+    const killByWatchdog = (kind: 'idle' | 'total') => {
+      if (finished) return;
+      killedByWatchdog = kind;
+      child.kill('SIGTERM');
+      setTimeout(() => { try { child.kill('SIGKILL'); } catch { /* 进程可能已退出 */ } }, 2000).unref?.();
+    };
+    const armIdleTimer = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => killByWatchdog('idle'), IDLE_TIMEOUT_MS);
+    };
+    totalTimer = setTimeout(() => killByWatchdog('total'), TOTAL_TIMEOUT_MS);
+    armIdleTimer();
+
+    child.stdout?.on('data', (chunk: Buffer) => {
+      if (finished) return;
+      armIdleTimer();
+      buffer += chunk.toString('utf8');
+      let newlineIndex: number;
+      while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, newlineIndex).trim();
+        buffer = buffer.slice(newlineIndex + 1);
+        if (!line) continue;
+        const classified = classifyStreamLine(line);
+        if (classified.event && params.onEvent) params.onEvent(classified.event);
+        if (classified.resultContent !== undefined) resultContent = classified.resultContent;
+        if (classified.resultError !== undefined) resultError = classified.resultError;
+      }
+    });
     child.stderr?.on('data', (chunk: Buffer) => { stderr += chunk.toString('utf8'); });
     child.on('error', (err: NodeJS.ErrnoException) => {
-      releaseQueue();
-      resolve({ ok: false, code: err.code === 'ENOENT' ? 'CLI_NOT_FOUND' : 'CLI_NONZERO_EXIT', reason: err.message.slice(0, 200) });
+      finishOnce({ ok: false, code: err.code === 'ENOENT' ? 'CLI_NOT_FOUND' : 'CLI_NONZERO_EXIT', reason: err.message.slice(0, 200) });
     });
     child.on('close', (code, signal) => {
-      releaseQueue();
+      if (finished) return;
+      if (killedByWatchdog) {
+        const scope = killedByWatchdog === 'idle' ? `${IDLE_TIMEOUT_MS / 1000}s 无输出` : `总时长超过 ${TOTAL_TIMEOUT_MS / 1000}s`;
+        finishOnce({ ok: false, code: 'CLI_TIMEOUT', reason: `本机 Agent 执行超时（${scope}），已中止；不会自动重试` });
+        return;
+      }
       if (signal === 'SIGKILL' || signal === 'SIGTERM') {
-        resolve({ ok: false, code: 'CLI_TIMEOUT', reason: '本机 Agent 执行超时（60s），已中止；不会自动重试' });
+        finishOnce({ ok: false, code: 'CLI_TIMEOUT', reason: '本机 Agent 执行被中止；不会自动重试' });
         return;
       }
       if (code !== 0) {
         const hint = stderr.slice(0, 300).replace(/\/Users\/[^\s]+/gu, '[path]').replace(/\/tmp\/[^\s]+/gu, '[tmp]');
-        resolve({ ok: false, code: 'CLI_NONZERO_EXIT', reason: `CLI 退出码 ${code ?? 'null'}；${hint || '无额外信息'}` });
+        finishOnce({ ok: false, code: 'CLI_NONZERO_EXIT', reason: `CLI 退出码 ${code ?? 'null'}；${hint || '无额外信息'}` });
         return;
       }
-      try { resolve({ ok: true, text: extractText(stdout) }); }
-      catch { resolve({ ok: false, code: 'CLI_OUTPUT_INVALID', reason: 'CLI 输出格式无法解析' }); }
+      if (resultError) {
+        finishOnce({ ok: false, code: 'CLI_OUTPUT_INVALID', reason: resultError });
+        return;
+      }
+      if (typeof resultContent !== 'string') {
+        finishOnce({ ok: false, code: 'CLI_OUTPUT_INVALID', reason: 'CLI 输出缺少 result 事件' });
+        return;
+      }
+      finishOnce({ ok: true, text: resultContent.slice(0, 8000) });
     });
   });
 }

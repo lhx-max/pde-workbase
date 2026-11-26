@@ -1,4 +1,4 @@
-import { myflickerAvailable, askMyflicker } from '@/src/server/myflicker-cli';
+import { myflickerAvailable, askMyflicker, type CliStreamEvent } from '@/src/server/myflicker-cli';
 import { applyCanvasActions, parseCanvasActions, renderReceiptLines } from '@/src/server/canvas-actions';
 import { snapshotScene, type SceneSnapshot } from '@/app/session-apps/cli-assistant';
 
@@ -7,6 +7,27 @@ export const dynamic = 'force-dynamic';
 
 function validId(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= 256 && !/[\u0000-\u001f]/u.test(value);
+}
+
+/** SSE 模式：CLI 事件（思考中/增量文本）实时下发，最终 done 事件携带含回执的完整文本与错误码。 */
+function sseResponse(run: (emit: (payload: unknown) => void) => Promise<void>): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      let closed = false;
+      const emit = (payload: unknown) => {
+        if (closed) return;
+        try { controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`)); }
+        catch { closed = true; }
+      };
+      try { await run(emit); }
+      catch { emit({ type: 'done', ok: false, message: '请求处理失败；不会自动重试' }); }
+      finally {
+        if (!closed) { try { controller.close(); } catch { /* 已关闭 */ } closed = true; }
+      }
+    },
+  });
+  return new Response(stream, { headers: { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store' } });
 }
 
 export async function GET() {
@@ -80,6 +101,23 @@ export async function POST(request: Request) {
     if (new TextEncoder().encode(JSON.stringify(scene)).byteLength > 64_000) {
       return Response.json({ ok: false, error: { code: 'INVALID_SCENE', message: 'scene 超过 64 KB 限制' } }, { status: 400 });
     }
+  }
+
+  if (obj.stream === true) {
+    return sseResponse(async emit => {
+      const result = await askMyflicker({
+        prompt, projectId: projectId as string, cardId: cardId as string, lines: normalizedLines, scene,
+        onEvent: (event: CliStreamEvent) => emit(event),
+      });
+      if (!result.ok) {
+        emit({ type: 'done', ok: false, code: result.code, message: result.reason });
+        return;
+      }
+      const actions = parseCanvasActions(result.text);
+      if (actions?.length) emit({ type: 'applying' });
+      const { receipts, invalid, conflict } = await applyCanvasActions(projectId as string, actions);
+      emit({ type: 'done', ok: true, text: result.text + renderReceiptLines(receipts, invalid), ...(conflict ? { conflict: true } : {}) });
+    });
   }
 
   const result = await askMyflicker({ prompt, projectId: projectId as string, cardId: cardId as string, lines: normalizedLines, scene });
