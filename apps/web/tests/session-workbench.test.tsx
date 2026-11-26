@@ -5,10 +5,11 @@ import { afterEach, expect, it, vi } from 'vitest';
 import SessionAppsClient from '../app/session-apps/client';
 
 vi.mock('@bezier/canvas-pack-drama-audio', () => ({
-  DramaWorkbench: ({ node, assistantAgent }: { node: { id: string; data?: Record<string, unknown> }; assistantAgent?: unknown }) =>
+  DramaWorkbench: ({ node, assistantAgent, headerExtra }: { node: { id: string; data?: Record<string, unknown> }; assistantAgent?: unknown; headerExtra?: React.ReactNode }) =>
     React.createElement('section', { 'aria-label': '新版完整编辑器', 'data-card-id': node.id },
       React.createElement('span', null, String(node.data?.script ?? '')),
-      React.createElement('span', { 'data-has-agent': String(Boolean(assistantAgent)) }, '')),
+      React.createElement('span', { 'data-has-agent': String(Boolean(assistantAgent)) }, ''),
+      headerExtra ?? null),
   assertMediaSize: vi.fn(),
   assertProjectRelativePath: vi.fn(),
   useSessionMedia: () => ({ resolve: () => undefined, add: vi.fn(), restore: vi.fn(), version: 0 }),
@@ -31,7 +32,8 @@ it('会话入口挂载新版完整工作台而非旧版逐句组件', async () =
   await waitFor(() => expect(screen.queryByRole('dialog', { name: '欢迎界面' })).toBeNull());
   expect(await screen.findByRole('region', { name: '新版完整编辑器' })).toBeTruthy();
   expect(screen.getByText('原台词')).toBeTruthy();
-  expect(screen.getByText('新版短剧导演工作台')).toBeTruthy();
+  // 「打开画布」入口随 headerExtra 渲染到工作台头部（音频工作台标题后面），不再是左下角浮条。
+  expect(screen.getByRole('link', { name: '打开画布' })).toBeTruthy();
 });
 
 it('两张 card.drama.audio 各自渲染独立编辑器，切换标签互不影响', async () => {
@@ -44,10 +46,9 @@ it('两张 card.drama.audio 各自渲染独立编辑器，切换标签互不影�
   await waitFor(() => expect(screen.queryByRole('dialog', { name: '欢迎界面' })).toBeNull());
   const editors = await screen.findAllByRole('region', { name: '新版完整编辑器', hidden: true });
   expect(editors).toHaveLength(2);
-  const tab1 = screen.getByRole('button', { name: '第一集' });
-  const tab2 = screen.getByRole('button', { name: '第二集' });
-  expect(tab1).toBeTruthy();
-  expect(tab2).toBeTruthy();
+  // 卡片切换标签随 headerExtra 出现在每个工作台头部，不再固定在左下角浮条。
+  expect(screen.getAllByRole('button', { name: '第一集', hidden: true })).toHaveLength(2);
+  expect(screen.getAllByRole('button', { name: '第二集', hidden: true })).toHaveLength(2);
 });
 
 it('0 张卡时展示空态文案，不渲染编辑器', async () => {

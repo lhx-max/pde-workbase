@@ -37,6 +37,9 @@ export type CardPackOpHandler = (
     files: {
       read(projectId: string, relative: string): Promise<string | null>;
       write(projectId: string, relative: string, content: string): Promise<void>;
+      /** 二进制文件口（媒体字节）：平台可选能力，未提供时 op 必须显式报错，不得降级为文本写入。 */
+      readBytes?(projectId: string, relative: string): Promise<Uint8Array | null>;
+      writeBytes?(projectId: string, relative: string, bytes: Uint8Array): Promise<void>;
     };
   },
 ) => Promise<{ data?: Record<string, unknown>; [field: string]: unknown } | void>

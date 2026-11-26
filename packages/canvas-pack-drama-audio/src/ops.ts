@@ -28,9 +28,11 @@ import {
 } from './edl';
 import { DRAMA_AUDIO_DATA_VERSION, type DramaAudioData, type DramaAudioSegment } from './types';
 import { generateCaptions, generateDubbing, generateVideoRewrite } from './providers';
-import { validateRewriteRequest } from './rewrite';
+import { validateRewriteRequest, validateRewriteLines } from './rewrite';
 import { currentRewriteInput, sameRewriteInput } from './rewrite-draft';
 import { makeSubtitles } from './subtitles';
+import { adoptDubbingCandidate, effectiveLineVoice, lineAudioSource, voiceKeyOf, voiceReferenceOf } from './dubbing';
+import { clipWavBytes, REFERENCE_MAX_MS, synthesizeServerTts } from './local-tts';
 
 type Patch = { data?: Record<string, unknown> };
 
@@ -358,6 +360,54 @@ export const speed: CardPackOpHandler = async (node, params) => {
   return fullPatch({ ...data, segments: data.segments.map(item => item.id === segmentId ? next : item) });
 };
 
+/** 服务端 TTS（v4）：用本机 VoxCPM 为指定台词合成真实配音——先写入工程
+ * outputs/voice/voxcpm-*.wav，再绑定该句（audioRefOverride + 配音记录）。
+ * 音色语义与卡内一致：整卡 voiceInstruction / 逐句 lineVoiceInstructions 覆盖 /
+ * 音色基准克隆（基准源须为工程内 WAV）；锁定区间的句子拒绝生成。
+ * CPU 推理单句约需数秒到数十秒；同 operationId 重放由平台凭据保证不重复执行。 */
+export const dub: CardPackOpHandler = async (node, params, ctx) => {
+  if (!ctx || !ctx.files || typeof ctx.files.readBytes !== 'function' || typeof ctx.files.writeBytes !== 'function') {
+    throw new Error('card.drama.audio: dub 需要二进制文件口（ctx.files.readBytes/writeBytes），当前平台未提供');
+  }
+  for (const key of Object.keys(params)) {
+    if (key !== 'lineId') throw new Error(`card.drama.audio: dub 不支持参数 ${key}（只需 lineId）`);
+  }
+  const { data, input } = paramsOf(node, params);
+  const raw = (node.data ?? {}) as Record<string, unknown>;
+  const lineId = assertSegmentId(input.lineId);
+  const videoDurationMs = assertInteger('videoDurationMs', data.videoDurationMs, 1, DURATION_MS_MAX);
+  const lines = validateRewriteLines(raw.rewriteLines, videoDurationMs);
+  const line = lines.find(item => item.id === lineId);
+  if (!line) throw new Error(`card.drama.audio: 台词 ${lineId} 不存在`);
+  const locks = (raw.directorEdit as { locks?: { startMs: number; endMs: number }[] } | undefined)?.locks;
+  if (locks?.some(lock => lock.startMs < line.videoEndMs && lock.endMs > line.videoStartMs)) {
+    throw new Error(`card.drama.audio: 台词 ${lineId} 的区间已被锁定，请先解锁再生成配音`);
+  }
+  // 音色语义与浏览器端 generateCandidate 一致：基准句自身/无基准 → 按描述生成；
+  // 有基准且本句无单独音色 → 克隆基准；有基准且单独设了音色 → 以基准为参考按描述调整。
+  const reference = voiceReferenceOf(raw);
+  const override = (raw.lineVoiceInstructions as Record<string, unknown> | undefined)?.[lineId];
+  const lineOverride = typeof override === 'string' && override.trim() && override.length <= 200 ? override.trim() : null;
+  let referenceWav: Uint8Array | null = null;
+  let referenceText = '';
+  if (reference && reference.lineId !== lineId) {
+    const source = await ctx.files.readBytes(ctx.projectId, reference.audioRef);
+    if (!source) throw new Error(`card.drama.audio: 音色基准音频 ${reference.audioRef} 不在工程里，无法克隆`);
+    referenceWav = clipWavBytes(source, reference.startMs, Math.min(reference.endMs, reference.startMs + REFERENCE_MAX_MS));
+    referenceText = reference.text;
+  }
+  const control = referenceWav ? (lineOverride ?? '') : effectiveLineVoice(raw, lineId);
+  const { bytes, durationMs, eventId } = await synthesizeServerTts({ text: line.text, control, referenceWav, referenceText });
+  const path = `outputs/voice/voxcpm-${eventId}.wav`;
+  await ctx.files.writeBytes(ctx.projectId, path, bytes);
+  const candidate = {
+    lineId, text: line.text, voice: voiceKeyOf(raw, lineId), videoRef: raw.videoRef,
+    previousSource: lineAudioSource(raw, lineId), audioRef: path, durationMs,
+  };
+  const changes = adoptDubbingCandidate(raw, candidate);
+  return fullPatch({ ...data, ...changes } as DramaAudioData, node);
+};
+
 export const dramaAudioOps = {
   attach,
   script,
@@ -373,6 +423,7 @@ export const dramaAudioOps = {
   span,
   voice,
   speed,
+  dub,
   analyze,
   compose,
   rewrite,

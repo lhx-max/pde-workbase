@@ -2,11 +2,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CardRenderProps } from '@bezier/canvas-card-sdk';
 import { adoptDubbingCandidate, candidateMatches, dubbingCounts, effectiveLineVoice, lineGenerationCurrent, voiceInstructionOf, voiceReferenceOf, type DubbingCandidate } from './dubbing';
 import { checkLocalVoice, fillMissing, generateCandidate, localVoiceAvailable } from './director/local-voice';
+import { importScript } from './director/director-media';
 import { requireMedia, type MediaLookup } from './director/media';
+import { sampleVideoFrames } from './director/sample-frames';
 import { readDramaAudioData, shiftSegmentWindow } from './edl';
 import { buildDirectorPlaybackPlan, gainAt, gainRegionsOf, originalGainOf, playbackDriftMs, resolvePlaybackDuration, scheduleMixGain, segmentRate, type AudioListenMode } from './playback-plan';
 import { stretchBuffer } from './director/time-stretch';
-import { insertRewriteLine, validateRewriteLines, type RewriteLine as TimedRewriteLine } from './rewrite';
+import { DEFAULT_REWRITE_PROMPT, insertRewriteLine, validateRewriteLines, type RewriteLine as TimedRewriteLine } from './rewrite';
+import { adoptRewriteDraft, availableRewriteDraft } from './rewrite-draft';
 import type { DramaAudioData, DramaAudioSegment } from './types';
 import { VoicePicker, voiceName } from './voice-picker';
 
@@ -16,6 +19,9 @@ interface RewriteLine {
   videoStartMs: number | null;
   videoEndMs: number | null;
 }
+
+/** 卡内发起平台卡包 op 的执行器（宿主注入；session-apps 页面连接 operations 端点）。 */
+export type CardOperationRunner = (operation: { type: string; nodeId: string; params?: Record<string, unknown> }) => Promise<void>;
 
 /** 试听播放倍速档位：设置 video.playbackRate，配音 WebAudio 排程跟随同一倍率。 */
 export type PlaybackRange = { startMs: number; endMs: number };
@@ -89,7 +95,7 @@ function NumberField({ label, value, max, onChange }: {
     onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }} /></label>;
 }
 
-export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRef, selectedLineId, onLineSelect, sessionMedia, beforeGenerate, onGenerationChange, batchGenerating = false, onOriginalAudio, playback, listenMode, guardPatch }: CardRenderProps & {
+export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRef, selectedLineId, onLineSelect, sessionMedia, beforeGenerate, onGenerationChange, batchGenerating = false, onOriginalAudio, playback, listenMode, guardPatch, runOperation }: CardRenderProps & {
   listOnly?: boolean;
   externalVideoRef?: React.RefObject<HTMLVideoElement>;
   selectedLineId?: string | null;
@@ -106,6 +112,8 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
   playback?: React.MutableRefObject<DubbingPlayback | null>;
   listenMode?: AudioListenMode;
   guardPatch?: (data: Record<string, unknown>) => void;
+  /** 发起卡包 op 的宿主执行器（如服务端 rewrite 改写链路）；未注入时相关按钮显式不可用。 */
+  runOperation?: CardOperationRunner | undefined;
 }) {
   const data = useMemo(() => readDramaAudioData(node), [node.data]);
   const raw = node.data ?? {};
@@ -133,6 +141,9 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
   const preparePlayback = useRef<() => void>(() => {});
   const [candidate, setCandidate] = useState<DubbingCandidate | null>(null);
   const counts = dubbingCounts(raw);
+  const [rewriteBusy, setRewriteBusy] = useState(false);
+  /** 改写 prompt 的本地草稿（textarea 提交前不落卡）。 */
+  const [promptDraft, setPromptDraft] = useState<string | null>(null);
   const latest = useRef({ data, raw, onPatch, guardPatch, listenMode });
   latest.current = { data, raw, onPatch, guardPatch, listenMode };
   const [originalAudio, setOriginalAudio] = useState(false);
@@ -597,7 +608,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
   }
 
   async function generate(onlyLineId?: string) {
-    if (!canGenerate || generationController.current || batchGenerating) return;
+    if (!canGenerate || generationController.current || batchGenerating || rewriteBusy) return;
     const controller = new AbortController();
     generationController.current = controller;
     setGenerating(true);
@@ -635,6 +646,57 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     queue.current = null;
     previewEndMs.current = null;
     previewData.current = null;
+  }
+
+  /** compose 产物一键应用为台本：句数相同时沿用原区间，其余按字数比例安排。 */
+  function applyDubbingDoc() {
+    const doc = typeof raw.dubbingDoc === 'string' ? raw.dubbingDoc : '';
+    if (!doc.trim()) { setError('配音文档为空，先由 Agent 执行 compose 生成。'); return; }
+    if (videoDurationMs <= 0) { setError('请先绑定主视频，才能为台本安排区间。'); return; }
+    if (!window.confirm('将配音文档应用为台本：重建句子列表（句数相同时沿用原区间），变更的句子需要重新核对配音。是否继续？')) return;
+    try {
+      const changes = importScript(raw, doc, videoDurationMs);
+      if (patch(changes)) setGenerationStatus('配音文档已应用为台本，请检查建议区间后补齐配音。');
+    } catch (reason) { setError(reason instanceof Error ? reason.message : '应用配音文档失败'); }
+  }
+
+  /** rewrite op 写入的草稿一键采用：替换台词并清空配音绑定（原音频文件保留在工程）。 */
+  function adoptDraft() {
+    if (!window.confirm('采用改写草稿：替换当前全部台词并清空配音绑定（已生成的音频文件保留在工程里），之后需要重新生成配音。是否继续？')) return;
+    try {
+      const changes = adoptRewriteDraft(raw);
+      if (patch(changes)) { setExpandedId(null); onLineSelect?.(null); setGenerationStatus('改写草稿已采用为台词，请逐句确认区间后生成配音。'); }
+    } catch (reason) { setError(reason instanceof Error ? reason.message : '采用改写草稿失败'); }
+  }
+
+  /** 卡内发起服务端改写：浏览器抽采样帧（≤12 帧 JPEG）→ 宿主 runOperation 提交
+   * card.drama.audio.rewrite → 万擎视觉+文本两步 → 结果落 rewriteDraft 待采用。
+   * 未配置 WQ 凭据时服务端显式报错，不在卡内假成功。 */
+  async function goRewrite() {
+    if (!runOperation) { setError('当前宿主未提供卡内操作通道，请在 session-apps 工作台里使用。'); return; }
+    if (rewriteBusy || generationController.current) return;
+    if (!videoUrl || !data.videoRef) { setError('请先绑定主视频，才能采样画面发起改写。'); return; }
+    if (data.videoDurationMs <= 0) { setError('请先确认视频时长。'); return; }
+    const controller = new AbortController();
+    generationController.current = controller;
+    setRewriteBusy(true);
+    setError('');
+    setGenerationStatus('正在抽取视频采样帧…');
+    try {
+      if (beforeGenerate && !await beforeGenerate()) throw new Error('请先解决草稿保存问题');
+      const prompt = promptDraft ?? DEFAULT_REWRITE_PROMPT;
+      const frames = await sampleVideoFrames(videoUrl, data.videoDurationMs, controller.signal);
+      setGenerationStatus(`已抽取 ${frames.length} 帧，正在提交改写请求（需要配置万擎凭据）…`);
+      await runOperation({ type: 'card.drama.audio.rewrite', nodeId: node.id,
+        params: { script: typeof raw.script === 'string' ? raw.script : null, prompt, videoRef: data.videoRef, videoDurationMs: data.videoDurationMs, frames } });
+      setGenerationStatus('改写请求已完成，请在下方核对草稿并采用。');
+    } catch (reason) {
+      if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : '改写请求失败');
+      else setGenerationStatus('已停止改写请求。');
+    } finally {
+      if (generationController.current === controller) generationController.current = null;
+      setRewriteBusy(false);
+    }
   }
 
   function reviewCandidate(take: DubbingCandidate, start: number | null, end: number | null) {
@@ -711,6 +773,48 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     return { ...styles.block, left: `${start! / videoDurationMs * 100}%`, width: `${(Math.min(end!, videoDurationMs) - start!) / videoDurationMs * 100}%` };
   }
 
+  /** 生成链路核对区：analyze / compose / rewrite 的产物在此显示并一键采用（应用前不改台词）。 */
+  const draftRows = availableRewriteDraft(raw);
+  const generationPanel = <details className="nodrag" style={styles.panel}>
+    <summary style={styles.collapsedRow}>生成链路 · 画面理解 / 配音稿 / 台词改写</summary>
+    <div style={styles.hint}>Agent 执行 analyze / compose / rewrite 后，产物在这里核对并一键采用；采用前的台词不会被改动。</div>
+    {data.captions.length > 0 && <div style={styles.row}>
+      <strong>画面理解（analyze）</strong>
+      <span style={styles.hint}>{data.captions.length} 段 · 来源 {typeof raw.captionProvider === 'string' ? raw.captionProvider : '未记录'}</span>
+    </div>}
+    {typeof raw.dubbingDoc === 'string' && raw.dubbingDoc.trim() ? <div style={styles.panel}>
+      <div style={styles.row}><strong>配音文档（compose）</strong>
+        <span style={styles.hint}>来源 {typeof raw.dubbingProvider === 'string' ? raw.dubbingProvider : '未记录'}</span>
+        <button style={styles.primaryButton} disabled={generating || rewriteBusy || loading} onClick={applyDubbingDoc}>应用为台本</button>
+      </div>
+      <div style={{ ...styles.hint, whiteSpace: 'pre-wrap', maxHeight: 120, overflowY: 'auto' }}>{raw.dubbingDoc}</div>
+    </div> : <div style={styles.hint}>尚无配音文档：由 Agent 执行 compose，或先让 Agent 执行 analyze 生成画面理解。</div>}
+    {draftRows && <div style={styles.panel}>
+      <div style={styles.row}><strong>改写草稿（rewrite）</strong>
+        <span style={styles.hint}>{draftRows.length} 句</span>
+        <button style={styles.successButton} disabled={generating || rewriteBusy || loading} onClick={adoptDraft}>采用草稿</button>
+      </div>
+      <div style={{ ...styles.hint, maxHeight: 140, overflowY: 'auto' }}>
+        {draftRows.slice(0, 5).map(row => <div key={row.id}>{row.text}</div>)}
+        {draftRows.length > 5 && <div>… 共 {draftRows.length} 句，采用后在台词列表核对</div>}
+      </div>
+    </div>}
+    <div style={styles.row}>
+      <strong>卡内发起改写</strong>
+      <button style={styles.primaryButton} disabled={!runOperation || rewriteBusy || generating || loading} onClick={() => void goRewrite()}>{rewriteBusy ? '改写中…' : '采样视频帧并发起改写'}</button>
+      {!runOperation && <span style={styles.hint}>当前宿主未接入卡内操作通道</span>}
+    </div>
+    <label style={styles.row}>改写要求<textarea style={{ ...styles.input, display: 'block', width: '100%', boxSizing: 'border-box', minHeight: 60 }}
+      defaultValue={typeof raw.rewritePrompt === 'string' && raw.rewritePrompt.trim() ? raw.rewritePrompt : DEFAULT_REWRITE_PROMPT}
+      onChange={event => setPromptDraft(event.target.value)}
+      onBlur={() => {
+        if (promptDraft === null) return;
+        const value = promptDraft.trim();
+        if (value && value !== raw.rewritePrompt) patch({ rewritePrompt: value });
+        setPromptDraft(null);
+      }} /></label>
+  </details>;
+
   return <section className="nodrag nopan" style={externalVideoRef ? { ...styles.root, background: 'transparent' } : styles.root} onPointerDown={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
     {!listOnly && <>
     <details open={!externalVideoRef} style={externalVideoRef ? { order: 2 } : undefined}>
@@ -746,6 +850,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     {error && <div role="alert" style={styles.error}>{error}</div>}
     </details>
     {externalVideoRef && error && <div role="alert" style={styles.error}>{error}</div>}
+    {!externalVideoRef && generationPanel}
     {!externalVideoRef && <div style={styles.panel}>
       <div style={styles.row}><strong>统一视频时间轴</strong><span style={styles.hint}>0 — {Math.round(videoDurationMs)} ms；上下轨共用比例，点击台词定位</span></div>
       <div>视频画面 / 原声（{originalAudio ? '原声开启' : '原声关闭'}）</div>
@@ -774,6 +879,7 @@ export function DubbingEditor({ node, onPatch, listOnly = false, externalVideoRe
     </div>}
     </>}
     {(listOnly || externalVideoRef) && <>
+    {externalVideoRef && generationPanel}
     {!externalVideoRef && <strong>配音句列表与细节编辑</strong>}
     {(!externalVideoRef || generationStatus) && <div role="status" style={styles.hint}>{!externalVideoRef && `当前配音 ${counts.current}/${counts.total} · 待补 ${counts.missing} · 待更新 ${counts.stale} · 区间已确认 ${counts.confirmed}`}{generationStatus && `${externalVideoRef ? '' : ' · '}${generationStatus}`}</div>}
     {error && <div role="alert" style={styles.error}>{error}</div>}

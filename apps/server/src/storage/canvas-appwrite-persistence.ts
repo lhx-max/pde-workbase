@@ -107,9 +107,9 @@ export class AppwriteCanvasFileContent implements CanvasFileContent {
     return this.client.download(`/storage/buckets/${enc(this.bucketId)}/files/${enc(fileId)}/download`);
   }
 
-  private async uploadIndexed(projectId: string, relative: string, bytes: Uint8Array, mime = 'text/markdown'): Promise<string> {
+  private async uploadIndexed(projectId: string, relative: string, bytes: Uint8Array, mime = 'text/markdown', kind = 'text'): Promise<string> {
     const hash = createHash('sha256').update(bytes).digest('hex');
-    const fileId = `txt-${hash.slice(0, 30)}`;
+    const fileId = `${kind === 'text' ? 'txt' : 'bin'}-${hash.slice(0, 30)}`;
     await this.client.upload(this.bucketId, fileId, relative.split('/').pop() ?? 'file', bytes, mime)
       .catch((error: unknown) => {
         if (error instanceof CanvasStateError && error.status === 409) return this.download(fileId).then(existing=>{
@@ -117,7 +117,7 @@ export class AppwriteCanvasFileContent implements CanvasFileContent {
         });
         throw error;
       });
-    const data = { canvasId: projectId, path: relative, fileId, kind: 'text', mime, size: bytes.length, sha256: hash, createdAt: new Date().toISOString() };
+    const data = { canvasId: projectId, path: relative, fileId, kind, mime, size: bytes.length, sha256: hash, createdAt: new Date().toISOString() };
     const existing = await this.find(projectId, relative);
     if (!existing) {
       await this.client.call('POST', this.client.docsPath(this.databaseId, this.files), { documentId: `f-${randomUUID().replaceAll('-', '').slice(0, 30)}`, data })
@@ -150,5 +150,25 @@ export class AppwriteCanvasFileContent implements CanvasFileContent {
   async write(projectId: string, relative: string, content: string): Promise<void> {
     relative=normalizeSafeProjectFilePath(relative);
     await this.uploadIndexed(projectId, relative, new TextEncoder().encode(content));
+  }
+
+  /** 二进制媒体口：与文本同一索引/不可变对象模型，mime 按内容类型登记。 */
+  async readBytes(projectId: string, relative: string): Promise<Uint8Array | null> {
+    relative = normalizeSafeProjectFilePath(relative);
+    const row = await this.find(projectId, relative);
+    if (row) {
+      const bytes = await this.download(row.fileId);
+      if(row.size!==undefined&&row.size!==bytes.byteLength||row.sha256!==undefined&&createHash('sha256').update(bytes).digest('hex')!==row.sha256)throw new CanvasStateError(503,'CANVAS_FILE_INTEGRITY','Cloud file integrity check failed');
+      return bytes;
+    }
+    const local = this.readLocal ? await this.readLocal(projectId, relative) : null;
+    if (local === null) return null;
+    return local;
+  }
+
+  async writeBytes(projectId: string, relative: string, bytes: Uint8Array): Promise<void> {
+    relative = normalizeSafeProjectFilePath(relative);
+    const mime = /\.wav$/iu.test(relative) ? 'audio/wav' : /\.mp3$/iu.test(relative) ? 'audio/mpeg' : 'application/octet-stream';
+    await this.uploadIndexed(projectId, relative, bytes, mime, 'binary');
   }
 }

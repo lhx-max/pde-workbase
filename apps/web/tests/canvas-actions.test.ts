@@ -60,6 +60,27 @@ it('动作映射为平台 operations 并提交（含 card_op 与 import_media �
   expect(renderReceiptLines(receipts, invalid)).toContain('已执行');
 });
 
+it('dub 动作映射为 card.drama.audio.dub 并进入提交（慢动作通道）', async () => {
+  process.env.CANVAS_SERVER_ORIGIN = 'http://127.0.0.1:18899';
+  const bodies: unknown[] = [];
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.endsWith('/operations')) {
+      bodies.push(JSON.parse(String(init?.body)));
+      return new Response(JSON.stringify({ data: { receipt: { status: 'applied' }, revision: 8 } }), { status: 200 });
+    }
+    return new Response(JSON.stringify(STATE), { status: 200 });
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  const { receipts, invalid } = await applyCanvasActions('p1', [
+    { type: 'card_op', cardId: 'card-a', op: 'dub', params: { lineId: 'seg-0' } },
+  ]);
+  expect(invalid).toEqual([]);
+  expect(receipts[0]).toMatchObject({ status: 'applied', label: '卡片 card-a 生成配音' });
+  const request = bodies[0] as { operations: { type: string; nodeId?: string; params?: Record<string, unknown> }[] };
+  expect(request.operations).toEqual([{ type: 'card.drama.audio.dub', nodeId: 'card-a', params: { lineId: 'seg-0' } }]);
+});
+
 it('import_media 缺少 cardId 时拒绝，不再隐式新建卡', async () => {
   process.env.CANVAS_SERVER_ORIGIN = 'http://127.0.0.1:18899';
   const fetchMock = vi.fn(async (input: RequestInfo | URL) =>

@@ -33,9 +33,10 @@ PDE 挑战赛 M 端命题「多模态生成的编辑器应用开发」的交付�
 
 | 不支持 / 有前提 | 说明 |
 | --- | --- |
-| 媒体持久化 | 卡片合同 v1 没有给渲染器提供授权的媒体读写口，视频和音频只在当前会话可用。刷新后用「恢复会话素材」重新选择同内容的原文件（按内容哈希匹配），或从交接包取回素材。画布持久保存的是台词、剪辑参数和素材引用。 |
-| 本机配音 | 只在页面运行于 `127.0.0.1`、且本机 VoxCPM 在 8808 端口就绪时可用；部署环境不可用。 |
-| 模型改写 | 由画布 Agent 或 CLI 提交 `card.drama.audio.rewrite`（请求含采样帧与原稿）；服务端需配置万擎（`WQ_API_KEY`、`WQ_MODEL`、`WQ_VISION_MODEL`），未配置时动作返回 `REWRITE_UNAVAILABLE`。卡内不再提供改写请求下载。 |
+| 媒体持久化 | 卡片合同 v1 没有给渲染器提供授权的媒体读写口，视频和音频只在当前会话可用。刷新后用「恢复会话素材」重新选择同内容的原文件（按内容哈希匹配），或从交接包取回素材。画布持久保存的是台词、剪辑参数和素材引用。session-apps 宿主额外注入工程级上传/读取，`dub` 动作生成的配音直接落工程文件。 |
+| 本机配音 | 浏览器端只在页面运行于 `127.0.0.1`、且本机 VoxCPM 在 8808 端口就绪时可用；服务端 `dub` 动作默认直连 `http://127.0.0.1:8808`（可用 `DRAMA_TTS_BASE` 覆盖）。部署环境未启动本机 TTS 时两者均显式不可用。 |
+| 模型改写 | 由画布 Agent、CLI 提交 `card.drama.audio.rewrite`，或卡内「生成链路」面板抽采样帧经宿主 `runOperation` 发起（session-apps 工作台已接入）；服务端需配置万擎（`WQ_API_KEY`、`WQ_MODEL`、`WQ_VISION_MODEL`），未配置时动作返回 `REWRITE_UNAVAILABLE`。产物 `rewriteDraft` 在卡内一键采用。 |
+| 生成产物消费 | `compose` 的配音文档（`dubbingDoc`）与 `rewrite` 的草稿（`rewriteDraft`）在卡内「生成链路」面板显示并可一键应用/采用；`analyze` 的画面描述（`captions`）在时间轴与该面板可见。 |
 | 配音助手的理解范围 | 只认识常见说法（句子序号、语速、音量、停顿与重叠、改台词、音色、贴合、生成、检查、导出、撤销），听不懂时回复示例；不做自由对话 |
 | 尚未实现 | 交叉淡化、词级对齐、自动降噪、响度分析、后台导出 |
 | 文件大小 | 单个媒体 ≤30 MB，单卡会话媒体合计 ≤180 MB；卡片 `data` 序列化后 ≤256 KB |
@@ -106,6 +107,9 @@ PDE 挑战赛 M 端命题「多模态生成的编辑器应用开发」的交付�
 | `align` | `segmentId`，可选 `videoStartMs`、`videoEndMs` | 设置片段的画面区间 |
 | `span` | `segmentId`，可选 `startMs`、`endMs` | 调整片段的音源区间 |
 | `rebind` | `segmentId`、`audioRef`（`null` 恢复主源） | 片段换配音源 |
+| `voice` | 可选 `voiceInstruction`（1–200 字符或 `null`）、`lineVoiceInstructions`（句 id → 描述，`null` 清除该句） | 设置整卡或逐句音色描述（元数据，不合成） |
+| `speed` | `segmentId`，`speed`/`fitSpeed`（0.5–2，传 1 清除） | 段播放倍率或贴合加速 |
+| `dub` | `lineId` | 服务端用本机 VoxCPM 为该句合成真实配音：先写工程 `outputs/voice/voxcpm-*.wav` 再绑定该句并记录配音来源（与卡内生成同一语义：整卡/逐句音色、音色基准克隆）。音色基准克隆要求基准源是工程内 WAV；锁定区间的句子拒绝生成。CPU 推理单句数秒到数十秒，幂等由平台凭据保证。TTS 不可达时显式 `TTS_UNAVAILABLE` 类错误，不假成功（默认 `http://127.0.0.1:8808`，可用 `DRAMA_TTS_BASE` 覆盖） |
 | `analyze` | 无 | 由视频生成画面描述（需配置模型） |
 | `compose` | 可选 `script` | 台本加画面描述生成配音文档（需配置模型） |
 | `rewrite` | 改写请求体（视频引用、时长、原稿、改写要求、采样帧） | 基于采样帧和原稿生成改写建议，写入 `rewriteDraft` |

@@ -20,6 +20,8 @@ const dramaAudioPackServer = {
           trimEndMs: 'card.drama.audio.trim',
           captions: 'card.drama.audio.analyze',
           dubbingDoc: 'card.drama.audio.compose',
+          generatedLineTexts: 'card.drama.audio.dub',
+          generatedLineVoices: 'card.drama.audio.dub',
         },
       },
       ops: dramaAudioOps,

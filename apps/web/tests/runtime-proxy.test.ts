@@ -68,7 +68,7 @@ describe('runtime-only standalone backend routing', () => {
     vi.stubEnv('CANVAS_SERVER_ORIGIN', b);
     expect(await (await proxyCanvasRequest(new Request('http://localhost:8001/api/projects'))).text()).toBe('B');
   });
-  it('streams multipart bytes and preserves user scope, browser origin and runtime authentication', async () => {
+  it('streams multipart bytes and preserves user scope and runtime authentication; browser origin is stripped, not forwarded', async () => {
     const origin = await upstream(async (req, res) => {
       const chunks: Buffer[] = [];
       for await (const chunk of req) chunks.push(Buffer.from(chunk));
@@ -83,7 +83,10 @@ describe('runtime-only standalone backend routing', () => {
     }));
     const echoed = await response.json();
     expect(echoed).toMatchObject({ url: '/api/projects/p/upload?folder=a%2Fb', method: 'POST', body: '--test-boundary\r\noriginal bytes' });
-    expect(echoed.headers).toMatchObject({ 'x-workspace-id': 'scope-A', origin: 'null', authorization: 'Bearer test-transport-secret', 'x-forwarded-host': 'localhost:8011' });
+    expect(echoed.headers).toMatchObject({ 'x-workspace-id': 'scope-A', authorization: 'Bearer test-transport-secret', 'x-forwarded-host': 'localhost:8011' });
+    // 浏览器 Origin（web 端口 ≠ canvas 端口）透传到后端会触发其 CSRF 防御（ORIGIN_FORBIDDEN），
+    // 服务间转发的信任判定由 trustedWebAuthority 完成，因此 origin 必须剥离。
+    expect(echoed.headers.origin).toBeUndefined();
     expect(response.headers.get('authorization')).toBeNull();
   });
   it('preserves range status and content disposition without buffering streamed SSE', async () => {

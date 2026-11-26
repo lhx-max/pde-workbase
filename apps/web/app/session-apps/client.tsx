@@ -87,6 +87,31 @@ export default function SessionAppsClient() {
     }
   }, []);
 
+  /** 卡内发起平台卡包 op（如 card.drama.audio.rewrite 改写链路）：
+   * 走 operations 批量端点（幂等凭据 + baseRevision 乐观锁），失败显式抛错不假成功。 */
+  const runOperation = useCallback(async (operation: { type: string; nodeId: string; params?: Record<string, unknown> }) => {
+    const id = projectRef.current;
+    inflightCardIds.current.add(operation.nodeId);
+    try {
+      const state = await readState(id);
+      const response = await fetch(`/api/apps/canvas/instances/${encodeURIComponent(id)}/operations`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          operationId: `assist${crypto.randomUUID().replace(/-/gu, '').slice(0, 24)}`,
+          baseRevision: state.revision,
+          operations: [operation],
+        }),
+        signal: AbortSignal.timeout(300_000),
+      });
+      const body = await response.json().catch(() => null) as { data?: { receipt?: { status?: string } }; error?: { message?: string; code?: string } } | null;
+      if (!response.ok) throw new Error(body?.error?.message ?? `操作失败 HTTP ${response.status}（${body?.error?.code ?? '未知错误'}）`);
+      const status = body?.data?.receipt?.status;
+      if (status !== 'applied' && status !== 'noop') throw new Error(`操作未生效（${status ?? '无回执'}）`);
+    } finally {
+      inflightCardIds.current.delete(operation.nodeId);
+    }
+  }, []);
+
   const boundMedia = (cardIdForMedia: string) => ({
     ...media,
     resolve: (ref: string) => {
@@ -144,16 +169,7 @@ export default function SessionAppsClient() {
       </div>
     </div>}
     <div hidden={!welcomeShown}>
-      <div className={styles.sessionControls}>
-        <a href={`/?projectId=${encodeURIComponent(projectId)}`}>打开画布</a>
-        <span>新版短剧导演工作台</span>
-        {cards.length > 1 && cards.map(card => (
-          <button key={card.id} type="button" onClick={() => setActiveCardId(card.id)}
-            style={{ fontWeight: card.id === activeCardId ? 'bold' : undefined }}>
-            {card.title ?? card.id}
-          </button>
-        ))}
-      </div>
+      {/* 打开画布入口与卡片切换放在工作台头部「音频工作台」标题后面，不再用左下角浮条（曾被时间轴 UI 遮挡）。 */}
       {error && <div className={styles.sessionError} role="alert">{error}</div>}
       {cards.length === 0 && !error && <div className={styles.sessionEmpty} role="status">正在加载新版短剧导演工作台…</div>}
       {cards.map(card => {
@@ -166,6 +182,15 @@ export default function SessionAppsClient() {
               selected
               media={boundMedia(cid)}
               assistantAgent={createCliAssistant(() => pid, () => cid, () => snapshotScene(cards))}
+              runOperation={runOperation}
+              headerExtra={<>
+                <a href={`/?projectId=${encodeURIComponent(pid)}`}>打开画布</a>
+                {cards.length > 1 && cards.map(item => (
+                  <button key={item.id} type="button" data-active={item.id === activeCardId} onClick={() => setActiveCardId(item.id)}>
+                    {item.title ?? item.id}
+                  </button>
+                ))}
+              </>}
               onPatch={makeOnPatch(cid)}
               onClose={() => {
                 if (cards.length > 1) setActiveCardId(cards.find(item => item.id !== cid)?.id ?? null);

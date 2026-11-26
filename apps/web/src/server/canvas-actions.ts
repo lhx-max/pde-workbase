@@ -51,15 +51,20 @@ const CREATE_CARD_KINDS = new Set(['card.drama.audio']);
 /** 卡包 op 白名单（与 packages/canvas-pack-drama-audio/src/ops.ts 的 dramaAudioOps 同步）。 */
 const CARD_OPS = new Set([
   'attach', 'script', 'upsert', 'remove', 'gap', 'gain', 'mute', 'trim', 'video',
-  'align', 'rebind', 'span', 'voice', 'speed', 'analyze', 'compose', 'rewrite', 'export', 'export-srt',
+  'align', 'rebind', 'span', 'voice', 'speed', 'dub', 'analyze', 'compose', 'rewrite', 'export', 'export-srt',
 ]);
 
 const CARD_OP_LABELS: Record<string, string> = {
   attach: '绑定配音源', script: '写台词', upsert: '增改分段', remove: '删分段', gap: '段后停顿',
   gain: '调音量', mute: '静音开关', trim: '裁剪', video: '绑定视频', align: '段对齐视频',
-  rebind: '段换配音', span: '段区间', voice: '音色', speed: '变速', analyze: '画面理解',
+  rebind: '段换配音', span: '段区间', voice: '音色', speed: '变速', dub: '生成配音', analyze: '画面理解',
   compose: '生成配音稿', rewrite: '改写台词', export: '导出 EDL', 'export-srt': '导出字幕',
 };
+
+/** dub 走本机 VoxCPM 真实合成（CPU 推理单句数秒到数十秒），提交超时单独放宽。 */
+const SLOW_OPS = new Set(['card.drama.audio.dub', 'card.drama.audio.rewrite']);
+const OPERATION_TIMEOUT_MS = (operations: PlatformOperation[]) =>
+  operations.some(operation => SLOW_OPS.has(operation.type)) ? 300_000 : 60_000;
 
 function canvasOrigin(): URL {
   const configured = process.env.CANVAS_SERVER_ORIGIN?.trim();
@@ -390,7 +395,7 @@ export async function applyCanvasActions(projectId: string, actions: AgentAction
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ operationId: `assist${crypto.randomUUID().replace(/-/gu, '').slice(0, 24)}`, baseRevision: revision, operations }),
-      signal: AbortSignal.timeout(60_000),
+      signal: AbortSignal.timeout(OPERATION_TIMEOUT_MS(operations)),
     });
     if (response.status === 409) {
       return { receipts: failed('画布版本冲突（409），请基于最新画布重试'), invalid, conflict: true };

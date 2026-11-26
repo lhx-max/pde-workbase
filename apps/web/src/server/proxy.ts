@@ -54,6 +54,10 @@ export async function proxyCanvasRequest(request: Request): Promise<Response> {
   const target = `${origin.origin}${incoming.pathname}${incoming.search}`;
   const headers = cleanHeaders(request.headers);
   headers.delete('host');
+  // Origin 是浏览器 CSRF 语义：这里的转发已由 trustedWebAuthority 完成 Host 信任判定（服务间同机转发），
+  // 透传浏览器 Origin（web 端口 ≠ canvas 端口）会被后端 ORIGIN_FORBIDDEN 误拒，导致保存/上传全部 403。
+  headers.delete('origin');
+  headers.delete('referer');
   headers.delete('content-length');
   headers.set('x-forwarded-host', authority.host);
   headers.set('x-forwarded-proto', authority.protocol.slice(0, -1));

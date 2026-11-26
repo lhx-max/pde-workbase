@@ -50,6 +50,9 @@ export interface CanvasPersistence {
 export interface CanvasFileContent {
   read(projectId: string, relative: string): Promise<string | null>;
   write(projectId: string, relative: string, content: string): Promise<void>;
+  /** 二进制媒体口：卡包 op 写/读音频等媒体字节；实现方未提供时调用方须显式失败。 */
+  readBytes?(projectId: string, relative: string): Promise<Uint8Array | null>;
+  writeBytes?(projectId: string, relative: string, bytes: Uint8Array): Promise<void>;
 }
 
 const isMissing = (error: unknown): boolean => error instanceof Error && 'code' in error
@@ -168,5 +171,24 @@ export class FileCanvasContent implements CanvasFileContent {
     const file = await this.file(projectId, relative);
     await mkdir(path.dirname(file), { recursive: true });
     await atomicWrite(file, content);
+  }
+
+  async readBytes(projectId: string, relative: string): Promise<Uint8Array | null> {
+    try { return await readFile(await this.file(projectId, relative)); }
+    catch (error) { if (isMissing(error)) return null; throw error; }
+  }
+
+  async writeBytes(projectId: string, relative: string, bytes: Uint8Array): Promise<void> {
+    const file = await this.file(projectId, relative);
+    await mkdir(path.dirname(file), { recursive: true });
+    const temporary = path.join(path.dirname(file), `.${path.basename(file)}.${process.pid}.${randomUUID()}.tmp`);
+    try {
+      await writeFile(temporary, bytes, { flag: 'wx' });
+      await rename(temporary, file);
+    } catch (error) {
+      throw new CanvasStateError(500, 'CANVAS_STORAGE_ERROR', 'failed to persist canvas binary atomically', {
+        cause: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 }

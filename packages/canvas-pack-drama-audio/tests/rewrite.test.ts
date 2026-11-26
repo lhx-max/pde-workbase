@@ -1,6 +1,6 @@
 import { createServer, type Server } from 'node:http';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { generateVideoRewrite } from '../src/providers';
+import { generateVideoRewrite, DEFAULT_WQ_MODEL } from '../src/providers';
 import { adoptRewriteDraft } from '../src/rewrite-draft';
 import { rewrite } from '../src/ops';
 import { DEFAULT_REWRITE_PROMPT, insertRewriteLine, changeRewriteWindow, REWRITE_BODY_MAX_BYTES, validateRewriteLines, validateRewriteRequest, type VideoRewriteRequest } from '../src/rewrite';
@@ -28,7 +28,9 @@ beforeEach(async () => {
     requests.push({ path: req.url, body, authorization: req.headers.authorization });
     if (redirect) { res.writeHead(302, { location: `${base}/unexpected` }); res.end(); return; }
     res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify(body.model === 'fixture-vision' ? visionOutput : textOutput));
+    // 视觉步 user content 是多模态数组、文本步是 JSON 字符串；按内容分发，与模型名解耦（模型可走内置缺省）。
+    const userContent = (body.messages as { content?: unknown }[] | undefined)?.[1]?.content;
+    res.end(JSON.stringify(Array.isArray(userContent) ? visionOutput : textOutput));
   });
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   const address = server.address();
@@ -108,10 +110,17 @@ describe('generateVideoRewrite', () => {
     expect(JSON.stringify(result)).not.toContain('fixture-key');
   });
 
-  it.each(['WQ_VISION_MODEL', 'WQ_MODEL', 'WQ_API_KEY'])('缺少 %s 显式不可用且不请求网络', async name => {
-    vi.stubEnv(name, '');
+  it('缺少 WQ_API_KEY 显式不可用且不请求网络', async () => {
+    vi.stubEnv('WQ_API_KEY', '');
     await expect(generateVideoRewrite(input)).rejects.toThrow('REWRITE_UNAVAILABLE');
     expect(requests).toHaveLength(0);
+  });
+
+  it('WQ_MODEL / WQ_VISION_MODEL 缺省走内置端点模型', async () => {
+    vi.stubEnv('WQ_VISION_MODEL', '');
+    vi.stubEnv('WQ_MODEL', '');
+    await generateVideoRewrite(input);
+    expect(requests.map(item => item.body.model)).toEqual([DEFAULT_WQ_MODEL, DEFAULT_WQ_MODEL]);
   });
 
   it.each([

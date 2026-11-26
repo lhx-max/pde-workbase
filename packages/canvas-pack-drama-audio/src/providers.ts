@@ -8,6 +8,12 @@
 import type { DramaAudioCaption } from './types';
 import { rewriteDocOf, validateRewriteLines, validateRewriteRequest, type RewriteLine, type VideoRewriteRequest } from './rewrite';
 
+/** 万擎内置缺省（2026-11-24 用户提供）：API_BASE 为办公网网关，
+ * MODEL/VISION_MODEL 共用同一内置端点模型；均可被 WQ_* 环境变量覆盖。
+ * 只配 WQ_API_KEY 即可启用 compose 与 rewrite 全链。 */
+export const DEFAULT_WQ_MODEL = 'ep-832kdf-1795504035348260423';
+export const DEFAULT_WQ_API_BASE = 'https://wanqing-api.corp.kuaishou.com/api/gateway/v1/endpoints';
+
 export interface CaptionRequest {
   videoRef: string;
   videoDurationMs: number;
@@ -35,7 +41,8 @@ const CAPTION_KEY_ENV = 'DENSE_CAPTION_API_KEY';
 const DUBBING_URL_ENV = 'DUBBING_API_URL';
 const DUBBING_KEY_ENV = 'DUBBING_API_KEY';
 const PROVIDER_ENV = 'DRAMA_AUDIO_PROVIDER';
-const FETCH_TIMEOUT_MS = 30_000;
+/** LLM 生成类请求（万擎 compose/rewrite 两步）长输出耗时可达数十秒，30s 不够；120s 上限。 */
+const FETCH_TIMEOUT_MS = 120_000;
 
 function envOf(name: string): string | undefined {
   const value = process.env[name];
@@ -141,16 +148,16 @@ async function generateWanqingDubbing(request: DubbingRequest): Promise<DubbingR
   const key = envOf('WQ_API_KEY');
   if (!key) throw new Error('card.drama.audio: 万擎 provider 未配置 WQ_API_KEY');
   if (!request.script?.trim() && !request.captions.length) throw new Error('card.drama.audio: 请先输入画面描述或配音草稿');
-  const base = envOf('WQ_API_BASE') ?? 'https://wanqing-api.corp.kuaishou.com/api/gateway/v1/endpoints';
+  const base = envOf('WQ_API_BASE') ?? DEFAULT_WQ_API_BASE;
   const url = new URL(base);
   if (url.username || url.password || url.search || url.hash || !['http:', 'https:'].includes(url.protocol)) {
     throw new Error('card.drama.audio: 万擎地址必须是不含凭据的 HTTP/HTTPS URL');
   }
-  const model = envOf('WQ_MODEL') ?? 'ep-7wk3ep-1792046051430404420';
+  const model = envOf('WQ_MODEL') ?? DEFAULT_WQ_MODEL;
   const parsed = await postJson(`${base.replace(/\/$/u, '')}/chat/completions`, key, {
     model,
     messages: [
-      { role: 'system', content: '你是短剧配音稿编辑。仅根据提供的画面描述和草稿生成自然、可朗读的中文配音稿；保留提供的时间区间，不编造未提供的画面事实，不声称观看过视频。只输出配音稿正文。' },
+      { role: 'system', content: '你是短剧配音稿编辑。仅根据提供的画面描述和草稿生成自然、可朗读的中文配音稿；保留提供的时间区间，不编造未提供的画面事实，不声称观看过视频。直接从第一句配音稿正文开始输出；禁止输出思考过程、分析、元话语（例如「我们需要」「用户要求」「任务」等自我讨论），禁止解释、标题和开场套话。' },
       { role: 'user', content: JSON.stringify({ script: request.script, captions: request.captions.map(({ startMs, endMs, text }) => ({ startMs, endMs, text })) }) },
     ],
   });
@@ -182,7 +189,7 @@ export interface VideoRewriteResult {
 function wanqingGateway(model: string, modelEnv: string): { url: string; key: string; model: string } {
   const key = envOf('WQ_API_KEY');
   if (!key) throw new Error(`card.drama.audio: REWRITE_UNAVAILABLE，未配置 WQ_API_KEY`);
-  const base = envOf('WQ_API_BASE') ?? 'https://wanqing-api.corp.kuaishou.com/api/gateway/v1/endpoints';
+  const base = envOf('WQ_API_BASE') ?? DEFAULT_WQ_API_BASE;
   const url = new URL(base);
   if (url.username || url.password || url.search || url.hash || !['http:', 'https:'].includes(url.protocol)) {
     throw new Error('card.drama.audio: 万擎地址必须是不含凭据的 HTTP/HTTPS URL');
@@ -253,8 +260,8 @@ async function rewriteLinesWithObservations(request: VideoRewriteRequest, observ
 
 export async function generateVideoRewrite(request: VideoRewriteRequest): Promise<VideoRewriteResult> {
   const input = validateRewriteRequest(request as unknown as Record<string, unknown>);
-  const visionGateway = wanqingGateway(envOf('WQ_VISION_MODEL') ?? '', 'WQ_VISION_MODEL');
-  const textGateway = wanqingGateway(envOf('WQ_MODEL') ?? '', 'WQ_MODEL');
+  const visionGateway = wanqingGateway(envOf('WQ_VISION_MODEL') ?? DEFAULT_WQ_MODEL, 'WQ_VISION_MODEL');
+  const textGateway = wanqingGateway(envOf('WQ_MODEL') ?? DEFAULT_WQ_MODEL, 'WQ_MODEL');
   const observations = await observeVideoFrames(input, visionGateway);
   const { lines, doc } = await rewriteLinesWithObservations(input, observations, textGateway);
   return { provider: `wanqing:${textGateway.model}`, visionProvider: `wanqing:${visionGateway.model}`, observations, lines, doc };

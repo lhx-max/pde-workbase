@@ -126,11 +126,13 @@ export async function askMyflicker(params: {
     '  {"type":"card_op","cardId":"<卡片id>","op":"voice","params":{"voiceInstruction":"低沉磁性男声","lineVoiceInstructions":{"seg-1":"活泼女声"}}},\n' +
     '  {"type":"card_op","cardId":"<卡片id>","op":"speed","params":{"segmentId":"seg-1","speed":0.75,"fitSpeed":1}},\n' +
     '  {"type":"card_op","cardId":"<卡片id>","op":"analyze"},{"type":"card_op","cardId":"<卡片id>","op":"compose"},\n' +
+    '  {"type":"card_op","cardId":"<卡片id>","op":"dub","params":{"lineId":"seg-1"}},\n' +
     '  {"type":"import_media","cardId":"<卡片id>","title":"新片段","audioRef":"outputs/voice/a.mp3","durationMs":60000,"videoRef":"inputs/v.mp4","videoDurationMs":60000},\n' +
     '  {"type":"import_media","cardId":"<卡片id>","title":"从本机导入","src":"/absolute/path/video.mp4"}\n' +
     ']}\n```\\n' +
     '动作约束：cardId 只能用「画布卡片清单」里的 id；create_card 仅 kind=card.drama.audio；\n' +
-    'card_op 的 op 白名单：attach/script/upsert/remove/gap/gain/mute/trim/video/align/rebind/span/voice/speed/analyze/compose/rewrite/export/export-srt，params 形状与各 op 一致（voice 的 lineVoiceInstructions 值为 null 时清除该句覆盖）；\n' +
+    'card_op 的 op 白名单：attach/script/upsert/remove/gap/gain/mute/trim/video/align/rebind/span/voice/speed/dub/analyze/compose/rewrite/export/export-srt，params 形状与各 op 一致（voice 的 lineVoiceInstructions 值为 null 时清除该句覆盖）；\n' +
+    'dub 用本机 VoxCPM 为一句台词真实合成配音并落卡（params 只需 lineId，音色由卡上 voice/voiceInstruction 决定；CPU 生成单句约需数秒到数十秒，一次提议不要超过 3 句，本机 TTS 未启动时该动作会显式失败）；\n' +
     '注意 segmentId 是否必填因 op 而异：gain 可省略 segmentId 表示整卡音量（否则必须是真实 id）；speed/mute/trim/gap 没有“整卡”概念，segmentId 必填且必须是真实 id，不能留空或编造；卡片清单里 data.segmentIds 是该卡已有分段 id 的逗号分隔列表（可直接使用，不是台词原文）；若用户说“这句/第N句”但既没有分享台词也没有 segmentIds，先在回答里明确询问是哪一句，不要猜一个 id 或省略该字段去尝试；\n' +
     'upsert 是整段覆盖写入、不是只改传入字段的局部 patch：params.segment 必须一次性包含 id/label/startMs/endMs/gapMs/gain 全部字段（缺一个就报错）；只想改某个分段的一两个字段时改用对应专用 op（gap/gain/mute/trim/speed/rebind），不要用 upsert 只传要改的字段；\n' +
     'import_media 必须带已有卡片的 cardId（不会新建卡；要新建卡先用 create_card 再对新卡 cardId 导入），三种形态：①工程内 audioRef+durationMs；②工程内 videoRef+videoDurationMs（纯视频）；③双轨 audioRef+videoRef；\n' +

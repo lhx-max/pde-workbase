@@ -4,7 +4,7 @@ import { Copy, Scissors, ClipboardPaste, Trash2, Magnet, Undo2, Redo2, FolderOpe
 import type { CSSProperties } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CardRenderProps } from '@bezier/canvas-card-sdk';
-import { DubbingEditor, type DubbingPlayback } from '../dubbing-editor';
+import { DubbingEditor, type DubbingPlayback, type CardOperationRunner } from '../dubbing-editor';
 import { changeRewriteWindow, validateRewriteLines, type RewriteLine as TimedDubbingLine } from '../rewrite';
 import { dubbingCounts, voiceInstructionOf, voiceReferenceOf } from '../dubbing';
 import { resolvePlaybackDuration, segmentRate } from '../playback-plan';
@@ -43,10 +43,14 @@ interface EditorSegment { leadMs?: number; speed?: number; fitSpeed?: number; st
 type TimelineTrack = 'original' | 'voice' | 'background';
 type BoundaryDrag = { range: TimeRange; index: number; edge: keyof TimeRange; pointer: number; x: number; width: number };
 
-export function Workbench({ node: editorNode, onPatch, media, onClose, assistantAgent }: CardRenderProps & {
+export function Workbench({ node: editorNode, onPatch, media, onClose, assistantAgent, runOperation, headerExtra }: CardRenderProps & {
   assistantAgent?: AssistantAgent | undefined;
   media: ReturnType<typeof useSessionMedia>;
   onClose: () => void;
+  /** 宿主注入的卡包 op 执行器（卡内发起服务端改写等）。 */
+  runOperation?: CardOperationRunner | undefined;
+  /** 宿主注入的头部附加 UI（如 session-apps 的「打开画布」入口），渲染在标题后面。 */
+  headerExtra?: React.ReactNode;
 }) {
   const workspace = useWorkbenchLayout();
   const readPeaks = useMemo(createPeakReader, []);
@@ -689,6 +693,7 @@ export function Workbench({ node: editorNode, onPatch, media, onClose, assistant
     <header className={styles.header}>
       <span className={styles.brandDot} />
       <h1 className={styles.title}>DesignAI <span>音频工作台</span></h1>
+      {headerExtra && <span className={styles.headerExtra}>{headerExtra}</span>}
         <div className={styles.toolbar} aria-label="保存和撤销">
           <button type="button" className={styles.toolBtn} disabled={projectBusy || !editor.history.undo.length} onClick={() => editor.moveHistory('undo')}><Undo2 size={14} />撤销</button>
           <button type="button" className={styles.toolBtn} disabled={projectBusy || !editor.history.redo.length} onClick={() => editor.moveHistory('redo')}><Redo2 size={14} />重做</button>
@@ -927,6 +932,7 @@ export function Workbench({ node: editorNode, onPatch, media, onClose, assistant
                 sessionMedia={{ readData: editor.draftData, resolve: media.resolve, add: media.add }}
                 onGenerationChange={setLineGenerating} batchGenerating={generating || mediaBusy || deliveryBusy}
                 playback={playback} listenMode={listenMode}
+                runOperation={runOperation}
                 guardPatch={next => assertUnlocked(editor.draftData() ?? {}, next)}
                 onPatch={patch => { if (patch.data) editor.patch(patch.data); }} /></div>
             : <div className={styles.editorEmpty} role="status">请在素材面板导入音频或台词。</div>}

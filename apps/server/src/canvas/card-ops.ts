@@ -7,8 +7,9 @@ type Item = Record<string, unknown> & { id: string };
 /** Server-side context handed to a card-pack op handler. */
 export interface CardOpContext {
   projectId: string;
-  /** Project-relative file port; lands in the active storage backend. */
-  files: Pick<CanvasFileContent, 'read' | 'write'>;
+  /** Project-relative file port; lands in the active storage backend.
+   * readBytes/writeBytes 是可选二进制口（媒体字节）；未提供时卡包须显式报错。 */
+  files: Pick<CanvasFileContent, 'read' | 'write'> & Partial<Pick<CanvasFileContent, 'readBytes' | 'writeBytes'>>;
 }
 
 /** Returns the data patch to merge into the card, or void for no change. */
