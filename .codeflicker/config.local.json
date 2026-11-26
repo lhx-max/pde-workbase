@@ -5,7 +5,8 @@
       "Fetch(domain:docs.github.com)",
       "Fetch(domain:git.corp.kuaishou.com)",
       "Fetch(domain:cdnfile.corp.kuaishou.com)",
-      "EnterPlanMode"
+      "EnterPlanMode",
+      "KillTask"
     ]
   }
 }
